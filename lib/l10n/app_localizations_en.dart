@@ -1,0 +1,515 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for English (`en`).
+class AppLocalizationsEn extends AppLocalizations {
+  AppLocalizationsEn([String locale = 'en']) : super(locale);
+
+  @override
+  String get appTitle => 'CNS Control Center';
+
+  @override
+  String appTitleWithVersion(Object version) {
+    return 'Custom Nanosuit System $version';
+  }
+
+  @override
+  String get installNewMod => 'Install New Mod';
+
+  @override
+  String get selectFiles => 'Select Files';
+
+  @override
+  String get selectFolder => 'Select Folder';
+
+  @override
+  String get installSelectedMod => 'Install Selected Mod';
+
+  @override
+  String get filesToInstall => 'Files to Install:';
+
+  @override
+  String get cancelSelection => 'Cancel Selection';
+
+  @override
+  String get searchMods => 'Search mods...';
+
+  @override
+  String get enabledMods => 'Enabled Mods';
+
+  @override
+  String get disabledMods => 'Disabled Mods';
+
+  @override
+  String get refreshList => 'Refresh list';
+
+  @override
+  String get noEnabledMods => 'No enabled mods.';
+
+  @override
+  String get noDisabledMods => 'No disabled mods.';
+
+  @override
+  String get showInFolder => 'Show in folder';
+
+  @override
+  String get disableMod => 'Disable mod';
+
+  @override
+  String get enableMod => 'Enable mod';
+
+  @override
+  String get deletePermanently => 'Delete permanently';
+
+  @override
+  String get settings => 'Settings';
+
+  @override
+  String get language => 'Language';
+
+  @override
+  String get selectLanguage => 'Select a language';
+
+  @override
+  String get statusSearchingGame =>
+      'Searching for Stellar Blade installation...';
+
+  @override
+  String get statusGamePathFound => 'Game path found!';
+
+  @override
+  String get statusGamePathNotFound =>
+      'Could not find the game path automatically.';
+
+  @override
+  String statusErrorFindingGame(Object error) {
+    return 'An error occurred while searching for the game: $error';
+  }
+
+  @override
+  String statusModsFound(Object disabledCount, Object enabledCount) {
+    return '$enabledCount mod(s) enabled, $disabledCount disabled.';
+  }
+
+  @override
+  String statusErrorReadingMods(Object error) {
+    return 'Error reading installed mods: $error';
+  }
+
+  @override
+  String statusFilesSelected(Object count) {
+    return '$count file(s) selected. Ready to install.';
+  }
+
+  @override
+  String statusFolderSelected(Object folderName) {
+    return 'Folder \"$folderName\" selected. Ready to install.';
+  }
+
+  @override
+  String statusArchiveLoaded(Object count, Object fileName) {
+    return 'File \"$fileName\" loaded. $count file(s) ready to install.';
+  }
+
+  @override
+  String get statusSelectionCancelled =>
+      'Selection cancelled. Choose a new mod to install.';
+
+  @override
+  String get statusUpdateComplete => 'Update complete.';
+
+  @override
+  String get statusInstallationComplete => 'Installation complete.';
+
+  @override
+  String statusError(Object error) {
+    return 'Error: $error';
+  }
+
+  @override
+  String get dialogTitle7zip => '7-Zip is Required';
+
+  @override
+  String get dialogContent7zip =>
+      'To decompress this file, the application needs 7-Zip.\n\nPlease install it from its official page and then press \"Confirm\".';
+
+  @override
+  String get dialogContent7zipNotFound =>
+      '7-Zip has not been detected yet. Please make sure it is installed in the default path and try again.';
+
+  @override
+  String get dialogTitleCNSUpdate => 'Main System Update Detected';
+
+  @override
+  String get dialogContentCNSUpdate =>
+      'An update for the \"Custom Nanosuit System\" has been detected.\n\nThis will replace files in the main game folder (StellarBlade\\SB). Do you wish to continue?';
+
+  @override
+  String get dialogTitleMultipleJsons => 'Multiple .json Files Detected';
+
+  @override
+  String dialogContentMultipleJsons(Object count) {
+    return '$count .json files have been detected. This could be a mod with multiple components.\n\nDo you want to install them all together in a single mod folder?';
+  }
+
+  @override
+  String get dialogTitleModExists => 'Mod Already Exists';
+
+  @override
+  String dialogContentModExists(Object modName) {
+    return 'A mod named \"$modName\" is already installed.\n\nDo you want to update it? Old files will be deleted before installing the new ones.';
+  }
+
+  @override
+  String dialogContentModUpdate(Object newModName, Object oldModName) {
+    return 'An older version \'$oldModName\' was found.\n\nDo you want to remove it and update to \'$newModName\'?';
+  }
+
+  @override
+  String get dialogTitleDeleteMod => 'Delete Permanently?';
+
+  @override
+  String dialogContentDeleteMod(Object modName) {
+    return 'You are about to permanently delete the mod \"$modName\". This action cannot be undone.\n\nAre you sure?';
+  }
+
+  @override
+  String get dialogActionCancel => 'Cancel';
+
+  @override
+  String get dialogActionGoToDownload => 'Go to Download Page';
+
+  @override
+  String get dialogActionConfirmInstallation => 'Confirm Installation';
+
+  @override
+  String get dialogActionUpdateSystem => 'Update System';
+
+  @override
+  String get dialogActionInstallAnyway => 'Install Anyway';
+
+  @override
+  String get dialogActionUpdate => 'Update';
+
+  @override
+  String get dialogActionDelete => 'Delete';
+
+  @override
+  String get dialogActionClose => 'Close';
+
+  @override
+  String snackBarBatchInstallComplete(Object failedCount, Object successCount) {
+    return 'Batch installation complete. Success: $successCount, Failed: $failedCount.';
+  }
+
+  @override
+  String snackBarModInstalled(Object modName) {
+    return 'Mod \"$modName\" installed successfully.';
+  }
+
+  @override
+  String snackBarModEnabled(Object modName) {
+    return 'Mod \"$modName\" enabled.';
+  }
+
+  @override
+  String snackBarModDisabled(Object modName) {
+    return 'Mod \"$modName\" disabled.';
+  }
+
+  @override
+  String snackBarModDeleted(Object modName) {
+    return 'Mod \"$modName\" permanently deleted.';
+  }
+
+  @override
+  String get snackBarCNSUpdated =>
+      'Custom Nanosuit System updated successfully.';
+
+  @override
+  String get dropTargetOverlay => 'Drop mods here';
+
+  @override
+  String get pathSelectionTitle => 'Stellar Blade Path Not Found';
+
+  @override
+  String get pathSelectionButtonManual => 'Select Game Folder Manually';
+
+  @override
+  String get pathSelectionButtonRetry => 'Try Again';
+
+  @override
+  String errorFolderSelection(Object error) {
+    return 'Error selecting folder: $error';
+  }
+
+  @override
+  String errorFileSelection(Object error) {
+    return 'Error selecting files: $error';
+  }
+
+  @override
+  String errorDecompressing(Object error) {
+    return 'Error decompressing file: $error';
+  }
+
+  @override
+  String errorProcessingArchive(Object error) {
+    return 'Error processing file: $error';
+  }
+
+  @override
+  String errorUnsupportedFormat(Object extension) {
+    return 'Unsupported file format: $extension';
+  }
+
+  @override
+  String get error7zipRequired => 'Operation cancelled: 7-Zip is required.';
+
+  @override
+  String get errorGamePathUndefined => 'Game path is not defined.';
+
+  @override
+  String get errorDestinationNotFound =>
+      'The game\'s destination folder does not exist.';
+
+  @override
+  String errorUpdateSystem(Object error) {
+    return 'Error updating system: $error';
+  }
+
+  @override
+  String get errorInstallNoSelection =>
+      'You have not selected anything to install.';
+
+  @override
+  String get errorInstallModExists =>
+      'Installation cancelled: Mod already exists.';
+
+  @override
+  String get errorNoJsonFound =>
+      'Each mod must contain at least one .json file.';
+
+  @override
+  String errorInvalidJsonFormat(Object fileName) {
+    return 'The file $fileName has an invalid JSON format.';
+  }
+
+  @override
+  String errorNoDisplayName(Object fileName) {
+    return 'The file $fileName does not appear to be a Custom Nanosuit System mod (missing \"DisplayName\").';
+  }
+
+  @override
+  String get errorNoValidDisplayName =>
+      'No valid \"DisplayName\" was found in the .json files.';
+
+  @override
+  String errorEnableMod(Object error) {
+    return 'Error enabling mod: $error';
+  }
+
+  @override
+  String errorDisableMod(Object error) {
+    return 'Error disabling mod: $error';
+  }
+
+  @override
+  String errorDeleteMod(Object error) {
+    return 'Error deleting mod: $error';
+  }
+
+  @override
+  String errorOpenFolder(Object path) {
+    return 'Could not open folder: $path';
+  }
+
+  @override
+  String get statusUpdateSystemCancelled => 'System update cancelled.';
+
+  @override
+  String get statusUpdatingCNS => 'Updating Custom Nanosuit System...';
+
+  @override
+  String statusExtractingFile(Object fileName) {
+    return 'Extracting $fileName...';
+  }
+
+  @override
+  String get statusInstallationCancelledByUser =>
+      'Installation cancelled by user.';
+
+  @override
+  String get errorNoCompatibleFilesInFolder =>
+      'The selected folder does not contain compatible mod files.';
+
+  @override
+  String get errorNoCompatibleFilesInArchive =>
+      'The compressed file does not contain compatible mod files.';
+
+  @override
+  String get errorNoJsonInSelection =>
+      'The selection does not contain a valid mod .json file.';
+
+  @override
+  String get aboutTitle => 'About CNS Control Center';
+
+  @override
+  String get aboutContent =>
+      'This application is a mod manager for Stellar Blade, designed to work with the Custom Nanosuit System (CNS).\n\nRequirement: For full functionality with .rar and .7z files, 7-Zip must be installed on your system.';
+
+  @override
+  String get aboutLinkText => 'Visit my creator profile';
+
+  @override
+  String get creatorProfileUrl =>
+      'https://www.nexusmods.com/users/your-user-id';
+
+  @override
+  String aboutVersion(Object version) {
+    return 'Version: $version';
+  }
+
+  @override
+  String get openModsFolder => 'Open Mods Folder';
+
+  @override
+  String get openInNexusMods => 'Open in Nexus Mods';
+
+  @override
+  String get checkForUpdates => 'Check for updates';
+
+  @override
+  String updateAvailable(Object version) {
+    return 'Update available: v$version';
+  }
+
+  @override
+  String get dialogTitleApiKey => 'Nexus Mods API Key';
+
+  @override
+  String get dialogContentApiKey =>
+      'To check for mod updates, you need a personal API key from Nexus Mods. You can generate one in your profile settings on their website.';
+
+  @override
+  String get apiKey => 'API Key';
+
+  @override
+  String get dialogActionSave => 'Save';
+
+  @override
+  String get snackBarApiKeySaved => 'API Key saved successfully.';
+
+  @override
+  String get errorApiKeyMissing =>
+      'Nexus Mods API Key is not configured. Please add it in the settings.';
+
+  @override
+  String get statusCheckingUpdates => 'Checking for mod updates...';
+
+  @override
+  String statusUpdatesFound(Object count) {
+    return '$count update(s) found!';
+  }
+
+  @override
+  String get statusNoUpdates => 'All mods are up to date.';
+
+  @override
+  String get selectModArchive => 'Select Mod Archive';
+
+  @override
+  String get viewImageGallery => 'View Image';
+
+  @override
+  String get imageGallery => 'Image Gallery';
+
+  @override
+  String get noImagesFound => 'No images found for this mod.';
+
+  @override
+  String errorFetchingImages(Object error) {
+    return 'Error fetching images: $error';
+  }
+
+  @override
+  String get imageMod => 'Mod Image';
+
+  @override
+  String get dialogContentUpdateOptions => 'What would you like to do?';
+
+  @override
+  String get dialogActionIgnoreVersion => 'Ignore Version';
+
+  @override
+  String get dialogActionGoToDownloadPage => 'Go to Download';
+
+  @override
+  String get installedMods => 'Installed Mods';
+
+  @override
+  String get filterBy => 'Filter:';
+
+  @override
+  String get sortBy => 'Sort by:';
+
+  @override
+  String get filterAll => 'All';
+
+  @override
+  String get filterEnabled => 'Enabled';
+
+  @override
+  String get filterDisabled => 'Disabled';
+
+  @override
+  String get sortByName => 'Name';
+
+  @override
+  String get sortByDate => 'Date';
+
+  @override
+  String get noModsFound => 'No mods found.';
+
+  @override
+  String statusExtractingMultipleFiles(
+    Object count,
+    Object fileName,
+    Object total,
+  ) {
+    return 'Extracting $count of $total: $fileName';
+  }
+
+  @override
+  String get previewInstallTitle => 'Mods to be Installed:';
+
+  @override
+  String get dialogTitleUE4SS => 'UE4SS Installation Detected';
+
+  @override
+  String get dialogContentUE4SS =>
+      'The UE4SS tool has been detected. Do you want to install it to \'StellarBlade\\SB\\Binaries\\Win64\'?\n\nThis is required for many mods to work.';
+
+  @override
+  String get dialogActionInstallTool => 'Install Tool';
+
+  @override
+  String get statusUE4SSInstallCancelled => 'UE4SS installation cancelled.';
+
+  @override
+  String get statusInstallingUE4SS => 'Installing UE4SS...';
+
+  @override
+  String get snackBarUE4SSInstalled => 'UE4SS installed successfully.';
+
+  @override
+  String error7zipDecompression(Object error) {
+    return '7-Zip error during decompression: $error';
+  }
+
+  @override
+  String get statusUE4SSInstallComplete => 'UE4SS installation complete.';
+}
