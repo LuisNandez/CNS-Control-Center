@@ -675,7 +675,7 @@ abstract class AppLocalizations {
   /// No description provided for @creatorProfileUrl.
   ///
   /// In en, this message translates to:
-  /// **'https://www.nexusmods.com/users/your-user-id'**
+  /// **'https://next.nexusmods.com/profile/LuisNandez?gameId=7804'**
   String get creatorProfileUrl;
 
   /// No description provided for @aboutVersion.
@@ -717,14 +717,26 @@ abstract class AppLocalizations {
   /// No description provided for @dialogContentApiKey.
   ///
   /// In en, this message translates to:
-  /// **'To check for mod updates, you need a personal API key from Nexus Mods. You can generate one in your profile settings on their website.'**
+  /// **'To check for mod updates, you need a personal API key from Nexus Mods.'**
   String get dialogContentApiKey;
+
+  /// No description provided for @dialogContentApiKeyInstructions.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Go to Nexus Mods and log in.\n2. Click your avatar and go to \'Site preferences\'.\n3. Go to the \'API\' tab.\n4. Click \'Generate a new API key\'.\n5. Copy the key and paste it here.'**
+  String get dialogContentApiKeyInstructions;
 
   /// No description provided for @apiKey.
   ///
   /// In en, this message translates to:
   /// **'API Key'**
   String get apiKey;
+
+  /// No description provided for @apiKeyHintText.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste your API key here'**
+  String get apiKeyHintText;
 
   /// No description provided for @dialogActionSave.
   ///
@@ -738,10 +750,28 @@ abstract class AppLocalizations {
   /// **'API Key saved successfully.'**
   String get snackBarApiKeySaved;
 
+  /// No description provided for @apiKeyRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key removed.'**
+  String get apiKeyRemoved;
+
+  /// No description provided for @invalidApiKeyError.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid API Key.'**
+  String get invalidApiKeyError;
+
+  /// No description provided for @validatingApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Validating...'**
+  String get validatingApiKey;
+
   /// No description provided for @errorApiKeyMissing.
   ///
   /// In en, this message translates to:
-  /// **'Nexus Mods API Key is not configured. Please add it in the settings.'**
+  /// **'Nexus Mods API Key is not configured. Please add it via the key icon in the top bar.'**
   String get errorApiKeyMissing;
 
   /// No description provided for @statusCheckingUpdates.
@@ -783,7 +813,7 @@ abstract class AppLocalizations {
   /// No description provided for @noImagesFound.
   ///
   /// In en, this message translates to:
-  /// **'No images found for this mod.'**
+  /// **'No images were found for this mod, or the API key has not been entered. Please enter the API key and check for updates afterward.'**
   String get noImagesFound;
 
   /// No description provided for @errorFetchingImages.
@@ -933,6 +963,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'UE4SS installation complete.'**
   String get statusUE4SSInstallComplete;
+
+  /// No description provided for @dialogTitleAlternativeVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Alternative Version Detected'**
+  String get dialogTitleAlternativeVersion;
+
+  /// Content for the dialog when a different mod with the same nexus ID is detected.
+  ///
+  /// In en, this message translates to:
+  /// **'An alternative version of this mod is already installed: \'{oldModName}\'.\n\nYou are about to install a different alternative named \'{newModName}\'.'**
+  String dialogContentAlternativeVersion(
+    String oldModName,
+    String baseModName,
+    String newModName,
+  );
+
+  /// No description provided for @dialogActionReplace.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get dialogActionReplace;
+
+  /// No description provided for @dialogActionInstallAsNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Install as New'**
+  String get dialogActionInstallAsNew;
+
+  /// No description provided for @dialogTitleUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Available'**
+  String get dialogTitleUpdate;
+
+  /// Content for the mod update confirmation dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'You are about to update the mod \'{modName}\'.\n\nInstalled version: {oldVersion}\nNew version: {newVersion}'**
+  String dialogContentUpdate(
+    String modName,
+    String oldVersion,
+    String newVersion,
+  );
+
+  /// No description provided for @dialogTitleDowngrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Older Version Detected'**
+  String get dialogTitleDowngrade;
+
+  /// Content for the mod downgrade warning dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning: You are about to install an older version of the mod \'{modName}\'.\n\nInstalled version: {oldVersion}\nVersion to install: {newVersion}'**
+  String dialogContentDowngrade(
+    String modName,
+    String oldVersion,
+    String newVersion,
+  );
+
+  /// No description provided for @dialogActionDowngrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Downgrade'**
+  String get dialogActionDowngrade;
+
+  /// No description provided for @dialogTitleReinstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Reinstall Mod'**
+  String get dialogTitleReinstall;
+
+  /// No description provided for @dialogContentReinstall.
+  ///
+  /// In en, this message translates to:
+  /// **'You are about to reinstall version \'{version}\' of the mod \'{modName}\'.'**
+  String dialogContentReinstall(Object modName, Object version);
+
+  /// No description provided for @dialogActionReinstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Reinstall'**
+  String get dialogActionReinstall;
 }
 
 class _AppLocalizationsDelegate

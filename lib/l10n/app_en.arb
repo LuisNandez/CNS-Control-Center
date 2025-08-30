@@ -93,25 +93,30 @@
     "aboutTitle": "About CNS Control Center",
     "aboutContent": "This application is a mod manager for Stellar Blade, designed to work with the Custom Nanosuit System (CNS).\n\nRequirement: For full functionality with .rar and .7z files, 7-Zip must be installed on your system.",
     "aboutLinkText": "Visit my creator profile",
-    "creatorProfileUrl": "https://www.nexusmods.com/users/your-user-id",
+    "creatorProfileUrl": "https://next.nexusmods.com/profile/LuisNandez?gameId=7804",
     "aboutVersion": "Version: {version}",
     "openModsFolder": "Open Mods Folder",
     "openInNexusMods": "Open in Nexus Mods",
     "checkForUpdates": "Check for updates",
     "updateAvailable": "Update available: v{version}",
     "dialogTitleApiKey": "Nexus Mods API Key",
-    "dialogContentApiKey": "To check for mod updates, you need a personal API key from Nexus Mods. You can generate one in your profile settings on their website.",
+    "dialogContentApiKey": "To check for mod updates, you need a personal API key from Nexus Mods.",
+    "dialogContentApiKeyInstructions": "1. Go to Nexus Mods and log in.\n2. Click your avatar and go to 'Site preferences'.\n3. Go to the 'API' tab.\n4. Click 'Generate a new API key'.\n5. Copy the key and paste it here.",
     "apiKey": "API Key",
+    "apiKeyHintText": "Paste your API key here",
     "dialogActionSave": "Save",
     "snackBarApiKeySaved": "API Key saved successfully.",
-    "errorApiKeyMissing": "Nexus Mods API Key is not configured. Please add it in the settings.",
+    "apiKeyRemoved": "API Key removed.",
+    "invalidApiKeyError": "Invalid API Key.",
+    "validatingApiKey": "Validating...",
+    "errorApiKeyMissing": "Nexus Mods API Key is not configured. Please add it via the key icon in the top bar.",
     "statusCheckingUpdates": "Checking for mod updates...",
     "statusUpdatesFound": "{count} update(s) found!",
     "statusNoUpdates": "All mods are up to date.",
     "selectModArchive": "Select Mod Archive",
     "viewImageGallery": "View Image",
     "imageGallery": "Image Gallery",
-    "noImagesFound": "No images found for this mod.",
+    "noImagesFound": "No images were found for this mod, or the API key has not been entered. Please enter the API key and check for updates afterward.",
     "errorFetchingImages": "Error fetching images: {error}",
     "imageMod": "Mod Image",
     "dialogContentUpdateOptions": "What would you like to do?",
@@ -134,8 +139,43 @@
     "statusUE4SSInstallCancelled": "UE4SS installation cancelled.",
     "statusInstallingUE4SS": "Installing UE4SS...",
     "snackBarUE4SSInstalled": "UE4SS installed successfully.",
-    "error7zipRequired": "Operation cancelled: 7-Zip is required.",
     "error7zipDecompression": "7-Zip error during decompression: {error}",
-    "errorGamePathUndefined": "Game path is not defined.",
-    "statusUE4SSInstallComplete": "UE4SS installation complete."
+    "statusUE4SSInstallComplete": "UE4SS installation complete.",
+    "dialogTitleAlternativeVersion": "Alternative Version Detected",
+    "dialogContentAlternativeVersion": "An alternative version of this mod is already installed: '{oldModName}'.\n\nYou are about to install a different alternative named '{newModName}'.",
+    "@dialogContentAlternativeVersion": {
+    "description": "Content for the dialog when a different mod with the same nexus ID is detected.",
+    "placeholders": {
+        "oldModName": { "type": "String", "example": "Mod Name v1.0" },
+        "baseModName": { "type": "String", "example": "Mod Name" },
+        "newModName": { "type": "String", "example": "Mod Name v1.1" }
+    }
+},
+    "dialogActionReplace": "Replace",
+    "dialogActionInstallAsNew": "Install as New",
+
+    "dialogTitleUpdate": "Update Available",
+    "dialogContentUpdate": "You are about to update the mod '{modName}'.\n\nInstalled version: {oldVersion}\nNew version: {newVersion}",
+    "@dialogContentUpdate": {
+    "description": "Content for the mod update confirmation dialog.",
+    "placeholders": {
+        "modName": { "type": "String", "example": "My Awesome Mod" },
+        "oldVersion": { "type": "String", "example": "1.0" },
+        "newVersion": { "type": "String", "example": "1.1" }
+    }
+},
+    "dialogTitleDowngrade": "Older Version Detected",
+    "dialogContentDowngrade": "Warning: You are about to install an older version of the mod '{modName}'.\n\nInstalled version: {oldVersion}\nVersion to install: {newVersion}",
+    "@dialogContentDowngrade": {
+    "description": "Content for the mod downgrade warning dialog.",
+    "placeholders": {
+        "modName": { "type": "String", "example": "My Awesome Mod" },
+        "oldVersion": { "type": "String", "example": "1.1" },
+        "newVersion": { "type": "String", "example": "1.0" }
+    }
+},
+    "dialogActionDowngrade": "Downgrade",
+    "dialogTitleReinstall": "Reinstall Mod",
+    "dialogContentReinstall": "You are about to reinstall version '{version}' of the mod '{modName}'.",
+    "dialogActionReinstall": "Reinstall"
 }

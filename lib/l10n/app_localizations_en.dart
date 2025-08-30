@@ -366,7 +366,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get creatorProfileUrl =>
-      'https://www.nexusmods.com/users/your-user-id';
+      'https://next.nexusmods.com/profile/LuisNandez?gameId=7804';
 
   @override
   String aboutVersion(Object version) {
@@ -392,10 +392,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dialogContentApiKey =>
-      'To check for mod updates, you need a personal API key from Nexus Mods. You can generate one in your profile settings on their website.';
+      'To check for mod updates, you need a personal API key from Nexus Mods.';
+
+  @override
+  String get dialogContentApiKeyInstructions =>
+      '1. Go to Nexus Mods and log in.\n2. Click your avatar and go to \'Site preferences\'.\n3. Go to the \'API\' tab.\n4. Click \'Generate a new API key\'.\n5. Copy the key and paste it here.';
 
   @override
   String get apiKey => 'API Key';
+
+  @override
+  String get apiKeyHintText => 'Paste your API key here';
 
   @override
   String get dialogActionSave => 'Save';
@@ -404,8 +411,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get snackBarApiKeySaved => 'API Key saved successfully.';
 
   @override
+  String get apiKeyRemoved => 'API Key removed.';
+
+  @override
+  String get invalidApiKeyError => 'Invalid API Key.';
+
+  @override
+  String get validatingApiKey => 'Validating...';
+
+  @override
   String get errorApiKeyMissing =>
-      'Nexus Mods API Key is not configured. Please add it in the settings.';
+      'Nexus Mods API Key is not configured. Please add it via the key icon in the top bar.';
 
   @override
   String get statusCheckingUpdates => 'Checking for mod updates...';
@@ -428,7 +444,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get imageGallery => 'Image Gallery';
 
   @override
-  String get noImagesFound => 'No images found for this mod.';
+  String get noImagesFound =>
+      'No images were found for this mod, or the API key has not been entered. Please enter the API key and check for updates afterward.';
 
   @override
   String errorFetchingImages(Object error) {
@@ -512,4 +529,60 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusUE4SSInstallComplete => 'UE4SS installation complete.';
+
+  @override
+  String get dialogTitleAlternativeVersion => 'Alternative Version Detected';
+
+  @override
+  String dialogContentAlternativeVersion(
+    String oldModName,
+    String baseModName,
+    String newModName,
+  ) {
+    return 'An alternative version of this mod is already installed: \'$oldModName\'.\n\nYou are about to install a different alternative named \'$newModName\'.';
+  }
+
+  @override
+  String get dialogActionReplace => 'Replace';
+
+  @override
+  String get dialogActionInstallAsNew => 'Install as New';
+
+  @override
+  String get dialogTitleUpdate => 'Update Available';
+
+  @override
+  String dialogContentUpdate(
+    String modName,
+    String oldVersion,
+    String newVersion,
+  ) {
+    return 'You are about to update the mod \'$modName\'.\n\nInstalled version: $oldVersion\nNew version: $newVersion';
+  }
+
+  @override
+  String get dialogTitleDowngrade => 'Older Version Detected';
+
+  @override
+  String dialogContentDowngrade(
+    String modName,
+    String oldVersion,
+    String newVersion,
+  ) {
+    return 'Warning: You are about to install an older version of the mod \'$modName\'.\n\nInstalled version: $oldVersion\nVersion to install: $newVersion';
+  }
+
+  @override
+  String get dialogActionDowngrade => 'Downgrade';
+
+  @override
+  String get dialogTitleReinstall => 'Reinstall Mod';
+
+  @override
+  String dialogContentReinstall(Object modName, Object version) {
+    return 'You are about to reinstall version \'$version\' of the mod \'$modName\'.';
+  }
+
+  @override
+  String get dialogActionReinstall => 'Reinstall';
 }

@@ -140,8 +140,11 @@ class _PreparedUE4SS {
 enum ModFilter { all, enabled, disabled }
 enum ModSort { name, date }
 
+// --- CAMBIO: Enum para manejar la elección del usuario en el nuevo diálogo ---
+enum _AlternativeVersionAction { cancel, replace, installAsNew }
+
 class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
-  List<_PreparedMod> _preparedMods = [];
+  final List<_PreparedMod> _preparedMods = [];
   _PreparedUE4SS? _preparedUE4SS;
   Map<String, List<String>> _modsToInstallPreviewMap = {};
 
@@ -161,6 +164,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   String? _finalModsPath;
 
   String? _7zipPath;
+
+  String? _apiKey;
 
   List<String> _lastInstalledModNames = [];
 
@@ -220,10 +225,49 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<void> _initialize() async {
     await _getAppVersion();
     await _find7zipPath();
+    await _loadApiKey();
     await _findGamePath();
     if (_finalModsPath != null) {
       await _loadAllMods();
       await _readCNSData();
+    }
+  }
+
+  Future<void> _loadApiKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _apiKey = prefs.getString('nexusApiKey');
+    });
+  }
+
+  Future<void> _saveApiKey(String apiKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('nexusApiKey', apiKey);
+    setState(() {
+      _apiKey = apiKey;
+    });
+  }
+
+  // --- NUEVA FUNCIÓN ---
+  // Valida la clave de API haciendo una llamada real a la API de Nexus Mods.
+  Future<bool> _validateApiKey(String apiKey) async {
+    if (apiKey.isEmpty) {
+      return false;
+    }
+    try {
+      final response = await http.get(
+        Uri.parse('https://api.nexusmods.com/v1/users/validate.json'),
+        headers: {
+          'apikey': apiKey,
+          'accept': 'application/json',
+        },
+      );
+      // Un código 200 (OK) significa que la clave es válida.
+      return response.statusCode == 200;
+    } catch (e) {
+      // Maneja errores de red u otros problemas durante la validación.
+      print('Error al validar la clave de API: $e');
+      return false;
     }
   }
 
@@ -460,9 +504,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     try {
       final enabledMods = await getModsFromDirectory(_finalModsPath!, true);
 
-      final exePath = Platform.resolvedExecutable;
-      final exeDir = p.dirname(exePath);
-      final backupDirPath = p.join(exeDir, '__MOD_BACKUPS__');
+      if (_gameRootPath == null) {
+        // Si no hay ruta de juego, no hay dónde buscar backups.
+        final disabledMods = <ModInfo>[];
+        setState(() {
+         _allMods = [...enabledMods, ...disabledMods];
+        });
+        return;
+      }
+      final backupDirPath = p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__');
       final disabledMods = await getModsFromDirectory(backupDirPath, false);
 
       setState(() {
@@ -508,9 +558,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       final match = regex.firstMatch(name);
       if (match != null && match.groupCount >= 3) {
         final id = match.group(1);
-        final versionPart1 = match.group(2);
-        final versionPart2 = match.group(3);
-        final version = 'v$versionPart1.$versionPart2';
+        final versionPart1 = match.group(2) ?? '';
+        final versionPart2 = match.group(3) ?? '';
+
+        // --- CORRECCIÓN PARA EVITAR "vv" ---
+        // 1. Limpiamos la primera parte por si ya tiene una 'v' o 'V'.
+        final cleanVersionPart1 = versionPart1.replaceAll(RegExp(r'^[vV]'), '');
+        // 2. Construimos la versión asegurando que solo haya una 'v' al principio.
+        final version = 'v$cleanVersionPart1.$versionPart2';
+        // --- FIN DEL CAMBIO ---
+
         if (id != null) {
           return {'id': id, 'version': version};
         }
@@ -1079,6 +1136,101 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     return null;
   }
 
+  // --- NUEVA FUNCIÓN AUXILIAR ---
+  // Elimina la información de versión del final del nombre de una carpeta.
+  String _stripVersionFromName(String name) {
+    // Regex para encontrar un patrón de versión al final del string (ej: v1.0, 1.1b, V2)
+    final regex = RegExp(r'\s+[vV]?\d+(\.\d*[\w\d]*)*\s*$', caseSensitive: false);
+    return name.replaceAll(regex, '').trim();
+  }
+
+  // --- NUEVA FUNCIÓN AUXILIAR ---
+  // Obtiene el nombre comparable de un mod, ya sea desde su JSON o desde su carpeta.
+  Future<String> _getComparableNameForMod(ModInfo mod) async {
+    final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+    final folderName = p.basename(mod.directory.path);
+
+    try {
+      if (await infoFile.exists()) {
+        final data = json.decode(await infoFile.readAsString());
+        // Prioriza el displayName del JSON, si no existe, limpia el nombre de la carpeta.
+        return data['displayName'] ?? _stripVersionFromName(folderName);
+      } else {
+        // Si no hay JSON, solo limpia el nombre de la carpeta.
+        return _stripVersionFromName(folderName);
+      }
+    } catch (e) {
+      print("Error reading info for ${mod.directory.path}, falling back to folder name: $e");
+      return _stripVersionFromName(folderName);
+    }
+  }
+
+
+  // --- NUEVA FUNCIÓN AUXILIAR ---
+  // Muestra un diálogo inteligente basado en la comparación de versiones.
+  Future<_AlternativeVersionAction?> _showSmartInstallDialog({
+    required ModInfo oldVersionMod,
+    required String baseDisplayName,
+    required String finalFolderName,
+    required String? newVersion,
+  }) async {
+    final l10n = AppLocalizations.of(context)!;
+    final oldVersion = oldVersionMod.localVersion ?? 'N/A';
+    final newVersionStr = newVersion ?? 'N/A';
+    
+    String title = l10n.dialogTitleAlternativeVersion;
+    String content;
+    String replaceActionText = l10n.dialogActionReplace;
+
+    // Si tenemos ambas versiones para comparar
+    if (oldVersionMod.localVersion != null && newVersion != null) {
+      final comparison = _compareVersions(newVersion, oldVersionMod.localVersion!);
+      
+      if (comparison > 0) { // Nueva versión es MAYOR que la antigua
+        title = l10n.dialogTitleUpdate;
+        content = l10n.dialogContentUpdate(baseDisplayName, oldVersion, newVersionStr);
+        replaceActionText = l10n.dialogActionUpdate;
+      } else if (comparison < 0) { // Nueva versión es MENOR que la antigua
+        title = l10n.dialogTitleDowngrade;
+        content = l10n.dialogContentDowngrade(baseDisplayName, oldVersion, newVersionStr);
+        replaceActionText = l10n.dialogActionDowngrade;
+      } else { // Las versiones son idénticas
+        title = l10n.dialogTitleReinstall;
+        content = l10n.dialogContentReinstall(baseDisplayName, newVersionStr);
+        replaceActionText = l10n.dialogActionReinstall;
+      }
+    } else {
+      final oldModName = p.basename(oldVersionMod.directory.path);
+      content = l10n.dialogContentAlternativeVersion(oldModName, baseDisplayName, finalFolderName);
+    }
+
+    return showDialog<_AlternativeVersionAction>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2a2a2a),
+        title: Text(title),
+        content: Text(content),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_AlternativeVersionAction.cancel),
+            child: Text(l10n.dialogActionCancel),
+          ),
+          ElevatedButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_AlternativeVersionAction.replace),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.tealAccent,
+              foregroundColor: Colors.black,
+            ),
+            child: Text(replaceActionText),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<String> _installSingleModFromListOfFiles(List<File> files,
       {String? nexusId, String? nexusVersion}) async {
     final l10n = AppLocalizations.of(context)!;
@@ -1151,61 +1303,103 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
 
     ModInfo? oldVersionMod;
+    _AlternativeVersionAction? action;
 
+    // Paso 1: Búsqueda amplia. Encontrar todos los mods con el mismo nexusId.
+    List<ModInfo> nexusIdMatches = [];
     if (nexusId != null) {
-      for (final mod in _allMods) {
-        if (mod.nexusId == nexusId) {
-          oldVersionMod = mod;
+      nexusIdMatches = _allMods.where((mod) => mod.nexusId == nexusId).toList();
+    }
+
+    if (nexusIdMatches.isNotEmpty) {
+      // Paso 2: Búsqueda específica. Encontrar el que coincida por nombre.
+      for (final candidateMod in nexusIdMatches) {
+        final candidateName = await _getComparableNameForMod(candidateMod);
+        if (candidateName.toLowerCase() == baseDisplayName.toLowerCase()) {
+          oldVersionMod = candidateMod; // ¡Coincidencia exacta encontrada!
           break;
         }
       }
-    }
 
-    if (oldVersionMod == null) {
+      // Paso 3: Toma de decisiones.
+      if (oldVersionMod != null) {
+        // Caso A: Se encontró una coincidencia de nombre exacta. Proceder con la comparación de versiones.
+        action = await _showSmartInstallDialog(
+          oldVersionMod: oldVersionMod!,
+          baseDisplayName: baseDisplayName,
+          finalFolderName: finalFolderName,
+          newVersion: nexusVersion,
+        );
+      } else {
+        // Caso B: No se encontró coincidencia de nombre, es una nueva versión alternativa.
+        final existingModExample = p.basename(nexusIdMatches.first.directory.path);
+        action = await showDialog<_AlternativeVersionAction>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            backgroundColor: const Color(0xFF2a2a2a),
+            title: Text(l10n.dialogTitleAlternativeVersion),
+            content: Text(l10n.dialogContentAlternativeVersion(existingModExample, baseDisplayName, finalFolderName)),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(_AlternativeVersionAction.cancel),
+                child: Text(l10n.dialogActionCancel),
+              ),
+              ElevatedButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(_AlternativeVersionAction.installAsNew),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.tealAccent,
+                    foregroundColor: Colors.black),
+                child: Text(l10n.dialogActionInstallAsNew),
+              ),
+            ],
+          ),
+        );
+      }
+    } else {
+      // Fallback: Si no hay coincidencias por nexusId, buscar por nombre como antes.
       for (final existingMod in _allMods) {
-        String? existingDisplayName =
-            await _getDisplayNameForMod(existingMod.directory);
-        if (existingDisplayName != null &&
-            existingDisplayName == baseDisplayName) {
+        String? existingDisplayName = await _getDisplayNameForMod(existingMod.directory);
+        if (existingDisplayName != null && existingDisplayName == baseDisplayName) {
           oldVersionMod = existingMod;
           break;
         }
       }
-    }
-
-    if (oldVersionMod != null) {
-      final oldModName = p.basename(oldVersionMod.directory.path);
-      final confirmUpdate = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF2a2a2a),
-          title: Text(l10n.dialogTitleModExists),
-          content: Text(l10n.dialogContentModUpdate(oldModName, finalFolderName)),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(l10n.dialogActionCancel)),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
-              child: Text(l10n.dialogActionUpdate),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmUpdate == true) {
-        final bool deleted =
-            await _deleteDirectoryWithRetry(oldVersionMod.directory);
-        if (!deleted) {
-          throw Exception(
-              'No se pudo borrar la versión antigua del mod ($oldModName) después de varios intentos.');
-        }
-      } else {
-        throw Exception(l10n.statusInstallationCancelledByUser);
+      if (oldVersionMod != null) {
+          action = await _showSmartInstallDialog(
+            oldVersionMod: oldVersionMod!,
+            baseDisplayName: baseDisplayName,
+            finalFolderName: finalFolderName,
+            newVersion: nexusVersion,
+          );
       }
     }
 
+    if (action != null) {
+      switch (action) {
+        case _AlternativeVersionAction.replace:
+          if(oldVersionMod == null) {
+            // This case should ideally not be hit if action is replace, but as a safeguard:
+             throw Exception("Attempted to replace a mod but no old version was identified.");
+          }
+          final oldModName = p.basename(oldVersionMod.directory.path);
+          final bool deleted = await _deleteDirectoryWithRetry(oldVersionMod.directory);
+          if (!deleted) {
+            throw Exception(
+                'No se pudo borrar la versión antigua del mod ($oldModName).');
+          }
+          break;
+        case _AlternativeVersionAction.installAsNew:
+          break;
+        case _AlternativeVersionAction.cancel:
+        case null:
+        default:
+          throw Exception(l10n.statusInstallationCancelledByUser);
+      }
+    }
+    
     final newModPath = p.join(_finalModsPath!, finalFolderName);
 
     if (await Directory(newModPath).exists()) {
@@ -1247,14 +1441,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       final versionForFile =
           nexusVersion ?? ModInfo._extractVersionFromName(finalFolderName);
 
-      // CORRECCIÓN 2: Tipar el mapa explícitamente
       final Map<String, dynamic> modData = {
         'nexusId': nexusId,
+        'displayName': baseDisplayName,
         'installedVersion': versionForFile,
         'installDate': DateTime.now().toIso8601String()
       };
 
-      // CAMBIO: Obtener y añadir la galería al objeto principal
       final galleryData = await _fetchModImages(nexusId);
       if (galleryData != null) {
         modData['gallery'] = galleryData;
@@ -1311,9 +1504,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       _lastInstalledModNames.clear();
     });
     try {
-      final exePath = Platform.resolvedExecutable;
-      final exeDir = p.dirname(exePath);
-      final backupDir = Directory(p.join(exeDir, '__MOD_BACKUPS__'));
+      if (_gameRootPath == null) {
+        throw Exception("La ruta del juego no está definida. No se puede desactivar el mod.");
+      }
+      final backupDir = Directory(p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__'));
+
       if (!await backupDir.exists()) {
         await backupDir.create(recursive: true);
       }
@@ -1510,6 +1705,122 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       ),
     );
   }
+  
+  // --- MÉTODO MODIFICADO ---
+  // Este diálogo ahora usa un `StatefulBuilder` para manejar el estado de la validación
+  // y mostrar mensajes de error o carga en tiempo real sin cerrar el diálogo.
+  Future<void> _showApiKeyDialog() async {
+    final l10n = AppLocalizations.of(context)!;
+    final apiKeyController = TextEditingController(text: _apiKey);
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        bool isChecking = false;
+        String? errorMessage;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF2a2a2a),
+              title: Text(l10n.dialogTitleApiKey),
+              content: SingleChildScrollView(
+                child: ListBody(
+                  children: <Widget>[
+                    Text(l10n.dialogContentApiKey),
+                    const SizedBox(height: 16),
+                    Text(
+                      l10n.dialogContentApiKeyInstructions,
+                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: apiKeyController,
+                      decoration: InputDecoration(
+                        border: const OutlineInputBorder(),
+                        labelText: l10n.apiKey,
+                        hintText: l10n.apiKeyHintText,
+                        errorText: errorMessage,
+                      ),
+                      onChanged: (_) {
+                        // Limpia el mensaje de error cuando el usuario escribe de nuevo
+                        if (errorMessage != null) {
+                           setDialogState(() {
+                             errorMessage = null;
+                           });
+                        }
+                      },
+                    ),
+                    if (isChecking)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const CircularProgressIndicator(),
+                            const SizedBox(width: 16),
+                            Text(l10n.validatingApiKey), // TEXTO LOCALIZADO
+                          ],
+                        ),
+                      )
+                  ],
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: Text(l10n.dialogActionCancel),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                ElevatedButton(
+                  onPressed: isChecking ? null : () async {
+                    final keyToValidate = apiKeyController.text;
+                    if (keyToValidate.isEmpty) {
+                      await _saveApiKey(''); // Permite borrar la clave
+                      Navigator.of(context).pop();
+                       if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(l10n.apiKeyRemoved), // TEXTO LOCALIZADO
+                          backgroundColor: Colors.orange,
+                        ));
+                      }
+                      return;
+                    }
+
+                    setDialogState(() {
+                      isChecking = true;
+                      errorMessage = null;
+                    });
+                    
+                    final bool isValid = await _validateApiKey(keyToValidate);
+
+                    if (mounted) {
+                       if (isValid) {
+                          await _saveApiKey(keyToValidate);
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(l10n.snackBarApiKeySaved),
+                            backgroundColor: Colors.green,
+                          ));
+                       } else {
+                          setDialogState(() {
+                            isChecking = false;
+                            errorMessage = l10n.invalidApiKeyError; // TEXTO LOCALIZADO
+                          });
+                       }
+                    }
+                  },
+                  child: Text(l10n.dialogActionSave),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
+  }
 
   /// Compara dos strings de versión (ej: "1.10.1" vs "1.9.2" o "1.a")
   /// Devuelve > 0 si v1 es mayor, < 0 si v2 es mayor, 0 si son iguales.
@@ -1555,9 +1866,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   // CAMBIO: La función ahora DEVUELVE los datos de la galería, no escribe un archivo.
   Future<List<Map<String, dynamic>>?> _fetchModImages(String nexusId) async {
-    const String apiKey =
-        "Gstf7M2Sep0cumb7+FefEN5790jgkFUqytRNr5yMXIZJIH5A--iHhrBgPf1FnuQ9Mz--7uj2b1tAp0MgiJi+2bCgGQ==";
-    final headers = {'apikey': apiKey, 'accept': 'application/json'};
+    if (_apiKey == null || _apiKey!.isEmpty) {
+      print("API Key no configurada, no se buscarán imágenes.");
+      return null;
+    }
+    final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
 
     try {
       // --- ESTRATEGIA 1: Intentar el endpoint específico de imágenes ---
@@ -1635,8 +1948,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _checkForUpdates() async {
     final l10n = AppLocalizations.of(context)!;
-    const String apiKey =
-        "Gstf7M2Sep0cumb7+FefEN5790jgkFUqytRNr5yMXIZJIH5A--iHhrBgPf1FnuQ9Mz--7uj2b1tAp0MgiJi+2bCgGQ==";
+    
+    if (_apiKey == null || _apiKey!.isEmpty) {
+      await _showApiKeyDialog();
+      if (_apiKey == null || _apiKey!.isEmpty) {
+          setState(() {
+            _statusMessage = l10n.errorApiKeyMissing;
+            _statusColor = Colors.orangeAccent;
+          });
+          return;
+      }
+    }
 
     final List<_UpdateCheckJob> jobs = [];
 
@@ -1668,7 +1990,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       _ignoredUpdates.clear();
     });
 
-    final headers = {'apikey': apiKey, 'accept': 'application/json'};
+    final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
     final List<Future<Map<String, dynamic>?>> futures = [];
 
     for (final job in jobs) {
@@ -1797,9 +2119,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<void> _recheckSpecificMod(String nexusId, {String? newVersion}) async {
-    const String apiKey =
-        "Gstf7M2Sep0cumb7+FefEN5790jgkFUqytRNr5yMXIZJIH5A--iHhrBgPf1FnuQ9Mz--7uj2b1tAp0MgiJi+2bCgGQ==";
-    final headers = {'apikey': apiKey, 'accept': 'application/json'};
+    if (_apiKey == null || _apiKey!.isEmpty) {
+      print("API Key no configurada, no se puede re-verificar el mod.");
+      return;
+    }
+    final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
 
     if (_cnsNexusId == nexusId) {
       final versionToCheck = newVersion ?? _cnsVersion;
@@ -2033,6 +2357,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         ),
         backgroundColor: const Color(0xFF2a2a2a),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.vpn_key_outlined),
+            tooltip: l10n.dialogTitleApiKey,
+            onPressed: _showApiKeyDialog,
+          ),
           IconButton(
             icon: const Icon(Icons.cloud_sync_outlined),
             tooltip: l10n.checkForUpdates,
@@ -2430,7 +2759,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                       final isHighlighted = _lastInstalledModNames.contains(modName);
                       final updateInfo = _modUpdates[modInfo.directory.path];
                       final hasUpdate = updateInfo != null;
-                      final updateIdentifier = hasUpdate ? modInfo.directory.path + updateInfo!['version'] : '';
+                      final updateIdentifier = hasUpdate ? modInfo.directory.path + updateInfo['version'] : '';
                       final isIgnored = _ignoredUpdates.contains(updateIdentifier);
 
                       return Card(
@@ -2490,7 +2819,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                       Icons.notification_important,
                                       color: Colors.yellowAccent),
                                   tooltip: l10n
-                                      .updateAvailable(updateInfo!['version']),
+                                      .updateAvailable(updateInfo['version']),
                                   onPressed: () {
                                     if (modInfo.nexusId != null) {
                                       _showUpdateOptionsDialog(
