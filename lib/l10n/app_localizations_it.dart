@@ -17,6 +17,86 @@ class AppLocalizationsIt extends AppLocalizations {
   }
 
   @override
+  String get settings => 'Impostazioni';
+
+  @override
+  String get settingsGeneral => 'General';
+
+  @override
+  String get settingsLanguage => 'Language';
+
+  @override
+  String get settingsLanguageDesc => 'Choose the application language';
+
+  @override
+  String get settingsAbout => 'About';
+
+  @override
+  String get settingsAboutDesc => 'Information about the application';
+
+  @override
+  String get settingsPathsAndTools => 'Paths & Tools';
+
+  @override
+  String get settingsGameFolder => 'Game Folder';
+
+  @override
+  String get settingsGameFolderDesc =>
+      'The root folder of your Stellar Blade installation.';
+
+  @override
+  String get settings7zipPath => '7-Zip Path';
+
+  @override
+  String get settings7zipPathDesc =>
+      'The location of the 7z.exe file for extracting mods.';
+
+  @override
+  String get settings7zipPathAuto => 'Automatic search';
+
+  @override
+  String get settingsConnectivity => 'Connectivity & Updates';
+
+  @override
+  String get settingsApiKey => 'Nexus Mods API Key';
+
+  @override
+  String get settingsApiKeyDesc => 'Required for checking mod updates.';
+
+  @override
+  String get settingsApiKeySet => 'Set';
+
+  @override
+  String get settingsApiKeyNotSet => 'Not set';
+
+  @override
+  String get settingsSkippedVersions => 'Manage Skipped Versions';
+
+  @override
+  String get settingsSkippedVersionsDesc =>
+      'Manage mod versions you have chosen to skip.';
+
+  @override
+  String settingsSkippedVersionsCount(Object count) {
+    return '$count versions skipped';
+  }
+
+  @override
+  String get dialogTitleSkippedVersions => 'Skipped Mod Versions';
+
+  @override
+  String get dialogNoSkippedVersions =>
+      'You have not skipped any mod versions.';
+
+  @override
+  String get snackBarGamePathInvalid =>
+      'The selected folder does not appear to be a valid game folder.';
+
+  @override
+  String get snackBar7zipPathInvalid =>
+      'The selected file must be named 7z.exe.';
+
+  @override
   String get installNewMod => 'Installa Nuova Mod';
 
   @override
@@ -63,9 +143,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get deletePermanently => 'Elimina definitivamente';
-
-  @override
-  String get settings => 'Impostazioni';
 
   @override
   String get language => 'Lingua';
@@ -229,6 +306,18 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get snackBarCNSUpdated =>
       'Custom Nanosuit System aggiornato con successo.';
+
+  @override
+  String get snackBarApiKeySaved => 'Chiave API salvata con successo.';
+
+  @override
+  String get snackBarGamePathSaved => 'Game path saved successfully.';
+
+  @override
+  String get snackBar7zipPathSaved => '7-Zip path saved successfully.';
+
+  @override
+  String get snackBarSkippedVersionRemoved => 'Skipped version removed.';
 
   @override
   String get dropTargetOverlay => 'Trascina le mod qui';
@@ -411,9 +500,6 @@ class AppLocalizationsIt extends AppLocalizations {
   String get dialogActionSave => 'Salva';
 
   @override
-  String get snackBarApiKeySaved => 'Chiave API salvata con successo.';
-
-  @override
   String get apiKeyRemoved => 'Chiave API rimossa.';
 
   @override
@@ -463,6 +549,9 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get dialogActionIgnoreVersion => 'Ignora Versione';
+
+  @override
+  String get dialogActionSkipVersion => 'Skip Version';
 
   @override
   String get dialogActionGoToDownloadPage => 'Vai al Download';

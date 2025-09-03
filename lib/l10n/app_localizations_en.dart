@@ -17,6 +17,86 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get settings => 'Settings';
+
+  @override
+  String get settingsGeneral => 'General';
+
+  @override
+  String get settingsLanguage => 'Language';
+
+  @override
+  String get settingsLanguageDesc => 'Choose the application language';
+
+  @override
+  String get settingsAbout => 'About';
+
+  @override
+  String get settingsAboutDesc => 'Information about the application';
+
+  @override
+  String get settingsPathsAndTools => 'Paths & Tools';
+
+  @override
+  String get settingsGameFolder => 'Game Folder';
+
+  @override
+  String get settingsGameFolderDesc =>
+      'The root folder of your Stellar Blade installation.';
+
+  @override
+  String get settings7zipPath => '7-Zip Path';
+
+  @override
+  String get settings7zipPathDesc =>
+      'The location of the 7z.exe file for extracting mods.';
+
+  @override
+  String get settings7zipPathAuto => 'Automatic search';
+
+  @override
+  String get settingsConnectivity => 'Connectivity & Updates';
+
+  @override
+  String get settingsApiKey => 'Nexus Mods API Key';
+
+  @override
+  String get settingsApiKeyDesc => 'Required for checking mod updates.';
+
+  @override
+  String get settingsApiKeySet => 'Set';
+
+  @override
+  String get settingsApiKeyNotSet => 'Not set';
+
+  @override
+  String get settingsSkippedVersions => 'Manage Skipped Versions';
+
+  @override
+  String get settingsSkippedVersionsDesc =>
+      'Manage mod versions you have chosen to skip.';
+
+  @override
+  String settingsSkippedVersionsCount(Object count) {
+    return '$count versions skipped';
+  }
+
+  @override
+  String get dialogTitleSkippedVersions => 'Skipped Mod Versions';
+
+  @override
+  String get dialogNoSkippedVersions =>
+      'You have not skipped any mod versions.';
+
+  @override
+  String get snackBarGamePathInvalid =>
+      'The selected folder does not appear to be a valid game folder.';
+
+  @override
+  String get snackBar7zipPathInvalid =>
+      'The selected file must be named 7z.exe.';
+
+  @override
   String get installNewMod => 'Install New Mod';
 
   @override
@@ -63,9 +143,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deletePermanently => 'Delete permanently';
-
-  @override
-  String get settings => 'Settings';
 
   @override
   String get language => 'Language';
@@ -228,6 +305,18 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get snackBarCNSUpdated =>
       'Custom Nanosuit System updated successfully.';
+
+  @override
+  String get snackBarApiKeySaved => 'API Key saved successfully.';
+
+  @override
+  String get snackBarGamePathSaved => 'Game path saved successfully.';
+
+  @override
+  String get snackBar7zipPathSaved => '7-Zip path saved successfully.';
+
+  @override
+  String get snackBarSkippedVersionRemoved => 'Skipped version removed.';
 
   @override
   String get dropTargetOverlay => 'Drop mods here';
@@ -408,9 +497,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dialogActionSave => 'Save';
 
   @override
-  String get snackBarApiKeySaved => 'API Key saved successfully.';
-
-  @override
   String get apiKeyRemoved => 'API Key removed.';
 
   @override
@@ -421,7 +507,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorApiKeyMissing =>
-      'Nexus Mods API Key is not configured. Please add it via the key icon in the top bar.';
+      'Nexus Mods API Key is not configured. Please add it via the key icon in the settings.';
 
   @override
   String get statusCheckingUpdates => 'Checking for mod updates...';
@@ -459,7 +545,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dialogContentUpdateOptions => 'What would you like to do?';
 
   @override
-  String get dialogActionIgnoreVersion => 'Ignore Version';
+  String get dialogActionIgnoreVersion => 'Ignore';
+
+  @override
+  String get dialogActionSkipVersion => 'Skip Version';
 
   @override
   String get dialogActionGoToDownloadPage => 'Go to Download';

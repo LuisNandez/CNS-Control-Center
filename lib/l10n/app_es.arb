@@ -120,7 +120,7 @@
     "errorFetchingImages": "Error al obtener las imágenes: {error}",
     "imageMod": "Imagen del Mod",
     "dialogContentUpdateOptions": "¿Qué te gustaría hacer?",
-    "dialogActionIgnoreVersion": "Ignorar Versión",
+    "dialogActionIgnoreVersion": "Ignorar",
     "dialogActionGoToDownloadPage": "Ir a Descargar",
     "installedMods": "Mods Instalados",
     "filterBy": "Filtrar:",

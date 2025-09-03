@@ -10,8 +10,7 @@ import 'package:win32_registry/win32_registry.dart';
 import 'l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-
-
+import 'settings_page.dart'; // <-- IMPORTACIÓN
 
 // Clase para almacenar la información de un mod.
 class ModInfo {
@@ -180,6 +179,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   final Map<String, Map<String, dynamic>> _modUpdates = {}; // Key: mod directory path, Value: {'version': '1.1', 'fileId': 12345}
   final Set<String> _ignoredUpdates = {}; // Almacena identificadores para las actualizaciones ignoradas
   bool _isCheckingForUpdates = false;
+
+  // Almacena las versiones saltadas de forma persistente
+  Map<String, String> _skippedVersions = {};
   
   // Variables para el progreso de extracción
   bool _isExtracting = false;
@@ -226,6 +228,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     await _getAppVersion();
     await _find7zipPath();
     await _loadApiKey();
+    await _loadSkippedVersions();
     await _findGamePath();
     if (_finalModsPath != null) {
       await _loadAllMods();
@@ -247,9 +250,37 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       _apiKey = apiKey;
     });
   }
+  
+  Future<void> _loadSkippedVersions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final skippedList = prefs.getStringList('skippedVersions') ?? [];
+    setState(() {
+      _skippedVersions = {
+        for (var e in skippedList) e.split(';')[0]: e.split(';')[1]
+      };
+    });
+  }
 
-  // --- NUEVA FUNCIÓN ---
-  // Valida la clave de API haciendo una llamada real a la API de Nexus Mods.
+  Future<void> _saveSkippedVersions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final skippedList =
+        _skippedVersions.entries.map((e) => '${e.key};${e.value}').toList();
+    await prefs.setStringList('skippedVersions', skippedList);
+  }
+
+  Future<void> _removeSkippedVersion(String nexusId) async {
+    setState(() {
+      _skippedVersions.remove(nexusId);
+    });
+    await _saveSkippedVersions();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppLocalizations.of(context)!.snackBarSkippedVersionRemoved),
+        backgroundColor: Colors.orange[800],
+      ));
+    }
+  }
+
   Future<bool> _validateApiKey(String apiKey) async {
     if (apiKey.isEmpty) {
       return false;
@@ -277,8 +308,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       _appVersion = packageInfo.version;
     });
   }
-
+  
   Future<void> _find7zipPath() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? saved7zipPath = prefs.getString('sevenZipPath');
+    
+    if (saved7zipPath != null && await File(saved7zipPath).exists()) {
+      setState(() => _7zipPath = saved7zipPath);
+      return;
+    }
+
     const List<String> possiblePaths = [
       r'C:\Program Files\7-Zip\7z.exe',
       r'C:\Program Files (x86)\7-Zip\7z.exe',
@@ -290,6 +329,46 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     }
   }
+  
+  Future<String?> _select7zipPathManually() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['exe'],
+        dialogTitle: 'Selecciona el archivo 7z.exe',
+      );
+      if (result != null && result.files.single.path != null) {
+        final newPath = result.files.single.path!;
+        // --- VALIDACIÓN ---
+        if (p.basename(newPath).toLowerCase() != '7z.exe') {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(AppLocalizations.of(context)!.snackBar7zipPathInvalid),
+              backgroundColor: Colors.redAccent,
+            ));
+          }
+          return null;
+        }
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('sevenZipPath', newPath);
+        setState(() {
+          _7zipPath = newPath;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context)!.snackBar7zipPathSaved),
+            backgroundColor: Colors.green[600],
+          ));
+        }
+        return newPath;
+      }
+    } catch (e) {
+       setState(() => _statusMessage = 'Error seleccionando 7-Zip: $e');
+    }
+    return null;
+  }
+
 
   Future<void> _findGamePath() async {
     setState(() {
@@ -422,7 +501,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     return newVersion;
   }
 
-  Future<void> _selectGamePathManually() async {
+  Future<String?> _selectGamePathManually() async {
     try {
       String? result = await FilePicker.platform.getDirectoryPath(
         dialogTitle: 'Por favor, selecciona la carpeta principal de StellarBlade',
@@ -438,9 +517,22 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             _gameRootPath = result;
             _finalModsPath = modPath;
           });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(AppLocalizations.of(context)!.snackBarGamePathSaved),
+              backgroundColor: Colors.green[600],
+            ));
+          }
           await _loadAllMods();
           await _readCNSData();
+          return result;
         } else {
+          if(mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(AppLocalizations.of(context)!.snackBarGamePathInvalid),
+              backgroundColor: Colors.redAccent,
+            ));
+          }
           setState(() {
             _statusMessage =
                 'La carpeta seleccionada no parece ser la correcta. Inténtalo de nuevo.';
@@ -451,6 +543,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     } catch (e) {
       setState(() => _statusMessage = 'Error al seleccionar la carpeta: $e');
     }
+    return null;
   }
 
   Future<void> _loadAllMods({bool clearHighlight = true}) async {
@@ -553,22 +646,37 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Map<String, String>? _extractNexusInfoFromName(String name) {
     try {
-      // Regex mejorada para admitir letras en la versión (ej: 1-a)
-      final regex = RegExp(r'-(\d+)-([0-9a-zA-Z]+)-([0-9a-zA-Z]+)-');
+      // 1. Regex para capturar el ID del mod y toda la cadena que le sigue.
+      final regex = RegExp(r'-(\d+)-(.+)');
       final match = regex.firstMatch(name);
-      if (match != null && match.groupCount >= 3) {
+
+      if (match != null) {
         final id = match.group(1);
-        final versionPart1 = match.group(2) ?? '';
-        final versionPart2 = match.group(3) ?? '';
+        if (id == null) return null;
 
-        // --- CORRECCIÓN PARA EVITAR "vv" ---
-        // 1. Limpiamos la primera parte por si ya tiene una 'v' o 'V'.
-        final cleanVersionPart1 = versionPart1.replaceAll(RegExp(r'^[vV]'), '');
-        // 2. Construimos la versión asegurando que solo haya una 'v' al principio.
-        final version = 'v$cleanVersionPart1.$versionPart2';
-        // --- FIN DEL CAMBIO ---
+        // 2. Tomamos la parte que contiene la versión y el file ID.
+        // Ej: "0-9-1-1756239399.zip"
+        final versionAndFileIdString = match.group(2);
+        if (versionAndFileIdString == null) return null;
 
-        if (id != null) {
+        // 3. Eliminamos la extensión del archivo para limpiar la cadena.
+        // Ej: "0-9-1-1756239399"
+        final cleanString = versionAndFileIdString.replaceAll(
+            RegExp(r'\.(zip|rar|7z)$', caseSensitive: false), '');
+
+        // 4. Dividimos la cadena por el guion.
+        // Ej: ["0", "9", "1", "1756239399"]
+        final parts = cleanString.split('-');
+
+        // 5. La versión se compone de todas las partes excepto la última (que es el file ID).
+        if (parts.length >= 2) {
+          final versionParts = parts.sublist(0, parts.length - 1);
+          // Ej: ["0", "9", "1"]
+          
+          // 6. Unimos las partes de la versión con un punto y añadimos una 'v' para consistencia.
+          // Ej: "v0.9.1"
+          final version = 'v${versionParts.join('.')}';
+
           return {'id': id, 'version': version};
         }
       }
@@ -1706,14 +1814,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
   
-  // --- MÉTODO MODIFICADO ---
-  // Este diálogo ahora usa un `StatefulBuilder` para manejar el estado de la validación
-  // y mostrar mensajes de error o carga en tiempo real sin cerrar el diálogo.
-  Future<void> _showApiKeyDialog() async {
+  Future<String?> _showApiKeyDialog() async {
     final l10n = AppLocalizations.of(context)!;
     final apiKeyController = TextEditingController(text: _apiKey);
 
-    return showDialog<void>(
+    return showDialog<String>(
       context: context,
       barrierDismissible: true,
       builder: (BuildContext context) {
@@ -1779,12 +1884,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     final keyToValidate = apiKeyController.text;
                     if (keyToValidate.isEmpty) {
                       await _saveApiKey(''); // Permite borrar la clave
-                      Navigator.of(context).pop();
                        if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                           content: Text(l10n.apiKeyRemoved), // TEXTO LOCALIZADO
                           backgroundColor: Colors.orange,
                         ));
+                        Navigator.of(context).pop('');
                       }
                       return;
                     }
@@ -1799,11 +1904,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     if (mounted) {
                        if (isValid) {
                           await _saveApiKey(keyToValidate);
-                          Navigator.of(context).pop();
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                             content: Text(l10n.snackBarApiKeySaved),
                             backgroundColor: Colors.green,
                           ));
+                          Navigator.of(context).pop(keyToValidate);
                        } else {
                           setDialogState(() {
                             isChecking = false;
@@ -1864,7 +1969,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  // CAMBIO: La función ahora DEVUELVE los datos de la galería, no escribe un archivo.
   Future<List<Map<String, dynamic>>?> _fetchModImages(String nexusId) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
       print("API Key no configurada, no se buscarán imágenes.");
@@ -1873,26 +1977,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
 
     try {
-      // --- ESTRATEGIA 1: Intentar el endpoint específico de imágenes ---
-      final imagesUrl = Uri.parse(
-          'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId/images.json');
-      var response = await http.get(imagesUrl, headers: headers);
-
-      if (response.statusCode == 200) {
-        final images = json.decode(response.body);
-        if (images is List && images.isNotEmpty) {
-          print(
-              "Estrategia 1 exitosa: Se encontró la galería de imágenes completa para el mod $nexusId.");
-          return List<Map<String, dynamic>>.from(images);
-        }
-      }
-
-      // --- ESTRATEGIA 2: Fallback si el primero falla (p. ej. con 404) ---
-      print(
-          "Estrategia 1 falló para el mod $nexusId (código: ${response.statusCode}). Intentando Estrategia 2 (detalles del mod)...");
+      // --- ESTRATEGIA ÚNICA: Obtener 'picture_url' desde los detalles del mod ---
       final modDetailsUrl = Uri.parse(
           'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId.json');
-      response = await http.get(modDetailsUrl, headers: headers);
+      var response = await http.get(modDetailsUrl, headers: headers);
 
       if (response.statusCode == 200) {
         final modDetails = json.decode(response.body);
@@ -1900,7 +1988,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
         if (pictureUrl != null && pictureUrl.isNotEmpty) {
           print(
-              "Estrategia 2 exitosa: Se encontró 'picture_url' para el mod $nexusId.");
+              "Estrategia exitosa: Se encontró 'picture_url' para el mod $nexusId.");
           return [
             {
               "image": pictureUrl,
@@ -1911,7 +1999,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         }
       }
 
-      print("Ambas estrategias para obtener imágenes fallaron para el mod $nexusId.");
+      print("La estrategia para obtener imágenes falló para el mod $nexusId (código: ${response.statusCode}).");
       return null;
     } catch (e) {
       print("Ocurrió una excepción al obtener imágenes para el mod $nexusId: $e");
@@ -2107,7 +2195,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       if (highestVersionFile != null) {
         final latestVersion = highestVersionFile['version'] as String;
-        if (_compareVersions(latestVersion, localVersion) > 0) {
+        
+        final skippedVersion = _skippedVersions[nexusId];
+        final isSkipped = skippedVersion != null && _compareVersions(latestVersion, skippedVersion) <= 0;
+
+        if (!isSkipped && _compareVersions(latestVersion, localVersion) > 0) {
           return {
             'version': latestVersion,
             'fileId': highestVersionFile['file_id'] as int,
@@ -2117,6 +2209,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
     return null;
   }
+
 
   Future<void> _recheckSpecificMod(String nexusId, {String? newVersion}) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
@@ -2254,6 +2347,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         title: Text(l10n.updateAvailable(newVersion)),
         content: Text(l10n.dialogContentUpdateOptions),
         actions: [
+          // Botón para ignorar temporalmente (sesión actual)
           TextButton(
             onPressed: () {
               setState(() {
@@ -2263,6 +2357,25 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             },
             child: Text(l10n.dialogActionIgnoreVersion),
           ),
+          // Botón para saltar la versión (persistente)
+          TextButton(
+            onPressed: () async {
+              setState(() {
+                 _skippedVersions[nexusId] = newVersion;
+                // Eliminamos la actualización de la vista actual
+                if (nexusId == _cnsNexusId) {
+                  _cnsUpdateInfo = null;
+                } else {
+                  _modUpdates.removeWhere((key, value) =>
+                      _allMods.firstWhere((mod) => mod.directory.path == key).nexusId == nexusId);
+                }
+              });
+              await _saveSkippedVersions();
+              Navigator.of(context).pop();
+            },
+            child: Text(l10n.dialogActionSkipVersion),
+          ),
+          // Botón para ir a la página de descarga
           ElevatedButton(
             onPressed: () async {
               final url = Uri.parse(
@@ -2282,6 +2395,64 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       ),
     );
   }
+  
+  Future<void> _manageSkippedVersions() async {
+    final l10n = AppLocalizations.of(context)!;
+    
+    await showDialog(
+        context: context,
+        builder: (context) {
+          return StatefulBuilder(builder: (context, setDialogState) {
+            final skippedEntries = _skippedVersions.entries.toList();
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFF2a2a2a),
+              title: Text(l10n.dialogTitleSkippedVersions),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: skippedEntries.isEmpty
+                    ? Center(child: Text(l10n.dialogNoSkippedVersions))
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: skippedEntries.length,
+                        itemBuilder: (context, index) {
+                          final entry = skippedEntries[index];
+                          final mod = _allMods.firstWhere(
+                              (m) => m.nexusId == entry.key,
+                              orElse: () => ModInfo(
+                                  directory: Directory(''),
+                                  lastModified: DateTime.now(),
+                                  isEnabled: false));
+                          final modName = mod.directory.path.isNotEmpty
+                              ? p.basename(mod.directory.path)
+                              : 'ID: ${entry.key}';
+
+                          return ListTile(
+                            title: Text(modName),
+                            subtitle: Text('Versión saltada: ${entry.value}'),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline,
+                                  color: Colors.redAccent),
+                              onPressed: () async {
+                                await _removeSkippedVersion(entry.key);
+                                setDialogState(() {}); // Actualiza la UI del diálogo
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(l10n.dialogActionClose),
+                )
+              ],
+            );
+          });
+        });
+  }
+
 
   List<ModInfo> _getFilteredAndSortedMods() {
     List<ModInfo> mods = List.from(_allMods);
@@ -2358,24 +2529,33 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         backgroundColor: const Color(0xFF2a2a2a),
         actions: [
           IconButton(
-            icon: const Icon(Icons.vpn_key_outlined),
-            tooltip: l10n.dialogTitleApiKey,
-            onPressed: _showApiKeyDialog,
-          ),
-          IconButton(
             icon: const Icon(Icons.cloud_sync_outlined),
             tooltip: l10n.checkForUpdates,
             onPressed: _isLoading || _isCheckingForUpdates ? null : _checkForUpdates,
           ),
+          // --- BOTONES MOVIDOS AL MENÚ DE CONFIGURACIÓN ---
           IconButton(
-            icon: const Icon(Icons.help_outline),
-            tooltip: l10n.aboutTitle,
-            onPressed: _showAboutDialog,
-          ),
-          IconButton(
-            icon: const Icon(Icons.language),
-            tooltip: l10n.language,
-            onPressed: _showLanguageDialog,
+            icon: const Icon(Icons.settings),
+            tooltip: l10n.settings,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SettingsPage(
+                    initialGameRootPath: _gameRootPath,
+                    initialSevenZipPath: _7zipPath,
+                    initialApiKey: _apiKey,
+                    skippedVersions: _skippedVersions,
+                    onSelectGamePath: _selectGamePathManually,
+                    onSelect7zipPath: _select7zipPathManually,
+                    onShowApiKeyDialog: _showApiKeyDialog,
+                    onManageSkippedVersions: _manageSkippedVersions,
+                    onShowLanguageDialog: _showLanguageDialog,
+                    onShowAboutDialog: _showAboutDialog,
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

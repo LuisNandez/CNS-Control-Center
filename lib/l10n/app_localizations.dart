@@ -126,6 +126,150 @@ abstract class AppLocalizations {
   /// **'Custom Nanosuit System {version}'**
   String appTitleWithVersion(Object version);
 
+  /// No description provided for @settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settings;
+
+  /// No description provided for @settingsGeneral.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get settingsGeneral;
+
+  /// No description provided for @settingsLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get settingsLanguage;
+
+  /// No description provided for @settingsLanguageDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the application language'**
+  String get settingsLanguageDesc;
+
+  /// No description provided for @settingsAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get settingsAbout;
+
+  /// No description provided for @settingsAboutDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Information about the application'**
+  String get settingsAboutDesc;
+
+  /// No description provided for @settingsPathsAndTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Paths & Tools'**
+  String get settingsPathsAndTools;
+
+  /// No description provided for @settingsGameFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Game Folder'**
+  String get settingsGameFolder;
+
+  /// No description provided for @settingsGameFolderDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The root folder of your Stellar Blade installation.'**
+  String get settingsGameFolderDesc;
+
+  /// No description provided for @settings7zipPath.
+  ///
+  /// In en, this message translates to:
+  /// **'7-Zip Path'**
+  String get settings7zipPath;
+
+  /// No description provided for @settings7zipPathDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The location of the 7z.exe file for extracting mods.'**
+  String get settings7zipPathDesc;
+
+  /// No description provided for @settings7zipPathAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic search'**
+  String get settings7zipPathAuto;
+
+  /// No description provided for @settingsConnectivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Connectivity & Updates'**
+  String get settingsConnectivity;
+
+  /// No description provided for @settingsApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Nexus Mods API Key'**
+  String get settingsApiKey;
+
+  /// No description provided for @settingsApiKeyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Required for checking mod updates.'**
+  String get settingsApiKeyDesc;
+
+  /// No description provided for @settingsApiKeySet.
+  ///
+  /// In en, this message translates to:
+  /// **'Set'**
+  String get settingsApiKeySet;
+
+  /// No description provided for @settingsApiKeyNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get settingsApiKeyNotSet;
+
+  /// No description provided for @settingsSkippedVersions.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Skipped Versions'**
+  String get settingsSkippedVersions;
+
+  /// No description provided for @settingsSkippedVersionsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage mod versions you have chosen to skip.'**
+  String get settingsSkippedVersionsDesc;
+
+  /// No description provided for @settingsSkippedVersionsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} versions skipped'**
+  String settingsSkippedVersionsCount(Object count);
+
+  /// No description provided for @dialogTitleSkippedVersions.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped Mod Versions'**
+  String get dialogTitleSkippedVersions;
+
+  /// No description provided for @dialogNoSkippedVersions.
+  ///
+  /// In en, this message translates to:
+  /// **'You have not skipped any mod versions.'**
+  String get dialogNoSkippedVersions;
+
+  /// No description provided for @snackBarGamePathInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected folder does not appear to be a valid game folder.'**
+  String get snackBarGamePathInvalid;
+
+  /// No description provided for @snackBar7zipPathInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected file must be named 7z.exe.'**
+  String get snackBar7zipPathInvalid;
+
   /// No description provided for @installNewMod.
   ///
   /// In en, this message translates to:
@@ -221,12 +365,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete permanently'**
   String get deletePermanently;
-
-  /// No description provided for @settings.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
-  String get settings;
 
   /// No description provided for @language.
   ///
@@ -473,6 +611,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Custom Nanosuit System updated successfully.'**
   String get snackBarCNSUpdated;
+
+  /// No description provided for @snackBarApiKeySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key saved successfully.'**
+  String get snackBarApiKeySaved;
+
+  /// No description provided for @snackBarGamePathSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Game path saved successfully.'**
+  String get snackBarGamePathSaved;
+
+  /// No description provided for @snackBar7zipPathSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'7-Zip path saved successfully.'**
+  String get snackBar7zipPathSaved;
+
+  /// No description provided for @snackBarSkippedVersionRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped version removed.'**
+  String get snackBarSkippedVersionRemoved;
 
   /// No description provided for @dropTargetOverlay.
   ///
@@ -744,12 +906,6 @@ abstract class AppLocalizations {
   /// **'Save'**
   String get dialogActionSave;
 
-  /// No description provided for @snackBarApiKeySaved.
-  ///
-  /// In en, this message translates to:
-  /// **'API Key saved successfully.'**
-  String get snackBarApiKeySaved;
-
   /// No description provided for @apiKeyRemoved.
   ///
   /// In en, this message translates to:
@@ -771,7 +927,7 @@ abstract class AppLocalizations {
   /// No description provided for @errorApiKeyMissing.
   ///
   /// In en, this message translates to:
-  /// **'Nexus Mods API Key is not configured. Please add it via the key icon in the top bar.'**
+  /// **'Nexus Mods API Key is not configured. Please add it via the key icon in the settings.'**
   String get errorApiKeyMissing;
 
   /// No description provided for @statusCheckingUpdates.
@@ -837,8 +993,14 @@ abstract class AppLocalizations {
   /// No description provided for @dialogActionIgnoreVersion.
   ///
   /// In en, this message translates to:
-  /// **'Ignore Version'**
+  /// **'Ignore'**
   String get dialogActionIgnoreVersion;
+
+  /// No description provided for @dialogActionSkipVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip Version'**
+  String get dialogActionSkipVersion;
 
   /// No description provided for @dialogActionGoToDownloadPage.
   ///
