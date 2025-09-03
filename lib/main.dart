@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
@@ -10,7 +11,18 @@ import 'package:win32_registry/win32_registry.dart';
 import 'l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'settings_page.dart'; // <-- IMPORTACIÓN
+import 'settings_page.dart';
+
+class AppPrefs {
+  static const String languageCode = 'languageCode';
+  static const String gameRootPath = 'gameRootPath';
+  static const String sevenZipPath = 'sevenZipPath';
+  static const String nexusApiKey = 'nexusApiKey';
+  static const String skippedVersions = 'skippedVersions';
+  // --- NUEVAS CLAVES ---
+  static const String filterMode = 'filterMode';
+  static const String sortMode = 'sortMode';
+}
 
 // Clase para almacenar la información de un mod.
 class ModInfo {
@@ -19,6 +31,7 @@ class ModInfo {
   String? localVersion;
   final DateTime lastModified;
   bool isEnabled;
+  final String? origin; // Para saber si fue reparado
 
   ModInfo({
     required this.directory,
@@ -26,10 +39,10 @@ class ModInfo {
     this.localVersion,
     required this.lastModified,
     required this.isEnabled,
+    this.origin,
   });
 
   static String? _extractVersionFromName(String name) {
-    // Regex mejorada para admitir versiones con letras (ej: v1.a, 1.0.5)
     final regex = RegExp(r'[vV]?([0-9]+(\.[0-9a-zA-Z]+)*)');
     final match = regex.firstMatch(name);
     return match?.group(1);
@@ -64,7 +77,7 @@ class _ModInstallerAppState extends State<ModInstallerApp> {
 
   void _loadLocale() async {
     final prefs = await SharedPreferences.getInstance();
-    String? languageCode = prefs.getString('languageCode');
+    String? languageCode = prefs.getString(AppPrefs.languageCode);
     if (languageCode != null) {
       setState(() {
         _locale = Locale(languageCode);
@@ -116,14 +129,12 @@ class ModInstallerHomePage extends StatefulWidget {
   State<ModInstallerHomePage> createState() => _ModInstallerHomePageState();
 }
 
-// Clase auxiliar para mapear los resultados de la búsqueda de actualizaciones a los mods
 class _UpdateCheckJob {
   final ModInfo? mod;
   final bool isCns;
   _UpdateCheckJob({this.mod, this.isCns = false});
 }
 
-// Clase auxiliar para mods preparados para la instalación
 class _PreparedMod {
   final Directory sourceDir;
   final String? nexusId;
@@ -136,10 +147,9 @@ class _PreparedUE4SS {
   _PreparedUE4SS({required this.sourceDir});
 }
 
-enum ModFilter { all, enabled, disabled }
+enum ModFilter { all, enabled, disabled, repaired }
 enum ModSort { name, date }
 
-// --- CAMBIO: Enum para manejar la elección del usuario en el nuevo diálogo ---
 enum _AlternativeVersionAction { cancel, replace, installAsNew }
 
 class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
@@ -170,25 +180,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   String _appVersion = '';
 
-  // Variables específicas para el CNS
   String? _cnsVersion;
   String? _cnsNexusId;
-  Map<String, dynamic>? _cnsUpdateInfo; // {'version': '1.1', 'fileId': 12345}
+  Map<String, dynamic>? _cnsUpdateInfo;
 
-  // Nuevas variables para la comprobación de actualizaciones
-  final Map<String, Map<String, dynamic>> _modUpdates = {}; // Key: mod directory path, Value: {'version': '1.1', 'fileId': 12345}
-  final Set<String> _ignoredUpdates = {}; // Almacena identificadores para las actualizaciones ignoradas
+  final Map<String, Map<String, dynamic>> _modUpdates = {};
+  final Set<String> _ignoredUpdates = {};
   bool _isCheckingForUpdates = false;
 
-  // Almacena las versiones saltadas de forma persistente
   Map<String, String> _skippedVersions = {};
+  Map<String, dynamic> _modDatabase = {};
   
-  // Variables para el progreso de extracción
   bool _isExtracting = false;
   double _extractionProgress = 0.0;
   String _extractionStatus = '';
 
-  // Variables para filtrado y ordenamiento
   ModFilter _currentFilter = ModFilter.all;
   ModSort _currentSort = ModSort.date;
 
@@ -226,9 +232,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _initialize() async {
     await _getAppVersion();
+    await _loadModDatabase();
     await _find7zipPath();
     await _loadApiKey();
     await _loadSkippedVersions();
+    await _loadFilterAndSortPrefs(); // <-- Carga de preferencias
     await _findGamePath();
     if (_finalModsPath != null) {
       await _loadAllMods();
@@ -236,16 +244,31 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
+  Future<void> _loadModDatabase() async {
+    try {
+      final String content = await rootBundle.loadString('mod_database.json');
+      final data = json.decode(content);
+      if (data is Map<String, dynamic>) {
+        setState(() {
+          _modDatabase = data;
+        });
+        print('Base de datos de mods locales cargada correctamente.');
+      }
+    } catch (e) {
+      print('No se encontró o no se pudo leer mod_database.json, se omitirá: $e');
+    }
+  }
+
   Future<void> _loadApiKey() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _apiKey = prefs.getString('nexusApiKey');
+      _apiKey = prefs.getString(AppPrefs.nexusApiKey);
     });
   }
 
   Future<void> _saveApiKey(String apiKey) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('nexusApiKey', apiKey);
+    await prefs.setString(AppPrefs.nexusApiKey, apiKey);
     setState(() {
       _apiKey = apiKey;
     });
@@ -253,7 +276,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   
   Future<void> _loadSkippedVersions() async {
     final prefs = await SharedPreferences.getInstance();
-    final skippedList = prefs.getStringList('skippedVersions') ?? [];
+    final skippedList = prefs.getStringList(AppPrefs.skippedVersions) ?? [];
     setState(() {
       _skippedVersions = {
         for (var e in skippedList) e.split(';')[0]: e.split(';')[1]
@@ -265,7 +288,18 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final prefs = await SharedPreferences.getInstance();
     final skippedList =
         _skippedVersions.entries.map((e) => '${e.key};${e.value}').toList();
-    await prefs.setStringList('skippedVersions', skippedList);
+    await prefs.setStringList(AppPrefs.skippedVersions, skippedList);
+  }
+
+  Future<void> _loadFilterAndSortPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final filterIndex = prefs.getInt(AppPrefs.filterMode) ?? ModFilter.all.index;
+    final sortIndex = prefs.getInt(AppPrefs.sortMode) ?? ModSort.date.index;
+
+    setState(() {
+      _currentFilter = ModFilter.values[filterIndex];
+      _currentSort = ModSort.values[sortIndex];
+    });
   }
 
   Future<void> _removeSkippedVersion(String nexusId) async {
@@ -293,10 +327,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           'accept': 'application/json',
         },
       );
-      // Un código 200 (OK) significa que la clave es válida.
       return response.statusCode == 200;
     } catch (e) {
-      // Maneja errores de red u otros problemas durante la validación.
       print('Error al validar la clave de API: $e');
       return false;
     }
@@ -311,7 +343,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   
   Future<void> _find7zipPath() async {
     final prefs = await SharedPreferences.getInstance();
-    String? saved7zipPath = prefs.getString('sevenZipPath');
+    String? saved7zipPath = prefs.getString(AppPrefs.sevenZipPath);
     
     if (saved7zipPath != null && await File(saved7zipPath).exists()) {
       setState(() => _7zipPath = saved7zipPath);
@@ -339,7 +371,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       );
       if (result != null && result.files.single.path != null) {
         final newPath = result.files.single.path!;
-        // --- VALIDACIÓN ---
         if (p.basename(newPath).toLowerCase() != '7z.exe') {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -351,7 +382,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         }
 
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('sevenZipPath', newPath);
+        await prefs.setString(AppPrefs.sevenZipPath, newPath);
         setState(() {
           _7zipPath = newPath;
         });
@@ -377,7 +408,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     });
     try {
       final prefs = await SharedPreferences.getInstance();
-      String? savedPath = prefs.getString('gameRootPath');
+      String? savedPath = prefs.getString(AppPrefs.gameRootPath);
       String? gamePath;
 
       if (savedPath != null && await Directory(savedPath).exists()) {
@@ -458,7 +489,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     if (_gameRootPath == null) return null;
 
     String? newVersion;
-    // Leer nexus_info.json para el ID y la versión instalada
     try {
       final infoFile = File(p.join(
           _gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss', 'nexus_info.json'));
@@ -475,7 +505,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       print('Error al leer nexus_info.json del CNS: $e');
     }
 
-    // Si no se encontró la versión en el JSON, intentar leerla desde el LUA como fallback
     if (_cnsVersion == null) {
       try {
         final luaFile = File(p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64',
@@ -512,7 +541,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           final modPath = p.join(
               result, 'SB', 'Content', 'Paks', '~mods', 'CustomNanosuitSystem');
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('gameRootPath', result);
+          await prefs.setString(AppPrefs.gameRootPath, result);
           setState(() {
             _gameRootPath = result;
             _finalModsPath = modPath;
@@ -545,6 +574,28 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
     return null;
   }
+  
+  Future<String?> _getVersionFromModJsonDescription(Directory modDir) async {
+    try {
+      await for (final file in modDir.list()) {
+        if (file is File && p.extension(file.path).toLowerCase() == '.json') {
+          final jsonString = await file.readAsString();
+          final jsonDecoded = json.decode(jsonString.replaceAll(RegExp(r',\s*(?=[\}\]])'), ''));
+          if (jsonDecoded is List && jsonDecoded.isNotEmpty) {
+            final modInfo = jsonDecoded[0] as Map<String, dynamic>;
+            final description = modInfo['Description'] as String?;
+            if (description != null) {
+              return ModInfo._extractVersionFromName(description);
+            }
+          }
+          break; 
+        }
+      }
+    } catch (e) {
+      print('Error leyendo versión desde JSON description para ${modDir.path}: $e');
+    }
+    return null;
+  }
 
   Future<void> _loadAllMods({bool clearHighlight = true}) async {
     if (_finalModsPath == null) return;
@@ -559,37 +610,42 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       final dir = Directory(path);
       if (!await dir.exists()) return [];
 
-      final modDirs = dir.listSync().whereType<Directory>().toList();
       final List<ModInfo> mods = [];
-      for (final modDir in modDirs) {
-        if (p.basename(modDir.path) == '__MOD_BACKUPS__') continue;
+      await for (final entity in dir.list()) {
+        if (entity is Directory) {
+          if (p.basename(entity.path) == '__MOD_BACKUPS__') continue;
 
-        String? nexusId;
-        String? installedVersion;
+          String? nexusId;
+          String? installedVersion;
+          String? origin;
 
-        final infoFile = File(p.join(modDir.path, 'nexus_info.json'));
-        if (await infoFile.exists()) {
-          try {
-            final content = await infoFile.readAsString();
-            final data = json.decode(content);
-            nexusId = data['nexusId'];
-            installedVersion = data['installedVersion'];
-          } catch (e) {
-            print("Error al leer nexus_info.json en ${modDir.path}: $e");
+          final infoFile = File(p.join(entity.path, 'nexus_info.json'));
+          if (await infoFile.exists()) {
+            try {
+              final content = await infoFile.readAsString();
+              final data = json.decode(content);
+              nexusId = data['nexusId'];
+              installedVersion = data['installedVersion'];
+              origin = data['origin'];
+            } catch (e) {
+              print("Error al leer nexus_info.json en ${entity.path}: $e");
+            }
           }
+          
+          installedVersion ??=
+              ModInfo._extractVersionFromName(p.basename(entity.path));
+          
+          final fileStat = await entity.stat();
+
+          mods.add(ModInfo(
+              directory: entity,
+              nexusId: nexusId,
+              localVersion: installedVersion,
+              lastModified: fileStat.modified,
+              isEnabled: isEnabled,
+              origin: origin,
+          ));
         }
-
-        installedVersion ??=
-            ModInfo._extractVersionFromName(p.basename(modDir.path));
-        
-        final fileStat = await modDir.stat();
-
-        mods.add(ModInfo(
-            directory: modDir,
-            nexusId: nexusId,
-            localVersion: installedVersion,
-            lastModified: fileStat.modified,
-            isEnabled: isEnabled));
       }
       return mods;
     }
@@ -598,7 +654,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       final enabledMods = await getModsFromDirectory(_finalModsPath!, true);
 
       if (_gameRootPath == null) {
-        // Si no hay ruta de juego, no hay dónde buscar backups.
         final disabledMods = <ModInfo>[];
         setState(() {
          _allMods = [...enabledMods, ...disabledMods];
@@ -627,12 +682,158 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
+  Future<void> _showSelfHealConfirmationDialog() async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2a2a2a),
+        title: Text(l10n.dialogTitleRepairMods),
+        content: Text(l10n.dialogContentRepairMods),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.dialogActionCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
+            child: Text(l10n.dialogActionRunRepair),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      _runSelfHealing();
+    }
+  }
+
+  Future<void> _runSelfHealing() async {
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(l10n.snackBarRepairStarted),
+      backgroundColor: Colors.blueGrey,
+    ));
+
+    setState(() => _isLoading = true);
+
+    int repairedCount = 0;
+    for (final mod in List.from(_allMods)) {
+      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+      if (await infoFile.exists()) continue;
+
+      final primaryDisplayName = await _getDisplayNameForMod(mod.directory);
+      if (primaryDisplayName != null && _modDatabase.containsKey(primaryDisplayName)) {
+        final dbEntry = _modDatabase[primaryDisplayName] as Map<String, dynamic>;
+        final nexusId = dbEntry['nexusId'] as String?;
+
+        if (nexusId == null) continue;
+
+        String? version = ModInfo._extractVersionFromName(p.basename(mod.directory.path));
+        version ??= await _getVersionFromModJsonDescription(mod.directory);
+
+        if (version == null) {
+          if (_apiKey == null || _apiKey!.isEmpty) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(l10n.errorApiRequiredForRepair),
+                backgroundColor: Colors.redAccent,
+              ));
+            }
+            break; 
+          }
+          version = await _fetchLatestModVersion(nexusId);
+        }
+        
+        final compositeDisplayName = await _getCompositeDisplayName(mod.directory) ?? primaryDisplayName;
+
+        try {
+          final Map<String, dynamic> modData = {
+            'nexusId': nexusId,
+            'displayName': compositeDisplayName,
+            'installedVersion': version,
+            'installDate': DateTime.now().toIso8601String(),
+            'origin': 'repaired',
+          };
+
+          final galleryData = await _fetchModImages(nexusId);
+          if (galleryData != null) {
+            modData['gallery'] = galleryData;
+          }
+
+          final encoder = JsonEncoder.withIndent('  ');
+          await infoFile.writeAsString(encoder.convert(modData));
+
+          if (version != null && version.isNotEmpty) {
+            final oldPath = mod.directory.path;
+            final oldFolderName = p.basename(oldPath);
+            final newFolderName = '$compositeDisplayName v$version';
+
+            if (oldFolderName != newFolderName) {
+                final newPath = p.join(mod.directory.parent.path, newFolderName);
+                print('Renombrando mod folder de "$oldFolderName" a "$newFolderName"');
+                await mod.directory.rename(newPath);
+            }
+          }
+          repairedCount++;
+        } catch (e) {
+          print('No se pudo auto-reparar o renombrar el mod "$primaryDisplayName": $e');
+        }
+      }
+    }
+
+    if (mounted) {
+      if (repairedCount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.snackBarRepairComplete(repairedCount)),
+          backgroundColor: Colors.green[600],
+        ));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.snackBarRepairNoMods),
+          backgroundColor: Colors.orange,
+        ));
+      }
+    }
+    
+    await _loadAllMods();
+  }
+
+  Future<String?> _fetchLatestModVersion(String nexusId) async {
+    try {
+      if (_apiKey == null || _apiKey!.isEmpty) return null;
+      final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
+      final url = Uri.parse('https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId/files.json');
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode != 200) return null;
+
+      final jsonResponse = json.decode(response.body);
+      final allFiles = jsonResponse['files'] as List;
+      
+      dynamic highestVersionFile;
+      String highestVersion = "0";
+      for (final file in allFiles) {
+        final currentVersion = file['version'] as String?;
+        if (currentVersion != null && _compareVersions(currentVersion, highestVersion) > 0) {
+          highestVersion = currentVersion;
+          highestVersionFile = file;
+        }
+      }
+      return highestVersionFile?['version'];
+    } catch (e) {
+      print('Error buscando la última versión para el mod $nexusId: $e');
+      return null;
+    }
+  }
+
   Future<void> _pickArchive() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['zip', 'rar', '7z'],
-        allowMultiple: true, // Permitir selección múltiple
+        allowMultiple: true,
       );
       if (result != null && result.files.isNotEmpty) {
         final files = result.paths.map((path) => File(path!)).toList();
@@ -646,7 +847,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Map<String, String>? _extractNexusInfoFromName(String name) {
     try {
-      // 1. Regex para capturar el ID del mod y toda la cadena que le sigue.
       final regex = RegExp(r'-(\d+)-(.+)');
       final match = regex.firstMatch(name);
 
@@ -654,29 +854,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         final id = match.group(1);
         if (id == null) return null;
 
-        // 2. Tomamos la parte que contiene la versión y el file ID.
-        // Ej: "0-9-1-1756239399.zip"
         final versionAndFileIdString = match.group(2);
         if (versionAndFileIdString == null) return null;
 
-        // 3. Eliminamos la extensión del archivo para limpiar la cadena.
-        // Ej: "0-9-1-1756239399"
         final cleanString = versionAndFileIdString.replaceAll(
             RegExp(r'\.(zip|rar|7z)$', caseSensitive: false), '');
 
-        // 4. Dividimos la cadena por el guion.
-        // Ej: ["0", "9", "1", "1756239399"]
         final parts = cleanString.split('-');
 
-        // 5. La versión se compone de todas las partes excepto la última (que es el file ID).
         if (parts.length >= 2) {
           final versionParts = parts.sublist(0, parts.length - 1);
-          // Ej: ["0", "9", "1"]
-          
-          // 6. Unimos las partes de la versión con un punto y añadimos una 'v' para consistencia.
-          // Ej: "v0.9.1"
           final version = 'v${versionParts.join('.')}';
-
           return {'id': id, 'version': version};
         }
       }
@@ -747,7 +935,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<void> _promptAndInstallUE4SS(Directory sourceDir) async {
-    // La variable l10n ahora se obtiene aquí para acceder a los textos.
     final l10n = AppLocalizations.of(context)!; 
     
     final confirm = await showDialog<bool>(
@@ -893,7 +1080,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
 
       if (_preparedUE4SS != null) {
-        // Limpiamos los mods normales si se va a instalar UE4SS para evitar confusiones.
         _preparedMods.clear(); 
         await _promptAndInstallUE4SS(_preparedUE4SS!.sourceDir);
       } else if (cnsUpdateInitiated && _preparedMods.isEmpty) {
@@ -918,8 +1104,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final List<Directory> found = [];
     bool isRootAMod = false;
 
-    // Comprueba si el directorio actual es un mod.
-    // Bucle para no listar todo el directorio si encontramos el json.
     await for (final entity in root.list(followLinks: false)) {
       if (entity is File && p.extension(entity.path).toLowerCase() == '.json') {
         isRootAMod = true;
@@ -928,19 +1112,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
 
     if (isRootAMod) {
-      // Si el directorio actual es un mod, lo añadimos.
       found.add(root);
       return found;
     }
 
-    // Si no es un mod, buscamos en sus subdirectorios.
     await for (final entity in root.list(followLinks: false)) {
       if (entity is Directory) {
-        // Ignoramos carpetas comunes que no contienen mods.
         final basename = p.basename(entity.path);
         if (basename.startsWith('__') || basename.startsWith('.')) continue;
 
-        // Llamada recursiva para buscar dentro de esta subcarpeta.
         final nestedMods = await _findValidModDirectories(entity);
         found.addAll(nestedMods);
       }
@@ -1020,7 +1200,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       await _copyDirectory(sourceSBDir, destinationSBDir);
       
-      // 1. Siempre leemos 'main.lua' para obtener la versión real instalada.
       String? versionFromLua;
       try {
         final luaFile = File(p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64',
@@ -1029,34 +1208,28 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         if (await luaFile.exists()) {
           final content = await luaFile.readAsString();
           final regex = RegExp(r'local CNS_Version = "(.+)"');
+          
           final match = regex.firstMatch(content);
           if (match != null && match.group(1) != null) {
             versionFromLua = match.group(1);
-            print('Versión leída desde main.lua: $versionFromLua');
           }
         }
       } catch (e) {
         print('No se pudo leer la versión del main.lua recién instalado: $e');
       }
 
-      // 2. Intentamos obtener info del nombre del archivo, pero ya no es un requisito.
       final nexusInfo = _extractNexusInfoFromName(p.basename(sourceSBDir.parent.path));
 
-      // 3. LA CONDICIÓN CLAVE: Si pudimos leer la versión desde LUA, entonces
-      //    PROCEDEMOS a crear/actualizar el 'nexus_info.json'.
       if (versionFromLua != null) {
         final ue4ssDir = Directory(
             p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss'));
         if (await ue4ssDir.exists()) {
           final infoFile = File(p.join(ue4ssDir.path, 'nexus_info.json'));
-
-          // 4. VALORES POR DEFECTO: Usamos el ID de Nexus del nombre del archivo si existe,
-          //    si no, usamos el ID conocido del CNS ('1496') como respaldo.
           final String nexusIdForFile = nexusInfo?['id'] ?? '1496';
 
           final Map<String, dynamic> modData = {
             'nexusId': nexusIdForFile,
-            'installedVersion': versionFromLua, // Siempre usamos la versión de LUA.
+            'installedVersion': versionFromLua,
             'installDate': DateTime.now().toIso8601String(),
           };
 
@@ -1067,10 +1240,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
           final encoder = JsonEncoder.withIndent('  ');
           await infoFile.writeAsString(encoder.convert(modData));
-          print('nexus_info.json para CNS creado/actualizado correctamente.');
         }
       } else {
-        // Si no se encontró la versión en LUA, no creamos el archivo para evitar datos corruptos.
         print('ADVERTENCIA: No se pudo determinar la versión del CNS desde main.lua. No se creará nexus_info.json.');
       }
 
@@ -1146,6 +1317,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           if (modName != null) {
             installedNames.add(modName);
             successCount++;
+            if (mounted && _preparedMods.length > 1) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(l10n.snackBarModInstalled(modName)),
+                backgroundColor: Colors.green[800],
+              ));
+            }
           } else {
             failCount++;
           }
@@ -1220,6 +1397,45 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         nexusId: nexusId, nexusVersion: nexusVersion);
   }
 
+  Future<String?> _getCompositeDisplayName(Directory modDir) async {
+    final List<File> jsonFiles = [];
+    await for (final entity in modDir.list()) {
+      if (entity is File && p.extension(entity.path).toLowerCase() == '.json') {
+        jsonFiles.add(entity);
+      }
+    }
+
+    if (jsonFiles.isEmpty) {
+      return null;
+    }
+
+    List<String> displayNames = [];
+    for (final jsonFile in jsonFiles) {
+      try {
+        var jsonString = await jsonFile.readAsString();
+        jsonString = jsonString.replaceAll(RegExp(r',\s*(?=[\}\]])'), '');
+        final jsonDecoded = json.decode(jsonString);
+        if (jsonDecoded is List && jsonDecoded.isNotEmpty) {
+          final modInfo = jsonDecoded[0] as Map<String, dynamic>;
+          final displayName = modInfo['DisplayName'] as String?;
+          if (displayName != null && displayName.trim().isNotEmpty) {
+            final sanitizedDisplayName =
+                displayName.trim().replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
+            displayNames.add(sanitizedDisplayName);
+          }
+        }
+      } catch (e) {
+        print('No se pudo parsear el display name de ${jsonFile.path}: $e');
+      }
+    }
+
+    if (displayNames.isEmpty) {
+      return null;
+    }
+
+    return displayNames.join(' ~ ');
+  }
+
   Future<String?> _getDisplayNameForMod(Directory modDir) async {
     try {
       await for (final entity in modDir.list()) {
@@ -1244,16 +1460,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     return null;
   }
 
-  // --- NUEVA FUNCIÓN AUXILIAR ---
-  // Elimina la información de versión del final del nombre de una carpeta.
   String _stripVersionFromName(String name) {
-    // Regex para encontrar un patrón de versión al final del string (ej: v1.0, 1.1b, V2)
     final regex = RegExp(r'\s+[vV]?\d+(\.\d*[\w\d]*)*\s*$', caseSensitive: false);
     return name.replaceAll(regex, '').trim();
   }
 
-  // --- NUEVA FUNCIÓN AUXILIAR ---
-  // Obtiene el nombre comparable de un mod, ya sea desde su JSON o desde su carpeta.
   Future<String> _getComparableNameForMod(ModInfo mod) async {
     final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
     final folderName = p.basename(mod.directory.path);
@@ -1261,10 +1472,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     try {
       if (await infoFile.exists()) {
         final data = json.decode(await infoFile.readAsString());
-        // Prioriza el displayName del JSON, si no existe, limpia el nombre de la carpeta.
         return data['displayName'] ?? _stripVersionFromName(folderName);
       } else {
-        // Si no hay JSON, solo limpia el nombre de la carpeta.
         return _stripVersionFromName(folderName);
       }
     } catch (e) {
@@ -1274,8 +1483,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
 
-  // --- NUEVA FUNCIÓN AUXILIAR ---
-  // Muestra un diálogo inteligente basado en la comparación de versiones.
   Future<_AlternativeVersionAction?> _showSmartInstallDialog({
     required ModInfo oldVersionMod,
     required String baseDisplayName,
@@ -1290,19 +1497,18 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     String content;
     String replaceActionText = l10n.dialogActionReplace;
 
-    // Si tenemos ambas versiones para comparar
     if (oldVersionMod.localVersion != null && newVersion != null) {
       final comparison = _compareVersions(newVersion, oldVersionMod.localVersion!);
       
-      if (comparison > 0) { // Nueva versión es MAYOR que la antigua
+      if (comparison > 0) {
         title = l10n.dialogTitleUpdate;
         content = l10n.dialogContentUpdate(baseDisplayName, oldVersion, newVersionStr);
         replaceActionText = l10n.dialogActionUpdate;
-      } else if (comparison < 0) { // Nueva versión es MENOR que la antigua
+      } else if (comparison < 0) {
         title = l10n.dialogTitleDowngrade;
         content = l10n.dialogContentDowngrade(baseDisplayName, oldVersion, newVersionStr);
         replaceActionText = l10n.dialogActionDowngrade;
-      } else { // Las versiones son idénticas
+      } else {
         title = l10n.dialogTitleReinstall;
         content = l10n.dialogContentReinstall(baseDisplayName, newVersionStr);
         replaceActionText = l10n.dialogActionReinstall;
@@ -1342,69 +1548,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<String> _installSingleModFromListOfFiles(List<File> files,
       {String? nexusId, String? nexusVersion}) async {
     final l10n = AppLocalizations.of(context)!;
-    final jsonFiles =
-        files.where((f) => p.extension(f.path).toLowerCase() == '.json').toList();
+    final tempModDir = files.first.parent; 
 
-    if (jsonFiles.isEmpty) {
-      throw Exception(l10n.errorNoJsonFound);
-    }
-
-    if (jsonFiles.length > 1) {
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF2a2a2a),
-          title: Text(l10n.dialogTitleMultipleJsons),
-          content: Text(l10n.dialogContentMultipleJsons(jsonFiles.length)),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(l10n.dialogActionCancel)),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
-              child: Text(l10n.dialogActionInstallAnyway),
-            ),
-          ],
-        ),
-      );
-
-      if (confirm != true) {
-        throw Exception(l10n.statusInstallationCancelledByUser);
-      }
-    }
-
-    List<String> displayNames = [];
-    for (final jsonFile in jsonFiles) {
-      try {
-        var jsonString = await jsonFile.readAsString();
-        jsonString = jsonString.replaceAll(RegExp(r',\s*(?=[\}\]])'), '');
-        final jsonDecoded = json.decode(jsonString);
-        if (jsonDecoded is List && jsonDecoded.isNotEmpty) {
-          final modInfo = jsonDecoded[0] as Map<String, dynamic>;
-          final displayName = modInfo['DisplayName'] as String?;
-          if (displayName != null && displayName.trim().isNotEmpty) {
-            final sanitizedDisplayName =
-                displayName.trim().replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
-            displayNames.add(sanitizedDisplayName);
-          } else {
-            throw FormatException(
-                l10n.errorNoDisplayName(p.basename(jsonFile.path)));
-          }
-        } else {
-          throw FormatException(
-              l10n.errorInvalidJsonFormat(p.basename(jsonFile.path)));
-        }
-      } catch (e) {
-        rethrow;
-      }
-    }
-
-    if (displayNames.isEmpty) {
+    final baseDisplayName = await _getCompositeDisplayName(tempModDir);
+    if (baseDisplayName == null) {
       throw FormatException(l10n.errorNoValidDisplayName);
     }
-
-    String baseDisplayName = displayNames.join(' ~ ');
+    
     String finalFolderName = baseDisplayName;
     if (nexusVersion != null) {
       finalFolderName = '$finalFolderName $nexusVersion';
@@ -1413,25 +1563,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     ModInfo? oldVersionMod;
     _AlternativeVersionAction? action;
 
-    // Paso 1: Búsqueda amplia. Encontrar todos los mods con el mismo nexusId.
     List<ModInfo> nexusIdMatches = [];
     if (nexusId != null) {
       nexusIdMatches = _allMods.where((mod) => mod.nexusId == nexusId).toList();
     }
 
     if (nexusIdMatches.isNotEmpty) {
-      // Paso 2: Búsqueda específica. Encontrar el que coincida por nombre.
       for (final candidateMod in nexusIdMatches) {
         final candidateName = await _getComparableNameForMod(candidateMod);
         if (candidateName.toLowerCase() == baseDisplayName.toLowerCase()) {
-          oldVersionMod = candidateMod; // ¡Coincidencia exacta encontrada!
+          oldVersionMod = candidateMod;
           break;
         }
       }
 
-      // Paso 3: Toma de decisiones.
       if (oldVersionMod != null) {
-        // Caso A: Se encontró una coincidencia de nombre exacta. Proceder con la comparación de versiones.
         action = await _showSmartInstallDialog(
           oldVersionMod: oldVersionMod!,
           baseDisplayName: baseDisplayName,
@@ -1439,7 +1585,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           newVersion: nexusVersion,
         );
       } else {
-        // Caso B: No se encontró coincidencia de nombre, es una nueva versión alternativa.
         final existingModExample = p.basename(nexusIdMatches.first.directory.path);
         action = await showDialog<_AlternativeVersionAction>(
           context: context,
@@ -1467,7 +1612,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         );
       }
     } else {
-      // Fallback: Si no hay coincidencias por nexusId, buscar por nombre como antes.
       for (final existingMod in _allMods) {
         String? existingDisplayName = await _getDisplayNameForMod(existingMod.directory);
         if (existingDisplayName != null && existingDisplayName == baseDisplayName) {
@@ -1489,7 +1633,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       switch (action) {
         case _AlternativeVersionAction.replace:
           if(oldVersionMod == null) {
-            // This case should ideally not be hit if action is replace, but as a safeguard:
              throw Exception("Attempted to replace a mod but no old version was identified.");
           }
           final oldModName = p.basename(oldVersionMod.directory.path);
@@ -1704,7 +1847,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     }
     print('No se pudo borrar el directorio ${dir.path} después de $retries intentos.');
-    return false; // Falló después de todos los reintentos
+    return false;
   }
 
   Future<void> _showInExplorer(Directory modDirectory) async {
@@ -1849,7 +1992,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                         errorText: errorMessage,
                       ),
                       onChanged: (_) {
-                        // Limpia el mensaje de error cuando el usuario escribe de nuevo
                         if (errorMessage != null) {
                            setDialogState(() {
                              errorMessage = null;
@@ -1865,7 +2007,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           children: [
                             const CircularProgressIndicator(),
                             const SizedBox(width: 16),
-                            Text(l10n.validatingApiKey), // TEXTO LOCALIZADO
+                            Text(l10n.validatingApiKey),
                           ],
                         ),
                       )
@@ -1883,10 +2025,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   onPressed: isChecking ? null : () async {
                     final keyToValidate = apiKeyController.text;
                     if (keyToValidate.isEmpty) {
-                      await _saveApiKey(''); // Permite borrar la clave
+                      await _saveApiKey('');
                        if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(l10n.apiKeyRemoved), // TEXTO LOCALIZADO
+                          content: Text(l10n.apiKeyRemoved),
                           backgroundColor: Colors.orange,
                         ));
                         Navigator.of(context).pop('');
@@ -1912,7 +2054,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                        } else {
                           setDialogState(() {
                             isChecking = false;
-                            errorMessage = l10n.invalidApiKeyError; // TEXTO LOCALIZADO
+                            errorMessage = l10n.invalidApiKeyError;
                           });
                        }
                     }
@@ -1927,8 +2069,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 
-  /// Compara dos strings de versión (ej: "1.10.1" vs "1.9.2" o "1.a")
-  /// Devuelve > 0 si v1 es mayor, < 0 si v2 es mayor, 0 si son iguales.
   int _compareVersions(String v1, String v2) {
     try {
       final cleanV1 = v1.toLowerCase().replaceAll(RegExp(r'^[vV]'), '');
@@ -1977,7 +2117,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
 
     try {
-      // --- ESTRATEGIA ÚNICA: Obtener 'picture_url' desde los detalles del mod ---
       final modDetailsUrl = Uri.parse(
           'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId.json');
       var response = await http.get(modDetailsUrl, headers: headers);
@@ -1987,8 +2126,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         final pictureUrl = modDetails['picture_url'] as String?;
 
         if (pictureUrl != null && pictureUrl.isNotEmpty) {
-          print(
-              "Estrategia exitosa: Se encontró 'picture_url' para el mod $nexusId.");
           return [
             {
               "image": pictureUrl,
@@ -2007,7 +2144,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  // Esta función lee, actualiza y escribe el archivo nexus_info.json unificado.
   Future<void> _updateNexusInfoFile(Directory modDirectory,
       {Map<String, dynamic>? updateCheckData,
       List<Map<String, dynamic>>? galleryData}) async {
@@ -2086,7 +2222,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         futures.add(_checkSingleModUpdate(
             headers: headers,
             nexusId: _cnsNexusId!,
-            localVersion: _cnsVersion!,
+            localVersion: _cnsVersion ?? '0',
+            hasLocalVersion: _cnsVersion != null,
             modName: "Custom Nanosuit System",
             modDirectory: Directory(
                 p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss'))));
@@ -2094,7 +2231,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         futures.add(_checkSingleModUpdate(
             headers: headers,
             nexusId: job.mod!.nexusId!,
-            localVersion: job.mod!.localVersion!,
+            localVersion: job.mod!.localVersion ?? '0',
+            hasLocalVersion: job.mod!.localVersion != null,
             modName: p.basename(job.mod!.directory.path),
             modDirectory: job.mod!.directory));
       }
@@ -2142,6 +2280,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     required Map<String, String> headers,
     required String nexusId,
     required String localVersion,
+    required bool hasLocalVersion,
     required String modName,
     required Directory modDirectory,
   }) async {
@@ -2149,7 +2288,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId/files.json');
     final response = await http.get(url, headers: headers);
 
-    // Actualizar nexus_info.json con el resultado de la comprobación y la galería.
     try {
       final updateCheckData = {
         'timestamp': DateTime.now().toIso8601String(),
@@ -2186,8 +2324,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       dynamic highestVersionFile;
       String highestVersion = "0";
       for (final file in filesToConsider) {
-        final currentVersion = file['version'] as String;
-        if (_compareVersions(currentVersion, highestVersion) > 0) {
+        final currentVersion = file['version'] as String?;
+        if (currentVersion != null && _compareVersions(currentVersion, highestVersion) > 0) {
           highestVersion = currentVersion;
           highestVersionFile = file;
         }
@@ -2199,7 +2337,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         final skippedVersion = _skippedVersions[nexusId];
         final isSkipped = skippedVersion != null && _compareVersions(latestVersion, skippedVersion) <= 0;
 
-        if (!isSkipped && _compareVersions(latestVersion, localVersion) > 0) {
+        if (hasLocalVersion && !isSkipped && _compareVersions(latestVersion, localVersion) > 0) {
           return {
             'version': latestVersion,
             'fileId': highestVersionFile['file_id'] as int,
@@ -2225,6 +2363,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         headers: headers,
         nexusId: _cnsNexusId!,
         localVersion: versionToCheck,
+        hasLocalVersion: true,
         modName: "Custom Nanosuit System",
         modDirectory: Directory(
             p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss')),
@@ -2240,6 +2379,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               headers: headers,
               nexusId: modToRecheck.nexusId!,
               localVersion: versionToCheck,
+              hasLocalVersion: true,
               modName: p.basename(modToRecheck.directory.path),
               modDirectory: modToRecheck.directory);
           setState(() {
@@ -2256,7 +2396,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  // Lee el archivo unificado `nexus_info.json` y busca la clave "gallery".
   void _showImageGalleryDialog(ModInfo modInfo) async {
     final l10n = AppLocalizations.of(context)!;
     final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
@@ -2266,7 +2405,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       try {
         final content = await infoFile.readAsString();
         final data = json.decode(content);
-        // Busca la lista de imágenes dentro de la clave "gallery"
         if (data['gallery'] is List) {
           images = data['gallery'];
         }
@@ -2347,7 +2485,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         title: Text(l10n.updateAvailable(newVersion)),
         content: Text(l10n.dialogContentUpdateOptions),
         actions: [
-          // Botón para ignorar temporalmente (sesión actual)
           TextButton(
             onPressed: () {
               setState(() {
@@ -2357,12 +2494,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             },
             child: Text(l10n.dialogActionIgnoreVersion),
           ),
-          // Botón para saltar la versión (persistente)
           TextButton(
             onPressed: () async {
               setState(() {
                  _skippedVersions[nexusId] = newVersion;
-                // Eliminamos la actualización de la vista actual
                 if (nexusId == _cnsNexusId) {
                   _cnsUpdateInfo = null;
                 } else {
@@ -2375,7 +2510,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             },
             child: Text(l10n.dialogActionSkipVersion),
           ),
-          // Botón para ir a la página de descarga
           ElevatedButton(
             onPressed: () async {
               final url = Uri.parse(
@@ -2422,7 +2556,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                               orElse: () => ModInfo(
                                   directory: Directory(''),
                                   lastModified: DateTime.now(),
-                                  isEnabled: false));
+                                  isEnabled: false,
+                                  origin: null));
                           final modName = mod.directory.path.isNotEmpty
                               ? p.basename(mod.directory.path)
                               : 'ID: ${entry.key}';
@@ -2435,7 +2570,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                   color: Colors.redAccent),
                               onPressed: () async {
                                 await _removeSkippedVersion(entry.key);
-                                setDialogState(() {}); // Actualiza la UI del diálogo
+                                setDialogState(() {});
                               },
                             ),
                           );
@@ -2464,6 +2599,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         break;
       case ModFilter.disabled:
         mods.retainWhere((mod) => !mod.isEnabled);
+        break;
+      case ModFilter.repaired:
+        mods.retainWhere((mod) => mod.origin == 'repaired');
         break;
       case ModFilter.all:
       default:
@@ -2533,7 +2671,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             tooltip: l10n.checkForUpdates,
             onPressed: _isLoading || _isCheckingForUpdates ? null : _checkForUpdates,
           ),
-          // --- BOTONES MOVIDOS AL MENÚ DE CONFIGURACIÓN ---
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: l10n.settings,
@@ -2552,6 +2689,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     onManageSkippedVersions: _manageSkippedVersions,
                     onShowLanguageDialog: _showLanguageDialog,
                     onShowAboutDialog: _showAboutDialog,
+                    onRunSelfHealing: _showSelfHealConfirmationDialog,
                   ),
                 ),
               );
@@ -2864,43 +3002,63 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               children: [
                 PopupMenuButton<ModFilter>(
                   icon: const Icon(Icons.filter_list),
-                  onSelected: (ModFilter result) {
+                  onSelected: (ModFilter result) async {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setInt(AppPrefs.filterMode, result.index);
                     setState(() {
                       _currentFilter = result;
                     });
                   },
-                  itemBuilder: (BuildContext context) => <PopupMenuEntry<ModFilter>>[
-                    PopupMenuItem<ModFilter>(
-                      value: ModFilter.all,
-                      child: Text(l10n.filterAll),
-                    ),
-                    PopupMenuItem<ModFilter>(
-                      value: ModFilter.enabled,
-                      child: Text(l10n.filterEnabled),
-                    ),
-                    PopupMenuItem<ModFilter>(
-                      value: ModFilter.disabled,
-                      child: Text(l10n.filterDisabled),
-                    ),
-                  ],
+                  itemBuilder: (BuildContext context) {
+                    final filterOptions = [
+                      {'value': ModFilter.all, 'text': l10n.filterAll},
+                      {'value': ModFilter.enabled, 'text': l10n.filterEnabled},
+                      {'value': ModFilter.disabled, 'text': l10n.filterDisabled},
+                      {'value': ModFilter.repaired, 'text': l10n.filterRepaired},
+                    ];
+                    return filterOptions.map((option) {
+                      return PopupMenuItem<ModFilter>(
+                        value: option['value'] as ModFilter,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(option['text'] as String),
+                            if (_currentFilter == option['value'])
+                              const Icon(Icons.check, color: Colors.tealAccent),
+                          ],
+                        ),
+                      );
+                    }).toList();
+                  },
                 ),
                 PopupMenuButton<ModSort>(
                   icon: const Icon(Icons.sort),
-                  onSelected: (ModSort result) {
+                  onSelected: (ModSort result) async {
+                     final prefs = await SharedPreferences.getInstance();
+                    await prefs.setInt(AppPrefs.sortMode, result.index);
                     setState(() {
                       _currentSort = result;
                     });
                   },
-                  itemBuilder: (BuildContext context) => <PopupMenuEntry<ModSort>>[
-                    PopupMenuItem<ModSort>(
-                      value: ModSort.date,
-                      child: Text(l10n.sortByDate),
-                    ),
-                    PopupMenuItem<ModSort>(
-                      value: ModSort.name,
-                      child: Text(l10n.sortByName),
-                    ),
-                  ],
+                  itemBuilder: (BuildContext context) {
+                     final sortOptions = [
+                      {'value': ModSort.date, 'text': l10n.sortByDate},
+                      {'value': ModSort.name, 'text': l10n.sortByName},
+                    ];
+                    return sortOptions.map((option) {
+                      return PopupMenuItem<ModSort>(
+                        value: option['value'] as ModSort,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(option['text'] as String),
+                            if (_currentSort == option['value'])
+                              const Icon(Icons.check, color: Colors.tealAccent),
+                          ],
+                        ),
+                      );
+                    }).toList();
+                  },
                 ),
                 IconButton(
                     icon: const Icon(Icons.folder_special_outlined),
@@ -2977,12 +3135,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                   child: Icon(Icons.new_releases,
                                       color: Colors.yellow[700], size: 18),
                                 ),
+                              if (modInfo.origin == 'repaired')
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 8.0),
+                                  child: Icon(Icons.build,
+                                      color: Colors.amber[700], size: 16),
+                                ),
                             ],
                           ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // 6. Botón Basura (solo si está desactivado)
                               if (!modInfo.isEnabled)
                                 IconButton(
                                   icon: const Icon(Icons.delete_forever,
@@ -2992,7 +3155,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                       : () => _deleteModPermanently(modInfo),
                                   tooltip: l10n.deletePermanently,
                                 ),
-                              // 5. Botón Campana (si hay actualización y no está ignorada)
                               if (hasUpdate && !isIgnored)
                                 IconButton(
                                   icon: const Icon(
@@ -3011,7 +3173,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                     }
                                   },
                                 ),
-                              // 4. Botón Carpeta
                               IconButton(
                                 icon: const Icon(Icons.folder_open,
                                     color: Colors.white70),
@@ -3020,7 +3181,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                     : () => _showInExplorer(modInfo.directory),
                                 tooltip: l10n.showInFolder,
                               ),
-                              // 3. Botón Galería (si tiene nexusId)
                               if (modInfo.nexusId != null)
                                 IconButton(
                                   icon: const Icon(
@@ -3030,7 +3190,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                       _showImageGalleryDialog(modInfo),
                                   tooltip: l10n.viewImageGallery,
                                 ),
-                              // 2. Botón Enlace (si tiene nexusId)
                               if (modInfo.nexusId != null)
                                 IconButton(
                                   icon: const Icon(Icons.link,
@@ -3044,7 +3203,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                   },
                                   tooltip: l10n.openInNexusMods,
                                 ),
-                              // 1. Botón Encendido/Apagado
                               if (modInfo.isEnabled)
                                 IconButton(
                                   icon: const Icon(Icons.power_settings_new,

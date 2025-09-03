@@ -198,6 +198,18 @@ abstract class AppLocalizations {
   /// **'Automatic search'**
   String get settings7zipPathAuto;
 
+  /// No description provided for @settingsRepairMods.
+  ///
+  /// In en, this message translates to:
+  /// **'Repair Legacy Mods'**
+  String get settingsRepairMods;
+
+  /// No description provided for @settingsRepairModsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Scans and creates info files for old mods using the local database. Requires API key.'**
+  String get settingsRepairModsDesc;
+
   /// No description provided for @settingsConnectivity.
   ///
   /// In en, this message translates to:
@@ -258,6 +270,24 @@ abstract class AppLocalizations {
   /// **'You have not skipped any mod versions.'**
   String get dialogNoSkippedVersions;
 
+  /// No description provided for @dialogTitleRepairMods.
+  ///
+  /// In en, this message translates to:
+  /// **'Run Legacy Mod Repair?'**
+  String get dialogTitleRepairMods;
+
+  /// No description provided for @dialogContentRepairMods.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning: This feature is in development and may not be perfect.\n\nIt will scan mods without a \'nexus_info.json\' file and, if found in your local database, create one for them. It will also attempt to rename the mod\'s folder to include the found version (e.g., \'My Mod\' -> \'My Mod v1.2\').\n\nVersion Priority:\n1. From the folder name.\n2. From the mod\'s description field.\n3. From the latest version on Nexus Mods (requires API).\n\nDo you want to continue?'**
+  String get dialogContentRepairMods;
+
+  /// No description provided for @dialogActionRunRepair.
+  ///
+  /// In en, this message translates to:
+  /// **'Run Repair'**
+  String get dialogActionRunRepair;
+
   /// No description provided for @snackBarGamePathInvalid.
   ///
   /// In en, this message translates to:
@@ -269,6 +299,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The selected file must be named 7z.exe.'**
   String get snackBar7zipPathInvalid;
+
+  /// No description provided for @snackBarRepairStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Legacy mod repair process has started...'**
+  String get snackBarRepairStarted;
+
+  /// No description provided for @snackBarRepairComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Repair complete. {count} mod(s) were updated.'**
+  String snackBarRepairComplete(Object count);
+
+  /// No description provided for @snackBarRepairNoMods.
+  ///
+  /// In en, this message translates to:
+  /// **'No legacy mods were found that needed repairing.'**
+  String get snackBarRepairNoMods;
+
+  /// No description provided for @errorApiRequiredForRepair.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key is required to find the latest version for mods without a local version.'**
+  String get errorApiRequiredForRepair;
 
   /// No description provided for @installNewMod.
   ///
@@ -927,7 +981,7 @@ abstract class AppLocalizations {
   /// No description provided for @errorApiKeyMissing.
   ///
   /// In en, this message translates to:
-  /// **'Nexus Mods API Key is not configured. Please add it via the key icon in the settings.'**
+  /// **'Nexus Mods API Key is not configured. Please add it via the key icon in the top bar.'**
   String get errorApiKeyMissing;
 
   /// No description provided for @statusCheckingUpdates.
@@ -1043,6 +1097,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Disabled'**
   String get filterDisabled;
+
+  /// No description provided for @filterRepaired.
+  ///
+  /// In en, this message translates to:
+  /// **'Repaired'**
+  String get filterRepaired;
 
   /// No description provided for @sortByName.
   ///

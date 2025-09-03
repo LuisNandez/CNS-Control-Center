@@ -13,6 +13,7 @@ class SettingsPage extends StatefulWidget {
   final Future<void> Function() onManageSkippedVersions;
   final VoidCallback onShowLanguageDialog;
   final VoidCallback onShowAboutDialog;
+  final VoidCallback onRunSelfHealing; // <-- Nuevo Callback
 
   const SettingsPage({
     super.key,
@@ -26,6 +27,7 @@ class SettingsPage extends StatefulWidget {
     required this.onManageSkippedVersions,
     required this.onShowLanguageDialog,
     required this.onShowAboutDialog,
+    required this.onRunSelfHealing, // <-- Nuevo Callback
   });
 
   @override
@@ -88,6 +90,13 @@ class _SettingsPageState extends State<SettingsPage> {
               }
             },
           ),
+          // --- NUEVA OPCIÓN DE REPARACIÓN ---
+          ListTile(
+            leading: const Icon(Icons.build_circle_outlined),
+            title: Text(l10n.settingsRepairMods),
+            subtitle: Text(l10n.settingsRepairModsDesc),
+            onTap: widget.onRunSelfHealing,
+          ),
           const Divider(),
           _SettingsSectionHeader(title: l10n.settingsConnectivity),
           ListTile(
@@ -101,8 +110,6 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             onTap: () async {
               final newKey = await widget.onShowApiKeyDialog();
-              // --- ESTA ES LA LÍNEA CORREGIDA ---
-              // Solo actualiza el estado si el usuario no canceló (newKey no es nulo).
               if (newKey != null) {
                 setState(() => apiKey = newKey);
               }
@@ -115,7 +122,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 Text(l10n.settingsSkippedVersionsCount(widget.skippedVersions.length)),
             onTap: () async {
               await widget.onManageSkippedVersions();
-              // Forzar actualización para reflejar el conteo
               setState(() {});
             },
           ),

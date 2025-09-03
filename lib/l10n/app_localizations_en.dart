@@ -55,6 +55,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings7zipPathAuto => 'Automatic search';
 
   @override
+  String get settingsRepairMods => 'Repair Legacy Mods';
+
+  @override
+  String get settingsRepairModsDesc =>
+      'Scans and creates info files for old mods using the local database. Requires API key.';
+
+  @override
   String get settingsConnectivity => 'Connectivity & Updates';
 
   @override
@@ -89,12 +96,39 @@ class AppLocalizationsEn extends AppLocalizations {
       'You have not skipped any mod versions.';
 
   @override
+  String get dialogTitleRepairMods => 'Run Legacy Mod Repair?';
+
+  @override
+  String get dialogContentRepairMods =>
+      'Warning: This feature is in development and may not be perfect.\n\nIt will scan mods without a \'nexus_info.json\' file and, if found in your local database, create one for them. It will also attempt to rename the mod\'s folder to include the found version (e.g., \'My Mod\' -> \'My Mod v1.2\').\n\nVersion Priority:\n1. From the folder name.\n2. From the mod\'s description field.\n3. From the latest version on Nexus Mods (requires API).\n\nDo you want to continue?';
+
+  @override
+  String get dialogActionRunRepair => 'Run Repair';
+
+  @override
   String get snackBarGamePathInvalid =>
       'The selected folder does not appear to be a valid game folder.';
 
   @override
   String get snackBar7zipPathInvalid =>
       'The selected file must be named 7z.exe.';
+
+  @override
+  String get snackBarRepairStarted =>
+      'Legacy mod repair process has started...';
+
+  @override
+  String snackBarRepairComplete(Object count) {
+    return 'Repair complete. $count mod(s) were updated.';
+  }
+
+  @override
+  String get snackBarRepairNoMods =>
+      'No legacy mods were found that needed repairing.';
+
+  @override
+  String get errorApiRequiredForRepair =>
+      'API Key is required to find the latest version for mods without a local version.';
 
   @override
   String get installNewMod => 'Install New Mod';
@@ -507,7 +541,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorApiKeyMissing =>
-      'Nexus Mods API Key is not configured. Please add it via the key icon in the settings.';
+      'Nexus Mods API Key is not configured. Please add it via the key icon in the top bar.';
 
   @override
   String get statusCheckingUpdates => 'Checking for mod updates...';
@@ -570,6 +604,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get filterDisabled => 'Disabled';
+
+  @override
+  String get filterRepaired => 'Repaired';
 
   @override
   String get sortByName => 'Name';
