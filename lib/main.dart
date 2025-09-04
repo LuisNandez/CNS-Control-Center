@@ -1579,7 +1579,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       if (oldVersionMod != null) {
         action = await _showSmartInstallDialog(
-          oldVersionMod: oldVersionMod!,
+          oldVersionMod: oldVersionMod,
           baseDisplayName: baseDisplayName,
           finalFolderName: finalFolderName,
           newVersion: nexusVersion,
@@ -1621,7 +1621,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
       if (oldVersionMod != null) {
           action = await _showSmartInstallDialog(
-            oldVersionMod: oldVersionMod!,
+            oldVersionMod: oldVersionMod,
             baseDisplayName: baseDisplayName,
             finalFolderName: finalFolderName,
             newVersion: nexusVersion,
