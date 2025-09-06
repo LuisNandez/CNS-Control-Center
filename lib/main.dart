@@ -19,7 +19,6 @@ class AppPrefs {
   static const String sevenZipPath = 'sevenZipPath';
   static const String nexusApiKey = 'nexusApiKey';
   static const String skippedVersions = 'skippedVersions';
-  // --- NUEVAS CLAVES ---
   static const String filterMode = 'filterMode';
   static const String sortMode = 'sortMode';
 }
@@ -31,7 +30,9 @@ class ModInfo {
   String? localVersion;
   final DateTime lastModified;
   bool isEnabled;
-  final String? origin; // Para saber si fue reparado
+  final String? origin;
+  final String displayName; // Identificador interno, no editable.
+  String customName;      // Nombre editable por el usuario.
 
   ModInfo({
     required this.directory,
@@ -40,9 +41,13 @@ class ModInfo {
     required this.lastModified,
     required this.isEnabled,
     this.origin,
+    required this.displayName,
+    required this.customName,
   });
 
+
   static String? _extractVersionFromName(String name) {
+    // Extrae la versión (p.ej., 1.0.0) de un nombre de archivo/carpeta (p.ej., ModName v1.0.0)
     final regex = RegExp(r'[vV]?([0-9]+(\.[0-9a-zA-Z]+)*)');
     final match = regex.firstMatch(name);
     return match?.group(1);
@@ -201,7 +206,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_statusMessage.isEmpty) {
+    if (_statusMessage.isEmpty && mounted) {
       _statusMessage = AppLocalizations.of(context)!.statusSearchingGame;
     }
   }
@@ -236,11 +241,112 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     await _find7zipPath();
     await _loadApiKey();
     await _loadSkippedVersions();
-    await _loadFilterAndSortPrefs(); // <-- Carga de preferencias
+    await _loadFilterAndSortPrefs();
     await _findGamePath();
+
     if (_finalModsPath != null) {
+      // 1. Migrar carpetas y archivos JSON si es necesario.
+      await _migrateModFolders();
+      // 2. Cargar la lista de mods ya corregida.
       await _loadAllMods();
+      // 3. Leer datos del CNS.
       await _readCNSData();
+    }
+  }
+
+  Future<void> _migrateModFolders() async {
+    setState(() {
+      _statusMessage = "Verificando integridad de los mods..."; // TODO: Localizar esto si se desea
+      _isLoading = true;
+    });
+
+    // Función interna para escanear una ruta y crear tareas de migración.
+    Future<List<Map<String, dynamic>>> _scanForMigration(String path) async {
+      final dir = Directory(path);
+      if (!await dir.exists()) return [];
+
+      final List<Map<String, dynamic>> tasks = [];
+      List<FileSystemEntity> entities;
+      try {
+        entities = dir.listSync(); 
+      } catch (e) {
+        print("Error listando directorio $path: $e");
+        return [];
+      }
+
+      for (var entity in entities) {
+        if (entity is Directory) {
+           if (p.basename(entity.path) == '__MOD_BACKUPS__') continue;
+          
+          final infoFile = File(p.join(entity.path, 'nexus_info.json'));
+          if (await infoFile.exists()) {
+            try {
+              final content = await infoFile.readAsString();
+              Map<String, dynamic> data = json.decode(content);
+
+              if (data['customName'] == null && data['displayName'] != null) {
+                // Sanitizar el nombre de visualización para usarlo como nombre de carpeta
+                final String newFolderName = data['displayName'].replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
+                tasks.add({
+                  'oldPath': entity.path,
+                  'newPath': p.join(entity.parent.path, newFolderName),
+                  'jsonData': data,
+                });
+              }
+            } catch (e) {
+              print('Error al escanear ${entity.path} para migración: $e');
+            }
+          }
+        }
+      }
+      return tasks;
+    }
+
+    // --- Ejecución de la migración en dos pases ---
+    // 1. Recopilar todas las tareas de ambas carpetas (enabled/disabled)
+    final List<Map<String, dynamic>> allTasks = [];
+    if (_finalModsPath != null) {
+      allTasks.addAll(await _scanForMigration(_finalModsPath!));
+    }
+    if (_gameRootPath != null) {
+      final backupDirPath = p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__');
+      allTasks.addAll(await _scanForMigration(backupDirPath));
+    }
+    
+    // 2. Ejecutar las tareas recopiladas
+    if (allTasks.isNotEmpty) {
+      print('Se encontraron ${allTasks.length} mods para migrar.');
+      for (final task in allTasks) {
+        try {
+          final oldPath = task['oldPath'] as String;
+          final newPath = task['newPath'] as String;
+          final jsonData = task['jsonData'] as Map<String, dynamic>;
+
+          Directory newDirHandle = Directory(newPath);
+          if (oldPath != newPath) {
+            if (await Directory(newPath).exists()) {
+              print('Conflicto de migración: La carpeta destino "$newPath" ya existe. Saltando renombrado para "$oldPath".');
+              // Aunque no podamos renombrar, intentaremos actualizar el JSON en la carpeta antigua.
+              newDirHandle = Directory(oldPath);
+            } else {
+               await Directory(oldPath).rename(newPath);
+               print('Renombrado: $oldPath -> $newPath');
+            }
+          }
+          
+          final infoFile = File(p.join(newDirHandle.path, 'nexus_info.json'));
+          jsonData['customName'] = jsonData['displayName'];
+          // --- CAMBIO: Añadir la versión del gestor al JSON durante la migración ---
+          jsonData['managerVersion'] = _appVersion; 
+          
+          final encoder = JsonEncoder.withIndent('  ');
+          await infoFile.writeAsString(encoder.convert(jsonData));
+
+        } catch (e) {
+          print('Falló la migración para ${task['oldPath']}: $e');
+        }
+      }
+      print('Migración completada.');
     }
   }
 
@@ -404,7 +510,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<void> _findGamePath() async {
     setState(() {
       _isLoading = true;
-      _statusMessage = AppLocalizations.of(context)!.statusSearchingGame;
+      if (mounted) {
+        _statusMessage = AppLocalizations.of(context)!.statusSearchingGame;
+      }
     });
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -426,21 +534,25 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         setState(() {
           _gameRootPath = gamePath;
           _finalModsPath = modPath;
-          _statusMessage = AppLocalizations.of(context)!.statusGamePathFound;
+          if (mounted) {
+            _statusMessage = AppLocalizations.of(context)!.statusGamePathFound;
+          }
         });
       } else {
         setState(() {
           _finalModsPath = null;
-          _statusMessage =
-              AppLocalizations.of(context)!.statusGamePathNotFound;
+          if (mounted) {
+            _statusMessage = AppLocalizations.of(context)!.statusGamePathNotFound;
+          }
           _statusColor = Colors.orangeAccent;
         });
       }
     } catch (e) {
       setState(() {
         _finalModsPath = null;
-        _statusMessage =
-            AppLocalizations.of(context)!.statusErrorFindingGame(e.toString());
+        if (mounted) {
+          _statusMessage = AppLocalizations.of(context)!.statusErrorFindingGame(e.toString());
+        }
         _statusColor = Colors.redAccent;
       });
     } finally {
@@ -449,6 +561,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<String?> _findSteamInstallation() async {
+    if (!Platform.isWindows) return null;
     try {
       final key = Registry.openPath(RegistryHive.currentUser,
           path: r'Software\Valve\Steam');
@@ -552,8 +665,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               backgroundColor: Colors.green[600],
             ));
           }
-          await _loadAllMods();
-          await _readCNSData();
+          await _initialize();
           return result;
         } else {
           if(mounted) {
@@ -596,7 +708,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
     return null;
   }
-
+  
+  String _stripVersionFromFolderName(String name) {
+    final regex = RegExp(r'\s+[vV]?\d+(\.\d+)*(-[a-zA-Z0-9]+)?\s*$', caseSensitive: false);
+    return name.replaceAll(regex, '').trim();
+  }
+  
   Future<void> _loadAllMods({bool clearHighlight = true}) async {
     if (_finalModsPath == null) return;
     setState(() {
@@ -611,40 +728,59 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (!await dir.exists()) return [];
 
       final List<ModInfo> mods = [];
-      await for (final entity in dir.list()) {
+      await for (var entity in dir.list()) {
         if (entity is Directory) {
           if (p.basename(entity.path) == '__MOD_BACKUPS__') continue;
+          try {
+            String? nexusId;
+            String? installedVersion;
+            String? origin;
 
-          String? nexusId;
-          String? installedVersion;
-          String? origin;
+            String folderName = p.basename(entity.path);
+            String displayName = _stripVersionFromFolderName(folderName);
+            String customName = folderName;
 
-          final infoFile = File(p.join(entity.path, 'nexus_info.json'));
-          if (await infoFile.exists()) {
-            try {
-              final content = await infoFile.readAsString();
-              final data = json.decode(content);
-              nexusId = data['nexusId'];
-              installedVersion = data['installedVersion'];
-              origin = data['origin'];
-            } catch (e) {
-              print("Error al leer nexus_info.json en ${entity.path}: $e");
+            final infoFile = File(p.join(entity.path, 'nexus_info.json'));
+            if (await infoFile.exists()) {
+                final content = await infoFile.readAsString();
+                Map<String, dynamic> data = json.decode(content);
+                nexusId = data['nexusId'];
+                installedVersion = data['installedVersion'];
+                origin = data['origin'];
+
+                // --- CAMBIO: Corrección definitiva de "vv" ---
+                // Limpia la versión al cargarla, eliminando la 'v' si existe en el archivo guardado.
+                if (installedVersion != null && installedVersion.toLowerCase().startsWith('v')) {
+                  installedVersion = installedVersion.substring(1);
+                }
+
+                if (data['displayName'] != null) {
+                  displayName = data['displayName'];
+                }
+                if (data['customName'] != null) {
+                  customName = data['customName'];
+                } else {
+                  customName = displayName; // Fallback por si la migración no se completó
+                }
             }
-          }
-          
-          installedVersion ??=
-              ModInfo._extractVersionFromName(p.basename(entity.path));
-          
-          final fileStat = await entity.stat();
 
-          mods.add(ModInfo(
+            installedVersion ??= ModInfo._extractVersionFromName(folderName);
+
+            final fileStat = await entity.stat();
+
+            mods.add(ModInfo(
               directory: entity,
               nexusId: nexusId,
               localVersion: installedVersion,
               lastModified: fileStat.modified,
               isEnabled: isEnabled,
               origin: origin,
-          ));
+              displayName: displayName,
+              customName: customName,
+            ));
+          } catch (e) {
+            print("Error procesando directorio ${entity.path}: $e");
+          }
         }
       }
       return mods;
@@ -665,16 +801,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       setState(() {
         _allMods = [...enabledMods, ...disabledMods];
-        if (clearHighlight) {
+        if (clearHighlight && mounted) {
           _statusMessage = AppLocalizations.of(context)!
-              .statusModsFound(disabledMods.length, enabledMods.length);
+              .statusModsFound(enabledMods.length, disabledMods.length);
           _statusColor = Colors.white;
         }
       });
     } catch (e) {
       setState(() {
-        _statusMessage =
-            AppLocalizations.of(context)!.statusErrorReadingMods(e.toString());
+        if (mounted) {
+          _statusMessage = AppLocalizations.of(context)!.statusErrorReadingMods(e.toString());
+        }
         _statusColor = Colors.redAccent;
       });
     } finally {
@@ -747,11 +884,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         }
         
         final compositeDisplayName = await _getCompositeDisplayName(mod.directory) ?? primaryDisplayName;
+        final currentFolderName = p.basename(mod.directory.path);
 
         try {
           final Map<String, dynamic> modData = {
             'nexusId': nexusId,
             'displayName': compositeDisplayName,
+            'customName': currentFolderName,
             'installedVersion': version,
             'installDate': DateTime.now().toIso8601String(),
             'origin': 'repaired',
@@ -764,18 +903,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
           final encoder = JsonEncoder.withIndent('  ');
           await infoFile.writeAsString(encoder.convert(modData));
-
-          if (version != null && version.isNotEmpty) {
-            final oldPath = mod.directory.path;
-            final oldFolderName = p.basename(oldPath);
-            final newFolderName = '$compositeDisplayName v$version';
-
-            if (oldFolderName != newFolderName) {
-                final newPath = p.join(mod.directory.parent.path, newFolderName);
-                print('Renombrando mod folder de "$oldFolderName" a "$newFolderName"');
-                await mod.directory.rename(newPath);
-            }
-          }
+          
           repairedCount++;
         } catch (e) {
           print('No se pudo auto-reparar o renombrar el mod "$primaryDisplayName": $e');
@@ -864,12 +992,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
         if (parts.length >= 2) {
           final versionParts = parts.sublist(0, parts.length - 1);
-          String version = versionParts.join('.'); // Se une sin 'v' inicial.
+          String version = versionParts.join('.');
           
-          // Se comprueba si la versión ya empieza con 'v' (ignorando mayúsculas/minúsculas).
-          // Si no empieza con 'v', se añade.
-          if (!version.toLowerCase().startsWith('v')) {
-            version = 'v$version';
+          if (version.toLowerCase().startsWith('v')) {
+            version = version.substring(1);
           }
           
           return {'id': id, 'version': version};
@@ -1149,7 +1275,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (displayName != null) {
         String finalFolderName = displayName;
         if (preparedMod.nexusVersion != null) {
-          finalFolderName = '$finalFolderName ${preparedMod.nexusVersion}';
+          finalFolderName = '$finalFolderName v${preparedMod.nexusVersion}';
         }
         
         final files = preparedMod.sourceDir.listSync().whereType<File>().map((f) => p.basename(f.path)).toList();
@@ -1346,7 +1472,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               : Colors.green[600]!;
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(
-                  l10n.snackBarBatchInstallComplete(failCount, successCount)),
+                  l10n.snackBarBatchInstallComplete(successCount, failCount)),
               backgroundColor: snackBarColor));
         } else if (successCount == 1) {
            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1466,34 +1592,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
     return null;
   }
-
-  String _stripVersionFromName(String name) {
-    final regex = RegExp(r'\s+[vV]?\d+(\.\d*[\w\d]*)*\s*$', caseSensitive: false);
-    return name.replaceAll(regex, '').trim();
-  }
-
+  
   Future<String> _getComparableNameForMod(ModInfo mod) async {
-    final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
-    final folderName = p.basename(mod.directory.path);
-
-    try {
-      if (await infoFile.exists()) {
-        final data = json.decode(await infoFile.readAsString());
-        return data['displayName'] ?? _stripVersionFromName(folderName);
-      } else {
-        return _stripVersionFromName(folderName);
-      }
-    } catch (e) {
-      print("Error reading info for ${mod.directory.path}, falling back to folder name: $e");
-      return _stripVersionFromName(folderName);
-    }
+    return mod.displayName;
   }
 
 
   Future<_AlternativeVersionAction?> _showSmartInstallDialog({
     required ModInfo oldVersionMod,
     required String baseDisplayName,
-    required String finalFolderName,
     required String? newVersion,
   }) async {
     final l10n = AppLocalizations.of(context)!;
@@ -1517,12 +1624,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         replaceActionText = l10n.dialogActionDowngrade;
       } else {
         title = l10n.dialogTitleReinstall;
-        content = l10n.dialogContentReinstall(baseDisplayName, newVersionStr);
+        content = l10n.dialogContentReinstall(newVersionStr, baseDisplayName);
         replaceActionText = l10n.dialogActionReinstall;
       }
     } else {
-      final oldModName = p.basename(oldVersionMod.directory.path);
-      content = l10n.dialogContentAlternativeVersion(oldModName, baseDisplayName, finalFolderName);
+      final oldModName = oldVersionMod.customName;
+      content = l10n.dialogContentAlternativeVersion(oldModName, baseDisplayName, baseDisplayName);
     }
 
     return showDialog<_AlternativeVersionAction>(
@@ -1555,18 +1662,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<String> _installSingleModFromListOfFiles(List<File> files,
       {String? nexusId, String? nexusVersion}) async {
     final l10n = AppLocalizations.of(context)!;
-    final tempModDir = files.first.parent; 
+    final tempModDir = files.first.parent;
 
     final baseDisplayName = await _getCompositeDisplayName(tempModDir);
     if (baseDisplayName == null) {
       throw FormatException(l10n.errorNoValidDisplayName);
     }
-    
-    String finalFolderName = baseDisplayName;
-    if (nexusVersion != null) {
-      finalFolderName = '$finalFolderName $nexusVersion';
-    }
 
+    String finalFolderName = baseDisplayName;
+    
     ModInfo? oldVersionMod;
     _AlternativeVersionAction? action;
 
@@ -1588,11 +1692,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         action = await _showSmartInstallDialog(
           oldVersionMod: oldVersionMod,
           baseDisplayName: baseDisplayName,
-          finalFolderName: finalFolderName,
           newVersion: nexusVersion,
         );
       } else {
-        final existingModExample = p.basename(nexusIdMatches.first.directory.path);
+        final existingModExample = nexusIdMatches.first.customName;
         action = await showDialog<_AlternativeVersionAction>(
           context: context,
           barrierDismissible: false,
@@ -1620,8 +1723,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     } else {
       for (final existingMod in _allMods) {
-        String? existingDisplayName = await _getDisplayNameForMod(existingMod.directory);
-        if (existingDisplayName != null && existingDisplayName == baseDisplayName) {
+        if (existingMod.displayName == baseDisplayName) {
           oldVersionMod = existingMod;
           break;
         }
@@ -1630,7 +1732,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           action = await _showSmartInstallDialog(
             oldVersionMod: oldVersionMod,
             baseDisplayName: baseDisplayName,
-            finalFolderName: finalFolderName,
             newVersion: nexusVersion,
           );
       }
@@ -1642,7 +1743,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           if(oldVersionMod == null) {
              throw Exception("Attempted to replace a mod but no old version was identified.");
           }
-          final oldModName = p.basename(oldVersionMod.directory.path);
+          final oldModName = oldVersionMod.customName;
           final bool deleted = await _deleteDirectoryWithRetry(oldVersionMod.directory);
           if (!deleted) {
             throw Exception(
@@ -1696,14 +1797,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     if (nexusId != null) {
       final infoFile = File(p.join(newModPath, 'nexus_info.json'));
-      final versionForFile =
-          nexusVersion ?? ModInfo._extractVersionFromName(finalFolderName);
+      final versionForFile = nexusVersion;
 
       final Map<String, dynamic> modData = {
         'nexusId': nexusId,
         'displayName': baseDisplayName,
+        'customName': baseDisplayName,
         'installedVersion': versionForFile,
-        'installDate': DateTime.now().toIso8601String()
+        'installDate': DateTime.now().toIso8601String(),
+        'managerVersion': _appVersion,
       };
 
       final galleryData = await _fetchModImages(nexusId);
@@ -1741,7 +1843,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(AppLocalizations.of(context)!
-                .snackBarModEnabled(p.basename(modInfo.directory.path))),
+                .snackBarModEnabled(modInfo.customName)),
             backgroundColor: Colors.green));
       }
       await _loadAllMods();
@@ -1774,7 +1876,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(AppLocalizations.of(context)!
-                .snackBarModDisabled(p.basename(modInfo.directory.path))),
+                .snackBarModDisabled(modInfo.customName)),
             backgroundColor: Colors.orange));
       }
       await _loadAllMods();
@@ -1791,7 +1893,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _deleteModPermanently(ModInfo modInfo) async {
     final l10n = AppLocalizations.of(context)!;
-    final modName = p.basename(modInfo.directory.path);
+    final modName = modInfo.customName;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1874,8 +1976,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     setState(() {
       _preparedMods.clear();
       _modsToInstallPreviewMap.clear();
-      _statusMessage =
-          message ?? AppLocalizations.of(context)!.statusSelectionCancelled;
+      if (mounted) {
+        _statusMessage = message ?? AppLocalizations.of(context)!.statusSelectionCancelled;
+      }
       _statusColor = message == null ? Colors.white : Colors.orangeAccent;
     });
   }
@@ -2076,6 +2179,96 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 
+  Future<void> _updateModCustomName(ModInfo mod, String newCustomName) async {
+    final l10n = AppLocalizations.of(context)!;
+    if (newCustomName.isEmpty || newCustomName == mod.customName) {
+      return;
+    }
+
+    final sanitizedName = newCustomName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
+    final newPath = p.join(mod.directory.parent.path, sanitizedName);
+
+    if (await Directory(newPath).exists()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.errorModNameExists(sanitizedName)),
+          backgroundColor: Colors.redAccent,
+        ));
+      }
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+    try {
+      // 1. Renombrar la carpeta física
+      await mod.directory.rename(newPath);
+
+      // 2. Actualizar solo el `customName` en nexus_info.json
+      final infoFile = File(p.join(newPath, 'nexus_info.json'));
+      if (await infoFile.exists()) {
+        try {
+          final content = await infoFile.readAsString();
+          Map<String, dynamic> data = json.decode(content);
+          
+          data['customName'] = newCustomName; 
+          
+          final encoder = JsonEncoder.withIndent('  ');
+          await infoFile.writeAsString(encoder.convert(data));
+        } catch (e) {
+          print("No se pudo actualizar el customName en nexus_info.json: $e");
+        }
+      }
+      
+      await _loadAllMods();
+
+    } catch (e) {
+       setState(() {
+        _statusMessage = "Error al renombrar el mod: $e";
+        _statusColor = Colors.redAccent;
+      });
+      await _loadAllMods();
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _showEditModNameDialog(ModInfo modInfo) async {
+    final nameController = TextEditingController(text: modInfo.customName);
+    final l10n = AppLocalizations.of(context)!;
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2a2a2a),
+        title: Text(l10n.dialogTitleEditModName),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: l10n.dialogLabelNewName,
+            hintText: modInfo.customName,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.dialogActionCancel),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop(nameController.text);
+            },
+            child: Text(l10n.dialogActionSave),
+          ),
+        ],
+      ),
+    );
+
+    if (newName != null && newName.trim().isNotEmpty) {
+      await _updateModCustomName(modInfo, newName.trim());
+    }
+  }
+
   int _compareVersions(String v1, String v2) {
     try {
       final cleanV1 = v1.toLowerCase().replaceAll(RegExp(r'^[vV]'), '');
@@ -2240,7 +2433,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             nexusId: job.mod!.nexusId!,
             localVersion: job.mod!.localVersion ?? '0',
             hasLocalVersion: job.mod!.localVersion != null,
-            modName: p.basename(job.mod!.directory.path),
+            modName: job.mod!.customName,
             modDirectory: job.mod!.directory));
       }
     }
@@ -2387,7 +2580,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               nexusId: modToRecheck.nexusId!,
               localVersion: versionToCheck,
               hasLocalVersion: true,
-              modName: p.basename(modToRecheck.directory.path),
+              modName: modToRecheck.customName,
               modDirectory: modToRecheck.directory);
           setState(() {
             if (updateInfo == null) {
@@ -2564,9 +2757,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                   directory: Directory(''),
                                   lastModified: DateTime.now(),
                                   isEnabled: false,
+                                  displayName: 'ID: ${entry.key}',
+                                  customName: 'ID: ${entry.key}',
                                   origin: null));
                           final modName = mod.directory.path.isNotEmpty
-                              ? p.basename(mod.directory.path)
+                              ? mod.customName
                               : 'ID: ${entry.key}';
 
                           return ListTile(
@@ -2618,13 +2813,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     
     // Búsqueda por texto
     if (_searchQuery.isNotEmpty) {
-      mods.retainWhere((mod) => p.basename(mod.directory.path).toLowerCase().contains(_searchQuery.toLowerCase()));
+      mods.retainWhere((mod) => mod.customName.toLowerCase().contains(_searchQuery.toLowerCase()));
     }
 
     // Ordenamiento
     switch (_currentSort) {
       case ModSort.name:
-        mods.sort((a, b) => p.basename(a.directory.path).toLowerCase().compareTo(p.basename(b.directory.path).toLowerCase()));
+        mods.sort((a, b) => a.customName.toLowerCase().compareTo(b.customName.toLowerCase()));
         break;
       case ModSort.date:
       default:
@@ -2774,10 +2969,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                             ],
                           )
                         else if (_isLoading)
-                          const Center(
+                          Center(
                               child: Padding(
-                                  padding: EdgeInsets.all(8.0),
-                                  child: CircularProgressIndicator()))
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),)))
                         else
                           Text(_statusMessage,
                               textAlign: TextAlign.center,
@@ -3071,7 +3266,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     icon: const Icon(Icons.folder_special_outlined),
                     onPressed: _isLoading
                         ? null
-                        : () => _showInExplorer(Directory(_finalModsPath!)),
+                        : () {
+                            if(_finalModsPath != null) {
+                              _showInExplorer(Directory(_finalModsPath!));
+                            }
+                          },
                     tooltip: l10n.openModsFolder),
                 IconButton(
                     icon: const Icon(Icons.refresh),
@@ -3100,8 +3299,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     itemCount: mods.length,
                     itemBuilder: (context, index) {
                       final modInfo = mods[index];
-                      final modName = p.basename(modInfo.directory.path);
-                      final isHighlighted = _lastInstalledModNames.contains(modName);
+                      final isHighlighted = _lastInstalledModNames.contains(p.basename(modInfo.directory.path));
                       final updateInfo = _modUpdates[modInfo.directory.path];
                       final hasUpdate = updateInfo != null;
                       final updateIdentifier = hasUpdate ? modInfo.directory.path + updateInfo['version'] : '';
@@ -3129,22 +3327,43 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                   ? Colors.tealAccent
                                   : Colors.grey),
                           title: Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
                             children: [
                               Flexible(
-                                  child: Text(modName,
-                                      style: TextStyle(
-                                          color: modInfo.isEnabled
-                                              ? Colors.white
-                                              : Colors.grey))),
-                              if (isHighlighted)
+                                child: Text(
+                                  modInfo.customName,
+                                  style: TextStyle(
+                                    color: modInfo.isEnabled ? Colors.white : Colors.grey,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (modInfo.localVersion != null && modInfo.localVersion!.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(left: 8.0),
+                                  child: Text(
+                                    'v${modInfo.localVersion}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context).colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          subtitle: Row(
+                            children: [
+                              if (isHighlighted)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8.0),
                                   child: Icon(Icons.new_releases,
                                       color: Colors.yellow[700], size: 18),
                                 ),
                               if (modInfo.origin == 'repaired')
                                 Padding(
-                                  padding: const EdgeInsets.only(left: 8.0),
+                                  padding: const EdgeInsets.only(right: 8.0),
                                   child: Icon(Icons.build,
                                       color: Colors.amber[700], size: 16),
                                 ),
@@ -3179,6 +3398,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                       );
                                     }
                                   },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.edit, color: Colors.white70),
+                                  onPressed: _isLoading ? null : () => _showEditModNameDialog(modInfo),
+                                  tooltip: l10n.editModNameTooltip,
                                 ),
                               IconButton(
                                 icon: const Icon(Icons.folder_open,
