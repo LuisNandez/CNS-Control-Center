@@ -165,7 +165,7 @@
     "nexusId": "1679"
   },
   "Minervha Dva": {
-    "nexusId": "000"
+    "nexusId": "1917"
   },
   "Lollipop Cheerleader Outfit": {
     "nexusId": "1060"
@@ -214,5 +214,26 @@
   },
   "A_SEXY_GIRL":{
     "nexusId": "910"
+  },
+  "TransparentSanta":{
+    "nexusId": "810"
+  },
+  "Gley Hot Springs - SrPoolStrange":{
+    "nexusId": "111"
+  },
+  "Minervha Harness":{
+    "nexusId": "123"
+  },
+  "Alisa Outfit":{
+    "nexusId": "326"
+  },
+  "Sunrise Dress":{
+    "nexusId": "704"
+  },
+  "Sunrise Dress Back Light":{
+    "nexusId": "704"
+  },
+  "briefcasesharpie's Elysion Combat Uniform":{
+    "nexusId": "771"
   }
 }

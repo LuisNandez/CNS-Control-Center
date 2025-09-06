@@ -864,7 +864,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
         if (parts.length >= 2) {
           final versionParts = parts.sublist(0, parts.length - 1);
-          final version = 'v${versionParts.join('.')}';
+          String version = versionParts.join('.'); // Se une sin 'v' inicial.
+          
+          // Se comprueba si la versión ya empieza con 'v' (ignorando mayúsculas/minúsculas).
+          // Si no empieza con 'v', se añade.
+          if (!version.toLowerCase().startsWith('v')) {
+            version = 'v$version';
+          }
+          
           return {'id': id, 'version': version};
         }
       }
@@ -1339,7 +1346,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               : Colors.green[600]!;
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(
-                  l10n.snackBarBatchInstallComplete(successCount, failCount)),
+                  l10n.snackBarBatchInstallComplete(failCount, successCount)),
               backgroundColor: snackBarColor));
         } else if (successCount == 1) {
            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
