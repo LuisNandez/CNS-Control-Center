@@ -213,5 +213,9 @@
     "dialogActionDowngrade": "Downgrade",
     "dialogTitleReinstall": "Reinstall Mod",
     "dialogContentReinstall": "You are about to reinstall version '{version}' of the mod '{modName}'.",
-    "dialogActionReinstall": "Reinstall"
+    "dialogActionReinstall": "Reinstall",
+    "editModNameTooltip": "Edit mod name",
+    "dialogTitleEditModName": "Edit Mod Name",
+    "dialogLabelNewName": "New name",
+    "errorModNameExists": "A mod named \"{modName}\" already exists."
 }

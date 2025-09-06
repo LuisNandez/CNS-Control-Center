@@ -699,4 +699,18 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dialogActionReinstall => '재설치';
+
+  @override
+  String get editModNameTooltip => 'Edit mod name';
+
+  @override
+  String get dialogTitleEditModName => 'Edit Mod Name';
+
+  @override
+  String get dialogLabelNewName => 'New name';
+
+  @override
+  String errorModNameExists(Object modName) {
+    return 'A mod named \"$modName\" already exists.';
+  }
 }

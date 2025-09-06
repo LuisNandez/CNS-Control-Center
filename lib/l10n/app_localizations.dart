@@ -1269,6 +1269,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reinstall'**
   String get dialogActionReinstall;
+
+  /// No description provided for @editModNameTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit mod name'**
+  String get editModNameTooltip;
+
+  /// No description provided for @dialogTitleEditModName.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Mod Name'**
+  String get dialogTitleEditModName;
+
+  /// No description provided for @dialogLabelNewName.
+  ///
+  /// In en, this message translates to:
+  /// **'New name'**
+  String get dialogLabelNewName;
+
+  /// No description provided for @errorModNameExists.
+  ///
+  /// In en, this message translates to:
+  /// **'A mod named \"{modName}\" already exists.'**
+  String errorModNameExists(Object modName);
 }
 
 class _AppLocalizationsDelegate
