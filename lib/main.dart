@@ -11,6 +11,7 @@ import 'package:win32_registry/win32_registry.dart';
 import 'l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:window_manager/window_manager.dart';
 import 'settings_page.dart';
 
 class AppPrefs {
@@ -54,7 +55,23 @@ class ModInfo {
   }
 }
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  await windowManager.ensureInitialized();
+
+  WindowOptions windowOptions = const WindowOptions(
+    minimumSize: Size(600, 660),
+    size: Size(800, 700),
+    center: true,
+    title: 'CNS Control Center',
+  );
+
+  windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.show();
+    await windowManager.focus();
+  });
+
   runApp(const ModInstallerApp());
 }
 
@@ -256,7 +273,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _migrateModFolders() async {
     setState(() {
-      _statusMessage = "Verificando integridad de los mods..."; // TODO: Localizar esto si se desea
+      _statusMessage = "Verificando integridad de los mods...";
       _isLoading = true;
     });
 
@@ -336,7 +353,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           
           final infoFile = File(p.join(newDirHandle.path, 'nexus_info.json'));
           jsonData['customName'] = jsonData['displayName'];
-          // --- CAMBIO: Añadir la versión del gestor al JSON durante la migración ---
           jsonData['managerVersion'] = _appVersion; 
           
           final encoder = JsonEncoder.withIndent('  ');
@@ -748,8 +764,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 installedVersion = data['installedVersion'];
                 origin = data['origin'];
 
-                // --- CAMBIO: Corrección definitiva de "vv" ---
-                // Limpia la versión al cargarla, eliminando la 'v' si existe en el archivo guardado.
                 if (installedVersion != null && installedVersion.toLowerCase().startsWith('v')) {
                   installedVersion = installedVersion.substring(1);
                 }
@@ -760,7 +774,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 if (data['customName'] != null) {
                   customName = data['customName'];
                 } else {
-                  customName = displayName; // Fallback por si la migración no se completó
+                  customName = displayName;
                 }
             }
 
@@ -2922,8 +2936,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                         if (_modsToInstallPreviewMap.isNotEmpty)
                           _buildSelectionPreviewSection(l10n),
                         const Divider(height: 30, thickness: 1),
-                        _buildSearchSection(l10n),
-                        const SizedBox(height: 16),
+                        // --- ELIMINADO: La llamada a _buildSearchSection se mueve a _buildModsListSection ---
+                        // const SizedBox(height: 16),
                         Expanded(
                           child: _buildModsListSection(l10n.installedMods, filteredAndSortedMods, l10n),
                         ),
@@ -3151,59 +3165,73 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       ],
     );
   }
-
+  
+  // --- ELIMINADO: Ya no se necesita esta función separada ---
+  /*
   Widget _buildSearchSection(AppLocalizations l10n) {
-    return TextField(
-      controller: _searchController,
-      decoration: InputDecoration(
-        hintText: l10n.searchMods,
-        hintStyle: TextStyle(color: Colors.grey[400]),
-        prefixIcon: const Icon(Icons.search, color: Colors.grey),
-        filled: true,
-        fillColor: Colors.black.withOpacity(0.3),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[700]!),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[700]!),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.tealAccent),
-        ),
-        suffixIcon: _searchQuery.isNotEmpty
-            ? IconButton(
-                icon: const Icon(Icons.clear, color: Colors.grey),
-                onPressed: () {
-                  _searchController.clear();
-                },
-              )
-            : null,
-      ),
-    );
+    // ...
   }
+  */
 
+  // --- CAMBIO: La cabecera se ha rediseñado para incluir la barra de búsqueda ---
   Widget _buildModsListSection(
       String title, List<ModInfo> mods, AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(title,
                 style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.tealAccent)),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: SizedBox(
+                  height: 40, // Altura fija para la barra de búsqueda
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: l10n.searchMods,
+                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      prefixIcon: const Icon(Icons.search, color: Colors.grey, size: 20),
+                      filled: true,
+                      fillColor: Colors.black.withOpacity(0.3),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[700]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[700]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.tealAccent),
+                      ),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.grey),
+                              onPressed: () {
+                                _searchController.clear();
+                              },
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
+              ),
+            ),
             Row(
               children: [
                 PopupMenuButton<ModFilter>(
                   icon: const Icon(Icons.filter_list),
+                  tooltip: l10n.filterBy,
                   onSelected: (ModFilter result) async {
                     final prefs = await SharedPreferences.getInstance();
                     await prefs.setInt(AppPrefs.filterMode, result.index);
@@ -3235,6 +3263,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 ),
                 PopupMenuButton<ModSort>(
                   icon: const Icon(Icons.sort),
+                  tooltip: l10n.sortBy,
                   onSelected: (ModSort result) async {
                      final prefs = await SharedPreferences.getInstance();
                     await prefs.setInt(AppPrefs.sortMode, result.index);
