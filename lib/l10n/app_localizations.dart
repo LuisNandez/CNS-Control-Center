@@ -270,6 +270,12 @@ abstract class AppLocalizations {
   /// **'You have not skipped any mod versions.'**
   String get dialogNoSkippedVersions;
 
+  /// No description provided for @dialogSkippedVersions.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped Version'**
+  String get dialogSkippedVersions;
+
   /// No description provided for @dialogTitleRepairMods.
   ///
   /// In en, this message translates to:
@@ -1293,6 +1299,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A mod named \"{modName}\" already exists.'**
   String errorModNameExists(Object modName);
+
+  /// No description provided for @dialogTitleRepairedModWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Repaired Mod Warning'**
+  String get dialogTitleRepairedModWarning;
+
+  /// No description provided for @dialogContentRepairedModWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This mod might not have the correct version information. Reinstalling the latest version is recommended to ensure compatibility.'**
+  String get dialogContentRepairedModWarning;
+
+  /// No description provided for @repairedModTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Information about repaired mod'**
+  String get repairedModTooltip;
 }
 
 class _AppLocalizationsDelegate

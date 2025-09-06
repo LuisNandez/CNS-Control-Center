@@ -96,6 +96,9 @@ class AppLocalizationsDe extends AppLocalizations {
       'You have not skipped any mod versions.';
 
   @override
+  String get dialogSkippedVersions => 'Skipped Version';
+
+  @override
   String get dialogTitleRepairMods => 'Run Legacy Mod Repair?';
 
   @override
@@ -724,4 +727,14 @@ class AppLocalizationsDe extends AppLocalizations {
   String errorModNameExists(Object modName) {
     return 'A mod named \"$modName\" already exists.';
   }
+
+  @override
+  String get dialogTitleRepairedModWarning => 'Repaired Mod Warning';
+
+  @override
+  String get dialogContentRepairedModWarning =>
+      'This mod might not have the correct version information. Reinstalling the latest version is recommended to ensure compatibility.';
+
+  @override
+  String get repairedModTooltip => 'Information about repaired mod';
 }

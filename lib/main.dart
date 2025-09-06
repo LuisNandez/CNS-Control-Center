@@ -262,22 +262,18 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     await _findGamePath();
 
     if (_finalModsPath != null) {
-      // 1. Migrar carpetas y archivos JSON si es necesario.
       await _migrateModFolders();
-      // 2. Cargar la lista de mods ya corregida.
       await _loadAllMods();
-      // 3. Leer datos del CNS.
       await _readCNSData();
     }
   }
-
+  
   Future<void> _migrateModFolders() async {
     setState(() {
       _statusMessage = "Verificando integridad de los mods...";
       _isLoading = true;
     });
 
-    // Función interna para escanear una ruta y crear tareas de migración.
     Future<List<Map<String, dynamic>>> _scanForMigration(String path) async {
       final dir = Directory(path);
       if (!await dir.exists()) return [];
@@ -302,7 +298,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               Map<String, dynamic> data = json.decode(content);
 
               if (data['customName'] == null && data['displayName'] != null) {
-                // Sanitizar el nombre de visualización para usarlo como nombre de carpeta
                 final String newFolderName = data['displayName'].replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
                 tasks.add({
                   'oldPath': entity.path,
@@ -319,8 +314,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       return tasks;
     }
 
-    // --- Ejecución de la migración en dos pases ---
-    // 1. Recopilar todas las tareas de ambas carpetas (enabled/disabled)
     final List<Map<String, dynamic>> allTasks = [];
     if (_finalModsPath != null) {
       allTasks.addAll(await _scanForMigration(_finalModsPath!));
@@ -330,7 +323,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       allTasks.addAll(await _scanForMigration(backupDirPath));
     }
     
-    // 2. Ejecutar las tareas recopiladas
     if (allTasks.isNotEmpty) {
       print('Se encontraron ${allTasks.length} mods para migrar.');
       for (final task in allTasks) {
@@ -343,7 +335,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           if (oldPath != newPath) {
             if (await Directory(newPath).exists()) {
               print('Conflicto de migración: La carpeta destino "$newPath" ya existe. Saltando renombrado para "$oldPath".');
-              // Aunque no podamos renombrar, intentaremos actualizar el JSON en la carpeta antigua.
               newDirHandle = Directory(oldPath);
             } else {
                await Directory(oldPath).rename(newPath);
@@ -817,7 +808,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         _allMods = [...enabledMods, ...disabledMods];
         if (clearHighlight && mounted) {
           _statusMessage = AppLocalizations.of(context)!
-              .statusModsFound(enabledMods.length, disabledMods.length);
+              .statusModsFound(disabledMods.length, enabledMods.length);
           _statusColor = Colors.white;
         }
       });
@@ -1611,7 +1602,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     return mod.displayName;
   }
 
-
+  // --- CAMBIO: Se pasa el customName a los mensajes de los diálogos ---
   Future<_AlternativeVersionAction?> _showSmartInstallDialog({
     required ModInfo oldVersionMod,
     required String baseDisplayName,
@@ -1620,6 +1611,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final l10n = AppLocalizations.of(context)!;
     final oldVersion = oldVersionMod.localVersion ?? 'N/A';
     final newVersionStr = newVersion ?? 'N/A';
+    final modName = oldVersionMod.customName; // Usar el nombre personalizado existente
     
     String title = l10n.dialogTitleAlternativeVersion;
     String content;
@@ -1630,20 +1622,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       
       if (comparison > 0) {
         title = l10n.dialogTitleUpdate;
-        content = l10n.dialogContentUpdate(baseDisplayName, oldVersion, newVersionStr);
+        content = l10n.dialogContentUpdate(modName, oldVersion, newVersionStr);
         replaceActionText = l10n.dialogActionUpdate;
       } else if (comparison < 0) {
         title = l10n.dialogTitleDowngrade;
-        content = l10n.dialogContentDowngrade(baseDisplayName, oldVersion, newVersionStr);
+        content = l10n.dialogContentDowngrade(modName, oldVersion, newVersionStr);
         replaceActionText = l10n.dialogActionDowngrade;
       } else {
         title = l10n.dialogTitleReinstall;
-        content = l10n.dialogContentReinstall(newVersionStr, baseDisplayName);
+        content = l10n.dialogContentReinstall(modName, newVersionStr);
         replaceActionText = l10n.dialogActionReinstall;
       }
     } else {
-      final oldModName = oldVersionMod.customName;
-      content = l10n.dialogContentAlternativeVersion(oldModName, baseDisplayName, baseDisplayName);
+      content = l10n.dialogContentAlternativeVersion(modName, baseDisplayName, baseDisplayName);
     }
 
     return showDialog<_AlternativeVersionAction>(
@@ -1677,6 +1668,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       {String? nexusId, String? nexusVersion}) async {
     final l10n = AppLocalizations.of(context)!;
     final tempModDir = files.first.parent;
+    String? preservedCustomName;
 
     final baseDisplayName = await _getCompositeDisplayName(tempModDir);
     if (baseDisplayName == null) {
@@ -1757,6 +1749,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           if(oldVersionMod == null) {
              throw Exception("Attempted to replace a mod but no old version was identified.");
           }
+          final oldInfoFile = File(p.join(oldVersionMod.directory.path, 'nexus_info.json'));
+          if (await oldInfoFile.exists()) {
+            try {
+              final oldData = json.decode(await oldInfoFile.readAsString());
+              if (oldData['customName'] != null) {
+                preservedCustomName = oldData['customName'];
+                print('Preservando nombre personalizado: $preservedCustomName');
+              }
+            } catch (e) {
+              print('No se pudo leer el nombre personalizado antiguo. Se usará el nombre por defecto. Error: $e');
+            }
+          }
+
           final oldModName = oldVersionMod.customName;
           final bool deleted = await _deleteDirectoryWithRetry(oldVersionMod.directory);
           if (!deleted) {
@@ -1798,6 +1803,18 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (confirmReinstall != true) {
         throw Exception(l10n.errorInstallModExists);
       } else {
+        final oldInfoFile = File(p.join(newModPath, 'nexus_info.json'));
+        if (preservedCustomName == null && await oldInfoFile.exists()) {
+          try {
+            final oldData = json.decode(await oldInfoFile.readAsString());
+            if (oldData['customName'] != null) {
+              preservedCustomName = oldData['customName'];
+              print('Preservando nombre personalizado: $preservedCustomName');
+            }
+          } catch (e) {
+            print('No se pudo leer el nombre personalizado antiguo. Se usará el nombre por defecto. Error: $e');
+          }
+        }
         final bool deleted =
             await _deleteDirectoryWithRetry(Directory(newModPath));
         if (!deleted) {
@@ -1816,7 +1833,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       final Map<String, dynamic> modData = {
         'nexusId': nexusId,
         'displayName': baseDisplayName,
-        'customName': baseDisplayName,
+        'customName': preservedCustomName ?? baseDisplayName,
         'installedVersion': versionForFile,
         'installDate': DateTime.now().toIso8601String(),
         'managerVersion': _appVersion,
@@ -2214,10 +2231,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     
     setState(() => _isLoading = true);
     try {
-      // 1. Renombrar la carpeta física
       await mod.directory.rename(newPath);
 
-      // 2. Actualizar solo el `customName` en nexus_info.json
       final infoFile = File(p.join(newPath, 'nexus_info.json'));
       if (await infoFile.exists()) {
         try {
@@ -2780,7 +2795,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
                           return ListTile(
                             title: Text(modName),
-                            subtitle: Text('Versión saltada: ${entry.value}'),
+                            subtitle: Text('${l10n.dialogSkippedVersions}: ${entry.value}'),
                             trailing: IconButton(
                               icon: const Icon(Icons.delete_outline,
                                   color: Colors.redAccent),
@@ -2936,8 +2951,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                         if (_modsToInstallPreviewMap.isNotEmpty)
                           _buildSelectionPreviewSection(l10n),
                         const Divider(height: 30, thickness: 1),
-                        // --- ELIMINADO: La llamada a _buildSearchSection se mueve a _buildModsListSection ---
-                        // const SizedBox(height: 16),
                         Expanded(
                           child: _buildModsListSection(l10n.installedMods, filteredAndSortedMods, l10n),
                         ),
@@ -2976,7 +2989,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                               ),
                               const SizedBox(height: 4),
                               LinearProgressIndicator(
-                                value: null, // Indeterminate progress
+                                value: null,
                                 backgroundColor: Colors.grey[800],
                                 valueColor: const AlwaysStoppedAnimation<Color>(Colors.tealAccent),
                               ),
@@ -3165,15 +3178,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       ],
     );
   }
-  
-  // --- ELIMINADO: Ya no se necesita esta función separada ---
-  /*
-  Widget _buildSearchSection(AppLocalizations l10n) {
-    // ...
-  }
-  */
 
-  // --- CAMBIO: La cabecera se ha rediseñado para incluir la barra de búsqueda ---
   Widget _buildModsListSection(
       String title, List<ModInfo> mods, AppLocalizations l10n) {
     return Column(
@@ -3192,7 +3197,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
                 child: SizedBox(
-                  height: 40, // Altura fija para la barra de búsqueda
+                  height: 40,
                   child: TextField(
                     controller: _searchController,
                     decoration: InputDecoration(

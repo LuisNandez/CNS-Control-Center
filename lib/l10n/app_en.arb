@@ -26,6 +26,7 @@
     "settingsSkippedVersionsCount": "{count} versions skipped",
     "dialogTitleSkippedVersions": "Skipped Mod Versions",
     "dialogNoSkippedVersions": "You have not skipped any mod versions.",
+    "dialogSkippedVersions": "Skipped Version",
     "dialogTitleRepairMods": "Run Legacy Mod Repair?",
     "dialogContentRepairMods": "Warning: This feature is in development and may not be perfect.\n\nIt will scan mods without a 'nexus_info.json' file and, if found in your local database, create one for them. It will also attempt to rename the mod's folder to include the found version (e.g., 'My Mod' -> 'My Mod v1.2').\n\nVersion Priority:\n1. From the folder name.\n2. From the mod's description field.\n3. From the latest version on Nexus Mods (requires API).\n\nDo you want to continue?",
     "dialogActionRunRepair": "Run Repair",
@@ -217,5 +218,8 @@
     "editModNameTooltip": "Edit mod name",
     "dialogTitleEditModName": "Edit Mod Name",
     "dialogLabelNewName": "New name",
-    "errorModNameExists": "A mod named \"{modName}\" already exists."
+    "errorModNameExists": "A mod named \"{modName}\" already exists.",
+    "dialogTitleRepairedModWarning": "Repaired Mod Warning",
+    "dialogContentRepairedModWarning": "This mod might not have the correct version information. Reinstalling the latest version is recommended to ensure compatibility.",
+    "repairedModTooltip": "Information about repaired mod"
 }
