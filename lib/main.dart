@@ -62,7 +62,7 @@ void main() async {
 
   WindowOptions windowOptions = const WindowOptions(
     minimumSize: Size(600, 660),
-    size: Size(800, 700),
+    size: Size(1100, 700),
     center: true,
     title: 'CNS Control Center',
   );
@@ -268,6 +268,24 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
   
+  Future<void> _showRepairedModInfoDialog() async {
+    final l10n = AppLocalizations.of(context)!;
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2a2a2a),
+        title: Text(l10n.dialogTitleRepairedModWarning),
+        content: Text(l10n.dialogContentRepairedModWarning),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.dialogActionClose),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _migrateModFolders() async {
     setState(() {
       _statusMessage = "Verificando integridad de los mods...";
@@ -3395,11 +3413,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                   child: Icon(Icons.new_releases,
                                       color: Colors.yellow[700], size: 18),
                                 ),
+                              // --- CAMBIO: El Icon ahora es un IconButton clicable ---
                               if (modInfo.origin == 'repaired')
-                                Padding(
+                                IconButton(
                                   padding: const EdgeInsets.only(right: 8.0),
-                                  child: Icon(Icons.build,
+                                  constraints: const BoxConstraints(),
+                                  icon: Icon(Icons.build,
                                       color: Colors.amber[700], size: 16),
+                                  onPressed: _showRepairedModInfoDialog,
+                                  tooltip: l10n.repairedModTooltip,
+                                  splashRadius: 16,
                                 ),
                             ],
                           ),

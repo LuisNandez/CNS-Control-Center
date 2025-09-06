@@ -9,7 +9,7 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
-  String get appTitle => 'Centre de Contrôle CNS';
+  String get appTitle => 'CNS Control Center';
 
   @override
   String appTitleWithVersion(Object version) {
@@ -20,145 +20,147 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settings => 'Paramètres';
 
   @override
-  String get settingsGeneral => 'General';
+  String get settingsGeneral => 'Général';
 
   @override
-  String get settingsLanguage => 'Language';
+  String get settingsLanguage => 'Langue';
 
   @override
-  String get settingsLanguageDesc => 'Choose the application language';
+  String get settingsLanguageDesc => 'Choisissez la langue de l\'application';
 
   @override
-  String get settingsAbout => 'About';
+  String get settingsAbout => 'À propos';
 
   @override
-  String get settingsAboutDesc => 'Information about the application';
+  String get settingsAboutDesc => 'Informations sur l\'application';
 
   @override
-  String get settingsPathsAndTools => 'Paths & Tools';
+  String get settingsPathsAndTools => 'Chemins et Outils';
 
   @override
-  String get settingsGameFolder => 'Game Folder';
+  String get settingsGameFolder => 'Dossier du jeu';
 
   @override
   String get settingsGameFolderDesc =>
-      'The root folder of your Stellar Blade installation.';
+      'Le dossier racine de votre installation de Stellar Blade.';
 
   @override
-  String get settings7zipPath => '7-Zip Path';
+  String get settings7zipPath => 'Chemin de 7-Zip';
 
   @override
   String get settings7zipPathDesc =>
-      'The location of the 7z.exe file for extracting mods.';
+      'L\'emplacement du fichier 7z.exe pour extraire les mods.';
 
   @override
-  String get settings7zipPathAuto => 'Automatic search';
+  String get settings7zipPathAuto => 'Recherche automatique';
 
   @override
-  String get settingsRepairMods => 'Repair Legacy Mods';
+  String get settingsRepairMods => 'Réparer les mods hérités';
 
   @override
   String get settingsRepairModsDesc =>
-      'Scans and creates info files for old mods using the local database. Requires API key.';
+      'Analyse et crée des fichiers d\'information pour les anciens mods à l\'aide de la base de données locale. Clé API requise.';
 
   @override
-  String get settingsConnectivity => 'Connectivity & Updates';
+  String get settingsConnectivity => 'Connectivité et Mises à jour';
 
   @override
-  String get settingsApiKey => 'Nexus Mods API Key';
+  String get settingsApiKey => 'Clé API de Nexus Mods';
 
   @override
-  String get settingsApiKeyDesc => 'Required for checking mod updates.';
+  String get settingsApiKeyDesc =>
+      'Nécessaire pour vérifier les mises à jour des mods.';
 
   @override
-  String get settingsApiKeySet => 'Set';
+  String get settingsApiKeySet => 'Définie';
 
   @override
-  String get settingsApiKeyNotSet => 'Not set';
+  String get settingsApiKeyNotSet => 'Non définie';
 
   @override
-  String get settingsSkippedVersions => 'Manage Skipped Versions';
+  String get settingsSkippedVersions => 'Gérer les versions ignorées';
 
   @override
   String get settingsSkippedVersionsDesc =>
-      'Manage mod versions you have chosen to skip.';
+      'Gérez les versions de mods que vous avez choisi d\'ignorer.';
 
   @override
   String settingsSkippedVersionsCount(Object count) {
-    return '$count versions skipped';
+    return '$count versions ignorées';
   }
 
   @override
-  String get dialogTitleSkippedVersions => 'Skipped Mod Versions';
+  String get dialogTitleSkippedVersions => 'Versions de mod ignorées';
 
   @override
   String get dialogNoSkippedVersions =>
-      'You have not skipped any mod versions.';
+      'Vous n\'avez ignoré aucune version de mod.';
 
   @override
-  String get dialogSkippedVersions => 'Skipped Version';
+  String get dialogSkippedVersions => 'Version ignorée';
 
   @override
-  String get dialogTitleRepairMods => 'Run Legacy Mod Repair?';
+  String get dialogTitleRepairMods =>
+      'Exécuter la réparation des mods hérités ?';
 
   @override
   String get dialogContentRepairMods =>
-      'Warning: This feature is in development and may not be perfect.\n\nIt will scan mods without a \'nexus_info.json\' file and, if found in your local database, create one for them. It will also attempt to rename the mod\'s folder to include the found version (e.g., \'My Mod\' -> \'My Mod v1.2\').\n\nVersion Priority:\n1. From the folder name.\n2. From the mod\'s description field.\n3. From the latest version on Nexus Mods (requires API).\n\nDo you want to continue?';
+      'Avertissement : Cette fonctionnalité est en développement et peut ne pas être parfaite.\n\nElle analysera les mods sans fichier \'nexus_info.json\' et, s\'ils sont trouvés dans votre base de données locale, en créera un pour eux. Elle tentera également de renommer le dossier du mod pour inclure la version trouvée (par ex., \'Mon Mod\' -> \'Mon Mod v1.2\').\n\nPriorité de la version :\n1. À partir du nom du dossier.\n2. À partir du champ de description du mod.\n3. À partir de la dernière version sur Nexus Mods (nécessite une API).\n\nVoulez-vous continuer ?';
 
   @override
-  String get dialogActionRunRepair => 'Run Repair';
+  String get dialogActionRunRepair => 'Exécuter la réparation';
 
   @override
   String get snackBarGamePathInvalid =>
-      'The selected folder does not appear to be a valid game folder.';
+      'Le dossier sélectionné ne semble pas être un dossier de jeu valide.';
 
   @override
   String get snackBar7zipPathInvalid =>
-      'The selected file must be named 7z.exe.';
+      'Le fichier sélectionné doit s\'appeler 7z.exe.';
 
   @override
   String get snackBarRepairStarted =>
-      'Legacy mod repair process has started...';
+      'Le processus de réparation des mods hérités a commencé...';
 
   @override
   String snackBarRepairComplete(Object count) {
-    return 'Repair complete. $count mod(s) were updated.';
+    return 'Réparation terminée. $count mod(s) ont été mis à jour.';
   }
 
   @override
   String get snackBarRepairNoMods =>
-      'No legacy mods were found that needed repairing.';
+      'Aucun mod hérité nécessitant une réparation n\'a été trouvé.';
 
   @override
   String get errorApiRequiredForRepair =>
-      'API Key is required to find the latest version for mods without a local version.';
+      'Une clé API est requise pour trouver la dernière version des mods sans version locale.';
 
   @override
-  String get installNewMod => 'Installer un Nouveau Mod';
+  String get installNewMod => 'Installer un nouveau mod';
 
   @override
-  String get selectFiles => 'Sélectionner des Fichiers';
+  String get selectFiles => 'Sélectionner des fichiers';
 
   @override
-  String get selectFolder => 'Sélectionner un Dossier';
+  String get selectFolder => 'Sélectionner un dossier';
 
   @override
-  String get installSelectedMod => 'Installer le Mod Sélectionné';
+  String get installSelectedMod => 'Installer le mod sélectionné';
 
   @override
-  String get filesToInstall => 'Fichiers à Installer :';
+  String get filesToInstall => 'Fichiers à installer :';
 
   @override
-  String get cancelSelection => 'Annuler la Sélection';
+  String get cancelSelection => 'Annuler la sélection';
 
   @override
   String get searchMods => 'Rechercher des mods...';
 
   @override
-  String get enabledMods => 'Mods Activés';
+  String get enabledMods => 'Mods activés';
 
   @override
-  String get disabledMods => 'Mods Désactivés';
+  String get disabledMods => 'Mods désactivés';
 
   @override
   String get refreshList => 'Actualiser la liste';
@@ -196,11 +198,11 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get statusGamePathNotFound =>
-      'Impossible de trouver automatically le chemin du jeu.';
+      'Impossible de trouver le chemin du jeu automatiquement.';
 
   @override
   String statusErrorFindingGame(Object error) {
-    return 'Une erreur s\'est produite lors de la recherche du jeu : $error';
+    return 'Une erreur est survenue lors de la recherche du jeu : $error';
   }
 
   @override
@@ -210,22 +212,22 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String statusErrorReadingMods(Object error) {
-    return 'Erreur lors de la lecture des mods installés : $error';
+    return 'Erreur de lecture des mods installés : $error';
   }
 
   @override
   String statusFilesSelected(Object count) {
-    return '$count fichier(s) sélectionné(s). Prêt pour l\'installation.';
+    return '$count fichier(s) sélectionné(s). Prêt à installer.';
   }
 
   @override
   String statusFolderSelected(Object folderName) {
-    return 'Dossier \"$folderName\" sélectionné. Prêt pour l\'installation.';
+    return 'Dossier \"$folderName\" sélectionné. Prêt à installer.';
   }
 
   @override
   String statusArchiveLoaded(Object count, Object fileName) {
-    return 'Fichier \"$fileName\" chargé. $count fichier(s) prêt(s) pour l\'installation.';
+    return 'Fichier \"$fileName\" chargé. $count fichier(s) prêt(s) à installer.';
   }
 
   @override
@@ -244,7 +246,7 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get dialogTitle7zip => '7-Zip est Requis';
+  String get dialogTitle7zip => '7-Zip est requis';
 
   @override
   String get dialogContent7zip =>
@@ -256,14 +258,14 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get dialogTitleCNSUpdate =>
-      'Mise à Jour du Système Principal Détectée';
+      'Mise à jour du système principal détectée';
 
   @override
   String get dialogContentCNSUpdate =>
       'Une mise à jour pour le \"Custom Nanosuit System\" a été détectée.\n\nCela remplacera des fichiers dans le dossier principal du jeu (StellarBlade\\SB). Souhaitez-vous continuer ?';
 
   @override
-  String get dialogTitleMultipleJsons => 'Plusieurs Fichiers .json Détectés';
+  String get dialogTitleMultipleJsons => 'Plusieurs fichiers .json détectés';
 
   @override
   String dialogContentMultipleJsons(Object count) {
@@ -271,11 +273,11 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get dialogTitleModExists => 'Le Mod Existe Déjà';
+  String get dialogTitleModExists => 'Le mod existe déjà';
 
   @override
   String dialogContentModExists(Object modName) {
-    return 'Un mod nommé \"$modName\" est déjà installé.\n\nVoulez-vous le mettre à jour ? Les anciens fichiers seront supprimés avant d\'installer les nouveaux.';
+    return 'Un mod nommé \"$modName\" est déjà installé.\n\nVoulez-vous le mettre à jour ? Les anciens fichiers seront supprimés avant l\'installation des nouveaux.';
   }
 
   @override
@@ -284,7 +286,7 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get dialogTitleDeleteMod => 'Supprimer Définitivement ?';
+  String get dialogTitleDeleteMod => 'Supprimer définitivement ?';
 
   @override
   String dialogContentDeleteMod(Object modName) {
@@ -295,13 +297,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get dialogActionCancel => 'Annuler';
 
   @override
-  String get dialogActionGoToDownload => 'Aller à la Page de Téléchargement';
+  String get dialogActionGoToDownload => 'Aller à la page de téléchargement';
 
   @override
-  String get dialogActionConfirmInstallation => 'Confirmer l\'Installation';
+  String get dialogActionConfirmInstallation => 'Confirmer l\'installation';
 
   @override
-  String get dialogActionUpdateSystem => 'Mettre à Jour le Système';
+  String get dialogActionUpdateSystem => 'Mettre à jour le système';
 
   @override
   String get dialogActionInstallAnyway => 'Installer quand même';
@@ -317,27 +319,27 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String snackBarBatchInstallComplete(Object failedCount, Object successCount) {
-    return 'Installation par lots terminée. Succès : $successCount, Échecs : $failedCount.';
+    return 'Installation par lot terminée. Succès : $successCount, Échecs : $failedCount.';
   }
 
   @override
   String snackBarModInstalled(Object modName) {
-    return 'Mod \"$modName\" installé avec succès.';
+    return 'Le mod \"$modName\" a été installé avec succès.';
   }
 
   @override
   String snackBarModEnabled(Object modName) {
-    return 'Mod \"$modName\" activé.';
+    return 'Le mod \"$modName\" a été activé.';
   }
 
   @override
   String snackBarModDisabled(Object modName) {
-    return 'Mod \"$modName\" désactivé.';
+    return 'Le mod \"$modName\" a été désactivé.';
   }
 
   @override
   String snackBarModDeleted(Object modName) {
-    return 'Mod \"$modName\" supprimé définitivement.';
+    return 'Le mod \"$modName\" a été supprimé définitivement.';
   }
 
   @override
@@ -348,23 +350,23 @@ class AppLocalizationsFr extends AppLocalizations {
   String get snackBarApiKeySaved => 'Clé API enregistrée avec succès.';
 
   @override
-  String get snackBarGamePathSaved => 'Game path saved successfully.';
+  String get snackBarGamePathSaved => 'Chemin du jeu enregistré avec succès.';
 
   @override
-  String get snackBar7zipPathSaved => '7-Zip path saved successfully.';
+  String get snackBar7zipPathSaved => 'Chemin de 7-Zip enregistré avec succès.';
 
   @override
-  String get snackBarSkippedVersionRemoved => 'Skipped version removed.';
+  String get snackBarSkippedVersionRemoved => 'Version ignorée supprimée.';
 
   @override
   String get dropTargetOverlay => 'Déposez les mods ici';
 
   @override
-  String get pathSelectionTitle => 'Chemin de Stellar Blade Introuvable';
+  String get pathSelectionTitle => 'Chemin de Stellar Blade non trouvé';
 
   @override
   String get pathSelectionButtonManual =>
-      'Sélectionner Manuellement le Dossier du Jeu';
+      'Sélectionner le dossier du jeu manuellement';
 
   @override
   String get pathSelectionButtonRetry => 'Réessayer';
@@ -386,7 +388,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String errorProcessingArchive(Object error) {
-    return 'Erreur lors du traitement de l\'archive : $error';
+    return 'Erreur lors du traitement du fichier : $error';
   }
 
   @override
@@ -459,7 +461,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get statusUpdateSystemCancelled => 'Mise à jour du système annulée.';
 
   @override
-  String get statusUpdatingCNS => 'Mise à jour de Custom Nanosuit System...';
+  String get statusUpdatingCNS => 'Mise à jour du Custom Nanosuit System...';
 
   @override
   String statusExtractingFile(Object fileName) {
@@ -490,7 +492,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Cette application est un gestionnaire de mods pour Stellar Blade, conçu pour fonctionner avec le Custom Nanosuit System (CNS).\n\nPrérequis : Pour une fonctionnalité complète avec les fichiers .rar et .7z, 7-Zip doit être installé sur votre système.';
 
   @override
-  String get aboutLinkText => 'Visitez le profil de mon créateur';
+  String get aboutLinkText => 'Visitez mon profil de créateur';
 
   @override
   String get creatorProfileUrl =>
@@ -502,7 +504,7 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get openModsFolder => 'Ouvrir le Dossier des Mods';
+  String get openModsFolder => 'Ouvrir le dossier des mods';
 
   @override
   String get openInNexusMods => 'Ouvrir dans Nexus Mods';
@@ -542,7 +544,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get invalidApiKeyError => 'Clé API invalide.';
 
   @override
-  String get validatingApiKey => 'Validation...';
+  String get validatingApiKey => 'Validation en cours...';
 
   @override
   String get errorApiKeyMissing =>
@@ -561,17 +563,17 @@ class AppLocalizationsFr extends AppLocalizations {
   String get statusNoUpdates => 'Tous les mods sont à jour.';
 
   @override
-  String get selectModArchive => 'Sélectionner l\'Archive du Mod';
+  String get selectModArchive => 'Sélectionner l\'archive du mod';
 
   @override
-  String get viewImageGallery => 'Voir l\'Image';
+  String get viewImageGallery => 'Voir l\'image';
 
   @override
-  String get imageGallery => 'Galerie d\'Images';
+  String get imageGallery => 'Galerie d\'images';
 
   @override
   String get noImagesFound =>
-      'Aucune image n\'a été trouvée pour ce mod, ou la clé API n\'a pas été saisie. Veuillez saisir la clé et vérifier les mises à jour par la suite.';
+      'Aucune image n\'a été trouvée pour ce mod, ou la clé API n\'a pas été saisie. Veuillez saisir la clé API et vérifier les mises à jour par la suite.';
 
   @override
   String errorFetchingImages(Object error) {
@@ -579,22 +581,22 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get imageMod => 'Image du Mod';
+  String get imageMod => 'Image du mod';
 
   @override
   String get dialogContentUpdateOptions => 'Que souhaitez-vous faire ?';
 
   @override
-  String get dialogActionIgnoreVersion => 'Ignorer la Version';
+  String get dialogActionIgnoreVersion => 'Ignorer';
 
   @override
-  String get dialogActionSkipVersion => 'Skip Version';
+  String get dialogActionSkipVersion => 'Ignorer la version';
 
   @override
-  String get dialogActionGoToDownloadPage => 'Aller au Téléchargement';
+  String get dialogActionGoToDownloadPage => 'Aller au téléchargement';
 
   @override
-  String get installedMods => 'Mods Installés';
+  String get installedMods => 'Mods installés';
 
   @override
   String get filterBy => 'Filtrer par :';
@@ -612,7 +614,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get filterDisabled => 'Désactivés';
 
   @override
-  String get filterRepaired => 'Repaired';
+  String get filterRepaired => 'Réparés';
 
   @override
   String get sortByName => 'Nom';
@@ -633,23 +635,23 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get previewInstallTitle => 'Mods à Installer :';
+  String get previewInstallTitle => 'Mods à installer :';
 
   @override
-  String get dialogTitleUE4SS => 'Installation d\'UE4SS Détectée';
+  String get dialogTitleUE4SS => 'Installation de UE4SS détectée';
 
   @override
   String get dialogContentUE4SS =>
       'L\'outil UE4SS a été détecté. Voulez-vous l\'installer dans \'StellarBlade\\SB\\Binaries\\Win64\' ?\n\nCeci est nécessaire pour que de nombreux mods fonctionnent.';
 
   @override
-  String get dialogActionInstallTool => 'Installer l\'Outil';
+  String get dialogActionInstallTool => 'Installer l\'outil';
 
   @override
-  String get statusUE4SSInstallCancelled => 'Installation d\'UE4SS annulée.';
+  String get statusUE4SSInstallCancelled => 'Installation de UE4SS annulée.';
 
   @override
-  String get statusInstallingUE4SS => 'Installation d\'UE4SS...';
+  String get statusInstallingUE4SS => 'Installation de UE4SS...';
 
   @override
   String get snackBarUE4SSInstalled => 'UE4SS installé avec succès.';
@@ -660,10 +662,10 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get statusUE4SSInstallComplete => 'Installation d\'UE4SS terminée.';
+  String get statusUE4SSInstallComplete => 'Installation de UE4SS terminée.';
 
   @override
-  String get dialogTitleAlternativeVersion => 'Version Alternative Détectée';
+  String get dialogTitleAlternativeVersion => 'Version alternative détectée';
 
   @override
   String dialogContentAlternativeVersion(
@@ -678,10 +680,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get dialogActionReplace => 'Remplacer';
 
   @override
-  String get dialogActionInstallAsNew => 'Installer comme Nouveau';
+  String get dialogActionInstallAsNew => 'Installer comme nouveau';
 
   @override
-  String get dialogTitleUpdate => 'Mise à Jour Disponible';
+  String get dialogTitleUpdate => 'Mise à jour disponible';
 
   @override
   String dialogContentUpdate(
@@ -693,7 +695,7 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get dialogTitleDowngrade => 'Version Antérieure Détectée';
+  String get dialogTitleDowngrade => 'Version plus ancienne détectée';
 
   @override
   String dialogContentDowngrade(
@@ -701,14 +703,14 @@ class AppLocalizationsFr extends AppLocalizations {
     String oldVersion,
     String newVersion,
   ) {
-    return 'Attention : Vous êtes sur le point d\'installer une version antérieure du mod \'$modName\'.\n\nVersion installée : $oldVersion\nVersion à installer : $newVersion';
+    return 'Avertissement : Vous êtes sur le point d\'installer une version plus ancienne du mod \'$modName\'.\n\nVersion installée : $oldVersion\nVersion à installer : $newVersion';
   }
 
   @override
   String get dialogActionDowngrade => 'Rétrograder';
 
   @override
-  String get dialogTitleReinstall => 'Réinstaller le Mod';
+  String get dialogTitleReinstall => 'Réinstaller le mod';
 
   @override
   String dialogContentReinstall(Object modName, Object version) {
@@ -719,26 +721,26 @@ class AppLocalizationsFr extends AppLocalizations {
   String get dialogActionReinstall => 'Réinstaller';
 
   @override
-  String get editModNameTooltip => 'Edit mod name';
+  String get editModNameTooltip => 'Modifier le nom du mod';
 
   @override
-  String get dialogTitleEditModName => 'Edit Mod Name';
+  String get dialogTitleEditModName => 'Modifier le nom du mod';
 
   @override
-  String get dialogLabelNewName => 'New name';
+  String get dialogLabelNewName => 'Nouveau nom';
 
   @override
   String errorModNameExists(Object modName) {
-    return 'A mod named \"$modName\" already exists.';
+    return 'Un mod nommé \"$modName\" existe déjà.';
   }
 
   @override
-  String get dialogTitleRepairedModWarning => 'Repaired Mod Warning';
+  String get dialogTitleRepairedModWarning => 'Avertissement de mod réparé';
 
   @override
   String get dialogContentRepairedModWarning =>
-      'This mod might not have the correct version information. Reinstalling the latest version is recommended to ensure compatibility.';
+      'Ce mod pourrait ne pas avoir les informations de version correctes. Il est recommandé de réinstaller la dernière version pour garantir la compatibilité.';
 
   @override
-  String get repairedModTooltip => 'Information about repaired mod';
+  String get repairedModTooltip => 'Informations sur le mod réparé';
 }
