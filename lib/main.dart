@@ -254,6 +254,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _initialize() async {
     await _getAppVersion();
+    await _cleanUpOrphanedTempDirs();
     await _loadModDatabase();
     await _find7zipPath();
     await _loadApiKey();
@@ -265,6 +266,39 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       await _migrateModFolders();
       await _loadAllMods();
       await _readCNSData();
+    }
+  }
+
+  Future<List<File>> _findAllModFilesRecursive(Directory dir) async {
+    final List<File> foundFiles = [];
+    const validExtensions = ['.json', '.pak', '.ucas', '.utoc'];
+    await for (final entity in dir.list(recursive: true, followLinks: false)) {
+      if (entity is File &&
+          validExtensions.contains(p.extension(entity.path).toLowerCase())) {
+        foundFiles.add(entity);
+      }
+    }
+    return foundFiles;
+  }
+
+  Future<void> _cleanUpOrphanedTempDirs() async {
+    try {
+      final tempDir = Directory.systemTemp;
+      // Revisa de forma asíncrona el contenido del directorio temporal del sistema.
+      await for (final entity in tempDir.list()) {
+        // Si una entidad es una carpeta y su nombre empieza con "mod_manager_", elimínala.
+        if (entity is Directory &&
+            p.basename(entity.path).startsWith('mod_manager_')) {
+          try {
+            await entity.delete(recursive: true);
+          } catch (e) {
+            // Ignora errores si una carpeta específica no se puede borrar (puede estar en uso).
+            print('No se pudo borrar el directorio huérfano ${entity.path}: $e');
+          }
+        }
+      }
+    } catch (e) {
+      print('Ocurrió un error durante la limpieza general de carpetas temporales: $e');
     }
   }
   
@@ -1182,7 +1216,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
         setState(() {
           _extractionProgress = (i + 1) / archives.length;
-          _extractionStatus = l10n.statusExtractingMultipleFiles(i + 1, archives.length, fileName);
+          _extractionStatus = l10n.statusExtractingMultipleFiles(i + 1, fileName, archives.length);
         });
 
         final nexusInfo = _extractNexusInfoFromName(fileName);
@@ -1224,13 +1258,40 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           await _promptAndUpdateCNS(sbDir);
           cnsUpdateInitiated = true;
         } else {
-          final foundModDirs = await _findValidModDirectories(archiveTempDir);
-          for (final modDir in foundModDirs) {
+          // PASO 1: Búsqueda exhaustiva en TODO el contenido extraído.
+          final allModFiles = await _findAllModFilesRecursive(archiveTempDir);
+
+          final jsonFiles = allModFiles.where((f) => p.extension(f.path).toLowerCase() == '.json').toList();
+          final pakFiles = allModFiles.where((f) => ['.pak', '.ucas', '.utoc'].contains(p.extension(f.path).toLowerCase())).toList();
+
+          // PASO 2: Detectar si es un mod con archivos dispersos.
+          if (jsonFiles.isNotEmpty && pakFiles.isNotEmpty) {
+            
+            // PASO 3: Agrupar los archivos en una nueva carpeta temporal.
+            final consolidatedDir = await Directory(p.join(archiveTempDir.path, '_consolidated_')).create();
+
+            for (final modFile in allModFiles) {
+              final newPath = p.join(consolidatedDir.path, p.basename(modFile.path));
+              await modFile.copy(newPath);
+            }
+            
+            // El mod ya agrupado se prepara para la instalación.
             _preparedMods.add(_PreparedMod(
-              sourceDir: modDir,
+              sourceDir: consolidatedDir,
               nexusId: nexusInfo?['id'],
               nexusVersion: nexusInfo?['version'],
             ));
+
+          } else {
+            // PASO 4 (PLAN B): Si no es un mod disperso, usar la lógica antigua.
+            final foundModDirs = await _findValidModDirectories(archiveTempDir);
+            for (final modDir in foundModDirs) {
+              _preparedMods.add(_PreparedMod(
+                sourceDir: modDir,
+                nexusId: nexusInfo?['id'],
+                nexusVersion: nexusInfo?['version'],
+              ));
+            }
           }
         }
       }
@@ -1530,6 +1591,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           await _tempExtractionDir!.delete(recursive: true);
         }
         _tempExtractionDir = null;
+        await _cleanUpOrphanedTempDirs();
       } catch (e) {
         print('Failed to clean up temp directory: $e');
       }
@@ -2473,7 +2535,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             hasLocalVersion: _cnsVersion != null,
             modName: "Custom Nanosuit System",
             modDirectory: Directory(
-                p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss'))));
+                p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss')), displayName: ''));
       } else if (job.mod != null) {
         futures.add(_checkSingleModUpdate(
             headers: headers,
@@ -2481,6 +2543,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             localVersion: job.mod!.localVersion ?? '0',
             hasLocalVersion: job.mod!.localVersion != null,
             modName: job.mod!.customName,
+            displayName: job.mod!.displayName,
             modDirectory: job.mod!.directory));
       }
     }
@@ -2529,6 +2592,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     required String localVersion,
     required bool hasLocalVersion,
     required String modName,
+    required String displayName,
     required Directory modDirectory,
   }) async {
     final url = Uri.parse(
@@ -2556,17 +2620,82 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     final jsonResponse = json.decode(response.body);
     final allFiles = jsonResponse['files'] as List;
-    final mainFiles =
-        allFiles.where((file) => file['category_name'] == 'MAIN').toList();
+    final potentialFiles = allFiles
+        .where((file) =>
+            file['category_name'] == 'MAIN' ||
+            file['category_name'] == 'OPTIONAL')
+        .toList();
 
-    if (mainFiles.isNotEmpty) {
+    final compatibleFiles = potentialFiles.where((file) {
+      final fileName = (file['file_name'] as String).toLowerCase();
+      return !fileName.contains('not cns') && !fileName.contains('without cns') && !fileName.contains('non cns');
+    }).toList();
+
+    if (compatibleFiles.isNotEmpty) {
       List<dynamic> filesToConsider;
-      final cnsFiles = mainFiles
+      final cnsFiles = compatibleFiles
           .where((file) =>
               (file['file_name'] as String).toLowerCase().contains('cns'))
           .toList();
 
-      filesToConsider = cnsFiles.isNotEmpty ? cnsFiles : mainFiles;
+      filesToConsider = cnsFiles.isNotEmpty ? cnsFiles : compatibleFiles;
+
+      // 4. Si hay versiones alternas (mismo ID), filtrar por displayName usando un sistema de puntuación mejorado.
+      final modsWithSameId = _allMods.where((m) => m.nexusId == nexusId).length;
+      if (modsWithSameId > 1) {
+        final keywords = displayName.toLowerCase().split(' ').where((s) => s.isNotEmpty).toList();
+        int highestScore = 0;
+
+        // Lista de términos que definen una variante específica.
+        const exclusiveTerms = ['no tail', 'notail'];
+
+        final fileScores = filesToConsider.map((file) {
+          final fileName = (file['file_name'] as String).toLowerCase();
+          final modDisplayNameLower = displayName.toLowerCase();
+          int score = 0;
+          bool isMismatch = false;
+
+          // REGLA DE DESCALIFICACIÓN:
+          // Si el nombre del archivo contiene un término exclusivo que el displayName del mod NO tiene,
+          // entonces es una variante incorrecta y se descarta.
+          for (final term in exclusiveTerms) {
+            if (fileName.contains(term) && !modDisplayNameLower.contains(term)) {
+              isMismatch = true;
+              break;
+            }
+          }
+
+          if (isMismatch) {
+            score = -1; // Se le asigna un puntaje negativo para que nunca sea elegido.
+          } else {
+            // Si no se descarta, se calcula el puntaje de coincidencia como antes.
+            for (final keyword in keywords) {
+              if (fileName.contains(keyword)) {
+                score++;
+              }
+            }
+          }
+          return {'file': file, 'score': score};
+        }).toList();
+
+        // El resto de la lógica para encontrar el puntaje más alto y filtrar la lista no cambia...
+        for (final scoredFile in fileScores) {
+          if (scoredFile['score'] as int > highestScore) {
+            highestScore = scoredFile['score'] as int;
+          }
+        }
+
+        if (highestScore > 0) {
+          final bestMatches = fileScores
+              .where((scoredFile) => scoredFile['score'] == highestScore)
+              .map((scoredFile) => scoredFile['file'])
+              .toList();
+          
+          if (bestMatches.isNotEmpty) {
+            filesToConsider = bestMatches;
+          }
+        }
+      }
 
       dynamic highestVersionFile;
       String highestVersion = "0";
@@ -2613,7 +2742,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         hasLocalVersion: true,
         modName: "Custom Nanosuit System",
         modDirectory: Directory(
-            p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss')),
+            p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss')), displayName: '',
       );
       setState(() => _cnsUpdateInfo = updateInfo);
     } else {
@@ -2628,7 +2757,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               localVersion: versionToCheck,
               hasLocalVersion: true,
               modName: modToRecheck.customName,
-              modDirectory: modToRecheck.directory);
+              modDirectory: modToRecheck.directory, displayName: '');
           setState(() {
             if (updateInfo == null) {
               _modUpdates.remove(modToRecheck.directory.path);
