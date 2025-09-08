@@ -1495,7 +1495,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               : Colors.green[600]!;
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(
-                  l10n.snackBarBatchInstallComplete(successCount, failCount)),
+                  l10n.snackBarBatchInstallComplete(failCount, successCount)),
               backgroundColor: snackBarColor));
         } else if (successCount == 1) {
            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -2880,7 +2880,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final canInstall = _preparedMods.isNotEmpty && !_isLoading;
+    final canInstall = _preparedMods.isNotEmpty && !_isLoading && !_isExtracting;
     final filteredAndSortedMods = _getFilteredAndSortedMods();
 
     final cnsUpdateIdentifier = _cnsUpdateInfo != null ? 'CNS_' + _cnsUpdateInfo!['version'] : '';
