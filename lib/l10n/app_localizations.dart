@@ -1317,6 +1317,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Information about repaired mod'**
   String get repairedModTooltip;
+
+  /// No description provided for @disableAllModsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable all mods'**
+  String get disableAllModsTooltip;
+
+  /// No description provided for @deleteAllModsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all disabled mods'**
+  String get deleteAllModsTooltip;
+
+  /// No description provided for @dialogTitleDisableAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable All Mods?'**
+  String get dialogTitleDisableAll;
+
+  /// No description provided for @dialogContentDisableAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to disable all {count} enabled mods? They will be moved to the backup folder.'**
+  String dialogContentDisableAll(int count);
+
+  /// No description provided for @dialogTitleDeleteAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Disabled Mods?'**
+  String get dialogTitleDeleteAll;
+
+  /// No description provided for @dialogContentDeleteAll.
+  ///
+  /// In en, this message translates to:
+  /// **'You are about to permanently delete all {count} disabled mods. This action cannot be undone.\n\nAre you sure?'**
+  String dialogContentDeleteAll(int count);
+
+  /// No description provided for @snackBarAllModsDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'All {count} enabled mods have been disabled.'**
+  String snackBarAllModsDisabled(int count);
+
+  /// No description provided for @snackBarAllModsDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'All {count} disabled mods have been permanently deleted.'**
+  String snackBarAllModsDeleted(int count);
+
+  /// No description provided for @snackBarNoModsToDisable.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no enabled mods to disable.'**
+  String get snackBarNoModsToDisable;
+
+  /// No description provided for @snackBarNoModsToDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no disabled mods to delete.'**
+  String get snackBarNoModsToDelete;
+
+  /// No description provided for @enableAllModsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable all mods'**
+  String get enableAllModsTooltip;
+
+  /// No description provided for @dialogTitleEnableAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable All Mods?'**
+  String get dialogTitleEnableAll;
+
+  /// No description provided for @dialogContentEnableAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to enable all {count} disabled mods? They will be moved to the main mods folder.'**
+  String dialogContentEnableAll(int count);
+
+  /// No description provided for @snackBarAllModsEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'All {count} disabled mods have been enabled.'**
+  String snackBarAllModsEnabled(int count);
+
+  /// No description provided for @snackBarNoModsToEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no disabled mods to enable.'**
+  String get snackBarNoModsToEnable;
 }
 
 class _AppLocalizationsDelegate

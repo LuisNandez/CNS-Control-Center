@@ -52,6 +52,8 @@ dependencies:
   package_info_plus: ^8.0.0
   http: ^1.2.1
   window_manager: ^0.3.9
+  glass_kit: ^2.0.1
+  glassmorphism: ^3.0.0
 
 dev_dependencies:
   flutter_test:
@@ -76,6 +78,7 @@ flutter:
   uses-material-design: true
   generate: true
   assets:
+    - assets/
     - mod_database.json
 
   # To add assets to your application, add an assets section, like this:

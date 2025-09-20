@@ -221,5 +221,51 @@
     "errorModNameExists": "A mod named \"{modName}\" already exists.",
     "dialogTitleRepairedModWarning": "Repaired Mod Warning",
     "dialogContentRepairedModWarning": "This mod might not have the correct version information. Reinstalling the latest version is recommended to ensure compatibility.",
-    "repairedModTooltip": "Information about repaired mod"
+    "repairedModTooltip": "Information about repaired mod",
+    "disableAllModsTooltip": "Disable all mods",
+    "deleteAllModsTooltip": "Delete all disabled mods",
+    "dialogTitleDisableAll": "Disable All Mods?",
+    "dialogContentDisableAll": "Are you sure you want to disable all {count} enabled mods? They will be moved to the backup folder.",
+    "@dialogContentDisableAll": {
+        "placeholders": {
+            "count": { "type": "int" }
+        }
+    },
+    "dialogTitleDeleteAll": "Delete Disabled Mods?",
+    "dialogContentDeleteAll": "You are about to permanently delete all {count} disabled mods. This action cannot be undone.\n\nAre you sure?",
+    "@dialogContentDeleteAll": {
+        "placeholders": {
+            "count": { "type": "int" }
+        }
+    },
+    "snackBarAllModsDisabled": "All {count} enabled mods have been disabled.",
+    "@snackBarAllModsDisabled": {
+        "placeholders": {
+            "count": { "type": "int" }
+        }
+    },
+    "snackBarAllModsDeleted": "All {count} disabled mods have been permanently deleted.",
+    "@snackBarAllModsDeleted": {
+        "placeholders": {
+            "count": { "type": "int" }
+        }
+    },
+    "snackBarNoModsToDisable": "There are no enabled mods to disable.",
+    "snackBarNoModsToDelete": "There are no disabled mods to delete.",
+    "enableAllModsTooltip": "Enable all mods",
+    "dialogTitleEnableAll": "Enable All Mods?",
+    "dialogContentEnableAll": "Are you sure you want to enable all {count} disabled mods? They will be moved to the main mods folder.",
+    "@dialogContentEnableAll": {
+        "placeholders": {
+            "count": { "type": "int" }
+        }
+    },
+    "snackBarAllModsEnabled": "All {count} disabled mods have been enabled.",
+    "@snackBarAllModsEnabled": {
+        "placeholders": {
+            "count": { "type": "int" }
+        }
+    },
+    "snackBarNoModsToEnable": "There are no disabled mods to enable."
 }
+

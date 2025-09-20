@@ -740,4 +740,61 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get repairedModTooltip => 'Informationen über reparierten Mod';
+
+  @override
+  String get disableAllModsTooltip => 'Disable all mods';
+
+  @override
+  String get deleteAllModsTooltip => 'Delete all disabled mods';
+
+  @override
+  String get dialogTitleDisableAll => 'Disable All Mods?';
+
+  @override
+  String dialogContentDisableAll(int count) {
+    return 'Are you sure you want to disable all $count enabled mods? They will be moved to the backup folder.';
+  }
+
+  @override
+  String get dialogTitleDeleteAll => 'Delete Disabled Mods?';
+
+  @override
+  String dialogContentDeleteAll(int count) {
+    return 'You are about to permanently delete all $count disabled mods. This action cannot be undone.\n\nAre you sure?';
+  }
+
+  @override
+  String snackBarAllModsDisabled(int count) {
+    return 'All $count enabled mods have been disabled.';
+  }
+
+  @override
+  String snackBarAllModsDeleted(int count) {
+    return 'All $count disabled mods have been permanently deleted.';
+  }
+
+  @override
+  String get snackBarNoModsToDisable => 'There are no enabled mods to disable.';
+
+  @override
+  String get snackBarNoModsToDelete => 'There are no disabled mods to delete.';
+
+  @override
+  String get enableAllModsTooltip => 'Enable all mods';
+
+  @override
+  String get dialogTitleEnableAll => 'Enable All Mods?';
+
+  @override
+  String dialogContentEnableAll(int count) {
+    return 'Are you sure you want to enable all $count disabled mods? They will be moved to the main mods folder.';
+  }
+
+  @override
+  String snackBarAllModsEnabled(int count) {
+    return 'All $count disabled mods have been enabled.';
+  }
+
+  @override
+  String get snackBarNoModsToEnable => 'There are no disabled mods to enable.';
 }

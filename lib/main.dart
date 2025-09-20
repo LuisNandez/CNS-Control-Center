@@ -1243,11 +1243,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           throw Exception(l10n.errorUnsupportedFormat(extension));
         }
 
-        final ue4ssDir = Directory(p.join(archiveTempDir.path, 'ue4ss'));
-        final dwmapiFile = File(p.join(archiveTempDir.path, 'dwmapi.dll'));
+        final ue4ssRoot = await _findUE4SSRoot(archiveTempDir);
 
-        if (await ue4ssDir.exists() && await dwmapiFile.exists()) {
-          _preparedUE4SS = _PreparedUE4SS(sourceDir: archiveTempDir);
+        if (ue4ssRoot != null) {
+          _preparedUE4SS = _PreparedUE4SS(sourceDir: ue4ssRoot);
           continue; 
         }
 
@@ -1258,16 +1257,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           await _promptAndUpdateCNS(sbDir);
           cnsUpdateInitiated = true;
         } else {
-          // PASO 1: Búsqueda exhaustiva en TODO el contenido extraído.
           final allModFiles = await _findAllModFilesRecursive(archiveTempDir);
 
           final jsonFiles = allModFiles.where((f) => p.extension(f.path).toLowerCase() == '.json').toList();
           final pakFiles = allModFiles.where((f) => ['.pak', '.ucas', '.utoc'].contains(p.extension(f.path).toLowerCase())).toList();
 
-          // PASO 2: Detectar si es un mod con archivos dispersos.
           if (jsonFiles.isNotEmpty && pakFiles.isNotEmpty) {
             
-            // PASO 3: Agrupar los archivos en una nueva carpeta temporal.
             final consolidatedDir = await Directory(p.join(archiveTempDir.path, '_consolidated_')).create();
 
             for (final modFile in allModFiles) {
@@ -1275,7 +1271,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               await modFile.copy(newPath);
             }
             
-            // El mod ya agrupado se prepara para la instalación.
             _preparedMods.add(_PreparedMod(
               sourceDir: consolidatedDir,
               nexusId: nexusInfo?['id'],
@@ -1283,7 +1278,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             ));
 
           } else {
-            // PASO 4 (PLAN B): Si no es un mod disperso, usar la lógica antigua.
             final foundModDirs = await _findValidModDirectories(archiveTempDir);
             for (final modDir in foundModDirs) {
               _preparedMods.add(_PreparedMod(
@@ -1344,6 +1338,25 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
 
     return found;
+  }
+
+  Future<Directory?> _findUE4SSRoot(Directory root) async {
+    final ue4ssDir = Directory(p.join(root.path, 'ue4ss'));
+    final dwmapiFile = File(p.join(root.path, 'dwmapi.dll'));
+    if (await ue4ssDir.exists() && await dwmapiFile.exists()) {
+      return root;
+    }
+
+    await for (final entity in root.list(followLinks: false)) {
+      if (entity is Directory) {
+        final found = await _findUE4SSRoot(entity);
+        if (found != null) {
+          return found;
+        }
+      }
+    }
+
+    return null;
   }
 
   Future<void> _prepareInstallationPreview() async {
@@ -1682,7 +1695,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     return mod.displayName;
   }
 
-  // --- CAMBIO: Se pasa el customName a los mensajes de los diálogos ---
   Future<_AlternativeVersionAction?> _showSmartInstallDialog({
     required ModInfo oldVersionMod,
     required String baseDisplayName,
@@ -1691,7 +1703,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final l10n = AppLocalizations.of(context)!;
     final oldVersion = oldVersionMod.localVersion ?? 'N/A';
     final newVersionStr = newVersion ?? 'N/A';
-    final modName = oldVersionMod.customName; // Usar el nombre personalizado existente
+    final modName = oldVersionMod.customName; 
     
     String title = l10n.dialogTitleAlternativeVersion;
     String content;
@@ -2046,6 +2058,195 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         _statusColor = Colors.redAccent;
       });
     } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _enableAllMods() async {
+    final l10n = AppLocalizations.of(context)!;
+    final disabledMods = _allMods.where((mod) => !mod.isEnabled).toList();
+
+    if (disabledMods.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.snackBarNoModsToEnable),
+          backgroundColor: Colors.orange,
+        ));
+      }
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2a2a2a),
+        title: Text(l10n.dialogTitleEnableAll),
+        content: Text(l10n.dialogContentEnableAll(disabledMods.length)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.dialogActionCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.greenAccent),
+            child: Text(l10n.enableMod),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      if (_finalModsPath == null) {
+        throw Exception("La ruta de mods no está definida.");
+      }
+      for (final mod in disabledMods) {
+        await _moveMod(mod.directory, _finalModsPath!);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.snackBarAllModsEnabled(disabledMods.length)),
+          backgroundColor: Colors.green,
+        ));
+      }
+    } catch (e) {
+      setState(() {
+        _statusMessage = AppLocalizations.of(context)!.errorEnableMod(e.toString());
+        _statusColor = Colors.redAccent;
+      });
+    } finally {
+      await _loadAllMods();
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _disableAllMods() async {
+    final l10n = AppLocalizations.of(context)!;
+    final enabledMods = _allMods.where((mod) => mod.isEnabled).toList();
+
+    if (enabledMods.isEmpty) {
+        if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(l10n.snackBarNoModsToDisable),
+                backgroundColor: Colors.orange,
+            ));
+        }
+        return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2a2a2a),
+        title: Text(l10n.dialogTitleDisableAll),
+        content: Text(l10n.dialogContentDisableAll(enabledMods.length)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l10n.dialogActionCancel)),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.orangeAccent),
+            child: Text(l10n.disableMod),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      if (_gameRootPath == null) {
+        throw Exception("La ruta del juego no está definida.");
+      }
+      final backupDir = Directory(p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__'));
+      if (!await backupDir.exists()) {
+        await backupDir.create(recursive: true);
+      }
+
+      for (final mod in enabledMods) {
+        await _moveMod(mod.directory, backupDir.path);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.snackBarAllModsDisabled(enabledMods.length)),
+          backgroundColor: Colors.green,
+        ));
+      }
+    } catch (e) {
+      setState(() {
+        _statusMessage = AppLocalizations.of(context)!.errorDisableMod(e.toString());
+        _statusColor = Colors.redAccent;
+      });
+    } finally {
+      await _loadAllMods();
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteDisabledMods() async {
+    final l10n = AppLocalizations.of(context)!;
+    final disabledMods = _allMods.where((mod) => !mod.isEnabled).toList();
+
+    if (disabledMods.isEmpty) {
+        if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(l10n.snackBarNoModsToDelete),
+                backgroundColor: Colors.orange,
+            ));
+        }
+        return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2a2a2a),
+        title: Text(l10n.dialogTitleDeleteAll),
+        content: Text(l10n.dialogContentDeleteAll(disabledMods.length)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l10n.dialogActionCancel)),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: Text(l10n.dialogActionDelete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      int deletedCount = 0;
+      for (final mod in disabledMods) {
+          if (await _deleteDirectoryWithRetry(mod.directory)) {
+              deletedCount++;
+          }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.snackBarAllModsDeleted(deletedCount)),
+          backgroundColor: Colors.red[800],
+        ));
+      }
+    } catch (e) {
+      setState(() {
+        _statusMessage = AppLocalizations.of(context)!.errorDeleteMod(e.toString());
+        _statusColor = Colors.redAccent;
+      });
+    } finally {
+      await _loadAllMods();
       setState(() => _isLoading = false);
     }
   }
@@ -2640,13 +2841,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       filesToConsider = cnsFiles.isNotEmpty ? cnsFiles : compatibleFiles;
 
-      // 4. Si hay versiones alternas (mismo ID), filtrar por displayName usando un sistema de puntuación mejorado.
       final modsWithSameId = _allMods.where((m) => m.nexusId == nexusId).length;
       if (modsWithSameId > 1) {
         final keywords = displayName.toLowerCase().split(' ').where((s) => s.isNotEmpty).toList();
         int highestScore = 0;
 
-        // Lista de términos que definen una variante específica.
         const exclusiveTerms = ['no tail', 'notail'];
 
         final fileScores = filesToConsider.map((file) {
@@ -2655,9 +2854,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           int score = 0;
           bool isMismatch = false;
 
-          // REGLA DE DESCALIFICACIÓN:
-          // Si el nombre del archivo contiene un término exclusivo que el displayName del mod NO tiene,
-          // entonces es una variante incorrecta y se descarta.
           for (final term in exclusiveTerms) {
             if (fileName.contains(term) && !modDisplayNameLower.contains(term)) {
               isMismatch = true;
@@ -2666,9 +2862,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           }
 
           if (isMismatch) {
-            score = -1; // Se le asigna un puntaje negativo para que nunca sea elegido.
+            score = -1; 
           } else {
-            // Si no se descarta, se calcula el puntaje de coincidencia como antes.
             for (final keyword in keywords) {
               if (fileName.contains(keyword)) {
                 score++;
@@ -2678,7 +2873,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           return {'file': file, 'score': score};
         }).toList();
 
-        // El resto de la lógica para encontrar el puntaje más alto y filtrar la lista no cambia...
         for (final scoredFile in fileScores) {
           if (scoredFile['score'] as int > highestScore) {
             highestScore = scoredFile['score'] as int;
@@ -2970,7 +3164,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   List<ModInfo> _getFilteredAndSortedMods() {
     List<ModInfo> mods = List.from(_allMods);
 
-    // Filtrado
     switch (_currentFilter) {
       case ModFilter.enabled:
         mods.retainWhere((mod) => mod.isEnabled);
@@ -2983,16 +3176,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         break;
       case ModFilter.all:
       default:
-        // No hacer nada
         break;
     }
     
-    // Búsqueda por texto
     if (_searchQuery.isNotEmpty) {
       mods.retainWhere((mod) => mod.customName.toLowerCase().contains(_searchQuery.toLowerCase()));
     }
 
-    // Ordenamiento
     switch (_currentSort) {
       case ModSort.name:
         mods.sort((a, b) => a.customName.toLowerCase().compareTo(b.customName.toLowerCase()));
@@ -3014,6 +3204,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     final cnsUpdateIdentifier = _cnsUpdateInfo != null ? 'CNS_' + _cnsUpdateInfo!['version'] : '';
     final cnsIsIgnored = _ignoredUpdates.contains(cnsUpdateIdentifier);
+    final hasEnabledMods = _allMods.any((mod) => mod.isEnabled);
+    final hasDisabledMods = _allMods.any((mod) => !mod.isEnabled);
 
     return Scaffold(
       appBar: AppBar(
@@ -3099,7 +3291,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           _buildSelectionPreviewSection(l10n),
                         const Divider(height: 30, thickness: 1),
                         Expanded(
-                          child: _buildModsListSection(l10n.installedMods, filteredAndSortedMods, l10n),
+                          child: _buildModsListSection(l10n.installedMods, filteredAndSortedMods, l10n, hasEnabledMods, hasDisabledMods),
                         ),
                         const SizedBox(height: 20),
                         if (_isExtracting)
@@ -3327,7 +3519,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Widget _buildModsListSection(
-      String title, List<ModInfo> mods, AppLocalizations l10n) {
+      String title, List<ModInfo> mods, AppLocalizations l10n, bool hasEnabledMods, bool hasDisabledMods) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -3454,6 +3646,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           },
                     tooltip: l10n.openModsFolder),
                 IconButton(
+                    icon: const Icon(Icons.power_outlined, color: Colors.greenAccent),
+                    onPressed: _isLoading || !hasDisabledMods ? null : _enableAllMods,
+                    tooltip: l10n.enableAllModsTooltip
+                ),
+                IconButton(
+                    icon: const Icon(Icons.power_off_outlined),
+                    onPressed: _isLoading || !hasEnabledMods ? null : _disableAllMods,
+                    tooltip: l10n.disableAllModsTooltip
+                ),
+                IconButton(
+                    icon: const Icon(Icons.delete_sweep_outlined, color: Colors.redAccent),
+                    onPressed: _isLoading || !hasDisabledMods ? null : _deleteDisabledMods,
+                    tooltip: l10n.deleteAllModsTooltip
+                ),
+                IconButton(
                     icon: const Icon(Icons.refresh),
                     onPressed: _isLoading
                         ? null
@@ -3542,7 +3749,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                   child: Icon(Icons.new_releases,
                                       color: Colors.yellow[700], size: 18),
                                 ),
-                              // --- CAMBIO: El Icon ahora es un IconButton clicable ---
                               if (modInfo.origin == 'repaired')
                                 IconButton(
                                   padding: const EdgeInsets.only(right: 8.0),
@@ -3650,3 +3856,4 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 }
+
