@@ -2548,30 +2548,50 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     final newName = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.dialogTitleEditModName),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: l10n.dialogLabelNewName,
-            hintText: modInfo.customName,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.dialogActionCancel),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop(nameController.text);
-            },
-            child: Text(l10n.dialogActionSave),
-          ),
-        ],
-      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final bool canReset = modInfo.customName != modInfo.displayName;
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFF2a2a2a),
+              title: Text(l10n.dialogTitleEditModName),
+              content: TextField(
+                controller: nameController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: l10n.dialogLabelNewName,
+                  hintText: modInfo.customName,
+                ),
+                onChanged: (value) {
+                  setDialogState(() {});
+                },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: !canReset 
+                    ? null 
+                    : () {
+                        Navigator.of(context).pop(modInfo.displayName);
+                      },
+                  child: Text(l10n.dialogActionResetToDefault),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(l10n.dialogActionCancel),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(nameController.text);
+                  },
+                  child: Text(l10n.dialogActionSave),
+                ),
+              ],
+            );
+          }
+        );
+      },
     );
 
     if (newName != null && newName.trim().isNotEmpty) {
@@ -3425,12 +3445,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(l10n.installNewMod,
-            style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.tealAccent)),
-        const SizedBox(height: 16),
         ElevatedButton.icon(
             icon: const Icon(Icons.archive),
             label: Text(l10n.selectModArchive),
@@ -3528,7 +3542,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           children: [
             Text(title,
                 style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: Colors.tealAccent)),
             const SizedBox(width: 16),
@@ -3651,7 +3665,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     tooltip: l10n.enableAllModsTooltip
                 ),
                 IconButton(
-                    icon: const Icon(Icons.power_off_outlined),
+                    icon: const Icon(Icons.power_off_outlined, color: Colors.orangeAccent),
                     onPressed: _isLoading || !hasEnabledMods ? null : _disableAllMods,
                     tooltip: l10n.disableAllModsTooltip
                 ),
@@ -3856,4 +3870,3 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 }
-

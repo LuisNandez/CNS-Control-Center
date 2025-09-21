@@ -724,6 +724,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get dialogTitleEditModName => 'Editar Nome do Mod';
 
   @override
+  String get dialogActionResetToDefault => 'Reset to Default';
+
+  @override
   String get dialogLabelNewName => 'Novo nome';
 
   @override

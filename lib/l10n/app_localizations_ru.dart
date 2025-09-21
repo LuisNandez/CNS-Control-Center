@@ -718,6 +718,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get dialogTitleEditModName => 'Изменить имя мода';
 
   @override
+  String get dialogActionResetToDefault => 'Reset to Default';
+
+  @override
   String get dialogLabelNewName => 'Новое имя';
 
   @override

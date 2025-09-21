@@ -702,6 +702,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get dialogTitleEditModName => '모드 이름 편집';
 
   @override
+  String get dialogActionResetToDefault => 'Reset to Default';
+
+  @override
   String get dialogLabelNewName => '새 이름';
 
   @override

@@ -694,6 +694,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dialogTitleEditModName => '编辑模组名称';
 
   @override
+  String get dialogActionResetToDefault => 'Reset to Default';
+
+  @override
   String get dialogLabelNewName => '新名称';
 
   @override

@@ -217,6 +217,7 @@
     "dialogActionReinstall": "Reinstall",
     "editModNameTooltip": "Edit mod name",
     "dialogTitleEditModName": "Edit Mod Name",
+    "dialogActionResetToDefault": "Reset to Default",
     "dialogLabelNewName": "New name",
     "errorModNameExists": "A mod named \"{modName}\" already exists.",
     "dialogTitleRepairedModWarning": "Repaired Mod Warning",

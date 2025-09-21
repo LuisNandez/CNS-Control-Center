@@ -1288,6 +1288,12 @@ abstract class AppLocalizations {
   /// **'Edit Mod Name'**
   String get dialogTitleEditModName;
 
+  /// No description provided for @dialogActionResetToDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to Default'**
+  String get dialogActionResetToDefault;
+
   /// No description provided for @dialogLabelNewName.
   ///
   /// In en, this message translates to:
