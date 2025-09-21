@@ -90,7 +90,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get dialogTitleSkippedVersions => 'Versiones de Mod Omitidas';
+  String get dialogTitleSkippedVersions => 'Versiones de Mods Omitidas';
 
   @override
   String get dialogNoSkippedVersions =>
@@ -104,7 +104,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get dialogContentRepairMods =>
-      'Advertencia: Esta función está en desarrollo y puede no ser perfecta.\n\nEscaneará los mods sin un archivo \'nexus_info.json\' y, si se encuentran en tu base de datos local, creará uno para ellos. También intentará renombrar la carpeta del mod para incluir la versión encontrada (ej., \'Mi Mod\' -> \'Mi Mod v1.2\').\n\nPrioridad de Versión:\n1. Del nombre de la carpeta.\n2. Del campo de descripción del mod.\n3. De la última versión en Nexus Mods (requiere API).\n\n¿Deseas continuar?';
+      'Advertencia: Esta función está en desarrollo y puede no ser perfecta.\n\nEscaneará los mods sin un archivo \'nexus_info.json\' y, si se encuentran en tu base de datos local, creará uno para ellos. También intentará renombrar la carpeta del mod para incluir la versión encontrada (p. ej., \'Mi Mod\' -> \'Mi Mod v1.2\').\n\nPrioridad de Versión:\n1. Del nombre de la carpeta.\n2. Del campo de descripción del mod.\n3. De la última versión en Nexus Mods (requiere API).\n\n¿Quieres continuar?';
 
   @override
   String get dialogActionRunRepair => 'Ejecutar Reparación';
@@ -162,7 +162,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get disabledMods => 'Mods Desactivados';
 
   @override
-  String get refreshList => 'Actualizar lista';
+  String get refreshList => 'Refrescar lista';
 
   @override
   String get noEnabledMods => 'No hay mods activados.';
@@ -206,7 +206,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String statusModsFound(Object disabledCount, Object enabledCount) {
-    return '$enabledCount mod(s) activado(s), $disabledCount desactivado(s).';
+    return '$enabledCount mod(s) activados, $disabledCount desactivados.';
   }
 
   @override
@@ -253,7 +253,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get dialogContent7zipNotFound =>
-      '7-Zip aún no ha sido detectado. Por favor, asegúrate de que esté instalado en la ruta predeterminada e inténtalo de nuevo.';
+      'Aún no se ha detectado 7-Zip. Por favor, asegúrate de que esté instalado en la ruta predeterminada e inténtalo de nuevo.';
 
   @override
   String get dialogTitleCNSUpdate =>
@@ -268,15 +268,15 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String dialogContentMultipleJsons(Object count) {
-    return 'Se han detectado $count archivos .json. Esto podría ser un mod con múltiples componentes.\n\n¿Quieres instalarlos todos juntos en una única carpeta de mod?';
+    return 'Se han detectado $count archivos .json. Esto podría ser un mod con múltiples componentes.\n\n¿Quieres instalarlos todos juntos en una sola carpeta de mod?';
   }
 
   @override
-  String get dialogTitleModExists => 'El Mod ya Existe';
+  String get dialogTitleModExists => 'El Mod Ya Existe';
 
   @override
   String dialogContentModExists(Object modName) {
-    return 'Ya existe un mod llamado \"$modName\".\n\n¿Quieres actualizarlo? Los archivos antiguos se eliminarán antes de instalar los nuevos.';
+    return 'Un mod llamado \"$modName\" ya está instalado.\n\n¿Quieres actualizarlo? Los archivos antiguos se eliminarán antes de instalar los nuevos.';
   }
 
   @override
@@ -318,12 +318,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String snackBarBatchInstallComplete(Object failedCount, Object successCount) {
-    return 'Instalación por lotes completa. Éxito: $successCount, Fallidos: $failedCount.';
+    return 'Instalación por lotes completa. Exitosos: $successCount, Fallidos: $failedCount.';
   }
 
   @override
   String snackBarModInstalled(Object modName) {
-    return 'Mod \"$modName\" instalado con éxito.';
+    return 'Mod \"$modName\" instalado correctamente.';
   }
 
   @override
@@ -343,16 +343,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get snackBarCNSUpdated =>
-      'Custom Nanosuit System actualizado con éxito.';
+      'Custom Nanosuit System actualizado correctamente.';
 
   @override
-  String get snackBarApiKeySaved => 'Clave de API guardada con éxito.';
+  String get snackBarApiKeySaved => 'Clave de API guardada correctamente.';
 
   @override
-  String get snackBarGamePathSaved => 'Ruta del juego guardada con éxito.';
+  String get snackBarGamePathSaved => 'Ruta del juego guardada correctamente.';
 
   @override
-  String get snackBar7zipPathSaved => 'Ruta de 7-Zip guardada con éxito.';
+  String get snackBar7zipPathSaved => 'Ruta de 7-Zip guardada correctamente.';
 
   @override
   String get snackBarSkippedVersionRemoved => 'Versión omitida eliminada.';
@@ -392,11 +392,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String errorUnsupportedFormat(Object extension) {
-    return 'Formato de archivo no compatible: $extension';
+    return 'Formato de archivo no soportado: $extension';
   }
 
   @override
-  String get error7zipRequired => 'Operación cancelada: Se requiere 7-Zip.';
+  String get error7zipRequired => 'Operación cancelada: se requiere 7-Zip.';
 
   @override
   String get errorGamePathUndefined => 'La ruta del juego no está definida.';
@@ -416,7 +416,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get errorInstallModExists =>
-      'Instalación cancelada: El mod ya existe.';
+      'Instalación cancelada: el mod ya existe.';
 
   @override
   String get errorNoJsonFound =>
@@ -583,13 +583,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get imageMod => 'Imagen del Mod';
 
   @override
-  String get modEnabledBadge => 'Enabled';
+  String get modEnabledBadge => 'Activado';
 
   @override
-  String get modDisabledBadge => 'Disabled';
+  String get modDisabledBadge => 'Desactivado';
 
   @override
-  String get modCategoryOther => 'Other';
+  String get modCategoryOther => 'Sin especificar';
 
   @override
   String get dialogContentUpdateOptions => '¿Qué te gustaría hacer?';
@@ -634,6 +634,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get noModsFound => 'No se encontraron mods.';
 
   @override
+  String get viewTypeGrid => 'Vista de cuadrícula';
+
+  @override
+  String get viewTypeList => 'Vista de lista';
+
+  @override
   String statusExtractingMultipleFiles(
     Object count,
     Object fileName,
@@ -662,7 +668,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get statusInstallingUE4SS => 'Instalando UE4SS...';
 
   @override
-  String get snackBarUE4SSInstalled => 'UE4SS instalado con éxito.';
+  String get snackBarUE4SSInstalled => 'UE4SS instalado correctamente.';
 
   @override
   String error7zipDecompression(Object error) {
@@ -681,7 +687,7 @@ class AppLocalizationsEs extends AppLocalizations {
     String baseModName,
     String newModName,
   ) {
-    return 'Ya está instalada una versión alternativa de este mod: \'$oldModName\'.\n\nEstás a punto de instalar una alternativa diferente llamada \'$newModName\'.';
+    return 'Ya hay instalada una versión alternativa de este mod: \'$oldModName\'.\n\nEstás a punto de instalar una alternativa diferente llamada \'$newModName\'.';
   }
 
   @override
@@ -735,7 +741,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get dialogTitleEditModName => 'Editar Nombre del Mod';
 
   @override
-  String get dialogActionResetToDefault => 'Reset to Default';
+  String get dialogActionResetToDefault => 'Restablecer a Predeterminado';
 
   @override
   String get dialogLabelNewName => 'Nuevo nombre';
@@ -756,59 +762,61 @@ class AppLocalizationsEs extends AppLocalizations {
   String get repairedModTooltip => 'Información sobre el mod reparado';
 
   @override
-  String get disableAllModsTooltip => 'Disable all mods';
+  String get disableAllModsTooltip => 'Desactivar todos los mods';
 
   @override
-  String get deleteAllModsTooltip => 'Delete all disabled mods';
+  String get deleteAllModsTooltip => 'Eliminar todos los mods desactivados';
 
   @override
-  String get dialogTitleDisableAll => 'Disable All Mods?';
+  String get dialogTitleDisableAll => '¿Desactivar Todos los Mods?';
 
   @override
   String dialogContentDisableAll(int count) {
-    return 'Are you sure you want to disable all $count enabled mods? They will be moved to the backup folder.';
+    return '¿Estás seguro de que quieres desactivar los $count mods activados? Se moverán a la carpeta de respaldo.';
   }
 
   @override
-  String get dialogTitleDeleteAll => 'Delete Disabled Mods?';
+  String get dialogTitleDeleteAll => '¿Eliminar Mods Desactivados?';
 
   @override
   String dialogContentDeleteAll(int count) {
-    return 'You are about to permanently delete all $count disabled mods. This action cannot be undone.\n\nAre you sure?';
+    return 'Estás a punto de eliminar permanentemente los $count mods desactivados. Esta acción no se puede deshacer.\n\n¿Estás seguro?';
   }
 
   @override
   String snackBarAllModsDisabled(int count) {
-    return 'All $count enabled mods have been disabled.';
+    return 'Los $count mods activados han sido desactivados.';
   }
 
   @override
   String snackBarAllModsDeleted(int count) {
-    return 'All $count disabled mods have been permanently deleted.';
+    return 'Los $count mods desactivados han sido eliminados permanentemente.';
   }
 
   @override
-  String get snackBarNoModsToDisable => 'There are no enabled mods to disable.';
+  String get snackBarNoModsToDisable =>
+      'No hay mods activados para desactivar.';
 
   @override
-  String get snackBarNoModsToDelete => 'There are no disabled mods to delete.';
+  String get snackBarNoModsToDelete =>
+      'No hay mods desactivados para eliminar.';
 
   @override
-  String get enableAllModsTooltip => 'Enable all mods';
+  String get enableAllModsTooltip => 'Activar todos los mods';
 
   @override
-  String get dialogTitleEnableAll => 'Enable All Mods?';
+  String get dialogTitleEnableAll => '¿Activar Todos los Mods?';
 
   @override
   String dialogContentEnableAll(int count) {
-    return 'Are you sure you want to enable all $count disabled mods? They will be moved to the main mods folder.';
+    return '¿Estás seguro de que quieres activar los $count mods desactivados? Se moverán a la carpeta principal de mods.';
   }
 
   @override
   String snackBarAllModsEnabled(int count) {
-    return 'All $count disabled mods have been enabled.';
+    return 'Los $count mods desactivados han sido activados.';
   }
 
   @override
-  String get snackBarNoModsToEnable => 'There are no disabled mods to enable.';
+  String get snackBarNoModsToEnable => 'No hay mods desactivados para activar.';
 }

@@ -37,6 +37,7 @@ class ModInfo {
   final String displayName; // Internal identifier, not user-editable.
   String customName;      // User-editable name.
   final List<dynamic>? gallery; // Added to store image gallery info from Nexus Mods.
+  final String? fitMeshType;
 
   ModInfo({
     required this.directory,
@@ -48,6 +49,7 @@ class ModInfo {
     required this.displayName,
     required this.customName,
     this.gallery,
+    this.fitMeshType,
   });
 
 
@@ -809,6 +811,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String? installedVersion;
             String? origin;
             List<dynamic>? gallery;
+            String? fitMeshType;
 
             String folderName = p.basename(entity.path);
             String displayName = _stripVersionFromFolderName(folderName);
@@ -822,6 +825,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 installedVersion = data['installedVersion'];
                 origin = data['origin'];
                 gallery = data['gallery'];
+                fitMeshType = data['fitMeshType'];
 
                 if (installedVersion != null && installedVersion.toLowerCase().startsWith('v')) {
                   installedVersion = installedVersion.substring(1);
@@ -835,6 +839,23 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 } else {
                   customName = displayName;
                 }
+            }
+
+            // If fitMeshType wasn't in nexus_info.json, try to read it from the mod's JSON
+            // and update nexus_info.json for future loads.
+            if (fitMeshType == null) {
+              fitMeshType = await _getFitMeshTypeForMod(entity);
+              if (fitMeshType != null && await infoFile.exists()) {
+                try {
+                  final content = await infoFile.readAsString();
+                  Map<String, dynamic> data = json.decode(content);
+                  data['fitMeshType'] = fitMeshType;
+                  final encoder = JsonEncoder.withIndent('  ');
+                  await infoFile.writeAsString(encoder.convert(data));
+                } catch (e) {
+                  print("Could not update nexus_info.json with FitMeshType for ${entity.path}: $e");
+                }
+              }
             }
 
             installedVersion ??= ModInfo._extractVersionFromName(folderName);
@@ -851,6 +872,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               displayName: displayName,
               customName: customName,
               gallery: gallery,
+              fitMeshType: fitMeshType,
             ));
           } catch (e) {
             print("Error processing directory ${entity.path}: $e");
@@ -877,7 +899,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         _allMods = [...enabledMods, ...disabledMods];
         if (clearHighlight && mounted) {
           _statusMessage = AppLocalizations.of(context)!
-              .statusModsFound(enabledMods.length, disabledMods.length);
+              .statusModsFound(disabledMods.length, enabledMods.length);
           _statusColor = Colors.white;
         }
       });
@@ -1684,6 +1706,29 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     return displayNames.join(' ~ ');
   }
 
+  Future<String?> _getFitMeshTypeForMod(Directory modDir) async {
+    try {
+      await for (final entity in modDir.list()) {
+        if (entity is File && p.extension(entity.path).toLowerCase() == '.json') {
+          var jsonString = await entity.readAsString();
+          jsonString = jsonString.replaceAll(RegExp(r',\s*(?=[\}\]])'), '');
+          final jsonDecoded = json.decode(jsonString);
+          if (jsonDecoded is List && jsonDecoded.isNotEmpty) {
+            final modInfo = jsonDecoded[0] as Map<String, dynamic>;
+            final fitMeshType = modInfo['FitMeshType'] as String?;
+            if (fitMeshType != null && fitMeshType.trim().isNotEmpty) {
+              // Return the first one found.
+              return fitMeshType.trim();
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print("Could not read FitMeshType from ${modDir.path}: $e");
+    }
+    return null;
+  }
+
   Future<String?> _getDisplayNameForMod(Directory modDir) async {
     try {
       await for (final entity in modDir.list()) {
@@ -1778,6 +1823,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final l10n = AppLocalizations.of(context)!;
     final tempModDir = files.first.parent;
     String? preservedCustomName;
+
+    final fitMeshType = await _getFitMeshTypeForMod(tempModDir);
 
     final baseDisplayName = await _getCompositeDisplayName(tempModDir);
     if (baseDisplayName == null) {
@@ -1946,6 +1993,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         'installedVersion': versionForFile,
         'installDate': DateTime.now().toIso8601String(),
         'managerVersion': _appVersion,
+        'fitMeshType': fitMeshType,
       };
 
       final galleryData = await _fetchModImages(nexusId);
@@ -3676,26 +3724,30 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 0, 8),
+            padding: const EdgeInsets.fromLTRB(4, 0, 0, 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    l10n.modCategoryOther,
-                    style: const TextStyle(fontSize: 10, color: Colors.white70),
+                Flexible(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      modInfo.fitMeshType ?? l10n.modCategoryOther,
+                      style: const TextStyle(fontSize: 10, color: Colors.white70),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
                   ),
                 ),
                 Row(
                   children: [
                     Transform.scale(
-                      scale: 0.7,
+                      scale: 0.6,
                       child: Switch(
                         value: modInfo.isEnabled,
                         onChanged: _isLoading
@@ -3989,9 +4041,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   },
                   borderRadius: BorderRadius.circular(8),
                   constraints: const BoxConstraints(minHeight: 36, minWidth: 36),
-                  children: const [
-                    Tooltip(message: "Grid View", child: Icon(Icons.grid_view_outlined, size: 20)),
-                    Tooltip(message: "List View", child: Icon(Icons.view_list_outlined, size: 20)),
+                  children: [
+                    Tooltip(message: l10n.viewTypeGrid, child: Icon(Icons.grid_view_outlined, size: 20)),
+                    Tooltip(message: l10n.viewTypeList, child: Icon(Icons.view_list_outlined, size: 20)),
                   ],
                 ),
                 PopupMenuButton<ModFilter>(
@@ -4234,6 +4286,7 @@ class _ModThumbnailImageState extends State<ModThumbnailImage> {
     return const Icon(Icons.extension, size: 60, color: Colors.white38);
   }
 }
+
 
 
 

@@ -1059,7 +1059,7 @@ abstract class AppLocalizations {
   /// No description provided for @modCategoryOther.
   ///
   /// In en, this message translates to:
-  /// **'Other'**
+  /// **'Unspecified'**
   String get modCategoryOther;
 
   /// No description provided for @dialogContentUpdateOptions.
@@ -1145,6 +1145,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No mods found.'**
   String get noModsFound;
+
+  /// No description provided for @viewTypeGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Grid view'**
+  String get viewTypeGrid;
+
+  /// No description provided for @viewTypeList.
+  ///
+  /// In en, this message translates to:
+  /// **'List view'**
+  String get viewTypeList;
 
   /// No description provided for @statusExtractingMultipleFiles.
   ///

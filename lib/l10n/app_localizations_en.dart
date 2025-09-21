@@ -585,7 +585,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modDisabledBadge => 'Disabled';
 
   @override
-  String get modCategoryOther => 'Other';
+  String get modCategoryOther => 'Unspecified';
 
   @override
   String get dialogContentUpdateOptions => 'What would you like to do?';
@@ -628,6 +628,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noModsFound => 'No mods found.';
+
+  @override
+  String get viewTypeGrid => 'Grid view';
+
+  @override
+  String get viewTypeList => 'List view';
 
   @override
   String statusExtractingMultipleFiles(

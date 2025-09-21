@@ -24,11 +24,11 @@
     "settingsSkippedVersions": "Gestionar Versiones Omitidas",
     "settingsSkippedVersionsDesc": "Gestiona las versiones de mods que has decidido omitir.",
     "settingsSkippedVersionsCount": "{count} versiones omitidas",
-    "dialogTitleSkippedVersions": "Versiones de Mod Omitidas",
+    "dialogTitleSkippedVersions": "Versiones de Mods Omitidas",
     "dialogNoSkippedVersions": "No has omitido ninguna versión de mod.",
     "dialogSkippedVersions": "Versión Omitida",
     "dialogTitleRepairMods": "¿Ejecutar Reparación de Mods Heredados?",
-    "dialogContentRepairMods": "Advertencia: Esta función está en desarrollo y puede no ser perfecta.\n\nEscaneará los mods sin un archivo 'nexus_info.json' y, si se encuentran en tu base de datos local, creará uno para ellos. También intentará renombrar la carpeta del mod para incluir la versión encontrada (ej., 'Mi Mod' -> 'Mi Mod v1.2').\n\nPrioridad de Versión:\n1. Del nombre de la carpeta.\n2. Del campo de descripción del mod.\n3. De la última versión en Nexus Mods (requiere API).\n\n¿Deseas continuar?",
+    "dialogContentRepairMods": "Advertencia: Esta función está en desarrollo y puede no ser perfecta.\n\nEscaneará los mods sin un archivo 'nexus_info.json' y, si se encuentran en tu base de datos local, creará uno para ellos. También intentará renombrar la carpeta del mod para incluir la versión encontrada (p. ej., 'Mi Mod' -> 'Mi Mod v1.2').\n\nPrioridad de Versión:\n1. Del nombre de la carpeta.\n2. Del campo de descripción del mod.\n3. De la última versión en Nexus Mods (requiere API).\n\n¿Quieres continuar?",
     "dialogActionRunRepair": "Ejecutar Reparación",
     "snackBarGamePathInvalid": "La carpeta seleccionada no parece ser una carpeta de juego válida.",
     "snackBar7zipPathInvalid": "El archivo seleccionado debe llamarse 7z.exe.",
@@ -45,7 +45,7 @@
     "searchMods": "Buscar mods...",
     "enabledMods": "Mods Activados",
     "disabledMods": "Mods Desactivados",
-    "refreshList": "Actualizar lista",
+    "refreshList": "Refrescar lista",
     "noEnabledMods": "No hay mods activados.",
     "noDisabledMods": "No hay mods desactivados.",
     "showInFolder": "Mostrar en carpeta",
@@ -58,7 +58,7 @@
     "statusGamePathFound": "¡Ruta del juego encontrada!",
     "statusGamePathNotFound": "No se pudo encontrar la ruta del juego automáticamente.",
     "statusErrorFindingGame": "Ocurrió un error al buscar el juego: {error}",
-    "statusModsFound": "{enabledCount} mod(s) activado(s), {disabledCount} desactivado(s).",
+    "statusModsFound": "{enabledCount} mod(s) activados, {disabledCount} desactivados.",
     "statusErrorReadingMods": "Error al leer los mods instalados: {error}",
     "statusFilesSelected": "{count} archivo(s) seleccionado(s). Listo para instalar.",
     "statusFolderSelected": "Carpeta \"{folderName}\" seleccionada. Lista para instalar.",
@@ -69,13 +69,13 @@
     "statusError": "Error: {error}",
     "dialogTitle7zip": "Se Requiere 7-Zip",
     "dialogContent7zip": "Para descomprimir este archivo, la aplicación necesita 7-Zip.\n\nPor favor, instálalo desde su página oficial y luego presiona \"Confirmar\".",
-    "dialogContent7zipNotFound": "7-Zip aún no ha sido detectado. Por favor, asegúrate de que esté instalado en la ruta predeterminada e inténtalo de nuevo.",
+    "dialogContent7zipNotFound": "Aún no se ha detectado 7-Zip. Por favor, asegúrate de que esté instalado en la ruta predeterminada e inténtalo de nuevo.",
     "dialogTitleCNSUpdate": "Actualización del Sistema Principal Detectada",
     "dialogContentCNSUpdate": "Se ha detectado una actualización para el \"Custom Nanosuit System\".\n\nEsto reemplazará archivos en la carpeta principal del juego (StellarBlade\\SB). ¿Deseas continuar?",
     "dialogTitleMultipleJsons": "Múltiples Archivos .json Detectados",
-    "dialogContentMultipleJsons": "Se han detectado {count} archivos .json. Esto podría ser un mod con múltiples componentes.\n\n¿Quieres instalarlos todos juntos en una única carpeta de mod?",
-    "dialogTitleModExists": "El Mod ya Existe",
-    "dialogContentModExists": "Ya existe un mod llamado \"{modName}\".\n\n¿Quieres actualizarlo? Los archivos antiguos se eliminarán antes de instalar los nuevos.",
+    "dialogContentMultipleJsons": "Se han detectado {count} archivos .json. Esto podría ser un mod con múltiples componentes.\n\n¿Quieres instalarlos todos juntos en una sola carpeta de mod?",
+    "dialogTitleModExists": "El Mod Ya Existe",
+    "dialogContentModExists": "Un mod llamado \"{modName}\" ya está instalado.\n\n¿Quieres actualizarlo? Los archivos antiguos se eliminarán antes de instalar los nuevos.",
     "dialogContentModUpdate": "Se encontró una versión más antigua '{oldModName}'.\n\n¿Quieres eliminarla y actualizar a '{newModName}'?",
     "dialogTitleDeleteMod": "¿Eliminar Permanentemente?",
     "dialogContentDeleteMod": "Estás a punto de eliminar permanentemente el mod \"{modName}\". Esta acción no se puede deshacer.\n\n¿Estás seguro?",
@@ -87,15 +87,15 @@
     "dialogActionUpdate": "Actualizar",
     "dialogActionDelete": "Eliminar",
     "dialogActionClose": "Cerrar",
-    "snackBarBatchInstallComplete": "Instalación por lotes completa. Éxito: {successCount}, Fallidos: {failedCount}.",
-    "snackBarModInstalled": "Mod \"{modName}\" instalado con éxito.",
+    "snackBarBatchInstallComplete": "Instalación por lotes completa. Exitosos: {successCount}, Fallidos: {failedCount}.",
+    "snackBarModInstalled": "Mod \"{modName}\" instalado correctamente.",
     "snackBarModEnabled": "Mod \"{modName}\" activado.",
     "snackBarModDisabled": "Mod \"{modName}\" desactivado.",
     "snackBarModDeleted": "Mod \"{modName}\" eliminado permanentemente.",
-    "snackBarCNSUpdated": "Custom Nanosuit System actualizado con éxito.",
-    "snackBarApiKeySaved": "Clave de API guardada con éxito.",
-    "snackBarGamePathSaved": "Ruta del juego guardada con éxito.",
-    "snackBar7zipPathSaved": "Ruta de 7-Zip guardada con éxito.",
+    "snackBarCNSUpdated": "Custom Nanosuit System actualizado correctamente.",
+    "snackBarApiKeySaved": "Clave de API guardada correctamente.",
+    "snackBarGamePathSaved": "Ruta del juego guardada correctamente.",
+    "snackBar7zipPathSaved": "Ruta de 7-Zip guardada correctamente.",
     "snackBarSkippedVersionRemoved": "Versión omitida eliminada.",
     "dropTargetOverlay": "Suelta los mods aquí",
     "pathSelectionTitle": "Ruta de Stellar Blade No Encontrada",
@@ -105,13 +105,13 @@
     "errorFileSelection": "Error al seleccionar los archivos: {error}",
     "errorDecompressing": "Error al descomprimir el archivo: {error}",
     "errorProcessingArchive": "Error al procesar el archivo: {error}",
-    "errorUnsupportedFormat": "Formato de archivo no compatible: {extension}",
-    "error7zipRequired": "Operación cancelada: Se requiere 7-Zip.",
+    "errorUnsupportedFormat": "Formato de archivo no soportado: {extension}",
+    "error7zipRequired": "Operación cancelada: se requiere 7-Zip.",
     "errorGamePathUndefined": "La ruta del juego no está definida.",
     "errorDestinationNotFound": "La carpeta de destino del juego no existe.",
     "errorUpdateSystem": "Error al actualizar el sistema: {error}",
     "errorInstallNoSelection": "No has seleccionado nada para instalar.",
-    "errorInstallModExists": "Instalación cancelada: El mod ya existe.",
+    "errorInstallModExists": "Instalación cancelada: el mod ya existe.",
     "errorNoJsonFound": "Cada mod debe contener al menos un archivo .json.",
     "errorInvalidJsonFormat": "El archivo {fileName} tiene un formato JSON inválido.",
     "errorNoDisplayName": "El archivo {fileName} no parece ser un mod de Custom Nanosuit System (falta \"DisplayName\").",
@@ -155,6 +155,9 @@
     "noImagesFound": "No se encontraron imágenes para este mod, o la clave de API no ha sido introducida. Por favor, introduce la clave de API y busca actualizaciones después.",
     "errorFetchingImages": "Error al obtener las imágenes: {error}",
     "imageMod": "Imagen del Mod",
+    "modEnabledBadge": "Activado",
+    "modDisabledBadge": "Desactivado",
+    "modCategoryOther": "Sin especificar",
     "dialogContentUpdateOptions": "¿Qué te gustaría hacer?",
     "dialogActionIgnoreVersion": "Ignorar",
     "dialogActionSkipVersion": "Omitir Versión",
@@ -169,6 +172,8 @@
     "sortByName": "Nombre",
     "sortByDate": "Fecha",
     "noModsFound": "No se encontraron mods.",
+    "viewTypeGrid": "Vista de cuadrícula",
+    "viewTypeList": "Vista de lista",
     "statusExtractingMultipleFiles": "Extrayendo {count} de {total}: {fileName}",
     "previewInstallTitle": "Mods a ser Instalados:",
     "dialogTitleUE4SS": "Instalación de UE4SS Detectada",
@@ -176,26 +181,96 @@
     "dialogActionInstallTool": "Instalar Herramienta",
     "statusUE4SSInstallCancelled": "Instalación de UE4SS cancelada.",
     "statusInstallingUE4SS": "Instalando UE4SS...",
-    "snackBarUE4SSInstalled": "UE4SS instalado con éxito.",
+    "snackBarUE4SSInstalled": "UE4SS instalado correctamente.",
     "error7zipDecompression": "Error de 7-Zip durante la descompresión: {error}",
     "statusUE4SSInstallComplete": "Instalación de UE4SS completa.",
     "dialogTitleAlternativeVersion": "Versión Alternativa Detectada",
-    "dialogContentAlternativeVersion": "Ya está instalada una versión alternativa de este mod: '{oldModName}'.\n\nEstás a punto de instalar una alternativa diferente llamada '{newModName}'.",
+    "dialogContentAlternativeVersion": "Ya hay instalada una versión alternativa de este mod: '{oldModName}'.\n\nEstás a punto de instalar una alternativa diferente llamada '{newModName}'.",
+    "@dialogContentAlternativeVersion": {
+        "description": "Contenido para el diálogo cuando se detecta un mod diferente con el mismo ID de nexus.",
+        "placeholders": {
+            "oldModName": { "type": "String", "example": "Nombre del Mod v1.0" },
+            "baseModName": { "type": "String", "example": "Nombre del Mod" },
+            "newModName": { "type": "String", "example": "Nombre del Mod v1.1" }
+        }
+    },
     "dialogActionReplace": "Reemplazar",
     "dialogActionInstallAsNew": "Instalar como Nuevo",
     "dialogTitleUpdate": "Actualización Disponible",
     "dialogContentUpdate": "Estás a punto de actualizar el mod '{modName}'.\n\nVersión instalada: {oldVersion}\nNueva versión: {newVersion}",
+    "@dialogContentUpdate": {
+        "description": "Contenido para el diálogo de confirmación de actualización de mod.",
+        "placeholders": {
+            "modName": { "type": "String", "example": "Mi Mod Increíble" },
+            "oldVersion": { "type": "String", "example": "1.0" },
+            "newVersion": { "type": "String", "example": "1.1" }
+        }
+    },
     "dialogTitleDowngrade": "Versión Anterior Detectada",
     "dialogContentDowngrade": "Advertencia: Estás a punto de instalar una versión anterior del mod '{modName}'.\n\nVersión instalada: {oldVersion}\nVersión a instalar: {newVersion}",
+    "@dialogContentDowngrade": {
+        "description": "Contenido para el diálogo de advertencia de degradación de mod.",
+        "placeholders": {
+            "modName": { "type": "String", "example": "Mi Mod Increíble" },
+            "oldVersion": { "type": "String", "example": "1.1" },
+            "newVersion": { "type": "String", "example": "1.0" }
+        }
+    },
     "dialogActionDowngrade": "Degradar",
     "dialogTitleReinstall": "Reinstalar Mod",
     "dialogContentReinstall": "Estás a punto de reinstalar la versión '{version}' del mod '{modName}'.",
     "dialogActionReinstall": "Reinstalar",
     "editModNameTooltip": "Editar nombre del mod",
     "dialogTitleEditModName": "Editar Nombre del Mod",
+    "dialogActionResetToDefault": "Restablecer a Predeterminado",
     "dialogLabelNewName": "Nuevo nombre",
     "errorModNameExists": "Ya existe un mod llamado \"{modName}\".",
     "dialogTitleRepairedModWarning": "Advertencia de Mod Reparado",
     "dialogContentRepairedModWarning": "Este mod podría no tener la información de versión correcta. Se recomienda reinstalar la última versión para asegurar la compatibilidad.",
-    "repairedModTooltip": "Información sobre el mod reparado"
+    "repairedModTooltip": "Información sobre el mod reparado",
+    "disableAllModsTooltip": "Desactivar todos los mods",
+    "deleteAllModsTooltip": "Eliminar todos los mods desactivados",
+    "dialogTitleDisableAll": "¿Desactivar Todos los Mods?",
+    "dialogContentDisableAll": "¿Estás seguro de que quieres desactivar los {count} mods activados? Se moverán a la carpeta de respaldo.",
+    "@dialogContentDisableAll": {
+        "placeholders": {
+            "count": { "type": "int" }
+        }
+    },
+    "dialogTitleDeleteAll": "¿Eliminar Mods Desactivados?",
+    "dialogContentDeleteAll": "Estás a punto de eliminar permanentemente los {count} mods desactivados. Esta acción no se puede deshacer.\n\n¿Estás seguro?",
+    "@dialogContentDeleteAll": {
+        "placeholders": {
+            "count": { "type": "int" }
+        }
+    },
+    "snackBarAllModsDisabled": "Los {count} mods activados han sido desactivados.",
+    "@snackBarAllModsDisabled": {
+        "placeholders": {
+            "count": { "type": "int" }
+        }
+    },
+    "snackBarAllModsDeleted": "Los {count} mods desactivados han sido eliminados permanentemente.",
+    "@snackBarAllModsDeleted": {
+        "placeholders": {
+            "count": { "type": "int" }
+        }
+    },
+    "snackBarNoModsToDisable": "No hay mods activados para desactivar.",
+    "snackBarNoModsToDelete": "No hay mods desactivados para eliminar.",
+    "enableAllModsTooltip": "Activar todos los mods",
+    "dialogTitleEnableAll": "¿Activar Todos los Mods?",
+    "dialogContentEnableAll": "¿Estás seguro de que quieres activar los {count} mods desactivados? Se moverán a la carpeta principal de mods.",
+    "@dialogContentEnableAll": {
+        "placeholders": {
+            "count": { "type": "int" }
+        }
+    },
+    "snackBarAllModsEnabled": "Los {count} mods desactivados han sido activados.",
+    "@snackBarAllModsEnabled": {
+        "placeholders": {
+            "count": { "type": "int" }
+        }
+    },
+    "snackBarNoModsToEnable": "No hay mods desactivados para activar."
 }
