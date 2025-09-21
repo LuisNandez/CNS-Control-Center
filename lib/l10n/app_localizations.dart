@@ -1413,6 +1413,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'There are no disabled mods to enable.'**
   String get snackBarNoModsToEnable;
+
+  /// No description provided for @viewModeGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Grid'**
+  String get viewModeGrid;
+
+  /// No description provided for @viewModeList.
+  ///
+  /// In en, this message translates to:
+  /// **'List'**
+  String get viewModeList;
+
+  /// No description provided for @modEnabledBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get modEnabledBadge;
+
+  /// No description provided for @modCategoryOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get modCategoryOther;
 }
 
 class _AppLocalizationsDelegate

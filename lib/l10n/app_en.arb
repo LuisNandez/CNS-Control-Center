@@ -267,6 +267,9 @@
             "count": { "type": "int" }
         }
     },
-    "snackBarNoModsToEnable": "There are no disabled mods to enable."
+    "snackBarNoModsToEnable": "There are no disabled mods to enable.",
+    "viewModeGrid": "Grid",
+    "viewModeList": "List",
+    "modEnabledBadge": "Enabled",
+    "modCategoryOther": "Other"
 }
-

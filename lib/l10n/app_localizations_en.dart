@@ -798,4 +798,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get snackBarNoModsToEnable => 'There are no disabled mods to enable.';
+
+  @override
+  String get viewModeGrid => 'Grid';
+
+  @override
+  String get viewModeList => 'List';
+
+  @override
+  String get modEnabledBadge => 'Enabled';
+
+  @override
+  String get modCategoryOther => 'Other';
 }

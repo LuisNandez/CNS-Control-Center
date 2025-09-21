@@ -22,6 +22,7 @@ class AppPrefs {
   static const String skippedVersions = 'skippedVersions';
   static const String filterMode = 'filterMode';
   static const String sortMode = 'sortMode';
+  static const String viewMode = 'viewMode'; // New preference for view mode
 }
 
 // Clase para almacenar la información de un mod.
@@ -34,6 +35,7 @@ class ModInfo {
   final String? origin;
   final String displayName; // Identificador interno, no editable.
   String customName;      // Nombre editable por el usuario.
+  final List<dynamic>? gallery; // Added to store image gallery info
 
   ModInfo({
     required this.directory,
@@ -44,6 +46,7 @@ class ModInfo {
     this.origin,
     required this.displayName,
     required this.customName,
+    this.gallery,
   });
 
 
@@ -121,6 +124,7 @@ class _ModInstallerAppState extends State<ModInstallerApp> {
       theme: ThemeData.dark().copyWith(
         primaryColor: Colors.blueGrey[700],
         scaffoldBackgroundColor: const Color(0xFF1e1e1e),
+        cardColor: const Color(0xFF2d2d2d),
         colorScheme: const ColorScheme.dark(
           primary: Colors.tealAccent,
           secondary: Colors.teal,
@@ -171,6 +175,7 @@ class _PreparedUE4SS {
 
 enum ModFilter { all, enabled, disabled, repaired }
 enum ModSort { name, date }
+enum ModListViewMode { grid, list }
 
 enum _AlternativeVersionAction { cancel, replace, installAsNew }
 
@@ -219,6 +224,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   ModFilter _currentFilter = ModFilter.all;
   ModSort _currentSort = ModSort.date;
+  ModListViewMode _viewMode = ModListViewMode.grid;
 
   @override
   void didChangeDependencies() {
@@ -259,7 +265,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     await _find7zipPath();
     await _loadApiKey();
     await _loadSkippedVersions();
-    await _loadFilterAndSortPrefs();
+    await _loadPrefs();
     await _findGamePath();
 
     if (_finalModsPath != null) {
@@ -456,14 +462,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     await prefs.setStringList(AppPrefs.skippedVersions, skippedList);
   }
 
-  Future<void> _loadFilterAndSortPrefs() async {
+  Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final filterIndex = prefs.getInt(AppPrefs.filterMode) ?? ModFilter.all.index;
     final sortIndex = prefs.getInt(AppPrefs.sortMode) ?? ModSort.date.index;
+    final viewModeIndex = prefs.getInt(AppPrefs.viewMode) ?? ModListViewMode.grid.index;
 
     setState(() {
       _currentFilter = ModFilter.values[filterIndex];
       _currentSort = ModSort.values[sortIndex];
+      _viewMode = ModListViewMode.values[viewModeIndex];
     });
   }
 
@@ -794,6 +802,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String? nexusId;
             String? installedVersion;
             String? origin;
+            List<dynamic>? gallery;
 
             String folderName = p.basename(entity.path);
             String displayName = _stripVersionFromFolderName(folderName);
@@ -806,6 +815,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 nexusId = data['nexusId'];
                 installedVersion = data['installedVersion'];
                 origin = data['origin'];
+                gallery = data['gallery'];
 
                 if (installedVersion != null && installedVersion.toLowerCase().startsWith('v')) {
                   installedVersion = installedVersion.substring(1);
@@ -834,6 +844,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               origin: origin,
               displayName: displayName,
               customName: customName,
+              gallery: gallery,
             ));
           } catch (e) {
             print("Error procesando directorio ${entity.path}: $e");
@@ -860,7 +871,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         _allMods = [...enabledMods, ...disabledMods];
         if (clearHighlight && mounted) {
           _statusMessage = AppLocalizations.of(context)!
-              .statusModsFound(disabledMods.length, enabledMods.length);
+              .statusModsFound(enabledMods.length, disabledMods.length);
           _statusColor = Colors.white;
         }
       });
@@ -3149,6 +3160,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                   isEnabled: false,
                                   displayName: 'ID: ${entry.key}',
                                   customName: 'ID: ${entry.key}',
+                                  gallery: null,
                                   origin: null));
                           final modName = mod.directory.path.isNotEmpty
                               ? mod.customName
@@ -3532,6 +3544,378 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 
+  Widget _buildModGridCard(ModInfo modInfo, AppLocalizations l10n) {
+    final thumbnailUrl = (modInfo.gallery != null && modInfo.gallery!.isNotEmpty)
+        ? modInfo.gallery!.first['thumbnail'] as String?
+        : null;
+
+    final updateInfo = _modUpdates[modInfo.directory.path];
+    final hasUpdate = updateInfo != null;
+    final updateIdentifier =
+        hasUpdate ? modInfo.directory.path + updateInfo['version'] : '';
+    final isIgnored = _ignoredUpdates.contains(updateIdentifier);
+    final isHighlighted =
+        _lastInstalledModNames.contains(p.basename(modInfo.directory.path));
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(
+          color: hasUpdate && !isIgnored
+              ? Colors.yellowAccent
+              : (isHighlighted ? Colors.tealAccent : Colors.transparent),
+          width: 1.5,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      elevation: 4,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child: thumbnailUrl != null
+                      ? Image.network(
+                          thumbnailUrl,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, progress) {
+                            return progress == null
+                                ? child
+                                : const Center(child: CircularProgressIndicator());
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(Icons.extension,
+                                size: 60, color: Colors.white38);
+                          },
+                        )
+                      : const Icon(Icons.extension,
+                          size: 60, color: Colors.white38),
+                ),
+                if (modInfo.isEnabled)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        l10n.modEnabledBadge,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                if (hasUpdate && !isIgnored)
+                   Positioned(
+                    top: 8,
+                    left: 8,
+                    child: IconButton(
+                      icon: const Icon(Icons.notification_important_rounded, color: Colors.yellowAccent),
+                      tooltip: l10n.updateAvailable(updateInfo['version']),
+                      onPressed: () {
+                         if (modInfo.nexusId != null) {
+                            _showUpdateOptionsDialog(
+                              newVersion: updateInfo['version'],
+                              nexusId: modInfo.nexusId!,
+                              fileId: updateInfo['fileId'],
+                              uniqueIdentifier: updateIdentifier,
+                            );
+                          }
+                      },
+                    )
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Tooltip(
+                    message: modInfo.customName,
+                    child: Text(
+                      modInfo.customName,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                if (modInfo.localVersion != null)
+                   Padding(
+                     padding: const EdgeInsets.only(left: 4.0),
+                     child: Text(
+                        'v${modInfo.localVersion}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                   ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 0, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    l10n.modCategoryOther,
+                    style: const TextStyle(fontSize: 10, color: Colors.white70),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Transform.scale(
+                      scale: 0.7,
+                      child: Switch(
+                        value: modInfo.isEnabled,
+                        onChanged: _isLoading
+                            ? null
+                            : (value) {
+                                if (value) {
+                                  _enableMod(modInfo);
+                                } else {
+                                  _disableMod(modInfo);
+                                }
+                              },
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, size: 20),
+                      onSelected: (value) async {
+                        switch (value) {
+                          case 'edit':
+                            _showEditModNameDialog(modInfo);
+                            break;
+                          case 'folder':
+                            _showInExplorer(modInfo.directory);
+                            break;
+                          case 'gallery':
+                            _showImageGalleryDialog(modInfo);
+                            break;
+                          case 'nexus':
+                             if (modInfo.nexusId != null) {
+                                final url = Uri.parse('https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}');
+                                if (await canLaunchUrl(url)) {
+                                  await launchUrl(url);
+                                }
+                              }
+                            break;
+                          case 'delete':
+                            _deleteModPermanently(modInfo);
+                            break;
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Text(l10n.editModNameTooltip),
+                        ),
+                        PopupMenuItem(
+                          value: 'folder',
+                          child: Text(l10n.showInFolder),
+                        ),
+                        if (modInfo.nexusId != null)
+                          PopupMenuItem(
+                            value: 'gallery',
+                            child: Text(l10n.viewImageGallery),
+                          ),
+                        if (modInfo.nexusId != null)
+                          PopupMenuItem(
+                            value: 'nexus',
+                            child: Text(l10n.openInNexusMods),
+                          ),
+                        if (!modInfo.isEnabled)
+                          const PopupMenuDivider(),
+                        if (!modInfo.isEnabled)
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Text(l10n.deletePermanently, style: const TextStyle(color: Colors.redAccent)),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+   Widget _buildModListTile(ModInfo modInfo, AppLocalizations l10n) {
+    final isHighlighted =
+        _lastInstalledModNames.contains(p.basename(modInfo.directory.path));
+    final updateInfo = _modUpdates[modInfo.directory.path];
+    final hasUpdate = updateInfo != null;
+    final updateIdentifier =
+        hasUpdate ? modInfo.directory.path + updateInfo['version'] : '';
+    final isIgnored = _ignoredUpdates.contains(updateIdentifier);
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      color: isHighlighted
+          ? Colors.teal.withOpacity(0.3)
+          : (modInfo.isEnabled
+              ? Colors.grey[850]
+              : Colors.orange[900]?.withOpacity(0.2)),
+      shape: RoundedRectangleBorder(
+          side: BorderSide(
+              color: hasUpdate && !isIgnored
+                  ? Colors.yellowAccent
+                  : (isHighlighted ? Colors.tealAccent : Colors.transparent),
+              width: hasUpdate && !isIgnored ? 2.0 : 1.5),
+          borderRadius: BorderRadius.circular(8)),
+      child: ListTile(
+        dense: true,
+        visualDensity: VisualDensity.compact,
+        leading:
+            Icon(Icons.extension, color: modInfo.isEnabled ? Colors.tealAccent : Colors.grey),
+        title: Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Flexible(
+              child: Text(
+                modInfo.customName,
+                style: TextStyle(
+                  color: modInfo.isEnabled ? Colors.white : Colors.grey,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (modInfo.localVersion != null &&
+                modInfo.localVersion!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 8.0),
+                child: Text(
+                  'v${modInfo.localVersion}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        subtitle: Row(
+          children: [
+            if (isHighlighted)
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child:
+                    Icon(Icons.new_releases, color: Colors.yellow[700], size: 18),
+              ),
+            if (modInfo.origin == 'repaired')
+              IconButton(
+                padding: const EdgeInsets.only(right: 8.0),
+                constraints: const BoxConstraints(),
+                icon: Icon(Icons.build, color: Colors.amber[700], size: 16),
+                onPressed: _showRepairedModInfoDialog,
+                tooltip: l10n.repairedModTooltip,
+                splashRadius: 16,
+              ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!modInfo.isEnabled)
+              IconButton(
+                icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
+                onPressed:
+                    _isLoading ? null : () => _deleteModPermanently(modInfo),
+                tooltip: l10n.deletePermanently,
+              ),
+            if (hasUpdate && !isIgnored)
+              IconButton(
+                icon: const Icon(Icons.notification_important,
+                    color: Colors.yellowAccent),
+                tooltip: l10n.updateAvailable(updateInfo['version']),
+                onPressed: () {
+                  if (modInfo.nexusId != null) {
+                    _showUpdateOptionsDialog(
+                      newVersion: updateInfo['version'],
+                      nexusId: modInfo.nexusId!,
+                      fileId: updateInfo['fileId'],
+                      uniqueIdentifier: updateIdentifier,
+                    );
+                  }
+                },
+              ),
+            IconButton(
+              icon: const Icon(Icons.edit, color: Colors.white70),
+              onPressed: _isLoading ? null : () => _showEditModNameDialog(modInfo),
+              tooltip: l10n.editModNameTooltip,
+            ),
+            IconButton(
+              icon: const Icon(Icons.folder_open, color: Colors.white70),
+              onPressed:
+                  _isLoading ? null : () => _showInExplorer(modInfo.directory),
+              tooltip: l10n.showInFolder,
+            ),
+            if (modInfo.nexusId != null)
+              IconButton(
+                icon: const Icon(Icons.photo_library_outlined,
+                    color: Colors.purpleAccent),
+                onPressed: () => _showImageGalleryDialog(modInfo),
+                tooltip: l10n.viewImageGallery,
+              ),
+            if (modInfo.nexusId != null)
+              IconButton(
+                icon: const Icon(Icons.link, color: Colors.lightBlueAccent),
+                onPressed: () async {
+                  final url = Uri.parse(
+                      'https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url);
+                  }
+                },
+                tooltip: l10n.openInNexusMods,
+              ),
+            if (modInfo.isEnabled)
+              IconButton(
+                icon: const Icon(Icons.power_settings_new,
+                    color: Colors.orangeAccent),
+                onPressed: _isLoading ? null : () => _disableMod(modInfo),
+                tooltip: l10n.disableMod,
+              )
+            else
+              IconButton(
+                icon: const Icon(Icons.power_settings_new,
+                    color: Colors.greenAccent),
+                onPressed: _isLoading ? null : () => _enableMod(modInfo),
+                tooltip: l10n.enableMod,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildModsListSection(
       String title, List<ModInfo> mods, AppLocalizations l10n, bool hasEnabledMods, bool hasDisabledMods) {
     return Column(
@@ -3587,6 +3971,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             ),
             Row(
               children: [
+                 ToggleButtons(
+                  isSelected: [_viewMode == ModListViewMode.grid, _viewMode == ModListViewMode.list],
+                  onPressed: (index) async {
+                    final newMode = index == 0 ? ModListViewMode.grid : ModListViewMode.list;
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setInt(AppPrefs.viewMode, newMode.index);
+                    setState(() => _viewMode = newMode);
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  constraints: const BoxConstraints(minHeight: 36, minWidth: 36),
+                  children: const [
+                    Tooltip(message: "Grid View", child: Icon(Icons.grid_view_outlined, size: 20)),
+                    Tooltip(message: "List View", child: Icon(Icons.view_list_outlined, size: 20)),
+                  ],
+                ),
                 PopupMenuButton<ModFilter>(
                   icon: const Icon(Icons.filter_list),
                   tooltip: l10n.filterBy,
@@ -3686,185 +4085,35 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         ),
         const SizedBox(height: 16),
         Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[700]!)),
-            child: mods.isEmpty
-                ? Center(
-                    child: Text(
-                        l10n.noModsFound,
-                        style: const TextStyle(color: Colors.grey)))
-                : ListView.builder(
+          child: mods.isEmpty
+              ? Center(
+                  child: Text(l10n.noModsFound,
+                      style: const TextStyle(color: Colors.grey)))
+              : AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _viewMode == ModListViewMode.grid
+                  ? GridView.builder(
+                      key: const ValueKey('grid'),
+                      padding: const EdgeInsets.all(4),
+                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 220,
+                        childAspectRatio: 3 / 4.5,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                      itemCount: mods.length,
+                      itemBuilder: (context, index) {
+                        return _buildModGridCard(mods[index], l10n);
+                      },
+                    )
+                  : ListView.builder(
+                    key: const ValueKey('list'),
                     itemCount: mods.length,
                     itemBuilder: (context, index) {
-                      final modInfo = mods[index];
-                      final isHighlighted = _lastInstalledModNames.contains(p.basename(modInfo.directory.path));
-                      final updateInfo = _modUpdates[modInfo.directory.path];
-                      final hasUpdate = updateInfo != null;
-                      final updateIdentifier = hasUpdate ? modInfo.directory.path + updateInfo['version'] : '';
-                      final isIgnored = _ignoredUpdates.contains(updateIdentifier);
-
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 4.0),
-                        color: isHighlighted
-                            ? Colors.teal.withOpacity(0.3)
-                            : (modInfo.isEnabled ? Colors.grey[850] : Colors.orange[900]?.withOpacity(0.2)),
-                        shape: RoundedRectangleBorder(
-                            side: BorderSide(
-                                color: hasUpdate && !isIgnored
-                                    ? Colors.yellowAccent
-                                    : (isHighlighted
-                                        ? Colors.tealAccent
-                                        : Colors.transparent),
-                                width: hasUpdate && !isIgnored ? 2.0 : 1.5),
-                            borderRadius: BorderRadius.circular(8)),
-                        child: ListTile(
-                          dense: true,
-                          visualDensity: VisualDensity.compact,
-                          leading: Icon(Icons.extension,
-                              color: modInfo.isEnabled
-                                  ? Colors.tealAccent
-                                  : Colors.grey),
-                          title: Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  modInfo.customName,
-                                  style: TextStyle(
-                                    color: modInfo.isEnabled ? Colors.white : Colors.grey,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              if (modInfo.localVersion != null && modInfo.localVersion!.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 8.0),
-                                  child: Text(
-                                    'v${modInfo.localVersion}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Theme.of(context).colorScheme.primary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          subtitle: Row(
-                            children: [
-                              if (isHighlighted)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 8.0),
-                                  child: Icon(Icons.new_releases,
-                                      color: Colors.yellow[700], size: 18),
-                                ),
-                              if (modInfo.origin == 'repaired')
-                                IconButton(
-                                  padding: const EdgeInsets.only(right: 8.0),
-                                  constraints: const BoxConstraints(),
-                                  icon: Icon(Icons.build,
-                                      color: Colors.amber[700], size: 16),
-                                  onPressed: _showRepairedModInfoDialog,
-                                  tooltip: l10n.repairedModTooltip,
-                                  splashRadius: 16,
-                                ),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (!modInfo.isEnabled)
-                                IconButton(
-                                  icon: const Icon(Icons.delete_forever,
-                                      color: Colors.redAccent),
-                                  onPressed: _isLoading
-                                      ? null
-                                      : () => _deleteModPermanently(modInfo),
-                                  tooltip: l10n.deletePermanently,
-                                ),
-                              if (hasUpdate && !isIgnored)
-                                IconButton(
-                                  icon: const Icon(
-                                      Icons.notification_important,
-                                      color: Colors.yellowAccent),
-                                  tooltip: l10n
-                                      .updateAvailable(updateInfo['version']),
-                                  onPressed: () {
-                                    if (modInfo.nexusId != null) {
-                                      _showUpdateOptionsDialog(
-                                        newVersion: updateInfo['version'],
-                                        nexusId: modInfo.nexusId!,
-                                        fileId: updateInfo['fileId'],
-                                        uniqueIdentifier: updateIdentifier,
-                                      );
-                                    }
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.edit, color: Colors.white70),
-                                  onPressed: _isLoading ? null : () => _showEditModNameDialog(modInfo),
-                                  tooltip: l10n.editModNameTooltip,
-                                ),
-                              IconButton(
-                                icon: const Icon(Icons.folder_open,
-                                    color: Colors.white70),
-                                onPressed: _isLoading
-                                    ? null
-                                    : () => _showInExplorer(modInfo.directory),
-                                tooltip: l10n.showInFolder,
-                              ),
-                              if (modInfo.nexusId != null)
-                                IconButton(
-                                  icon: const Icon(
-                                      Icons.photo_library_outlined,
-                                      color: Colors.purpleAccent),
-                                  onPressed: () =>
-                                      _showImageGalleryDialog(modInfo),
-                                  tooltip: l10n.viewImageGallery,
-                                ),
-                              if (modInfo.nexusId != null)
-                                IconButton(
-                                  icon: const Icon(Icons.link,
-                                      color: Colors.lightBlueAccent),
-                                  onPressed: () async {
-                                    final url = Uri.parse(
-                                        'https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}');
-                                    if (await canLaunchUrl(url)) {
-                                      await launchUrl(url);
-                                    }
-                                  },
-                                  tooltip: l10n.openInNexusMods,
-                                ),
-                              if (modInfo.isEnabled)
-                                IconButton(
-                                  icon: const Icon(Icons.power_settings_new,
-                                      color: Colors.orangeAccent),
-                                  onPressed: _isLoading
-                                      ? null
-                                      : () => _disableMod(modInfo),
-                                  tooltip: l10n.disableMod,
-                                )
-                              else
-                                IconButton(
-                                  icon: const Icon(Icons.power_settings_new,
-                                      color: Colors.greenAccent),
-                                  onPressed: _isLoading
-                                      ? null
-                                      : () => _enableMod(modInfo),
-                                  tooltip: l10n.enableMod,
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
+                      return _buildModListTile(mods[index], l10n);
                     },
-                  ),
-          ),
+                  )
+              )
         ),
       ],
     );
