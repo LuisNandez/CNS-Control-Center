@@ -37,6 +37,11 @@ class ThumbnailService {
     }
   }
 
+  // NEW: Synchronous method to get from memory cache.
+  File? getFromMemoryCache(String imageUrl) {
+    return _inMemoryCache[imageUrl];
+  }
+
   // Generates a safe filename from a URL using a hash.
   String _getHashedFileName(String url) {
     final bytes = utf8.encode(url);

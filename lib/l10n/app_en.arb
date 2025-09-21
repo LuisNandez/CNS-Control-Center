@@ -155,6 +155,9 @@
     "noImagesFound": "No images were found for this mod, or the API key has not been entered. Please enter the API key and check for updates afterward.",
     "errorFetchingImages": "Error fetching images: {error}",
     "imageMod": "Mod Image",
+    "modEnabledBadge": "Enabled",
+    "modDisabledBadge": "Disabled",
+    "modCategoryOther": "Other",
     "dialogContentUpdateOptions": "What would you like to do?",
     "dialogActionIgnoreVersion": "Ignore",
     "dialogActionSkipVersion": "Skip Version",
@@ -267,9 +270,6 @@
             "count": { "type": "int" }
         }
     },
-    "snackBarNoModsToEnable": "There are no disabled mods to enable.",
-    "viewModeGrid": "Grid",
-    "viewModeList": "List",
-    "modEnabledBadge": "Enabled",
-    "modCategoryOther": "Other"
+    "snackBarNoModsToEnable": "There are no disabled mods to enable."
 }
+

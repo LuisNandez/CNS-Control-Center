@@ -585,6 +585,15 @@ class AppLocalizationsIt extends AppLocalizations {
   String get imageMod => 'Immagine Mod';
 
   @override
+  String get modEnabledBadge => 'Enabled';
+
+  @override
+  String get modDisabledBadge => 'Disabled';
+
+  @override
+  String get modCategoryOther => 'Other';
+
+  @override
   String get dialogContentUpdateOptions => 'Cosa vorresti fare?';
 
   @override
@@ -804,16 +813,4 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get snackBarNoModsToEnable => 'There are no disabled mods to enable.';
-
-  @override
-  String get viewModeGrid => 'Grid';
-
-  @override
-  String get viewModeList => 'List';
-
-  @override
-  String get modEnabledBadge => 'Enabled';
-
-  @override
-  String get modCategoryOther => 'Other';
 }

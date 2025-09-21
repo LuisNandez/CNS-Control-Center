@@ -13,7 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:window_manager/window_manager.dart';
 import 'settings_page.dart';
-import 'thumbnail_service.dart'; // <-- Import the new thumbnail service
+import 'thumbnail_service.dart';
 
 class AppPrefs {
   static const String languageCode = 'languageCode';
@@ -26,7 +26,7 @@ class AppPrefs {
   static const String viewMode = 'viewMode'; // New preference for view mode
 }
 
-// Clase para almacenar la información de un mod.
+// Data class to hold all information about a mod.
 class ModInfo {
   final Directory directory;
   final String? nexusId;
@@ -34,9 +34,9 @@ class ModInfo {
   final DateTime lastModified;
   bool isEnabled;
   final String? origin;
-  final String displayName; // Identificador interno, no editable.
-  String customName;      // Nombre editable por el usuario.
-  final List<dynamic>? gallery; // Added to store image gallery info
+  final String displayName; // Internal identifier, not user-editable.
+  String customName;      // User-editable name.
+  final List<dynamic>? gallery; // Added to store image gallery info from Nexus Mods.
 
   ModInfo({
     required this.directory,
@@ -52,7 +52,7 @@ class ModInfo {
 
 
   static String? _extractVersionFromName(String name) {
-    // Extrae la versión (p.ej., 1.0.0) de un nombre de archivo/carpeta (p.ej., ModName v1.0.0)
+    // Extracts a version number (e.g., 1.0.0) from a file/folder name (e.g., ModName v1.0.0)
     final regex = RegExp(r'[vV]?([0-9]+(\.[0-9a-zA-Z]+)*)');
     final match = regex.firstMatch(name);
     return match?.group(1);
@@ -3460,22 +3460,30 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Widget _buildInstallerSection(bool canInstall, AppLocalizations l10n) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
       children: [
-        ElevatedButton.icon(
+        Expanded(
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12), // Padding vertical reducido
+            ),
             icon: const Icon(Icons.archive),
             label: Text(l10n.selectModArchive),
-            onPressed: _isLoading ? null : _pickArchive),
-        const SizedBox(height: 12),
-        ElevatedButton.icon(
-          icon: const Icon(Icons.download_for_offline),
-          label: Text(l10n.installSelectedMod),
-          onPressed: canInstall ? _installMod : null,
-          style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  canInstall ? Colors.tealAccent : Colors.grey[700],
-              foregroundColor: Colors.black87),
+            onPressed: _isLoading ? null : _pickArchive,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.download_for_offline),
+            label: Text(l10n.installSelectedMod),
+            onPressed: canInstall ? _installMod : null,
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12), // Padding vertical reducido
+              backgroundColor: canInstall ? Colors.tealAccent : Colors.grey[700],
+              foregroundColor: Colors.black87,
+            ),
+          ),
         ),
       ],
     );
@@ -3579,46 +3587,50 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Container(
-                  color: Colors.black.withOpacity(0.5),
-                  // ++ USE THE NEW THUMBNAIL WIDGET ++
-                  child: ModThumbnailImage(
-                    imageUrl: thumbnailUrl,
-                    thumbnailService: _thumbnailService,
-                  )
-                ),
-                if (modInfo.isEnabled)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        l10n.modEnabledBadge,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold),
+            child: GestureDetector(
+              onDoubleTap: () {
+                _showImageGalleryDialog(modInfo);
+              },
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Container(
+                    color: Colors.black.withOpacity(0.5),
+                    // ++ USE THE NEW THUMBNAIL WIDGET ++
+                    child: ModThumbnailImage(
+                      imageUrl: thumbnailUrl,
+                      thumbnailService: _thumbnailService,
+                    )
+                  ),
+                  if (!modInfo.isEnabled)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.orangeAccent.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          l10n.modDisabledBadge,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
-                  ),
-                if (hasUpdate && !isIgnored)
-                   Positioned(
-                    top: 8,
-                    left: 8,
-                    child: IconButton(
-                      icon: const Icon(Icons.notification_important_rounded, color: Colors.yellowAccent),
-                      tooltip: l10n.updateAvailable(updateInfo['version']),
-                      onPressed: () {
-                         if (modInfo.nexusId != null) {
+                  if (hasUpdate && !isIgnored)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: IconButton(
+                        icon: const Icon(Icons.notification_important_rounded, color: Colors.yellowAccent),
+                        tooltip: l10n.updateAvailable(updateInfo['version']),
+                        onPressed: () {
+                          if (modInfo.nexusId != null) {
                             _showUpdateOptionsDialog(
                               newVersion: updateInfo['version'],
                               nexusId: modInfo.nexusId!,
@@ -3626,10 +3638,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                               uniqueIdentifier: updateIdentifier,
                             );
                           }
-                      },
-                    )
-                  ),
-              ],
+                        },
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
           Padding(
@@ -4131,73 +4144,97 @@ class ModThumbnailImage extends StatefulWidget {
 }
 
 class _ModThumbnailImageState extends State<ModThumbnailImage> {
-  Future<File?>? _thumbnailFuture;
+  File? _imageFile;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadThumbnail();
+    _loadImage();
   }
-  
+
   @override
   void didUpdateWidget(covariant ModThumbnailImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // If the image URL changes, we need to load the new thumbnail.
     if (widget.imageUrl != oldWidget.imageUrl) {
-      _loadThumbnail();
+      // When the widget is reused for a different image, reload it.
+      _loadImage();
     }
   }
 
-  void _loadThumbnail() {
-    if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty) {
-      setState(() {
-         _thumbnailFuture = widget.thumbnailService.getThumbnail(widget.imageUrl!);
-      });
+  void _loadImage() {
+    // Reset state for the new image
+    _imageFile = null; 
+    _isLoading = false;
+
+    if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
+      // If there's no URL, don't do anything. The build method will show a placeholder.
+      if(mounted) setState(() {});
+      return;
+    }
+    
+    // First, try to get the image synchronously from the in-memory cache.
+    final cachedFile = widget.thumbnailService.getFromMemoryCache(widget.imageUrl!);
+    if (cachedFile != null) {
+      // If it exists, use it immediately.
+      _imageFile = cachedFile;
+      if (mounted) setState(() {});
     } else {
+      // If not in memory, load it asynchronously from disk/network.
+      _loadThumbnailAsync();
+    }
+  }
+
+  Future<void> _loadThumbnailAsync() async {
+    if (widget.imageUrl == null || _isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final file = await widget.thumbnailService.getThumbnail(widget.imageUrl!);
+
+    if (mounted) {
       setState(() {
-        _thumbnailFuture = null;
+        _imageFile = file;
+        _isLoading = false;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_thumbnailFuture == null) {
-      return const Icon(Icons.extension, size: 60, color: Colors.white38);
+    if (_imageFile != null) {
+      // If we have the file, display it.
+      return Image.file(
+        _imageFile!,
+        fit: BoxFit.cover,
+        // Add a fade-in effect for a smoother appearance
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded) {
+            // If the image was already in memory (from Flutter's own image cache), show it instantly.
+            return child;
+          }
+          return AnimatedOpacity(
+            opacity: frame == null ? 0 : 1,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+            child: child,
+          );
+        },
+      );
     }
 
-    return FutureBuilder<File?>(
-      future: _thumbnailFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(strokeWidth: 2.0));
-        }
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
-          // If there was an error, retry loading after a delay
-          Future.delayed(const Duration(seconds: 5), () {
-            if(mounted) {
-              _loadThumbnail();
-            }
-          });
-          return const Icon(Icons.broken_image, size: 60, color: Colors.white38);
-        }
-        
-        return Image.file(
-          snapshot.data!,
-          fit: BoxFit.cover,
-          // Add a fade-in effect for a smoother appearance
-          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-            if (wasSynchronouslyLoaded) return child;
-            return AnimatedOpacity(
-              opacity: frame == null ? 0 : 1,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
-              child: child,
-            );
-          },
-        );
-      },
-    );
+    if (_isLoading) {
+      // While loading from disk/network, show a progress indicator.
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2.0));
+    }
+    
+    // Default placeholder if there's no image URL or if it failed to load.
+    return const Icon(Icons.extension, size: 60, color: Colors.white38);
   }
 }
+
+
+
 
