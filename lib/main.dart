@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:window_manager/window_manager.dart';
 import 'settings_page.dart';
+import 'thumbnail_service.dart'; // <-- Import the new thumbnail service
 
 class AppPrefs {
   static const String languageCode = 'languageCode';
@@ -226,6 +227,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   ModSort _currentSort = ModSort.date;
   ModListViewMode _viewMode = ModListViewMode.grid;
 
+  // ++ THUMBNAIL SERVICE INSTANCE ++
+  final ThumbnailService _thumbnailService = ThumbnailService();
+
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -253,13 +258,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         _tempExtractionDir!.deleteSync(recursive: true);
       }
     } catch (e) {
-      print('No se pudo limpiar el directorio temporal al cerrar: $e');
+      print('Could not clean up temporary directory on exit: $e');
     }
     super.dispose();
   }
 
   Future<void> _initialize() async {
     await _getAppVersion();
+    await _thumbnailService.initialize(); // ++ INITIALIZE THUMBNAIL SERVICE ++
     await _cleanUpOrphanedTempDirs();
     await _loadModDatabase();
     await _find7zipPath();
@@ -290,21 +296,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<void> _cleanUpOrphanedTempDirs() async {
     try {
       final tempDir = Directory.systemTemp;
-      // Revisa de forma asíncrona el contenido del directorio temporal del sistema.
+      // Asynchronously checks the contents of the system's temporary directory.
       await for (final entity in tempDir.list()) {
-        // Si una entidad es una carpeta y su nombre empieza con "mod_manager_", elimínala.
+        // If an entity is a folder and its name starts with "mod_manager_", delete it.
         if (entity is Directory &&
             p.basename(entity.path).startsWith('mod_manager_')) {
           try {
             await entity.delete(recursive: true);
           } catch (e) {
-            // Ignora errores si una carpeta específica no se puede borrar (puede estar en uso).
-            print('No se pudo borrar el directorio huérfano ${entity.path}: $e');
+            // Ignore errors if a specific folder cannot be deleted (it might be in use).
+            print('Could not delete orphan directory ${entity.path}: $e');
           }
         }
       }
     } catch (e) {
-      print('Ocurrió un error durante la limpieza general de carpetas temporales: $e');
+      print('An error occurred during general cleanup of temporary folders: $e');
     }
   }
   
@@ -328,7 +334,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _migrateModFolders() async {
     setState(() {
-      _statusMessage = "Verificando integridad de los mods...";
+      _statusMessage = "Verifying integrity of mods...";
       _isLoading = true;
     });
 
@@ -341,7 +347,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       try {
         entities = dir.listSync(); 
       } catch (e) {
-        print("Error listando directorio $path: $e");
+        print("Error listing directory $path: $e");
         return [];
       }
 
@@ -364,7 +370,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 });
               }
             } catch (e) {
-              print('Error al escanear ${entity.path} para migración: $e');
+              print('Error scanning ${entity.path} for migration: $e');
             }
           }
         }
@@ -382,7 +388,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
     
     if (allTasks.isNotEmpty) {
-      print('Se encontraron ${allTasks.length} mods para migrar.');
+      print('Found ${allTasks.length} mods to migrate.');
       for (final task in allTasks) {
         try {
           final oldPath = task['oldPath'] as String;
@@ -392,11 +398,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           Directory newDirHandle = Directory(newPath);
           if (oldPath != newPath) {
             if (await Directory(newPath).exists()) {
-              print('Conflicto de migración: La carpeta destino "$newPath" ya existe. Saltando renombrado para "$oldPath".');
+              print('Migration conflict: Destination folder "$newPath" already exists. Skipping rename for "$oldPath".');
               newDirHandle = Directory(oldPath);
             } else {
                await Directory(oldPath).rename(newPath);
-               print('Renombrado: $oldPath -> $newPath');
+               print('Renamed: $oldPath -> $newPath');
             }
           }
           
@@ -408,10 +414,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           await infoFile.writeAsString(encoder.convert(jsonData));
 
         } catch (e) {
-          print('Falló la migración para ${task['oldPath']}: $e');
+          print('Migration failed for ${task['oldPath']}: $e');
         }
       }
-      print('Migración completada.');
+      print('Migration complete.');
     }
   }
 
@@ -423,10 +429,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         setState(() {
           _modDatabase = data;
         });
-        print('Base de datos de mods locales cargada correctamente.');
+        print('Local mod database loaded successfully.');
       }
     } catch (e) {
-      print('No se encontró o no se pudo leer mod_database.json, se omitirá: $e');
+      print('Could not find or read mod_database.json, skipping: $e');
     }
   }
 
@@ -502,7 +508,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Error al validar la clave de API: $e');
+      print('Error validating API key: $e');
       return false;
     }
   }
@@ -540,7 +546,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['exe'],
-        dialogTitle: 'Selecciona el archivo 7z.exe',
+        dialogTitle: 'Select the 7z.exe file',
       );
       if (result != null && result.files.single.path != null) {
         final newPath = result.files.single.path!;
@@ -568,7 +574,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         return newPath;
       }
     } catch (e) {
-       setState(() => _statusMessage = 'Error seleccionando 7-Zip: $e');
+       setState(() => _statusMessage = 'Error selecting 7-Zip: $e');
     }
     return null;
   }
@@ -659,7 +665,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         }
       }
     } catch (e) {
-      print("Error buscando en el registro de Steam: $e");
+      print("Error searching Steam registry: $e");
       return null;
     }
     return null;
@@ -682,7 +688,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         newVersion = data['installedVersion'];
       }
     } catch (e) {
-      print('Error al leer nexus_info.json del CNS: $e');
+      print('Error reading CNS nexus_info.json: $e');
     }
 
     if (_cnsVersion == null) {
@@ -703,7 +709,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           setState(() => _cnsVersion = null);
         }
       } catch (e) {
-        print('Error al leer la versión del CNS desde LUA: $e');
+        print('Error reading CNS version from LUA: $e');
         setState(() => _cnsVersion = null);
       }
     }
@@ -713,7 +719,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<String?> _selectGamePathManually() async {
     try {
       String? result = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: 'Por favor, selecciona la carpeta principal de StellarBlade',
+        dialogTitle: 'Please select the main StellarBlade folder',
       );
       if (result != null) {
         final validationPath = p.join(result, 'SB', 'Content', 'Paks');
@@ -743,13 +749,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           }
           setState(() {
             _statusMessage =
-                'La carpeta seleccionada no parece ser la correcta. Inténtalo de nuevo.';
+                'The selected folder does not seem to be correct. Please try again.';
             _statusColor = Colors.redAccent;
           });
         }
       }
     } catch (e) {
-      setState(() => _statusMessage = 'Error al seleccionar la carpeta: $e');
+      setState(() => _statusMessage = 'Error selecting folder: $e');
     }
     return null;
   }
@@ -771,7 +777,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         }
       }
     } catch (e) {
-      print('Error leyendo versión desde JSON description para ${modDir.path}: $e');
+      print('Error reading version from JSON description for ${modDir.path}: $e');
     }
     return null;
   }
@@ -847,7 +853,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               gallery: gallery,
             ));
           } catch (e) {
-            print("Error procesando directorio ${entity.path}: $e");
+            print("Error processing directory ${entity.path}: $e");
           }
         }
       }
@@ -974,7 +980,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           
           repairedCount++;
         } catch (e) {
-          print('No se pudo auto-reparar o renombrar el mod "$primaryDisplayName": $e');
+          print('Could not self-repair or rename mod "$primaryDisplayName": $e');
         }
       }
     }
@@ -1019,7 +1025,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
       return highestVersionFile?['version'];
     } catch (e) {
-      print('Error buscando la última versión para el mod $nexusId: $e');
+      print('Error fetching latest version for mod $nexusId: $e');
       return null;
     }
   }
@@ -1071,7 +1077,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     } catch (e) {
       print(
-          'No se pudo extraer la información de Nexus del nombre: $name. Error: $e');
+          'Could not extract Nexus info from name: $name. Error: $e');
     }
     return null;
   }
@@ -1214,7 +1220,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           await _tempExtractionDir!.delete(recursive: true);
         }
       } catch (e) {
-        print('No se pudo limpiar el directorio temporal anterior: $e');
+        print('Could not clean up previous temporary directory: $e');
       }
       _tempExtractionDir =
           Directory.systemTemp.createTempSync('mod_manager_');
@@ -1456,7 +1462,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           }
         }
       } catch (e) {
-        print('No se pudo leer la versión del main.lua recién instalado: $e');
+        print('Could not read version from newly installed main.lua: $e');
       }
 
       final nexusInfo = _extractNexusInfoFromName(p.basename(sourceSBDir.parent.path));
@@ -1483,7 +1489,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           await infoFile.writeAsString(encoder.convert(modData));
         }
       } else {
-        print('ADVERTENCIA: No se pudo determinar la versión del CNS desde main.lua. No se creará nexus_info.json.');
+        print('WARNING: Could not determine CNS version from main.lua. nexus_info.json will not be created.');
       }
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1667,7 +1673,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           }
         }
       } catch (e) {
-        print('No se pudo parsear el display name de ${jsonFile.path}: $e');
+        print('Could not parse display name from ${jsonFile.path}: $e');
       }
     }
 
@@ -1697,7 +1703,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         }
       }
     } catch (e) {
-      print("No se pudo leer el DisplayName de ${modDir.path}: $e");
+      print("Could not read DisplayName from ${modDir.path}: $e");
     }
     return null;
   }
@@ -1858,18 +1864,18 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               final oldData = json.decode(await oldInfoFile.readAsString());
               if (oldData['customName'] != null) {
                 preservedCustomName = oldData['customName'];
-                print('Preservando nombre personalizado: $preservedCustomName');
+                print('Preserving custom name: $preservedCustomName');
               }
             } catch (e) {
-              print('No se pudo leer el nombre personalizado antiguo. Se usará el nombre por defecto. Error: $e');
+              print('Could not read old custom name. Defaulting. Error: $e');
             }
           }
 
           final oldModName = oldVersionMod.customName;
-          final bool deleted = await _deleteDirectoryWithRetry(oldVersionMod.directory);
+          final deleted = await _deleteDirectoryWithRetry(oldVersionMod.directory);
           if (!deleted) {
             throw Exception(
-                'No se pudo borrar la versión antigua del mod ($oldModName).');
+                'Could not delete old mod version ($oldModName).');
           }
           break;
         case _AlternativeVersionAction.installAsNew:
@@ -1912,17 +1918,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             final oldData = json.decode(await oldInfoFile.readAsString());
             if (oldData['customName'] != null) {
               preservedCustomName = oldData['customName'];
-              print('Preservando nombre personalizado: $preservedCustomName');
+              print('Preserving custom name: $preservedCustomName');
             }
           } catch (e) {
-            print('No se pudo leer el nombre personalizado antiguo. Se usará el nombre por defecto. Error: $e');
+            print('Could not read old custom name. Defaulting. Error: $e');
           }
         }
-        final bool deleted =
+        final deleted =
             await _deleteDirectoryWithRetry(Directory(newModPath));
         if (!deleted) {
           throw Exception(
-              'No se pudo borrar el mod existente ($finalFolderName) para reinstalar después de varios intentos.');
+              'Could not delete existing mod ($finalFolderName) to reinstall after several attempts.');
         }
       }
     }
@@ -1999,7 +2005,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     });
     try {
       if (_gameRootPath == null) {
-        throw Exception("La ruta del juego no está definida. No se puede desactivar el mod.");
+        throw Exception("Game path is not defined. Cannot disable mod.");
       }
       final backupDir = Directory(p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__'));
 
@@ -2060,7 +2066,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             content: Text(l10n.snackBarModDeleted(modName)),
             backgroundColor: Colors.red[800]));
       } else if (!deleted) {
-        throw Exception('No se pudo borrar el directorio.');
+        throw Exception('Could not delete directory.');
       }
       await _loadAllMods();
     } catch (e) {
@@ -2112,7 +2118,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     setState(() => _isLoading = true);
     try {
       if (_finalModsPath == null) {
-        throw Exception("La ruta de mods no está definida.");
+        throw Exception("Mods path is not defined.");
       }
       for (final mod in disabledMods) {
         await _moveMod(mod.directory, _finalModsPath!);
@@ -2173,7 +2179,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     setState(() => _isLoading = true);
     try {
       if (_gameRootPath == null) {
-        throw Exception("La ruta del juego no está definida.");
+        throw Exception("Game path is not defined.");
       }
       final backupDir = Directory(p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__'));
       if (!await backupDir.exists()) {
@@ -2272,13 +2278,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         return true;
       } on PathAccessException {
         print(
-            'Acceso denegado al borrar ${dir.path}. Reintentando (${i + 1}/$retries)...');
+            'Access denied while deleting ${dir.path}. Retrying (${i + 1}/$retries)...');
         await Future.delayed(const Duration(milliseconds: 300));
       } catch (e) {
         rethrow;
       }
     }
-    print('No se pudo borrar el directorio ${dir.path} después de $retries intentos.');
+    print('Could not delete directory ${dir.path} after $retries attempts.');
     return false;
   }
 
@@ -2536,7 +2542,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           final encoder = JsonEncoder.withIndent('  ');
           await infoFile.writeAsString(encoder.convert(data));
         } catch (e) {
-          print("No se pudo actualizar el customName en nexus_info.json: $e");
+          print("Could not update customName in nexus_info.json: $e");
         }
       }
       
@@ -2544,7 +2550,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     } catch (e) {
        setState(() {
-        _statusMessage = "Error al renombrar el mod: $e";
+        _statusMessage = "Error renaming mod: $e";
         _statusColor = Colors.redAccent;
       });
       await _loadAllMods();
@@ -2652,7 +2658,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<List<Map<String, dynamic>>?> _fetchModImages(String nexusId) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
-      print("API Key no configurada, no se buscarán imágenes.");
+      print("API Key not configured, not fetching images.");
       return null;
     }
     final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
@@ -2671,16 +2677,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             {
               "image": pictureUrl,
               "thumbnail": pictureUrl,
-              "description": "Imagen principal del mod"
+              "description": "Mod main image"
             }
           ];
         }
       }
 
-      print("La estrategia para obtener imágenes falló para el mod $nexusId (código: ${response.statusCode}).");
+      print("Strategy to get images failed for mod $nexusId (code: ${response.statusCode}).");
       return null;
     } catch (e) {
-      print("Ocurrió una excepción al obtener imágenes para el mod $nexusId: $e");
+      print("An exception occurred while getting images for mod $nexusId: $e");
       return null;
     }
   }
@@ -2697,7 +2703,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     } catch (e) {
       print(
-          "No se pudo leer el nexus_info.json existente, se creará uno nuevo. Error: $e");
+          "Could not read existing nexus_info.json, creating a new one. Error: $e");
     }
 
     if (updateCheckData != null) {
@@ -2842,7 +2848,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           updateCheckData: updateCheckData, galleryData: galleryData);
     } catch (e) {
       print(
-          'No se pudo actualizar el archivo nexus_info.json para $modName: $e');
+          'Could not update nexus_info.json file for $modName: $e');
     }
 
     if (response.statusCode != 200) {
@@ -2952,7 +2958,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _recheckSpecificMod(String nexusId, {String? newVersion}) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
-      print("API Key no configurada, no se puede re-verificar el mod.");
+      print("API Key not configured, cannot re-check mod.");
       return;
     }
     final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
@@ -3010,7 +3016,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           images = data['gallery'];
         }
       } catch (e) {
-        print("Error al leer la galería desde nexus_info.json: $e");
+        print("Error reading gallery from nexus_info.json: $e");
       }
     }
 
@@ -3578,22 +3584,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               children: [
                 Container(
                   color: Colors.black.withOpacity(0.5),
-                  child: thumbnailUrl != null
-                      ? Image.network(
-                          thumbnailUrl,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, progress) {
-                            return progress == null
-                                ? child
-                                : const Center(child: CircularProgressIndicator());
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(Icons.extension,
-                                size: 60, color: Colors.white38);
-                          },
-                        )
-                      : const Icon(Icons.extension,
-                          size: 60, color: Colors.white38),
+                  // ++ USE THE NEW THUMBNAIL WIDGET ++
+                  child: ModThumbnailImage(
+                    imageUrl: thumbnailUrl,
+                    thumbnailService: _thumbnailService,
+                  )
                 ),
                 if (modInfo.isEnabled)
                   Positioned(
@@ -4119,3 +4114,90 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 }
+
+// ++ NEW WIDGET FOR OPTIMIZED THUMBNAILS ++
+class ModThumbnailImage extends StatefulWidget {
+  final String? imageUrl;
+  final ThumbnailService thumbnailService;
+
+  const ModThumbnailImage({
+    super.key,
+    required this.imageUrl,
+    required this.thumbnailService,
+  });
+
+  @override
+  State<ModThumbnailImage> createState() => _ModThumbnailImageState();
+}
+
+class _ModThumbnailImageState extends State<ModThumbnailImage> {
+  Future<File?>? _thumbnailFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadThumbnail();
+  }
+  
+  @override
+  void didUpdateWidget(covariant ModThumbnailImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If the image URL changes, we need to load the new thumbnail.
+    if (widget.imageUrl != oldWidget.imageUrl) {
+      _loadThumbnail();
+    }
+  }
+
+  void _loadThumbnail() {
+    if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty) {
+      setState(() {
+         _thumbnailFuture = widget.thumbnailService.getThumbnail(widget.imageUrl!);
+      });
+    } else {
+      setState(() {
+        _thumbnailFuture = null;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_thumbnailFuture == null) {
+      return const Icon(Icons.extension, size: 60, color: Colors.white38);
+    }
+
+    return FutureBuilder<File?>(
+      future: _thumbnailFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2.0));
+        }
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+          // If there was an error, retry loading after a delay
+          Future.delayed(const Duration(seconds: 5), () {
+            if(mounted) {
+              _loadThumbnail();
+            }
+          });
+          return const Icon(Icons.broken_image, size: 60, color: Colors.white38);
+        }
+        
+        return Image.file(
+          snapshot.data!,
+          fit: BoxFit.cover,
+          // Add a fade-in effect for a smoother appearance
+          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+            if (wasSynchronouslyLoaded) return child;
+            return AnimatedOpacity(
+              opacity: frame == null ? 0 : 1,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+              child: child,
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
