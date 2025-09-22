@@ -2607,58 +2607,83 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
+  // main.dart
+
+  // main.dart
+
   Future<void> _showEditModNameDialog(ModInfo modInfo) async {
     final nameController = TextEditingController(text: modInfo.customName);
     final l10n = AppLocalizations.of(context)!;
 
     final newName = await showDialog<String>(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final bool canReset = modInfo.customName != modInfo.displayName;
+      builder: (BuildContext context) {
+        // En lugar de AlertDialog, usamos el widget base 'Dialog'.
+        return Dialog(
+          backgroundColor: const Color(0xFF2a2a2a),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          // Construimos el contenido manualmente con una Columna.
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              // ESTA ES LA PROPIEDAD MÁS IMPORTANTE:
+              // Le dice a la columna que ocupe el mínimo espacio vertical necesario,
+              // evitando que se expanda para llenar toda la pantalla.
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                // 1. Título del Diálogo
+                Text(
+                  l10n.dialogTitleEditModName,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 20),
 
-            return AlertDialog(
-              backgroundColor: const Color(0xFF2a2a2a),
-              title: Text(l10n.dialogTitleEditModName),
-              content: TextField(
-                controller: nameController,
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: l10n.dialogLabelNewName,
-                  hintText: modInfo.customName,
+                // 2. Campo de Texto
+                TextField(
+                  controller: nameController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: l10n.dialogLabelNewName,
+                    hintText: modInfo.customName,
+                    border: const OutlineInputBorder(),
+                  ),
                 ),
-                onChanged: (value) {
-                  setDialogState(() {});
-                },
-              ),
-              actions: [
-                TextButton(
-                  onPressed: !canReset 
-                    ? null 
-                    : () {
-                        Navigator.of(context).pop(modInfo.displayName);
-                      },
-                  child: Text(l10n.dialogActionResetToDefault),
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.dialogActionCancel),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(nameController.text);
-                  },
-                  child: Text(l10n.dialogActionSave),
+                const SizedBox(height: 24),
+
+                // 3. Fila de Acciones (Botones)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(modInfo.displayName),
+                      child: Text(l10n.dialogActionResetToDefault),
+                    ),
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: Text(l10n.dialogActionCancel),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(nameController.text),
+                          child: Text(l10n.dialogActionSave),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
-            );
-          }
+            ),
+          ),
         );
       },
     );
 
+    // La lógica para guardar no cambia.
     if (newName != null && newName.trim().isNotEmpty) {
       await _updateModCustomName(modInfo, newName.trim());
     }
