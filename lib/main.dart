@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:file_picker/file_picker.dart';
@@ -4312,52 +4313,98 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<Alignment?> _showCoverAlignmentDialog(File imageFile) async {
     final image = await decodeImageFromList(imageFile.readAsBytesSync());
     final imageSize = Size(image.width.toDouble(), image.height.toDouble());
-    Alignment alignment = Alignment.center;
-    final GlobalKey imageKey = GlobalKey();
+
+    Offset offset = Offset.zero;
 
     return showDialog<Alignment>(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Centrar Portada'),
-              contentPadding: const EdgeInsets.all(8.0),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Haz clic en la imagen para elegir el centro del recorte.'),
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTapDown: (details) {
-                        final RenderBox box = imageKey.currentContext!.findRenderObject() as RenderBox;
-                        final localPos = box.globalToLocal(details.globalPosition);
-                        
-                        // Normalizar las coordenadas al rango [-1.0, 1.0]
-                        final dx = (localPos.dx / box.size.width) * 2 - 1;
-                        final dy = (localPos.dy / box.size.height) * 2 - 1;
+            Size? containerSize;
+            Size? scaledImageSize;
+            Rect? initialImageRect;
 
+            return AlertDialog(
+              title: const Text('Ajustar Portada'),
+              contentPadding: EdgeInsets.zero,
+              backgroundColor: const Color(0xFF2d2d2d),
+              content: SizedBox(
+                width: 500,
+                height: 600,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    containerSize = Size(constraints.maxWidth, constraints.maxHeight);
+                    
+                    final fittedSizes = applyBoxFit(BoxFit.contain, imageSize, containerSize!);
+                    scaledImageSize = fittedSizes.destination;
+                    
+                    // --- INICIO DE LA CORRECCIÓN ---
+                    const cardAspectRatio = 3 / 3.5;
+                    
+                    double cropWidth;
+                    double cropHeight;
+
+                    // Calcula el tamaño del recorte basándose en el tamaño de la imagen escalada,
+                    // no del contenedor. Esto asegura que el recorte nunca sea más grande que la imagen.
+                    if ((scaledImageSize!.width / scaledImageSize!.height) > cardAspectRatio) {
+                      // La imagen es más ancha que la proporción del recorte; la altura limita.
+                      cropHeight = scaledImageSize!.height;
+                      cropWidth = cropHeight * cardAspectRatio;
+                    } else {
+                      // La imagen es más alta; el ancho limita.
+                      cropWidth = scaledImageSize!.width;
+                      cropHeight = cropWidth / cardAspectRatio;
+                    }
+
+                    final cropRect = Rect.fromCenter(
+                      center: containerSize!.center(Offset.zero),
+                      width: cropWidth,
+                      height: cropHeight,
+                    );
+                    // --- FIN DE LA CORRECCIÓN ---
+
+                    initialImageRect = Alignment.center.inscribe(
+                      scaledImageSize!,
+                      Rect.fromLTWH(0, 0, containerSize!.width, containerSize!.height),
+                    );
+                    
+                    final minDx = cropRect.right - (initialImageRect!.left + scaledImageSize!.width);
+                    final maxDx = cropRect.left - initialImageRect!.left;
+                    final minDy = cropRect.bottom - (initialImageRect!.top + scaledImageSize!.height);
+                    final maxDy = cropRect.top - initialImageRect!.top;
+                    
+                    return GestureDetector(
+                      onPanUpdate: (details) {
                         setDialogState(() {
-                          alignment = Alignment(dx, dy);
+                          // Salvaguarda para evitar el error usando min() y max()
+                          offset = Offset(
+                            (offset.dx + details.delta.dx).clamp(min(minDx, maxDx), max(minDx, maxDx)),
+                            (offset.dy + details.delta.dy).clamp(min(minDy, maxDy), max(minDy, maxDy)),
+                          );
                         });
                       },
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: AspectRatio(
-                          aspectRatio: 3 / 4.5, // Misma relación que la tarjeta del mod
-                          child: FittedBox(
-                            fit: BoxFit.cover,
-                            alignment: alignment,
-                            child: SizedBox.fromSize(
-                              size: imageSize,
-                              child: Image.file(imageFile, key: imageKey),
+                      child: ClipRect(
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Positioned(
+                              left: initialImageRect!.left + offset.dx,
+                              top: initialImageRect!.top + offset.dy,
+                              width: scaledImageSize!.width,
+                              height: scaledImageSize!.height,
+                              child: Image.file(imageFile, fit: BoxFit.fill),
                             ),
-                          ),
+                            CustomPaint(
+                              size: containerSize!,
+                              painter: CropOverlayPainter(cropRect: cropRect),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
               actions: [
@@ -4367,7 +4414,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).pop(alignment);
+                    if (scaledImageSize == null || initialImageRect == null || containerSize == null) return;
+                    
+                    final cropCenter = containerSize!.center(Offset.zero);
+                    final imageTopLeft = initialImageRect!.topLeft + offset;
+                    final focalPoint = cropCenter - imageTopLeft;
+
+                    final alignmentX = (focalPoint.dx / scaledImageSize!.width) * 2 - 1;
+                    final alignmentY = (focalPoint.dy / scaledImageSize!.height) * 2 - 1;
+                    
+                    Navigator.of(context).pop(Alignment(alignmentX, alignmentY));
                   },
                   child: const Text('Guardar'),
                 ),
@@ -4484,5 +4540,38 @@ class _ModThumbnailImageState extends State<ModThumbnailImage> {
     
     // Default placeholder if there's no image URL or if it failed to load.
     return const Icon(Icons.extension, size: 60, color: Colors.white38);
+  }
+  
+}
+
+class CropOverlayPainter extends CustomPainter {
+  final Rect cropRect;
+
+  CropOverlayPainter({required this.cropRect});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final backgroundPaint = Paint()..color = Colors.black.withOpacity(0.6);
+    final cropPaint = Paint()..color = Colors.transparent;
+    final borderPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    // Dibuja el fondo sombreado
+    final backgroundPath = Path.combine(
+      PathOperation.difference,
+      Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height)),
+      Path()..addRect(cropRect),
+    );
+    canvas.drawPath(backgroundPath, backgroundPaint);
+
+    // Dibuja un borde blanco alrededor del área de recorte para que sea más visible
+    canvas.drawRect(cropRect, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return false;
   }
 }
