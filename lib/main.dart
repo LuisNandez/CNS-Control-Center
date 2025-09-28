@@ -3091,20 +3091,58 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  void _showImageGalleryDialog(ModInfo modInfo) async {
+  void _showImageGalleryDialog(ModInfo modInfo) {
     final l10n = AppLocalizations.of(context)!;
-    final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
-    List<dynamic> images = [];
+    
+    // Primero, intenta encontrar una portada personalizada local
+    File? customCoverFile;
+    if (modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty) {
+      final path = p.join(modInfo.directory.path, modInfo.customCoverPath!);
+      final file = File(path);
+      if (file.existsSync()) {
+        customCoverFile = file;
+      }
+    }
 
-    if (await infoFile.exists()) {
-      try {
-        final content = await infoFile.readAsString();
-        final data = json.decode(content);
-        if (data['gallery'] is List) {
-          images = data['gallery'];
-        }
-      } catch (e) {
-        print("Error reading gallery from nexus_info.json: $e");
+    Widget content;
+    
+    if (customCoverFile != null) {
+      // Si existe la portada personalizada, prepara el widget para mostrarla
+      content = InteractiveViewer(
+        panEnabled: true,
+        minScale: 1.0,
+        maxScale: 4.0,
+        child: Center(
+          child: Image.file(
+            customCoverFile,
+            fit: BoxFit.contain,
+          ),
+        ),
+      );
+    } else {
+      // Si no, usa la lógica anterior para mostrar la galería de Nexus
+      final images = modInfo.gallery;
+      if (images != null && images.isNotEmpty) {
+        content = InteractiveViewer(
+          panEnabled: true,
+          minScale: 1.0,
+          maxScale: 4.0,
+          child: Center(
+            child: Image.network(
+              images.first['image'],
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const Center(child: CircularProgressIndicator());
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return const Center(child: Icon(Icons.error, color: Colors.redAccent));
+              },
+              fit: BoxFit.contain,
+            ),
+          ),
+        );
+      } else {
+        content = Center(child: Text(l10n.noImagesFound));
       }
     }
 
@@ -3120,29 +3158,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               SizedBox(
                 width: MediaQuery.of(context).size.width * 0.9,
                 height: MediaQuery.of(context).size.height * 0.8,
-                child: images.isNotEmpty
-                    ? InteractiveViewer(
-                        panEnabled: true,
-                        minScale: 1.0,
-                        maxScale: 4.0,
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: Image.network(
-                            images.first['image'],
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return const Center(
-                                  child: CircularProgressIndicator());
-                            },
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Center(
-                                  child: Icon(Icons.error,
-                                      color: Colors.redAccent));
-                            },
-                          ),
-                        ),
-                      )
-                    : Center(child: Text(l10n.noImagesFound)),
+                child: content, // El widget de contenido se decide arriba
               ),
               Positioned(
                 top: 8,
@@ -3842,6 +3858,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           case 'set_cover':
                             _setCustomCover(modInfo);
                             break;
+                          case 'revert_cover':
+                            _revertToDefaultCover(modInfo);
+                            break;
                           case 'folder':
                             _showInExplorer(modInfo.directory);
                             break;
@@ -3870,6 +3889,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           value: 'set_cover',
                           child: Text(l10n.setCoverTooltip),
                         ),
+                        if (modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty)
+                          const PopupMenuItem(
+                            value: 'revert_cover',
+                            child: Text("Restaurar portada original"),
+                          ),
                         PopupMenuItem(
                           value: 'folder',
                           child: Text(l10n.showInFolder),
@@ -4434,6 +4458,46 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         );
       },
     );
+  }
+
+  Future<void> _revertToDefaultCover(ModInfo mod) async {
+    if (mod.customCoverPath == null) return;
+
+    setState(() => _isLoading = true);
+    try {
+      // 1. Borra el archivo de la imagen personalizada
+      final coverFile = File(p.join(mod.directory.path, mod.customCoverPath!));
+      if (await coverFile.exists()) {
+        await coverFile.delete();
+      }
+
+      // 2. Actualiza el archivo nexus_info.json para eliminar las referencias
+      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+      if (await infoFile.exists()) {
+        final content = await infoFile.readAsString();
+        Map<String, dynamic> data = json.decode(content);
+        
+        data.remove('customCoverPath');
+        data.remove('customCoverAlignmentX');
+        data.remove('customCoverAlignmentY');
+        
+        final encoder = JsonEncoder.withIndent('  ');
+        await infoFile.writeAsString(encoder.convert(data));
+      }
+
+      // 3. Refresca la interfaz de usuario
+      await _loadAllMods();
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error al restaurar la portada: $e'),
+          backgroundColor: Colors.redAccent,
+        ));
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 }
 
