@@ -221,6 +221,7 @@
     "dialogContentReinstall": "You are about to reinstall version '{version}' of the mod '{modName}'.",
     "dialogActionReinstall": "Reinstall",
     "editModNameTooltip": "Edit mod name",
+    "setCoverTooltip": "Set custom cover image",
     "dialogTitleEditModName": "Edit Mod Name",
     "dialogActionResetToDefault": "Reset to Default",
     "dialogLabelNewName": "New name",

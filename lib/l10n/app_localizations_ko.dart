@@ -714,6 +714,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get editModNameTooltip => '모드 이름 편집';
 
   @override
+  String get setCoverTooltip => 'Set custom cover image';
+
+  @override
   String get dialogTitleEditModName => '모드 이름 편집';
 
   @override

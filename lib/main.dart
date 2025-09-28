@@ -38,6 +38,8 @@ class ModInfo {
   String customName;      // User-editable name.
   final List<dynamic>? gallery; // Added to store image gallery info from Nexus Mods.
   final String? fitMeshType;
+  final String? customCoverPath;
+  final Alignment? customCoverAlignment;
 
   ModInfo({
     required this.directory,
@@ -50,6 +52,8 @@ class ModInfo {
     required this.customName,
     this.gallery,
     this.fitMeshType,
+    this.customCoverPath,
+    this.customCoverAlignment,
   });
 
 
@@ -816,6 +820,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String folderName = p.basename(entity.path);
             String displayName = _stripVersionFromFolderName(folderName);
             String customName = folderName;
+            String? customCoverPath;
+            Alignment? customCoverAlignment;
 
             final infoFile = File(p.join(entity.path, 'nexus_info.json'));
             if (await infoFile.exists()) {
@@ -830,7 +836,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 if (installedVersion != null && installedVersion.toLowerCase().startsWith('v')) {
                   installedVersion = installedVersion.substring(1);
                 }
-
+                customCoverPath = data['customCoverPath'];
+                if (data['customCoverAlignmentX'] != null && data['customCoverAlignmentY'] != null) {
+                  customCoverAlignment = Alignment(
+                    data['customCoverAlignmentX'].toDouble(),
+                    data['customCoverAlignmentY'].toDouble(),
+                  );
+                }
                 if (data['displayName'] != null) {
                   displayName = data['displayName'];
                 }
@@ -873,6 +885,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               customName: customName,
               gallery: gallery,
               fitMeshType: fitMeshType,
+              customCoverPath: customCoverPath,
+              customCoverAlignment: customCoverAlignment,
             ));
           } catch (e) {
             print("Error processing directory ${entity.path}: $e");
@@ -3657,6 +3671,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final isIgnored = _ignoredUpdates.contains(updateIdentifier);
     final isHighlighted =
         _lastInstalledModNames.contains(p.basename(modInfo.directory.path));
+    
+    final hasCustomCover = modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty;
+    File? customCoverFile;
+    if (hasCustomCover) {
+      final path = p.join(modInfo.directory.path, modInfo.customCoverPath!);
+      customCoverFile = File(path);
+      // Comprueba si el archivo realmente existe para evitar errores
+      if (!customCoverFile.existsSync()) {
+        customCoverFile = null;
+      }
+    }
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -3684,10 +3709,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   Container(
                     color: Colors.black.withOpacity(0.5),
                     // ++ USE THE NEW THUMBNAIL WIDGET ++
-                    child: ModThumbnailImage(
-                      imageUrl: thumbnailUrl,
-                      thumbnailService: _thumbnailService,
-                    )
+                    child: customCoverFile != null
+                      ? Image.file( // Muestra la portada personalizada
+                          customCoverFile,
+                          fit: BoxFit.cover,
+                          alignment: modInfo.customCoverAlignment ?? Alignment.center,
+                        )
+                      : ModThumbnailImage( // Si no hay, muestra la de Nexus
+                          imageUrl: thumbnailUrl,
+                          thumbnailService: _thumbnailService,
+                        ),
                   ),
                   if (!modInfo.isEnabled)
                     Positioned(
@@ -3807,6 +3838,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           case 'edit':
                             _showEditModNameDialog(modInfo);
                             break;
+                          case 'set_cover':
+                            _setCustomCover(modInfo);
+                            break;
                           case 'folder':
                             _showInExplorer(modInfo.directory);
                             break;
@@ -3830,6 +3864,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                         PopupMenuItem(
                           value: 'edit',
                           child: Text(l10n.editModNameTooltip),
+                        ),
+                        PopupMenuItem(
+                          value: 'set_cover',
+                          child: Text(l10n.setCoverTooltip),
                         ),
                         PopupMenuItem(
                           value: 'folder',
@@ -4215,6 +4253,129 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               )
         ),
       ],
+    );
+  }
+
+  Future<void> _setCustomCover(ModInfo mod) async {
+    // 1. Abrir el explorador para seleccionar una imagen
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      dialogTitle: 'Selecciona una portada para el mod',
+    );
+
+    if (result != null && result.files.single.path != null) {
+      final imageFile = File(result.files.single.path!);
+
+      // 2. Abrir el diálogo para elegir la alineación
+      final Alignment? alignment = await _showCoverAlignmentDialog(imageFile);
+
+      if (alignment == null) return; // El usuario canceló
+
+      setState(() => _isLoading = true);
+      try {
+        // 3. Guardar la imagen y la configuración
+        final extension = p.extension(imageFile.path);
+        final newFileName = '_custom_cover$extension';
+        final destinationPath = p.join(mod.directory.path, newFileName);
+
+        await imageFile.copy(destinationPath);
+
+        final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+        Map<String, dynamic> data = {};
+        if (await infoFile.exists()) {
+          data = json.decode(await infoFile.readAsString());
+        }
+
+        data['customCoverPath'] = newFileName;
+        data['customCoverAlignmentX'] = alignment.x;
+        data['customCoverAlignmentY'] = alignment.y;
+
+        final encoder = JsonEncoder.withIndent('  ');
+        await infoFile.writeAsString(encoder.convert(data));
+
+        // 4. Refrescar la lista de mods para mostrar la nueva imagen
+        await _loadAllMods();
+
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error al guardar la portada: $e'),
+            backgroundColor: Colors.redAccent,
+          ));
+        }
+      } finally {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<Alignment?> _showCoverAlignmentDialog(File imageFile) async {
+    final image = await decodeImageFromList(imageFile.readAsBytesSync());
+    final imageSize = Size(image.width.toDouble(), image.height.toDouble());
+    Alignment alignment = Alignment.center;
+    final GlobalKey imageKey = GlobalKey();
+
+    return showDialog<Alignment>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Centrar Portada'),
+              contentPadding: const EdgeInsets.all(8.0),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Haz clic en la imagen para elegir el centro del recorte.'),
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTapDown: (details) {
+                        final RenderBox box = imageKey.currentContext!.findRenderObject() as RenderBox;
+                        final localPos = box.globalToLocal(details.globalPosition);
+                        
+                        // Normalizar las coordenadas al rango [-1.0, 1.0]
+                        final dx = (localPos.dx / box.size.width) * 2 - 1;
+                        final dy = (localPos.dy / box.size.height) * 2 - 1;
+
+                        setDialogState(() {
+                          alignment = Alignment(dx, dy);
+                        });
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: AspectRatio(
+                          aspectRatio: 3 / 4.5, // Misma relación que la tarjeta del mod
+                          child: FittedBox(
+                            fit: BoxFit.cover,
+                            alignment: alignment,
+                            child: SizedBox.fromSize(
+                              size: imageSize,
+                              child: Image.file(imageFile, key: imageKey),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(alignment);
+                  },
+                  child: const Text('Guardar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

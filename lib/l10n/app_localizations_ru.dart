@@ -731,6 +731,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get editModNameTooltip => 'Изменить имя мода';
 
   @override
+  String get setCoverTooltip => 'Set custom cover image';
+
+  @override
   String get dialogTitleEditModName => 'Изменить имя мода';
 
   @override

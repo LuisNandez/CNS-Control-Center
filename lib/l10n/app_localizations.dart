@@ -1312,6 +1312,12 @@ abstract class AppLocalizations {
   /// **'Edit mod name'**
   String get editModNameTooltip;
 
+  /// No description provided for @setCoverTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Set custom cover image'**
+  String get setCoverTooltip;
+
   /// No description provided for @dialogTitleEditModName.
   ///
   /// In en, this message translates to:

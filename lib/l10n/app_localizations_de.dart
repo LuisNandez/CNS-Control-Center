@@ -735,6 +735,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get editModNameTooltip => 'Mod-Namen bearbeiten';
 
   @override
+  String get setCoverTooltip => 'Set custom cover image';
+
+  @override
   String get dialogTitleEditModName => 'Mod-Namen bearbeiten';
 
   @override
