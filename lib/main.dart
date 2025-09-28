@@ -3300,7 +3300,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         break;
       case ModSort.date:
       default:
-        mods.sort((a, b) => b.lastModified.compareTo(a.lastModified));
+        // ✅ INICIO DE LA SOLUCIÓN
+        mods.sort((a, b) {
+          // 1. Criterio principal: Ordenar por fecha (descendente)
+          final dateCompare = b.lastModified.compareTo(a.lastModified);
+          
+          // 2. Si las fechas son diferentes, usamos ese resultado
+          if (dateCompare != 0) {
+            return dateCompare;
+          }
+          
+          // 3. Criterio de desempate: Si las fechas son iguales, ordenar por nombre (ascendente)
+          //    para garantizar un orden estable y predecible.
+          return a.customName.toLowerCase().compareTo(b.customName.toLowerCase());
+        });
+        // ✅ FIN DE LA SOLUCIÓN
         break;
     }
 
@@ -4311,8 +4325,3 @@ class _ModThumbnailImageState extends State<ModThumbnailImage> {
     return const Icon(Icons.extension, size: 60, color: Colors.white38);
   }
 }
-
-
-
-
-
