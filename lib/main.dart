@@ -4322,9 +4322,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            // ✅ SOLUCIÓN: Declaramos todas las variables necesarias aquí.
             Size? containerSize;
             Size? scaledImageSize;
             Rect? initialImageRect;
+            double? cropWidth;
+            double? cropHeight;
 
             return AlertDialog(
               title: const Text('Ajustar Portada'),
@@ -4340,30 +4343,22 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     final fittedSizes = applyBoxFit(BoxFit.contain, imageSize, containerSize!);
                     scaledImageSize = fittedSizes.destination;
                     
-                    // --- INICIO DE LA CORRECCIÓN ---
-                    const cardAspectRatio = 3 / 3.5;
+                    const cardAspectRatio = 3 / 4.2; // La proporción que ajustaste
                     
-                    double cropWidth;
-                    double cropHeight;
-
-                    // Calcula el tamaño del recorte basándose en el tamaño de la imagen escalada,
-                    // no del contenedor. Esto asegura que el recorte nunca sea más grande que la imagen.
+                    // ✅ SOLUCIÓN: Asignamos valores a las variables superiores (sin 'double' al inicio).
                     if ((scaledImageSize!.width / scaledImageSize!.height) > cardAspectRatio) {
-                      // La imagen es más ancha que la proporción del recorte; la altura limita.
                       cropHeight = scaledImageSize!.height;
-                      cropWidth = cropHeight * cardAspectRatio;
+                      cropWidth = cropHeight! * cardAspectRatio;
                     } else {
-                      // La imagen es más alta; el ancho limita.
                       cropWidth = scaledImageSize!.width;
-                      cropHeight = cropWidth / cardAspectRatio;
+                      cropHeight = cropWidth! / cardAspectRatio;
                     }
 
                     final cropRect = Rect.fromCenter(
                       center: containerSize!.center(Offset.zero),
-                      width: cropWidth,
-                      height: cropHeight,
+                      width: cropWidth!,
+                      height: cropHeight!,
                     );
-                    // --- FIN DE LA CORRECCIÓN ---
 
                     initialImageRect = Alignment.center.inscribe(
                       scaledImageSize!,
@@ -4378,7 +4373,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     return GestureDetector(
                       onPanUpdate: (details) {
                         setDialogState(() {
-                          // Salvaguarda para evitar el error usando min() y max()
                           offset = Offset(
                             (offset.dx + details.delta.dx).clamp(min(minDx, maxDx), max(minDx, maxDx)),
                             (offset.dy + details.delta.dy).clamp(min(minDy, maxDy), max(minDy, maxDy)),
@@ -4414,16 +4408,23 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    if (scaledImageSize == null || initialImageRect == null || containerSize == null) return;
+                    // ✅ SOLUCIÓN: Las variables ahora son accesibles y seguras de usar.
+                    if (scaledImageSize == null || initialImageRect == null || cropWidth == null || cropHeight == null) return;
                     
-                    final cropCenter = containerSize!.center(Offset.zero);
-                    final imageTopLeft = initialImageRect!.topLeft + offset;
-                    final focalPoint = cropCenter - imageTopLeft;
+                    final extraWidth = scaledImageSize!.width - cropWidth!;
+                    final extraHeight = scaledImageSize!.height - cropHeight!;
 
-                    final alignmentX = (focalPoint.dx / scaledImageSize!.width) * 2 - 1;
-                    final alignmentY = (focalPoint.dy / scaledImageSize!.height) * 2 - 1;
+                    final centerOffset = offset;
                     
-                    Navigator.of(context).pop(Alignment(alignmentX, alignmentY));
+                    final alignmentX = extraWidth > 0 ? (centerOffset.dx / (extraWidth / 2)) * -1 : 0.0;
+                    final alignmentY = extraHeight > 0 ? (centerOffset.dy / (extraHeight / 2)) * -1 : 0.0;
+
+                    final finalAlignment = Alignment(
+                      alignmentX.clamp(-1.0, 1.0),
+                      alignmentY.clamp(-1.0, 1.0),
+                    );
+                    
+                    Navigator.of(context).pop(finalAlignment);
                   },
                   child: const Text('Guardar'),
                 ),
