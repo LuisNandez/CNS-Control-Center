@@ -4716,8 +4716,38 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         await infoFile.writeAsString(encoder.convert(data));
       }
 
-      // 3. Refresca la interfaz de usuario
-      await _loadAllMods();
+      // --- INICIO DE LA LÓGICA DE ACTUALIZACIÓN DIRIGIDA ---
+      // 3. Busca el mod en la lista actual
+      final modIndex = _allMods.indexWhere((m) => m.directory.path == mod.directory.path);
+      if (modIndex != -1) {
+        // 4. Crea un nuevo objeto ModInfo con la info de la portada reseteada
+        final updatedMod = ModInfo(
+          // Copia todos los datos existentes...
+          directory: mod.directory,
+          isEnabled: mod.isEnabled,
+          nexusId: mod.nexusId,
+          localVersion: mod.localVersion,
+          lastModified: mod.lastModified, // <-- IMPORTANTE: Conserva la fecha original
+          origin: mod.origin,
+          displayName: mod.displayName,
+          customName: mod.customName,
+          gallery: mod.gallery,
+          fitMeshType: mod.fitMeshType,
+          // ... y resetea los datos de la portada a null.
+          customCoverPath: null,
+          customCoverAlignment: null,
+          customCoverLastModified: null,
+        );
+
+        // 5. Reemplaza el mod antiguo en la lista y refresca la UI
+        setState(() {
+          _allMods[modIndex] = updatedMod;
+        });
+      } else {
+        // Si por alguna razón no se encuentra, recarga todo como antes
+        await _loadAllMods();
+      }
+      // --- FIN DE LA LÓGICA DE ACTUALIZACIÓN DIRIGIDA ---
 
     } catch (e) {
       if (mounted) {
@@ -4726,6 +4756,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           backgroundColor: Colors.redAccent,
         ));
       }
+      await _loadAllMods();
     } finally {
       setState(() => _isLoading = false);
     }
