@@ -15,6 +15,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:window_manager/window_manager.dart';
 import 'settings_page.dart';
 import 'thumbnail_service.dart';
+import 'notification_service.dart';
 
 class AppPrefs {
   static const String languageCode = 'languageCode';
@@ -500,10 +501,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     });
     await _saveSkippedVersions();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(AppLocalizations.of(context)!.snackBarSkippedVersionRemoved),
-        backgroundColor: Colors.orange[800],
-      ));
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.info,
+        title: AppLocalizations.of(context)!.snackBarSkippedVersionRemoved,
+      );
+      
     }
   }
 
@@ -565,10 +568,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         final newPath = result.files.single.path!;
         if (p.basename(newPath).toLowerCase() != '7z.exe') {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(AppLocalizations.of(context)!.snackBar7zipPathInvalid),
-              backgroundColor: Colors.redAccent,
-            ));
+            NotificationService.instance.show(
+              context: context,
+              type: NotificationType.error,
+              title: AppLocalizations.of(context)!.snackBar7zipPathInvalid,
+            );
           }
           return null;
         }
@@ -579,10 +583,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           _7zipPath = newPath;
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.snackBar7zipPathSaved),
-            backgroundColor: Colors.green[600],
-          ));
+            NotificationService.instance.show(
+              context: context,
+              type: NotificationType.success,
+              title: AppLocalizations.of(context)!.snackBar7zipPathSaved,
+            );
         }
         return newPath;
       }
@@ -746,19 +751,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             _finalModsPath = modPath;
           });
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(AppLocalizations.of(context)!.snackBarGamePathSaved),
-              backgroundColor: Colors.green[600],
-            ));
+            NotificationService.instance.show(
+              context: context,
+              type: NotificationType.success,
+              title: AppLocalizations.of(context)!.snackBarGamePathSaved,
+            );
           }
           await _initialize();
           return result;
         } else {
           if(mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(AppLocalizations.of(context)!.snackBarGamePathInvalid),
-              backgroundColor: Colors.redAccent,
-            ));
+            NotificationService.instance.show(
+              context: context,
+              type: NotificationType.error,
+              title: AppLocalizations.of(context)!.snackBarGamePathInvalid,
+            );
           }
           setState(() {
             _statusMessage =
@@ -1038,10 +1045,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         if (version == null) {
           if (_apiKey == null || _apiKey!.isEmpty) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(l10n.errorApiRequiredForRepair),
-                backgroundColor: Colors.redAccent,
-              ));
+              NotificationService.instance.show(
+                context: context,
+                type: NotificationType.error,
+                title: l10n.errorApiRequiredForRepair,
+              );
             }
             break; 
           }
@@ -1091,15 +1099,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     if (mounted) {
       if (repairedCount > 0) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l10n.snackBarRepairComplete(repairedCount)),
-          backgroundColor: Colors.green[600],
-        ));
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.success,
+          title: l10n.snackBarRepairComplete(repairedCount),
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l10n.snackBarRepairNoMods),
-          backgroundColor: Colors.orange,
-        ));
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.info,
+          title: l10n.snackBarRepairNoMods,
+        );
       }
     }
     
@@ -1313,10 +1323,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       await _copyDirectory(sourceDir, destinationDir);
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(l10n.snackBarUE4SSInstalled),
-        backgroundColor: Colors.green,
-      ));
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.success,
+        title: l10n.snackBarUE4SSInstalled,
+      );
       setState(() {
         _statusMessage = l10n.statusUE4SSInstallComplete;
         _clearSelection();
@@ -1621,10 +1632,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         print('WARNING: Could not determine CNS version from main.lua. nexus_info.json will not be created.');
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(l10n.snackBarCNSUpdated),
-        backgroundColor: Colors.green,
-      ));
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.success,
+        title: l10n.snackBarCNSUpdated,
+      );
       setState(() {
         _statusMessage = l10n.statusUpdateComplete;
         _clearSelection();
@@ -1694,10 +1706,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             installedNames.add(modName);
             successCount++;
             if (mounted && _preparedMods.length > 1) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(l10n.snackBarModInstalled(modName)),
-                backgroundColor: Colors.green[800],
-              ));
+              NotificationService.instance.show(
+                context: context,
+                type: NotificationType.success,
+                title: l10n.snackBarModInstalled(modName),
+              );
             }
           } else {
             failCount++;
@@ -1713,22 +1726,29 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           Color snackBarColor = (failCount > 0)
               ? (successCount > 0 ? Colors.orange : Colors.red)
               : Colors.green[600]!;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(
-                  l10n.snackBarBatchInstallComplete(failCount, successCount)),
-              backgroundColor: snackBarColor));
+          NotificationService.instance.show(
+            context: context,
+            type: failCount > 0
+                ? (successCount > 0 ? NotificationType.info : NotificationType.error)
+                : NotificationType.success,
+            title: l10n.snackBarBatchInstallComplete(failCount, successCount),
+          );
         } else if (successCount == 1) {
-           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(l10n.snackBarModInstalled(installedNames.first)),
-            backgroundColor: Colors.green[600]));
+          NotificationService.instance.show(
+            context: context,
+            type: NotificationType.success,
+            title: l10n.snackBarModInstalled(installedNames.first),
+          );
         }
       }
     } catch (e) {
       errorMessage = e.toString();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(l10n.statusError(errorMessage)),
-            backgroundColor: Colors.red));
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: l10n.statusError(errorMessage),
+        );
       }
     } finally {
       setState(() {
@@ -2138,9 +2158,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       await _moveMod(modInfo.directory, _finalModsPath!);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.snackBarModEnabled(modInfo.customName)),
-            backgroundColor: Colors.green));
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.success,
+          title: AppLocalizations.of(context)!.snackBarModEnabled(modInfo.customName),
+);
       }
 
       // --- INICIO DE LA LÓGICA SIN PARPADEO ---
@@ -2198,9 +2220,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       await _moveMod(modInfo.directory, backupDir.path);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.snackBarModDisabled(modInfo.customName)),
-            backgroundColor: Colors.orange));
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.info,
+          title: AppLocalizations.of(context)!.snackBarModDisabled(modInfo.customName),
+        );
       }
 
       // --- INICIO DE LA LÓGICA SIN PARPADEO ---
@@ -2273,9 +2297,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     try {
       final deleted = await _deleteDirectoryWithRetry(modInfo.directory);
       if (deleted && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(l10n.snackBarModDeleted(modName)),
-            backgroundColor: Colors.red[800]));
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: l10n.snackBarModDeleted(modName),
+        );
       } else if (!deleted) {
         throw Exception('Could not delete directory.');
       }
@@ -2296,10 +2322,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     if (disabledMods.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l10n.snackBarNoModsToEnable),
-          backgroundColor: Colors.orange,
-        ));
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.info,
+          title: l10n.snackBarNoModsToEnable,
+        );
       }
       return;
     }
@@ -2367,10 +2394,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       // --- FIN DE LA LÓGICA SIN PARPADEO ---
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l10n.snackBarAllModsEnabled(disabledMods.length)),
-          backgroundColor: Colors.green,
-        ));
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.success,
+          title: l10n.snackBarAllModsEnabled(disabledMods.length),
+        );
       }
     } catch (e) {
       setState(() {
@@ -2389,10 +2417,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     if (enabledMods.isEmpty) {
         if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(l10n.snackBarNoModsToDisable),
-                backgroundColor: Colors.orange,
-            ));
+          NotificationService.instance.show(
+            context: context,
+            type: NotificationType.info,
+            title: l10n.snackBarNoModsToDisable,
+          );
         }
         return;
     }
@@ -2462,10 +2491,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       // --- FIN DE LA LÓGICA SIN PARPADEO ---
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l10n.snackBarAllModsDisabled(enabledMods.length)),
-          backgroundColor: Colors.green,
-        ));
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.info,
+          title: l10n.snackBarAllModsDisabled(enabledMods.length),
+        );
       }
     } catch (e) {
       setState(() {
@@ -2484,10 +2514,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     if (disabledMods.isEmpty) {
         if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(l10n.snackBarNoModsToDelete),
-                backgroundColor: Colors.orange,
-            ));
+          NotificationService.instance.show(
+            context: context,
+            type: NotificationType.info,
+            title: l10n.snackBarNoModsToDelete,
+          );
         }
         return;
     }
@@ -2523,10 +2554,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l10n.snackBarAllModsDeleted(deletedCount)),
-          backgroundColor: Colors.red[800],
-        ));
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: l10n.snackBarAllModsDeleted(deletedCount),
+        );
       }
     } catch (e) {
       setState(() {
@@ -2737,10 +2769,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     if (keyToValidate.isEmpty) {
                       await _saveApiKey('');
                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(l10n.apiKeyRemoved),
-                          backgroundColor: Colors.orange,
-                        ));
+                         NotificationService.instance.show(
+                           context: context,
+                           type: NotificationType.info,
+                           title: l10n.apiKeyRemoved,
+                         );
                         Navigator.of(context).pop('');
                       }
                       return;
@@ -2756,10 +2789,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     if (mounted) {
                        if (isValid) {
                           await _saveApiKey(keyToValidate);
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(l10n.snackBarApiKeySaved),
-                            backgroundColor: Colors.green,
-                          ));
+                          NotificationService.instance.show(
+                            context: context,
+                            type: NotificationType.success,
+                            title: l10n.snackBarApiKeySaved,
+                          );
                           Navigator.of(context).pop(keyToValidate);
                        } else {
                           setDialogState(() {
@@ -2790,10 +2824,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     if (await Directory(newPath).exists()) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(l10n.errorModNameExists(sanitizedName)),
-          backgroundColor: Colors.redAccent,
-        ));
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: l10n.errorModNameExists(sanitizedName),
+        );
       }
       return;
     }
@@ -4584,10 +4619,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Error al guardar la portada: $e'),
-            backgroundColor: Colors.redAccent,
-          ));
+          final l10n = AppLocalizations.of(context)!;
+          NotificationService.instance.show(
+            context: context,
+            type: NotificationType.error,
+            title: l10n.errorRestoringCoverText(e.toString()),
+          );
         }
       } finally {
         setState(() => _isLoading = false);
@@ -4782,10 +4819,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error al restaurar la portada: $e'),
-          backgroundColor: Colors.redAccent,
-        ));
+        final l10n = AppLocalizations.of(context)!;
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: l10n.errorRestoringCoverText(e.toString()),
+        );
       }
       await _loadAllMods();
     } finally {

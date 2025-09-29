@@ -1330,6 +1330,18 @@ abstract class AppLocalizations {
   /// **'Restore Original Cover'**
   String get restoreOriginalCoverText;
 
+  /// No description provided for @errorSavingCoverText.
+  ///
+  /// In en, this message translates to:
+  /// **'Error saving cover image: {error}'**
+  String errorSavingCoverText(Object error);
+
+  /// No description provided for @errorRestoringCoverText.
+  ///
+  /// In en, this message translates to:
+  /// **'Error restoring original cover image: {error}'**
+  String errorRestoringCoverText(Object error);
+
   /// No description provided for @dialogTitleEditModName.
   ///
   /// In en, this message translates to:

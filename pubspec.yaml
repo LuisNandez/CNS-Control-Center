@@ -57,6 +57,7 @@ dependencies:
   scrollable_positioned_list: ^0.3.8 # O la versión más reciente
   image: ^4.1.15
   crypto: ^3.0.6
+  toastification: ^1.2.0
   
 
 

@@ -224,6 +224,10 @@
     "setCoverTooltip": "Set custom cover image",
     "setCoverText": "Set Cover",
     "restoreOriginalCoverText": "Restore Original Cover",
+
+    "errorSavingCoverText": "Error saving cover image: {error}",
+    "errorRestoringCoverText": "Error restoring original cover image: {error}",
+
     "dialogTitleEditModName": "Edit Mod Name",
     "dialogActionResetToDefault": "Reset to Default",
     "dialogLabelNewName": "New name",

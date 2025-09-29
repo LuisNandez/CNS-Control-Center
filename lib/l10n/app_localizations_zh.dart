@@ -715,6 +715,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get restoreOriginalCoverText => 'Restore Original Cover';
 
   @override
+  String errorSavingCoverText(Object error) {
+    return 'Error saving cover image: $error';
+  }
+
+  @override
+  String errorRestoringCoverText(Object error) {
+    return 'Error restoring original cover image: $error';
+  }
+
+  @override
   String get dialogTitleEditModName => '编辑模组名称';
 
   @override
