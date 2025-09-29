@@ -757,6 +757,18 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get editVersionText => 'Edit Version';
+
+  @override
+  String get customVersionText => 'Custom Version';
+
+  @override
+  String get editTagText => 'Edit Tag';
+
+  @override
+  String get customTagText => 'Custom Tag';
+
+  @override
   String get dialogTitleEditModName => 'Editar Nombre del Mod';
 
   @override

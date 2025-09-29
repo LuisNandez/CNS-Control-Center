@@ -53,7 +53,7 @@ class NotificationService {
       style: ToastificationStyle.flat, // <-- CORREGIDO: 'fill' ahora es 'flat'
       // --- FIN DE LA CORRECCIÓN ---
       
-      autoCloseDuration: const Duration(seconds: 6),
+      autoCloseDuration: const Duration(seconds: 5),
       backgroundColor: const Color(0xFF2d2d2d),
       foregroundColor: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),

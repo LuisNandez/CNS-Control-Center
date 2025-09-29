@@ -2157,13 +2157,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       await _moveMod(modInfo.directory, _finalModsPath!);
       
-      if (mounted) {
+      /*if (mounted) {
         NotificationService.instance.show(
           context: context,
           type: NotificationType.success,
           title: AppLocalizations.of(context)!.snackBarModEnabled(modInfo.customName),
-);
-      }
+  );
+      }*/
 
       // --- INICIO DE LA LÓGICA SIN PARPADEO ---
       final modIndex = _allMods.indexWhere((m) => m.directory.path == modInfo.directory.path);
@@ -2219,13 +2219,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       await _moveMod(modInfo.directory, backupDir.path);
 
-      if (mounted) {
+      /*if (mounted) {
         NotificationService.instance.show(
           context: context,
           type: NotificationType.info,
           title: AppLocalizations.of(context)!.snackBarModDisabled(modInfo.customName),
         );
-      }
+      }*/
 
       // --- INICIO DE LA LÓGICA SIN PARPADEO ---
       final modIndex = _allMods.indexWhere((m) => m.directory.path == modInfo.directory.path);
@@ -4051,8 +4051,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                    InkWell(
                      onTap: () => _showEditDialog(
                         context: context,
-                        title: 'Editar Versión',
-                        label: 'Versión Personalizada',
+                        title: l10n.editVersionText,
+                        label: l10n.customVersionText,
                         initialValue: displayVersion,
                         onSave: (newValue) => _updateModCustomProperty(modInfo, newVersion: newValue),
                      ),
@@ -4080,8 +4080,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   child: InkWell(
                     onTap: () => _showEditDialog(
                       context: context,
-                      title: 'Editar Etiqueta',
-                      label: 'Etiqueta Personalizada',
+                      title: l10n.editTagText,
+                      label: l10n.customTagText,
                       initialValue: displayTag,
                       onSave: (newValue) => _updateModCustomProperty(modInfo, newTag: newValue),
                     ),
@@ -4555,7 +4555,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _setCustomCover(ModInfo mod) async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'bmp'],
       dialogTitle: 'Selecciona una portada para el mod',
     );
 
