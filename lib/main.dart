@@ -1142,38 +1142,62 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  Map<String, String>? _extractNexusInfoFromName(String name) {
+  Future<Map<String, String>?> _extractNexusInfoFromName(String name) async {
+    if (_apiKey == null || _apiKey!.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Se necesita una API Key para identificar mods con nombres complejos.'),
+          backgroundColor: Colors.orangeAccent,
+        ));
+      }
+      return null;
+    }
+
     try {
-      final regex = RegExp(r'-(\d+)-(.+)');
-      final match = regex.firstMatch(name);
+      // Busca todos los números de 3 a 5 dígitos que estén entre guiones.
+      final potentialIdsRegex = RegExp(r'-(\d{3,5})-');
+      final matches = potentialIdsRegex.allMatches(name);
 
-      if (match != null) {
-        final id = match.group(1);
-        if (id == null) return null;
+      for (final match in matches) {
+        final potentialId = match.group(1);
+        if (potentialId == null) continue;
 
-        final versionAndFileIdString = match.group(2);
-        if (versionAndFileIdString == null) return null;
+        // Valida cada ID potencial con la API de Nexus.
+        if (await _isValidNexusId(potentialId)) {
+          // ¡ID VÁLIDO ENCONTRADO! Este es nuestro mod.
+          final validId = potentialId;
 
-        final cleanString = versionAndFileIdString.replaceAll(
-            RegExp(r'\.(zip|rar|7z)$', caseSensitive: false), '');
-
-        final parts = cleanString.split('-');
-
-        if (parts.length >= 2) {
-          final versionParts = parts.sublist(0, parts.length - 1);
-          String version = versionParts.join('.');
+          // Lo que queda del nombre después del ID válido.
+          // ej: "v01-1757576128.zip"
+          final remainingString = name.substring(match.end);
           
-          if (version.toLowerCase().startsWith('v')) {
-            version = version.substring(1);
+          // Busca el último guion para separar la versión del ID de descarga.
+          final lastHyphenIndex = remainingString.lastIndexOf('-');
+          
+          if (lastHyphenIndex != -1) {
+            // La versión es todo lo que está entre el ID del mod y el último guion.
+            String version = remainingString.substring(0, lastHyphenIndex);
+
+            // Limpia la cadena de la versión.
+            version = version.replaceAll('-', '.');
+            if (version.toLowerCase().startsWith('v')) {
+              version = version.substring(1);
+            }
+            if (version.toLowerCase().startsWith('cns.')) {
+              version = version.substring(4);
+            }
+
+            print('API Validation successful: Found mod ID $validId with version $version');
+            return {'id': validId, 'version': version};
           }
-          
-          return {'id': id, 'version': version};
         }
       }
     } catch (e) {
-      print(
-          'Could not extract Nexus info from name: $name. Error: $e');
+      print('An error occurred during smart Nexus info extraction: $e');
     }
+    
+    // Si la lógica de validación con API falla, no se encontró nada.
+    print('Could not validate any potential mod ID from filename: $name');
     return null;
   }
 
@@ -1331,7 +1355,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           _extractionStatus = l10n.statusExtractingMultipleFiles(i + 1, fileName, archives.length);
         });
 
-        final nexusInfo = _extractNexusInfoFromName(fileName);
+        final nexusInfo = await _extractNexusInfoFromName(fileName);
         final archiveTempDir = Directory(p.join(_tempExtractionDir!.path, i.toString()));
         await archiveTempDir.create();
         
@@ -1560,14 +1584,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         print('Could not read version from newly installed main.lua: $e');
       }
 
-      final nexusInfo = _extractNexusInfoFromName(p.basename(sourceSBDir.parent.path));
+      final nexusInfo = await _extractNexusInfoFromName(p.basename(sourceSBDir.parent.path));
 
       if (versionFromLua != null) {
         final ue4ssDir = Directory(
             p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss'));
         if (await ue4ssDir.exists()) {
           final infoFile = File(p.join(ue4ssDir.path, 'nexus_info.json'));
-          final String nexusIdForFile = nexusInfo?['id'] ?? '1496';
+          final String nexusIdForFile = nexusInfo != null ? nexusInfo['id'] ?? '1496' : '1496';
 
           final Map<String, dynamic> modData = {
             'nexusId': nexusIdForFile,
@@ -2095,58 +2119,114 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _enableMod(ModInfo modInfo) async {
     if (_finalModsPath == null) return;
-    setState(() {
-      _isLoading = true;
-      _lastInstalledModNames.clear();
-    });
+    setState(() => _isLoading = true);
+
     try {
+      final modName = p.basename(modInfo.directory.path);
+      final newDirectory = Directory(p.join(_finalModsPath!, modName));
+
       await _moveMod(modInfo.directory, _finalModsPath!);
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!
-                .snackBarModEnabled(modInfo.customName)),
+            content: Text(AppLocalizations.of(context)!.snackBarModEnabled(modInfo.customName)),
             backgroundColor: Colors.green));
       }
-      await _loadAllMods();
+
+      // --- INICIO DE LA LÓGICA SIN PARPADEO ---
+      final modIndex = _allMods.indexWhere((m) => m.directory.path == modInfo.directory.path);
+      if (modIndex != -1) {
+        // Crea una copia del mod con el estado y la nueva ruta actualizados
+        final updatedMod = ModInfo(
+          directory: newDirectory, // <-- Actualiza la ruta
+          isEnabled: true,         // <-- Actualiza el estado
+          // Mantiene el resto de la información intacta
+          nexusId: modInfo.nexusId,
+          localVersion: modInfo.localVersion,
+          lastModified: modInfo.lastModified,
+          origin: modInfo.origin,
+          displayName: modInfo.displayName,
+          customName: modInfo.customName,
+          gallery: modInfo.gallery,
+          fitMeshType: modInfo.fitMeshType,
+          customCoverPath: modInfo.customCoverPath,
+          customCoverAlignment: modInfo.customCoverAlignment,
+          customCoverLastModified: modInfo.customCoverLastModified,
+        );
+        setState(() {
+          _allMods[modIndex] = updatedMod;
+        });
+      } else {
+        await _loadAllMods(); // Fallback por si algo sale mal
+      }
+      // --- FIN DE LA LÓGICA SIN PARPADEO ---
+
     } catch (e) {
       setState(() {
-        _statusMessage =
-            AppLocalizations.of(context)!.errorEnableMod(e.toString());
+        _statusMessage = AppLocalizations.of(context)!.errorEnableMod(e.toString());
         _statusColor = Colors.redAccent;
       });
+      await _loadAllMods(); // Si hay un error, recarga todo por seguridad
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _disableMod(ModInfo modInfo) async {
-    setState(() {
-      _isLoading = true;
-      _lastInstalledModNames.clear();
-    });
+    if (_gameRootPath == null) return;
+    setState(() => _isLoading = true);
+    
     try {
-      if (_gameRootPath == null) {
-        throw Exception("Game path is not defined. Cannot disable mod.");
-      }
       final backupDir = Directory(p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__'));
-
       if (!await backupDir.exists()) {
         await backupDir.create(recursive: true);
       }
+      
+      final modName = p.basename(modInfo.directory.path);
+      final newDirectory = Directory(p.join(backupDir.path, modName));
+
       await _moveMod(modInfo.directory, backupDir.path);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!
-                .snackBarModDisabled(modInfo.customName)),
+            content: Text(AppLocalizations.of(context)!.snackBarModDisabled(modInfo.customName)),
             backgroundColor: Colors.orange));
       }
-      await _loadAllMods();
+
+      // --- INICIO DE LA LÓGICA SIN PARPADEO ---
+      final modIndex = _allMods.indexWhere((m) => m.directory.path == modInfo.directory.path);
+      if (modIndex != -1) {
+        // Crea una copia del mod con el estado y la nueva ruta actualizados
+        final updatedMod = ModInfo(
+          directory: newDirectory, // <-- Actualiza la ruta
+          isEnabled: false,        // <-- Actualiza el estado
+          // Mantiene el resto de la información intacta
+          nexusId: modInfo.nexusId,
+          localVersion: modInfo.localVersion,
+          lastModified: modInfo.lastModified,
+          origin: modInfo.origin,
+          displayName: modInfo.displayName,
+          customName: modInfo.customName,
+          gallery: modInfo.gallery,
+          fitMeshType: modInfo.fitMeshType,
+          customCoverPath: modInfo.customCoverPath,
+          customCoverAlignment: modInfo.customCoverAlignment,
+          customCoverLastModified: modInfo.customCoverLastModified,
+        );
+        setState(() {
+          _allMods[modIndex] = updatedMod;
+        });
+      } else {
+        await _loadAllMods(); // Fallback por si algo sale mal
+      }
+      // --- FIN DE LA LÓGICA SIN PARPADEO ---
+      
     } catch (e) {
       setState(() {
-        _statusMessage =
-            AppLocalizations.of(context)!.errorDisableMod(e.toString());
+        _statusMessage = AppLocalizations.of(context)!.errorDisableMod(e.toString());
         _statusColor = Colors.redAccent;
       });
+      await _loadAllMods(); // Si hay un error, recarga todo por seguridad
     } finally {
       setState(() => _isLoading = false);
     }
@@ -2241,9 +2321,40 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (_finalModsPath == null) {
         throw Exception("Mods path is not defined.");
       }
+      
+      // Guarda las rutas originales de los mods que vamos a mover
+      final modsToUpdate = {for (var mod in disabledMods) mod.directory.path};
+
       for (final mod in disabledMods) {
         await _moveMod(mod.directory, _finalModsPath!);
       }
+
+      // --- INICIO DE LA LÓGICA SIN PARPADEO ---
+      // Mapea la lista actual a una nueva lista con los estados actualizados
+      final List<ModInfo> updatedModsList = _allMods.map((originalMod) {
+        if (modsToUpdate.contains(originalMod.directory.path)) {
+          final modName = p.basename(originalMod.directory.path);
+          final newDirectory = Directory(p.join(_finalModsPath!, modName));
+          // Devuelve una copia actualizada del mod
+          return ModInfo(
+            directory: newDirectory, isEnabled: true,
+            nexusId: originalMod.nexusId, localVersion: originalMod.localVersion,
+            lastModified: originalMod.lastModified, origin: originalMod.origin,
+            displayName: originalMod.displayName, customName: originalMod.customName,
+            gallery: originalMod.gallery, fitMeshType: originalMod.fitMeshType,
+            customCoverPath: originalMod.customCoverPath,
+            customCoverAlignment: originalMod.customCoverAlignment,
+            customCoverLastModified: originalMod.customCoverLastModified,
+          );
+        }
+        // Si el mod no cambió, devuélvelo tal cual
+        return originalMod;
+      }).toList();
+
+      setState(() {
+        _allMods = updatedModsList;
+      });
+      // --- FIN DE LA LÓGICA SIN PARPADEO ---
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -2256,8 +2367,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         _statusMessage = AppLocalizations.of(context)!.errorEnableMod(e.toString());
         _statusColor = Colors.redAccent;
       });
+      await _loadAllMods(); // Mantenemos la recarga total solo en caso de error
     } finally {
-      await _loadAllMods();
       setState(() => _isLoading = false);
     }
   }
@@ -2307,9 +2418,38 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         await backupDir.create(recursive: true);
       }
 
+      // Guarda las rutas originales de los mods que vamos a mover
+      final modsToUpdate = {for (var mod in enabledMods) mod.directory.path};
+
       for (final mod in enabledMods) {
         await _moveMod(mod.directory, backupDir.path);
       }
+
+      // --- INICIO DE LA LÓGICA SIN PARPADEO ---
+      final List<ModInfo> updatedModsList = _allMods.map((originalMod) {
+        if (modsToUpdate.contains(originalMod.directory.path)) {
+          final modName = p.basename(originalMod.directory.path);
+          final newDirectory = Directory(p.join(backupDir.path, modName));
+          // Devuelve una copia actualizada del mod
+          return ModInfo(
+            directory: newDirectory, isEnabled: false,
+            nexusId: originalMod.nexusId, localVersion: originalMod.localVersion,
+            lastModified: originalMod.lastModified, origin: originalMod.origin,
+            displayName: originalMod.displayName, customName: originalMod.customName,
+            gallery: originalMod.gallery, fitMeshType: originalMod.fitMeshType,
+            customCoverPath: originalMod.customCoverPath,
+            customCoverAlignment: originalMod.customCoverAlignment,
+            customCoverLastModified: originalMod.customCoverLastModified,
+          );
+        }
+        // Si el mod no cambió, devuélvelo tal cual
+        return originalMod;
+      }).toList();
+
+      setState(() {
+        _allMods = updatedModsList;
+      });
+      // --- FIN DE LA LÓGICA SIN PARPADEO ---
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -2322,8 +2462,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         _statusMessage = AppLocalizations.of(context)!.errorDisableMod(e.toString());
         _statusColor = Colors.redAccent;
       });
+      await _loadAllMods(); // Mantenemos la recarga total solo en caso de error
     } finally {
-      await _loadAllMods();
       setState(() => _isLoading = false);
     }
   }
@@ -3759,6 +3899,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
 
     return Card(
+      key: UniqueKey(),
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         side: BorderSide(
@@ -3996,6 +4137,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final isIgnored = _ignoredUpdates.contains(updateIdentifier);
 
     return Card(
+      key: UniqueKey(),
       margin: const EdgeInsets.symmetric(vertical: 4.0),
       color: isHighlighted
           ? Colors.teal.withOpacity(0.3)
@@ -4354,15 +4496,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       setState(() => _isLoading = true);
       try {
-        // Borra la portada anterior si existe
-        if (mod.customCoverPath != null && mod.customCoverPath!.isNotEmpty) {
-          final oldCoverFile = File(p.join(mod.directory.path, mod.customCoverPath!));
-          if (await oldCoverFile.exists()) {
-            await oldCoverFile.delete();
-          }
-        }
-        
-        // Copia el nuevo archivo de portada
+        // Copia el nuevo archivo de portada (sobreescribirá el anterior si existe)
         final extension = p.extension(imageFile.path);
         final newFileName = '_custom_cover$extension';
         final destinationPath = p.join(mod.directory.path, newFileName);
@@ -4383,13 +4517,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         final encoder = JsonEncoder.withIndent('  ');
         await infoFile.writeAsString(encoder.convert(data));
         
-        // --- INICIO DE LA NUEVA LÓGICA DE ACTUALIZACIÓN ---
-        // En lugar de llamar a _loadAllMods(), actualizamos el mod directamente en la lista.
-        
+        // Actualiza el estado del mod en memoria para un refresco instantáneo
         final modIndex = _allMods.indexWhere((m) => m.directory.path == mod.directory.path);
         if (modIndex != -1) {
-          
-          // Obtiene la fecha de modificación del nuevo archivo
           final newCoverFile = File(destinationPath);
           final lastModified = await newCoverFile.lastModified();
 
@@ -4397,7 +4527,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             directory: mod.directory,
             nexusId: mod.nexusId,
             localVersion: mod.localVersion,
-            lastModified: mod.lastModified, // <-- Esta es la del directorio, la dejamos igual
+            lastModified: mod.lastModified,
             isEnabled: mod.isEnabled,
             origin: mod.origin,
             displayName: mod.displayName,
@@ -4406,7 +4536,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             fitMeshType: mod.fitMeshType,
             customCoverPath: newFileName,
             customCoverAlignment: alignment,
-            customCoverLastModified: lastModified, // <-- Pasa la nueva fecha de modificación
+            customCoverLastModified: lastModified,
           );
 
           setState(() {
@@ -4415,7 +4545,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         } else {
           await _loadAllMods();
         }
-        // --- FIN DE LA NUEVA LÓGICA ---
 
       } catch (e) {
         if (mounted) {
@@ -4594,6 +4723,25 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  /// Consulta la API de Nexus para verificar si un ID de mod es válido para Stellar Blade.
+  Future<bool> _isValidNexusId(String modId) async {
+    if (_apiKey == null || _apiKey!.isEmpty) {
+      return false; // No se puede validar sin una API key.
+    }
+    try {
+      final uri = Uri.parse('https://api.nexusmods.com/v1/games/stellarblade/mods/$modId.json');
+      final response = await http.get(
+        uri,
+        headers: {'apikey': _apiKey!, 'accept': 'application/json'},
+      );
+      // Si la respuesta es 200 OK, el mod existe y el ID es válido.
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error during API validation for mod ID $modId: $e');
+      return false; // Error de red u otro problema.
     }
   }
 }
