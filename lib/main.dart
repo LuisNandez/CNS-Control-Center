@@ -982,7 +982,38 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     int repairedCount = 0;
     for (final mod in List.from(_allMods)) {
       final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
-      if (await infoFile.exists()) continue;
+
+      // --- INICIO DE LA LÓGICA MEJORADA ---
+      bool needsRepair = false;
+      if (await infoFile.exists()) {
+        try {
+          final content = await infoFile.readAsString();
+          // Si el archivo está vacío o no es un JSON válido, necesita reparación.
+          if (content.trim().isEmpty) {
+            needsRepair = true;
+          } else {
+            final data = json.decode(content) as Map<String, dynamic>;
+            final nexusId = data['nexusId'] as String?;
+            // Si el nexusId es nulo o una cadena vacía, necesita reparación.
+            if (nexusId == null || nexusId.isEmpty) {
+              needsRepair = true;
+            }
+          }
+        } catch (e) {
+          // Si el JSON está mal formado, también necesita reparación.
+          print('Found malformed nexus_info.json for ${mod.customName}, scheduling for repair. Error: $e');
+          needsRepair = true;
+        }
+      } else {
+        // Si el archivo no existe, definitivamente necesita reparación.
+        needsRepair = true;
+      }
+
+      // Si después de todas las comprobaciones no necesita reparación, pasa al siguiente mod.
+      if (!needsRepair) {
+        continue;
+      }
+      // --- FIN DE LA LÓGICA MEJORADA ---
 
       final primaryDisplayName = await _getDisplayNameForMod(mod.directory);
       if (primaryDisplayName != null && _modDatabase.containsKey(primaryDisplayName)) {
@@ -1011,14 +1042,27 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         final currentFolderName = p.basename(mod.directory.path);
 
         try {
-          final Map<String, dynamic> modData = {
-            'nexusId': nexusId,
-            'displayName': compositeDisplayName,
-            'customName': currentFolderName,
-            'installedVersion': version,
-            'installDate': DateTime.now().toIso8601String(),
-            'origin': 'repaired',
-          };
+          // Lee los datos existentes para no perder información como el 'customName'.
+          Map<String, dynamic> modData = {};
+          if (await infoFile.exists()) {
+            try {
+              final content = await infoFile.readAsString();
+              if (content.trim().isNotEmpty) {
+                 modData = json.decode(content);
+              }
+            } catch (e) {
+              // Si está mal formado, empezamos de cero pero lo registramos.
+              print('Could not parse existing nexus_info.json for ${mod.customName}. A new one will be created.');
+            }
+          }
+
+          // Actualiza o añade los campos necesarios.
+          modData['nexusId'] = nexusId;
+          modData['displayName'] = compositeDisplayName;
+          modData['customName'] ??= currentFolderName; // Si no tenía customName, usa el de la carpeta.
+          modData['installedVersion'] = version;
+          modData['installDate'] ??= DateTime.now().toIso8601String(); // Si no tenía fecha, la añade.
+          modData['origin'] = 'repaired';
 
           final galleryData = await _fetchModImages(nexusId);
           if (galleryData != null) {
@@ -1030,7 +1074,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           
           repairedCount++;
         } catch (e) {
-          print('Could not self-repair or rename mod "$primaryDisplayName": $e');
+          print('Could not self-repair mod "$primaryDisplayName": $e');
         }
       }
     }
@@ -1050,6 +1094,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
     
     await _loadAllMods();
+    setState(() => _isLoading = false);
   }
 
   Future<String?> _fetchLatestModVersion(String nexusId) async {
