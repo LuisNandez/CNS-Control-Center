@@ -709,6 +709,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get setCoverTooltip => 'Set custom cover image';
 
   @override
+  String get setCoverText => 'Set Cover';
+
+  @override
+  String get restoreOriginalCoverText => 'Restore Original Cover';
+
+  @override
   String get dialogTitleEditModName => '编辑模组名称';
 
   @override

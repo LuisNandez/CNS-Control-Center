@@ -740,6 +740,12 @@ class AppLocalizationsPt extends AppLocalizations {
   String get setCoverTooltip => 'Set custom cover image';
 
   @override
+  String get setCoverText => 'Set Cover';
+
+  @override
+  String get restoreOriginalCoverText => 'Restore Original Cover';
+
+  @override
   String get dialogTitleEditModName => 'Editar Nome do Mod';
 
   @override

@@ -222,6 +222,8 @@
     "dialogActionReinstall": "Reinstall",
     "editModNameTooltip": "Edit mod name",
     "setCoverTooltip": "Set custom cover image",
+    "setCoverText": "Set Cover",
+    "restoreOriginalCoverText": "Restore Original Cover",
     "dialogTitleEditModName": "Edit Mod Name",
     "dialogActionResetToDefault": "Reset to Default",
     "dialogLabelNewName": "New name",

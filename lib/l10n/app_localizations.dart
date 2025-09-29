@@ -1318,6 +1318,18 @@ abstract class AppLocalizations {
   /// **'Set custom cover image'**
   String get setCoverTooltip;
 
+  /// No description provided for @setCoverText.
+  ///
+  /// In en, this message translates to:
+  /// **'Set Cover'**
+  String get setCoverText;
+
+  /// No description provided for @restoreOriginalCoverText.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore Original Cover'**
+  String get restoreOriginalCoverText;
+
   /// No description provided for @dialogTitleEditModName.
   ///
   /// In en, this message translates to:
