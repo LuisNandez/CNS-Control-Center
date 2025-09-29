@@ -42,6 +42,8 @@ class ModInfo {
   final String? customCoverPath;
   final Alignment? customCoverAlignment;
   final DateTime? customCoverLastModified;
+  final String? customVersion;
+  final String? customFitMeshType;
 
   ModInfo({
     required this.directory,
@@ -57,6 +59,8 @@ class ModInfo {
     this.customCoverPath,
     this.customCoverAlignment,
     this.customCoverLastModified,
+    this.customVersion,
+    this.customFitMeshType,
   });
 
 
@@ -826,6 +830,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String folderName = p.basename(entity.path);
             String displayName = _stripVersionFromFolderName(folderName);
             String customName = folderName;
+            String? customVersion;
+            String? customFitMeshType;
 
             final infoFile = File(p.join(entity.path, 'nexus_info.json'));
             if (await infoFile.exists()) {
@@ -857,6 +863,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   );
                 }
                 // --- FIN DE LA CORRECCIÓN ---
+                customVersion = data['customVersion'] as String?;
+                customFitMeshType = data['customFitMeshType'] as String?;
 
                 if (data['displayName'] != null) {
                   displayName = data['displayName'];
@@ -901,6 +909,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               customCoverPath: customCoverPath,
               customCoverAlignment: customCoverAlignment,
               customCoverLastModified: customCoverLastModified, // <-- Pasa la fecha leída
+              customVersion: customVersion,
+              customFitMeshType: customFitMeshType,
             ));
           } catch (e) {
             print("Error processing directory ${entity.path}: $e");
@@ -3886,7 +3896,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final isIgnored = _ignoredUpdates.contains(updateIdentifier);
     final isHighlighted =
         _lastInstalledModNames.contains(p.basename(modInfo.directory.path));
-    
     final hasCustomCover = modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty;
     File? customCoverFile;
     if (hasCustomCover) {
@@ -3894,6 +3903,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       final path = p.join(modInfo.directory.path, modInfo.customCoverPath!);
       customCoverFile = File(path);
     }
+    final displayVersion = modInfo.customVersion ?? modInfo.localVersion;
+    final displayTag = modInfo.customFitMeshType ?? modInfo.fitMeshType ?? l10n.modCategoryOther;
 
     return Card(
       key: UniqueKey(),
@@ -4001,16 +4012,26 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     ),
                   ),
                 ),
-                if (modInfo.localVersion != null)
-                   Padding(
-                     padding: const EdgeInsets.only(left: 4.0),
-                     child: Text(
-                        'v${modInfo.localVersion}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Theme.of(context).colorScheme.primary,
+                if (displayVersion != null)
+                   InkWell(
+                     onTap: () => _showEditDialog(
+                        context: context,
+                        title: 'Editar Versión',
+                        label: 'Versión Personalizada',
+                        initialValue: displayVersion,
+                        onSave: (newValue) => _updateModCustomProperty(modInfo, newVersion: newValue),
+                     ),
+                     borderRadius: BorderRadius.circular(4),
+                     child: Padding(
+                       padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                       child: Text(
+                          'v$displayVersion',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                         ),
-                      ),
+                     ),
                    ),
               ],
             ),
@@ -4021,18 +4042,28 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Flexible(
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
+                  child: InkWell(
+                    onTap: () => _showEditDialog(
+                      context: context,
+                      title: 'Editar Etiqueta',
+                      label: 'Etiqueta Personalizada',
+                      initialValue: displayTag,
+                      onSave: (newValue) => _updateModCustomProperty(modInfo, newTag: newValue),
                     ),
-                    child: Text(
-                      modInfo.fitMeshType ?? l10n.modCategoryOther,
-                      style: const TextStyle(fontSize: 10, color: Colors.white70),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        displayTag,
+                        style: const TextStyle(fontSize: 10, color: Colors.white70),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
                     ),
                   ),
                 ),
@@ -4778,6 +4809,111 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     } catch (e) {
       print('Error during API validation for mod ID $modId: $e');
       return false; // Error de red u otro problema.
+    }
+  }
+
+  /// Muestra un diálogo para editar un valor de texto personalizado (versión o etiqueta).
+  Future<void> _showEditDialog({
+    required BuildContext context,
+    required String title,
+    required String label,
+    required String initialValue,
+    required Function(String) onSave,
+  }) async {
+    final controller = TextEditingController(text: initialValue);
+    final l10n = AppLocalizations.of(context)!;
+
+    final newValue = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(labelText: label),
+        ),
+        actions: [
+          // Botón para restaurar el valor por defecto (guardando un string vacío)
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(''),
+            child: Text(l10n.dialogActionResetToDefault),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (newValue != null) {
+      onSave(newValue);
+    }
+  }
+
+  /// Guarda una propiedad personalizada (versión o etiqueta) en el JSON y actualiza el estado.
+  Future<void> _updateModCustomProperty(ModInfo mod, {String? newVersion, String? newTag}) async {
+    setState(() => _isLoading = true);
+    try {
+      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+      Map<String, dynamic> data = {};
+      if (await infoFile.exists()) {
+        final content = await infoFile.readAsString();
+        if(content.isNotEmpty) data = json.decode(content);
+      }
+
+      String? updatedVersion = mod.customVersion;
+      String? updatedTag = mod.customFitMeshType;
+
+      if (newVersion != null) {
+        if (newVersion.isEmpty) {
+          data.remove('customVersion');
+          updatedVersion = null;
+        } else {
+          data['customVersion'] = newVersion;
+          updatedVersion = newVersion;
+        }
+      }
+
+      if (newTag != null) {
+        if (newTag.isEmpty) {
+          data.remove('customFitMeshType');
+          updatedTag = null;
+        } else {
+          data['customFitMeshType'] = newTag;
+          updatedTag = newTag;
+        }
+      }
+
+      final encoder = JsonEncoder.withIndent('  ');
+      await infoFile.writeAsString(encoder.convert(data));
+
+      final modIndex = _allMods.indexWhere((m) => m.directory.path == mod.directory.path);
+      if (modIndex != -1) {
+        final updatedMod = ModInfo(
+          directory: mod.directory, isEnabled: mod.isEnabled, nexusId: mod.nexusId,
+          localVersion: mod.localVersion, lastModified: mod.lastModified,
+          origin: mod.origin, displayName: mod.displayName, customName: mod.customName,
+          gallery: mod.gallery, fitMeshType: mod.fitMeshType,
+          customCoverPath: mod.customCoverPath, customCoverAlignment: mod.customCoverAlignment,
+          customCoverLastModified: mod.customCoverLastModified,
+          // Aplica los valores actualizados
+          customVersion: updatedVersion,
+          customFitMeshType: updatedTag,
+        );
+        setState(() { _allMods[modIndex] = updatedMod; });
+      } else {
+        await _loadAllMods();
+      }
+    } catch (e) {
+      print('Error updating custom property: $e');
+      await _loadAllMods();
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 }
