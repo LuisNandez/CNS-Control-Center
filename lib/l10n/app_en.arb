@@ -226,12 +226,10 @@
     "restoreOriginalCoverText": "Restore Original Cover",
     "errorSavingCoverText": "Error saving cover image: {error}",
     "errorRestoringCoverText": "Error restoring original cover image: {error}",
-    
     "editVersionText": "Edit Version",
     "customVersionText": "Custom Version",
     "editTagText": "Edit Tag",
     "customTagText": "Custom Tag",
-
     "dialogTitleEditModName": "Edit Mod Name",
     "dialogActionResetToDefault": "Reset to Default",
     "dialogLabelNewName": "New name",

@@ -85,15 +85,14 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String settingsSkippedVersionsCount(Object count) {
-    return 'пропущено $count версий';
+    return 'Пропущено версий: $count';
   }
 
   @override
   String get dialogTitleSkippedVersions => 'Пропущенные версии модов';
 
   @override
-  String get dialogNoSkippedVersions =>
-      'Вы не пропускали ни одной версии мода.';
+  String get dialogNoSkippedVersions => 'У вас нет пропущенных версий модов.';
 
   @override
   String get dialogSkippedVersions => 'Пропущенная версия';
@@ -104,7 +103,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get dialogContentRepairMods =>
-      'Предупреждение: Эта функция находится в разработке и может работать некорректно.\n\nОна просканирует моды без файла \'nexus_info.json\' и, если найдет их в вашей локальной базе данных, создаст для них этот файл. Она также попытается переименовать папку мода, чтобы включить найденную версию (например, \'Мой мод\' -> \'Мой мод v1.2\').\n\nПриоритет версий:\n1. Из имени папки.\n2. Из поля описания мода.\n3. Из последней версии на Nexus Mods (требуется API).\n\nВы хотите продолжить?';
+      'Внимание: Эта функция находится в разработке и может работать неидеально.\n\nОна просканирует моды без файла \'nexus_info.json\' и, если найдет их в вашей локальной базе данных, создаст для них этот файл. Также будет предпринята попытка переименовать папку мода, чтобы включить найденную версию (например, \'Мой Мод\' -> \'Мой Мод v1.2\').\n\nПриоритет версии:\n1. Из имени папки.\n2. Из поля описания мода.\n3. Из последней версии на Nexus Mods (требуется API).\n\nПродолжить?';
 
   @override
   String get dialogActionRunRepair => 'Запустить восстановление';
@@ -119,11 +118,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get snackBarRepairStarted =>
-      'Процесс восстановления устаревших модов начался...';
+      'Процесс восстановления устаревших модов запущен...';
 
   @override
   String snackBarRepairComplete(Object count) {
-    return 'Восстановление завершено. Обновлено $count мод(ов).';
+    return 'Восстановление завершено. Обновлено модов: $count.';
   }
 
   @override
@@ -205,7 +204,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String statusModsFound(Object disabledCount, Object enabledCount) {
-    return 'Включено $enabledCount мод(ов), отключено $disabledCount.';
+    return 'Включено модов: $enabledCount, отключено: $disabledCount.';
   }
 
   @override
@@ -215,17 +214,17 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String statusFilesSelected(Object count) {
-    return 'Выбрано $count файл(ов). Готово к установке.';
+    return 'Выбрано файлов: $count. Готово к установке.';
   }
 
   @override
   String statusFolderSelected(Object folderName) {
-    return 'Папка \"$folderName\" выбрана. Готово к установке.';
+    return 'Папка \"$folderName\" выбрана. Готова к установке.';
   }
 
   @override
   String statusArchiveLoaded(Object count, Object fileName) {
-    return 'Файл \"$fileName\" загружен. $count файл(ов) готовы к установке.';
+    return 'Файл \"$fileName\" загружен. Готово к установке файлов: $count.';
   }
 
   @override
@@ -248,21 +247,21 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get dialogContent7zip =>
-      'Для распаковки этого файла приложению требуется 7-Zip.\n\nПожалуйста, установите его с официального сайта, а затем нажмите «Подтвердить».';
+      'Для распаковки этого файла приложению требуется 7-Zip.\n\nПожалуйста, установите его с официального сайта и нажмите \"Подтвердить\".';
 
   @override
   String get dialogContent7zipNotFound =>
-      '7-Zip еще не обнаружен. Убедитесь, что он установлен в пути по умолчанию, и повторите попытку.';
+      '7-Zip не был обнаружен. Убедитесь, что он установлен в стандартную директорию, и попробуйте снова.';
 
   @override
   String get dialogTitleCNSUpdate => 'Обнаружено обновление основной системы';
 
   @override
   String get dialogContentCNSUpdate =>
-      'Обнаружено обновление для «Custom Nanosuit System».\n\nЭто заменит файлы в основной папке игры (StellarBlade\\SB). Вы хотите продолжить?';
+      'Обнаружено обновление для \"Пользовательской системы нанокостюма\".\n\nЭто приведет к замене файлов в основной папке игры (StellarBlade\\SB). Продолжить?';
 
   @override
-  String get dialogTitleMultipleJsons => 'Обнаружено несколько файлов .json';
+  String get dialogTitleMultipleJsons => 'Обнаружено несколько .json файлов';
 
   @override
   String dialogContentMultipleJsons(Object count) {
@@ -274,12 +273,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String dialogContentModExists(Object modName) {
-    return 'Мод с именем «$modName» уже установлен.\n\nВы хотите обновить его? Старые файлы будут удалены перед установкой новых.';
+    return 'Мод с именем \"$modName\" уже установлен.\n\nХотите обновить его? Старые файлы будут удалены перед установкой новых.';
   }
 
   @override
   String dialogContentModUpdate(Object newModName, Object oldModName) {
-    return 'Найдена более старая версия «$oldModName».\n\nВы хотите удалить ее и обновить до «$newModName»?';
+    return 'Найдена более старая версия \'$oldModName\'.\n\nХотите удалить ее и обновиться до \'$newModName\'?';
   }
 
   @override
@@ -287,7 +286,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String dialogContentDeleteMod(Object modName) {
-    return 'Вы собираетесь навсегда удалить мод «$modName». Это действие нельзя отменить.\n\nВы уверены?';
+    return 'Вы собираетесь навсегда удалить мод \"$modName\". Это действие нельзя отменить.\n\nВы уверены?';
   }
 
   @override
@@ -321,26 +320,27 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String snackBarModInstalled(Object modName) {
-    return 'Мод «$modName» успешно установлен.';
+    return 'Мод \"$modName\" успешно установлен.';
   }
 
   @override
   String snackBarModEnabled(Object modName) {
-    return 'Мод «$modName» включен.';
+    return 'Мод \"$modName\" включен.';
   }
 
   @override
   String snackBarModDisabled(Object modName) {
-    return 'Мод «$modName» отключен.';
+    return 'Мод \"$modName\" отключен.';
   }
 
   @override
   String snackBarModDeleted(Object modName) {
-    return 'Мод «$modName» удален навсегда.';
+    return 'Мод \"$modName\" удален навсегда.';
   }
 
   @override
-  String get snackBarCNSUpdated => 'Custom Nanosuit System успешно обновлена.';
+  String get snackBarCNSUpdated =>
+      'Пользовательская система нанокостюма успешно обновлена.';
 
   @override
   String get snackBarApiKeySaved => 'Ключ API успешно сохранен.';
@@ -413,7 +413,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get errorNoJsonFound =>
-      'Каждый мод должен содержать хотя бы один файл .json.';
+      'Каждый мод должен содержать хотя бы один .json файл.';
 
   @override
   String errorInvalidJsonFormat(Object fileName) {
@@ -422,12 +422,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String errorNoDisplayName(Object fileName) {
-    return 'Файл $fileName не является модом Custom Nanosuit System (отсутствует «DisplayName»).';
+    return 'Файл $fileName не является модом для Custom Nanosuit System (отсутствует \"DisplayName\").';
   }
 
   @override
   String get errorNoValidDisplayName =>
-      'В файлах .json не найдено действительного «DisplayName».';
+      'В .json файлах не найдено действительного \"DisplayName\".';
 
   @override
   String errorEnableMod(Object error) {
@@ -453,7 +453,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get statusUpdateSystemCancelled => 'Обновление системы отменено.';
 
   @override
-  String get statusUpdatingCNS => 'Обновление Custom Nanosuit System...';
+  String get statusUpdatingCNS =>
+      'Обновление Пользовательской системы нанокостюма...';
 
   @override
   String statusExtractingFile(Object fileName) {
@@ -466,25 +467,25 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get errorNoCompatibleFilesInFolder =>
-      'Выбранная папка не содержит совместимых файлов мода.';
+      'Выбранная папка не содержит совместимых файлов модов.';
 
   @override
   String get errorNoCompatibleFilesInArchive =>
-      'Сжатый файл не содержит совместимых файлов мода.';
+      'Сжатый файл не содержит совместимых файлов модов.';
 
   @override
   String get errorNoJsonInSelection =>
-      'Выбор не содержит действительного файла .json мода.';
+      'Выбор не содержит действительного .json файла мода.';
 
   @override
-  String get aboutTitle => 'О CNS Control Center';
+  String get aboutTitle => 'О Центре управления CNS';
 
   @override
   String get aboutContent =>
-      'Это приложение является менеджером модов для Stellar Blade, предназначенным для работы с Custom Nanosuit System (CNS).\n\nТребование: для полной функциональности с файлами .rar и .7z на вашей системе должен быть установлен 7-Zip.';
+      'Это приложение - менеджер модов для Stellar Blade, разработанный для работы с Пользовательской системой нанокостюма (CNS).\n\nТребование: Для полной функциональности с файлами .rar и .7z на вашей системе должен быть установлен 7-Zip.';
 
   @override
-  String get aboutLinkText => 'Посетите мой профиль создателя';
+  String get aboutLinkText => 'Посетить мой профиль создателя';
 
   @override
   String get creatorProfileUrl =>
@@ -514,17 +515,17 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get dialogContentApiKey =>
-      'Чтобы проверять обновления модов, вам нужен личный ключ API от Nexus Mods.';
+      'Для проверки обновлений модов вам понадобится личный ключ API от Nexus Mods.';
 
   @override
   String get dialogContentApiKeyInstructions =>
-      '1. Перейдите на Nexus Mods и войдите в систему.\n2. Нажмите на свой аватар и перейдите в «Настройки сайта».\n3. Перейдите на вкладку «API».\n4. Нажмите «Создать новый ключ API».\n5. Скопируйте ключ и вставьте его сюда.';
+      '1. Перейдите на Nexus Mods и войдите в систему.\n2. Нажмите на свой аватар и перейдите в \'Настройки сайта\'.\n3. Перейдите на вкладку \'API\'.\n4. Нажмите \'Сгенерировать новый ключ API\'.\n5. Скопируйте ключ и вставьте его сюда.';
 
   @override
   String get apiKey => 'Ключ API';
 
   @override
-  String get apiKeyHintText => 'Вставьте свой ключ API сюда';
+  String get apiKeyHintText => 'Вставьте ваш ключ API сюда';
 
   @override
   String get dialogActionSave => 'Сохранить';
@@ -540,35 +541,35 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get errorApiKeyMissing =>
-      'Ключ API Nexus Mods не настроен. Пожалуйста, добавьте его через значок ключа в верхней панели.';
+      'Ключ API Nexus Mods не настроен. Пожалуйста, добавьте его через иконку ключа на верхней панели.';
 
   @override
   String get statusCheckingUpdates => 'Проверка обновлений модов...';
 
   @override
   String statusUpdatesFound(Object count) {
-    return 'Найдено $count обновлений!';
+    return 'Найдено обновлений: $count!';
   }
 
   @override
   String get statusNoUpdates => 'Все моды обновлены.';
 
   @override
-  String get selectModArchive => 'Выбрать архив мода';
+  String get selectModArchive => 'Выбрать архив с модом';
 
   @override
-  String get viewImageGallery => 'Просмотреть изображение';
+  String get viewImageGallery => 'Посмотреть изображение';
 
   @override
   String get imageGallery => 'Галерея изображений';
 
   @override
   String get noImagesFound =>
-      'Для этого мода не найдено изображений, или не введен ключ API. Пожалуйста, введите ключ API и проверьте обновления после этого.';
+      'Для этого мода не найдено изображений, или ключ API не был введен. Пожалуйста, введите ключ API и проверьте обновления после этого.';
 
   @override
   String errorFetchingImages(Object error) {
-    return 'Ошибка получения изображений: $error';
+    return 'Ошибка при загрузке изображений: $error';
   }
 
   @override
@@ -584,7 +585,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get modCategoryOther => 'Не указано';
 
   @override
-  String get dialogContentUpdateOptions => 'Что бы вы хотели сделать?';
+  String get dialogContentUpdateOptions => 'Что вы хотите сделать?';
 
   @override
   String get dialogActionIgnoreVersion => 'Игнорировать';
@@ -626,10 +627,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get noModsFound => 'Моды не найдены.';
 
   @override
-  String get viewTypeGrid => 'Вид сетки';
+  String get viewTypeGrid => 'Вид сеткой';
 
   @override
-  String get viewTypeList => 'Вид списка';
+  String get viewTypeList => 'Вид списком';
 
   @override
   String statusExtractingMultipleFiles(
@@ -648,7 +649,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get dialogContentUE4SS =>
-      'Обнаружен инструмент UE4SS. Вы хотите установить его в «StellarBlade\\SB\\Binaries\\Win64»?\n\nЭто необходимо для работы многих модов.';
+      'Обнаружен инструмент UE4SS. Хотите установить его в \'StellarBlade\\SB\\Binaries\\Win64\'?\n\nЭто необходимо для работы многих модов.';
 
   @override
   String get dialogActionInstallTool => 'Установить инструмент';
@@ -680,7 +681,7 @@ class AppLocalizationsRu extends AppLocalizations {
     String baseModName,
     String newModName,
   ) {
-    return 'Альтернативная версия этого мода уже установлена: «$oldModName».\n\nВы собираетесь установить другую альтернативу с именем «$newModName».';
+    return 'Альтернативная версия этого мода уже установлена: \'$oldModName\'.\n\nВы собираетесь установить другую альтернативную версию с именем \'$newModName\'.';
   }
 
   @override
@@ -698,7 +699,7 @@ class AppLocalizationsRu extends AppLocalizations {
     String oldVersion,
     String newVersion,
   ) {
-    return 'Вы собираетесь обновить мод «$modName».\n\nУстановленная версия: $oldVersion\nНовая версия: $newVersion';
+    return 'Вы собираетесь обновить мод \'$modName\'.\n\nУстановленная версия: $oldVersion\nНовая версия: $newVersion';
   }
 
   @override
@@ -710,7 +711,7 @@ class AppLocalizationsRu extends AppLocalizations {
     String oldVersion,
     String newVersion,
   ) {
-    return 'Предупреждение: вы собираетесь установить более старую версию мода «$modName».\n\nУстановленная версия: $oldVersion\nВерсия для установки: $newVersion';
+    return 'Внимание: Вы собираетесь установить более старую версию мода \'$modName\'.\n\nУстановленная версия: $oldVersion\nУстанавливаемая версия: $newVersion';
   }
 
   @override
@@ -721,7 +722,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String dialogContentReinstall(Object modName, Object version) {
-    return 'Вы собираетесь переустановить версию «$version» мода «$modName».';
+    return 'Вы собираетесь переустановить версию \'$version\' мода \'$modName\'.';
   }
 
   @override
@@ -731,35 +732,35 @@ class AppLocalizationsRu extends AppLocalizations {
   String get editModNameTooltip => 'Изменить имя мода';
 
   @override
-  String get setCoverTooltip => 'Set custom cover image';
+  String get setCoverTooltip => 'Установить пользовательскую обложку';
 
   @override
-  String get setCoverText => 'Set Cover';
+  String get setCoverText => 'Установить обложку';
 
   @override
-  String get restoreOriginalCoverText => 'Restore Original Cover';
+  String get restoreOriginalCoverText => 'Восстановить исходную обложку';
 
   @override
   String errorSavingCoverText(Object error) {
-    return 'Error saving cover image: $error';
+    return 'Ошибка сохранения обложки: $error';
   }
 
   @override
   String errorRestoringCoverText(Object error) {
-    return 'Error restoring original cover image: $error';
+    return 'Ошибка восстановления исходной обложки: $error';
   }
 
   @override
-  String get editVersionText => 'Edit Version';
+  String get editVersionText => 'Изменить версию';
 
   @override
-  String get customVersionText => 'Custom Version';
+  String get customVersionText => 'Пользовательская версия';
 
   @override
-  String get editTagText => 'Edit Tag';
+  String get editTagText => 'Изменить тег';
 
   @override
-  String get customTagText => 'Custom Tag';
+  String get customTagText => 'Пользовательский тег';
 
   @override
   String get dialogTitleEditModName => 'Изменить имя мода';
@@ -772,7 +773,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String errorModNameExists(Object modName) {
-    return 'Мод с именем «$modName» уже существует.';
+    return 'Мод с именем \"$modName\" уже существует.';
   }
 
   @override
@@ -781,7 +782,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get dialogContentRepairedModWarning =>
-      'Этот мод может не иметь правильной информации о версии. Рекомендуется переустановить последнюю версию для обеспечения совместимости.';
+      'У этого мода может быть неверная информация о версии. Для обеспечения совместимости рекомендуется переустановить последнюю версию.';
 
   @override
   String get repairedModTooltip => 'Информация о восстановленном моде';
@@ -797,7 +798,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String dialogContentDisableAll(int count) {
-    return 'Вы уверены, что хотите отключить все $count включенных модов? Они будут перемещены в папку резервного копирования.';
+    return 'Вы уверены, что хотите отключить все $count включенных модов? Они будут перемещены в резервную папку.';
   }
 
   @override
@@ -815,7 +816,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String snackBarAllModsDeleted(int count) {
-    return 'Все $count отключенных модов были удалены навсегда.';
+    return 'Все $count отключенных модов были навсегда удалены.';
   }
 
   @override
@@ -832,7 +833,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String dialogContentEnableAll(int count) {
-    return 'Вы уверены, что хотите включить все $count отключенных модов? Они будут перемещены в основную папку модов.';
+    return 'Вы уверены, что хотите включить все $count отключенных модов? Они будут перемещены в основную папку с модами.';
   }
 
   @override
