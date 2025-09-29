@@ -3890,12 +3890,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final hasCustomCover = modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty;
     File? customCoverFile;
     if (hasCustomCover) {
+      // Creamos el objeto File de forma optimista, sin comprobar si existe aquí.
       final path = p.join(modInfo.directory.path, modInfo.customCoverPath!);
       customCoverFile = File(path);
-      // Comprueba si el archivo realmente existe para evitar errores
-      if (!customCoverFile.existsSync()) {
-        customCoverFile = null;
-      }
     }
 
     return Card(
@@ -3926,13 +3923,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     color: Colors.black.withOpacity(0.5),
                     // ++ USE THE NEW THUMBNAIL WIDGET ++
                     child: customCoverFile != null
-                      ? Image.file( // Muestra la portada personalizada
+                      ? Image.file(
                           customCoverFile,
-                          key: ValueKey(modInfo.customCoverLastModified),
+                          key: ValueKey(modInfo.customCoverLastModified), // Volvemos a la ValueKey que es más eficiente
                           fit: BoxFit.cover,
                           alignment: modInfo.customCoverAlignment ?? Alignment.center,
+                          // Si el archivo no se encuentra (por la condición de carrera),
+                          // usa la imagen de Nexus como fallback.
+                          errorBuilder: (context, error, stackTrace) {
+                            return ModThumbnailImage(
+                              imageUrl: thumbnailUrl,
+                              thumbnailService: _thumbnailService,
+                            );
+                          },
                         )
-                      : ModThumbnailImage( // Si no hay, muestra la de Nexus
+                      : ModThumbnailImage(
                           imageUrl: thumbnailUrl,
                           thumbnailService: _thumbnailService,
                         ),
