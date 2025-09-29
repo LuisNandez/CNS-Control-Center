@@ -62,7 +62,7 @@ class ModInfo {
 
   static String? _extractVersionFromName(String name) {
     // Extracts a version number (e.g., 1.0.0) from a file/folder name (e.g., ModName v1.0.0)
-    final regex = RegExp(r'[vV]?([0-9]+(\.[0-9a-zA-Z]+)*)');
+    final regex = RegExp(r'\b[vV][\s-]?([0-9]+(\.[0-9a-zA-Z]+)*)');
     final match = regex.firstMatch(name);
     return match?.group(1);
   }
