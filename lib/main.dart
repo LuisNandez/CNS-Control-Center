@@ -5104,6 +5104,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
 }
 
+// main.dart (Modificación en el estilo del botón en ModDetailsPage)
+
 class ModDetailsPage extends StatefulWidget {
   final ModInfo modInfo;
   final ThumbnailService thumbnailService;
@@ -5124,7 +5126,7 @@ class ModDetailsPage extends StatefulWidget {
 class _ModDetailsPageState extends State<ModDetailsPage> {
   late String _userNotes;
   ImageProvider? _imageProvider;
-  bool _isImageLoading = true; // Para mostrar un indicador de carga
+  bool _isImageLoading = true;
 
   @override
   void initState() {
@@ -5133,9 +5135,7 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
     _loadImageProvider();
   }
 
-  // Ahora es una función asíncrona para poder usar el servicio de caché
   Future<void> _loadImageProvider() async {
-    // 1. Intenta cargar la portada personalizada (sigue siendo la prioridad)
     if (widget.modInfo.customCoverPath != null && widget.modInfo.customCoverPath!.isNotEmpty) {
       final path = p.join(widget.modInfo.directory.path, widget.modInfo.customCoverPath!);
       final file = File(path);
@@ -5150,13 +5150,11 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
       }
     }
 
-    // 2. Si no hay portada, usa el ThumbnailService para la imagen de Nexus
     final imageUrl = (widget.modInfo.gallery != null && widget.modInfo.gallery!.isNotEmpty)
         ? widget.modInfo.gallery!.first['image'] as String?
         : null;
 
     if (imageUrl != null) {
-      // Pide la imagen al servicio (la descargará y guardará en caché si es necesario)
       final file = await widget.thumbnailService.getThumbnail(imageUrl);
       if (mounted && file != null) {
         setState(() {
@@ -5167,7 +5165,7 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
     } else {
        if (mounted) {
         setState(() {
-          _isImageLoading = false; // No hay imagen que cargar
+          _isImageLoading = false;
         });
       }
     }
@@ -5223,62 +5221,116 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
         title: Text(l10n.modDetailsTitle, overflow: TextOverflow.ellipsis),
         backgroundColor: const Color(0xFF2a2a2a),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // --- COLUMNA IZQUIERDA: IMAGEN DEL MOD ---
-              Expanded(
-                flex: 1,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    AspectRatio(
-                      aspectRatio: 3 / 4,
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.black26,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.5),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                          image: _imageProvider != null
-                              ? DecorationImage(
-                                  image: _imageProvider!,
-                                  fit: BoxFit.cover,
-                                  alignment: widget.modInfo.customCoverAlignment ?? Alignment.center,
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- COLUMNA IZQUIERDA: IMAGEN Y NUEVO BOTÓN (FIJA) ---
+            // MODIFICACIÓN: Se envuelve la portada en un Sizedbox para controlar su ancho.
+            SizedBox(
+              // Aquí puedes definir un ancho fijo o usar MediaQuery para un ancho adaptable.
+              // Por ejemplo, para un ancho máximo de 300:
+              width: 300, 
+              // O para que ocupe un porcentaje de la pantalla:
+              // width: MediaQuery.of(context).size.width * 0.25, 
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AspectRatio(
+                    aspectRatio: 3 / 4,
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.black26,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.5),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                        image: _imageProvider != null
+                            ? DecorationImage(
+                                image: _imageProvider!,
+                                fit: BoxFit.cover,
+                                alignment: widget.modInfo.customCoverAlignment ?? Alignment.center,
+                              )
+                            : null,
+                      ),
+                      child: _isImageLoading
+                          ? const Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.tealAccent)))
+                          : (_imageProvider == null
+                              ? Center(
+                                  child: Text(
+                                    widget.modInfo.customName,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white70),
+                                  ),
                                 )
-                              : null,
+                              : null),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (widget.modInfo.nexusId != null)
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Theme.of(context).colorScheme.secondary,
+                            const Color(0xFF00695C),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        child: _isImageLoading
-                            ? const Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.tealAccent)))
-                            : (_imageProvider == null
-                                ? Center(
-                                    child: Text(
-                                      widget.modInfo.customName,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white70),
-                                    ),
-                                  )
-                                : null),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton.icon(
+                        // MODIFICACIÓN: Nuevo icono y padding horizontal.
+                        icon: const Icon(Icons.link_rounded, size: 20, color: Colors.white), // Icono más moderno
+                        label: Text(
+                          l10n.openInNexusMods,
+                          style: const TextStyle(color: Colors.white, fontSize: 16), // Fuente un poco más grande
+                        ),
+                        onPressed: () async {
+                          final url = Uri.parse('https://www.nexusmods.com/stellarblade/mods/${widget.modInfo.nexusId}');
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(url);
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20), // Más padding horizontal
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                ],
               ),
+            ),
 
-              const SizedBox(width: 30),
+            const SizedBox(width: 30),
 
-              // --- COLUMNA DERECHA: DETALLES DEL MOD ---
-              Expanded(
-                flex: 2,
+            // --- COLUMNA DERECHA: DETALLES DEL MOD (DESPLAZABLE) ---
+            Expanded(
+              flex: 2,
+              child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -5332,8 +5384,8 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
