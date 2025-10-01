@@ -34,6 +34,7 @@ class ModInfo {
   final String? nexusId;
   String? localVersion;
   final DateTime lastModified;
+  final DateTime? installDate;
   bool isEnabled;
   final String? origin;
   final String displayName; // Internal identifier, not user-editable.
@@ -54,6 +55,7 @@ class ModInfo {
     this.nexusId,
     this.localVersion,
     required this.lastModified,
+    this.installDate,
     required this.isEnabled,
     this.origin,
     required this.displayName,
@@ -4915,6 +4917,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       MaterialPageRoute(
         builder: (context) => ModDetailsPage(
           modInfo: modInfo,
+          thumbnailService: _thumbnailService,
           onSaveNotes: (newNotes) async {
             await _updateUserNotes(modInfo, newNotes);
           },
@@ -5096,11 +5099,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
 class ModDetailsPage extends StatefulWidget {
   final ModInfo modInfo;
+  final ThumbnailService thumbnailService;
   final Future<void> Function(String newNotes) onSaveNotes;
+  
 
   const ModDetailsPage({
     super.key,
     required this.modInfo,
+    required this.thumbnailService,
     required this.onSaveNotes,
   });
 
@@ -5110,38 +5116,55 @@ class ModDetailsPage extends StatefulWidget {
 
 class _ModDetailsPageState extends State<ModDetailsPage> {
   late String _userNotes;
-  // ✅ Variable para decidir qué imagen mostrar
   ImageProvider? _imageProvider;
+  bool _isImageLoading = true; // Para mostrar un indicador de carga
 
   @override
   void initState() {
     super.initState();
     _userNotes = widget.modInfo.userNotes ?? '';
-    _loadImageProvider(); // ✅ Llama a la nueva función al iniciar
+    _loadImageProvider();
   }
 
-  // ✅ Nueva función para determinar qué imagen usar
-  void _loadImageProvider() {
-    // 1. Intenta cargar la portada personalizada
+  // Ahora es una función asíncrona para poder usar el servicio de caché
+  Future<void> _loadImageProvider() async {
+    // 1. Intenta cargar la portada personalizada (sigue siendo la prioridad)
     if (widget.modInfo.customCoverPath != null && widget.modInfo.customCoverPath!.isNotEmpty) {
       final path = p.join(widget.modInfo.directory.path, widget.modInfo.customCoverPath!);
       final file = File(path);
       if (file.existsSync()) {
-        // Si existe, usa la imagen local. La ValueKey fuerza la recarga si el archivo cambia.
-        _imageProvider = FileImage(file, scale: 1.0);
-        return; // Termina aquí si la encontramos
+        if (mounted) {
+          setState(() {
+            _imageProvider = FileImage(file);
+            _isImageLoading = false;
+          });
+        }
+        return;
       }
     }
 
-    // 2. Si no hay portada personalizada, usa la de Nexus
+    // 2. Si no hay portada, usa el ThumbnailService para la imagen de Nexus
     final imageUrl = (widget.modInfo.gallery != null && widget.modInfo.gallery!.isNotEmpty)
         ? widget.modInfo.gallery!.first['image'] as String?
         : null;
+
     if (imageUrl != null) {
-      _imageProvider = NetworkImage(imageUrl);
+      // Pide la imagen al servicio (la descargará y guardará en caché si es necesario)
+      final file = await widget.thumbnailService.getThumbnail(imageUrl);
+      if (mounted && file != null) {
+        setState(() {
+          _imageProvider = FileImage(file);
+          _isImageLoading = false;
+        });
+      }
+    } else {
+       if (mounted) {
+        setState(() {
+          _isImageLoading = false; // No hay imagen que cargar
+        });
+      }
     }
   }
-
 
   Future<void> _showEditNotesDialog() async {
     final notesController = TextEditingController(text: _userNotes);
@@ -5186,7 +5209,7 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFF1e1e1e),
       appBar: AppBar(
@@ -5206,7 +5229,7 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     AspectRatio(
-                      aspectRatio: 3 / 4,
+                      aspectRatio: 3 / 4.5,
                       child: Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
@@ -5219,7 +5242,6 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                               offset: const Offset(0, 5),
                             ),
                           ],
-                          // ✅ Usa la imagen decidida en _imageProvider
                           image: _imageProvider != null
                               ? DecorationImage(
                                   image: _imageProvider!,
@@ -5228,16 +5250,17 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                                 )
                               : null,
                         ),
-                        // ✅ Muestra el placeholder solo si _imageProvider es nulo
-                        child: _imageProvider == null
-                            ? Center(
-                                child: Text(
-                                  widget.modInfo.customName,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white70),
-                                ),
-                              )
-                            : null, // Si hay imagen, no se necesita placeholder
+                        child: _isImageLoading
+                            ? const Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.tealAccent)))
+                            : (_imageProvider == null
+                                ? Center(
+                                    child: Text(
+                                      widget.modInfo.customName,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white70),
+                                    ),
+                                  )
+                                : null),
                       ),
                     ),
                   ],
@@ -5269,14 +5292,12 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                         ),
                       ),
                     const SizedBox(height: 15),
-
                     if (widget.modInfo.author != null && widget.modInfo.author!.isNotEmpty) ...[
                       Text(l10n.modAuthor, style: const TextStyle(color: Colors.tealAccent, fontSize: 14)),
                       const SizedBox(height: 4),
                       Text(widget.modInfo.author!, style: const TextStyle(fontSize: 18, color: Colors.white)),
                       const SizedBox(height: 20),
                     ],
-
                     _buildInfoSection(
                       context,
                       l10n.modDescription,
@@ -5284,7 +5305,6 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                       icon: Icons.description_outlined,
                     ),
                     const SizedBox(height: 20),
-
                     _buildInfoSection(
                       context,
                       l10n.personalNotes,
@@ -5294,7 +5314,6 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                       onEdit: _showEditNotesDialog,
                     ),
                     const SizedBox(height: 20),
-                    
                     if (widget.modInfo.fitMeshType != null && widget.modInfo.fitMeshType!.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 10.0),
