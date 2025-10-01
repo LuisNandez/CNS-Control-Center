@@ -45,6 +45,9 @@ class ModInfo {
   final DateTime? customCoverLastModified;
   final String? customVersion;
   final String? customFitMeshType;
+  final String? summary;   // Descripción/resumen del mod.
+  final String? author;    // Autor del mod.
+  String? userNotes;     // Notas personales del usuario.
 
   ModInfo({
     required this.directory,
@@ -62,6 +65,9 @@ class ModInfo {
     this.customCoverLastModified,
     this.customVersion,
     this.customFitMeshType,
+    this.summary,
+    this.author,
+    this.userNotes,
   });
 
 
@@ -816,6 +822,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     });
 
+    // Esta función interna procesa un directorio (mods activados o desactivados)
     Future<List<ModInfo>> getModsFromDirectory(String path, bool isEnabled) async {
       final dir = Directory(path);
       if (!await dir.exists()) return [];
@@ -825,6 +832,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         if (entity is Directory) {
           if (p.basename(entity.path) == '__MOD_BACKUPS__') continue;
           try {
+            // Inicializa todas las variables que vamos a leer.
             String? nexusId;
             String? installedVersion;
             String? origin;
@@ -832,34 +840,60 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String? fitMeshType;
             String? customCoverPath;
             Alignment? customCoverAlignment;
-            DateTime? customCoverLastModified; // <-- Variable para la fecha
-
+            DateTime? customCoverLastModified;
             String folderName = p.basename(entity.path);
             String displayName = _stripVersionFromFolderName(folderName);
             String customName = folderName;
             String? customVersion;
             String? customFitMeshType;
+            String? summary;
+            String? author;
+            String? userNotes;
 
             final infoFile = File(p.join(entity.path, 'nexus_info.json'));
             if (await infoFile.exists()) {
                 final content = await infoFile.readAsString();
                 Map<String, dynamic> data = json.decode(content);
+
+                // --- INICIO DE LA LÓGICA DE ACTUALIZACIÓN AUTOMÁTICA ---
+                final String? modManagerVersion = data['managerVersion'];
+                final String? nexusIdForCheck = data['nexusId'];
+                bool needsMetadataUpdate = modManagerVersion == null || (_compareVersions(_appVersion, modManagerVersion) > 0);
+
+                if (needsMetadataUpdate && nexusIdForCheck != null && (data['summary'] == null || data['author'] == null)) {
+                  print('Auto-updating metadata for mod: ${data['customName']}');
+                  final nexusData = await _fetchNexusModData(nexusIdForCheck);
+
+                  if (nexusData != null) {
+                    data['summary'] ??= nexusData['summary'];
+                    data['author'] ??= nexusData['author'];
+                    data['managerVersion'] = _appVersion; // Actualizamos la versión para no volver a revisar
+
+                    final encoder = JsonEncoder.withIndent('  ');
+                    await infoFile.writeAsString(encoder.convert(data));
+                    print('...metadata for ${data['customName']} updated successfully.');
+                  }
+                }
+                // --- FIN DE LA LÓGICA DE ACTUALIZACIÓN ---
+
+                // Leemos los datos del mapa 'data' (que ahora puede estar actualizado)
                 nexusId = data['nexusId'];
                 installedVersion = data['installedVersion'];
                 origin = data['origin'];
                 gallery = data['gallery'];
                 fitMeshType = data['fitMeshType'];
+                summary = data['summary'];
+                author = data['author'];
+                userNotes = data['userNotes'];
 
                 if (installedVersion != null && installedVersion.toLowerCase().startsWith('v')) {
                   installedVersion = installedVersion.substring(1);
                 }
                 
-                // --- INICIO DE LA CORRECCIÓN ---
                 customCoverPath = data['customCoverPath'];
                 if (customCoverPath != null) {
                   final coverFile = File(p.join(entity.path, customCoverPath));
                   if (await coverFile.exists()) {
-                    // Lee la fecha de modificación del archivo de portada al iniciar
                     customCoverLastModified = await coverFile.lastModified();
                   }
                 }
@@ -869,7 +903,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     data['customCoverAlignmentY'].toDouble(),
                   );
                 }
-                // --- FIN DE LA CORRECCIÓN ---
                 customVersion = data['customVersion'] as String?;
                 customFitMeshType = data['customFitMeshType'] as String?;
 
@@ -883,6 +916,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 }
             }
 
+            // Lógica de fallback si el nexus_info.json no existe o está incompleto
             if (fitMeshType == null) {
               fitMeshType = await _getFitMeshTypeForMod(entity);
               if (fitMeshType != null && await infoFile.exists()) {
@@ -897,11 +931,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 }
               }
             }
-
             installedVersion ??= ModInfo._extractVersionFromName(folderName);
 
             final fileStat = await entity.stat();
 
+            // Añade el mod a la lista con toda la información cargada (y potencialmente actualizada)
             mods.add(ModInfo(
               directory: entity,
               nexusId: nexusId,
@@ -915,9 +949,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               fitMeshType: fitMeshType,
               customCoverPath: customCoverPath,
               customCoverAlignment: customCoverAlignment,
-              customCoverLastModified: customCoverLastModified, // <-- Pasa la fecha leída
+              customCoverLastModified: customCoverLastModified,
               customVersion: customVersion,
               customFitMeshType: customFitMeshType,
+              summary: summary,
+              author: author,
+              userNotes: userNotes,
             ));
           } catch (e) {
             print("Error processing directory ${entity.path}: $e");
@@ -1082,9 +1119,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           modData['installDate'] ??= DateTime.now().toIso8601String(); // Si no tenía fecha, la añade.
           modData['origin'] = 'repaired';
 
-          final galleryData = await _fetchModImages(nexusId);
-          if (galleryData != null) {
-            modData['gallery'] = galleryData;
+          final nexusData = await _fetchNexusModData(nexusId);
+          if (nexusData != null) {
+            modData['gallery'] = nexusData['gallery'];
+            modData['summary'] = nexusData['summary'];
+            modData['author'] = nexusData['author'];
           }
 
           final encoder = JsonEncoder.withIndent('  ');
@@ -1620,9 +1659,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             'installDate': DateTime.now().toIso8601String(),
           };
 
-          final galleryData = await _fetchModImages(nexusIdForFile);
-          if (galleryData != null) {
-            modData['gallery'] = galleryData;
+          final nexusData = await _fetchNexusModData(nexusIdForFile);
+          if (nexusData != null) {
+            modData['gallery'] = nexusData['gallery'];
+            modData['summary'] = nexusData['summary'];
+            modData['author'] = nexusData['author'];
           }
 
           final encoder = JsonEncoder.withIndent('  ');
@@ -2123,9 +2164,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         'fitMeshType': fitMeshType,
       };
 
-      final galleryData = await _fetchModImages(nexusId);
-      if (galleryData != null) {
-        modData['gallery'] = galleryData;
+      final nexusData = await _fetchNexusModData(nexusId);
+      if (nexusData != null) {
+        modData['gallery'] = nexusData['gallery'];
+        modData['summary'] = nexusData['summary'];
+        modData['author'] = nexusData['author'];
       }
 
       final encoder = JsonEncoder.withIndent('  ');
@@ -2987,9 +3030,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  Future<List<Map<String, dynamic>>?> _fetchModImages(String nexusId) async {
+  Future<Map<String, dynamic>?> _fetchNexusModData(String nexusId) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
-      print("API Key not configured, not fetching images.");
+      print("API Key not configured, not fetching Nexus data.");
       return null;
     }
     final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
@@ -3001,23 +3044,29 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       if (response.statusCode == 200) {
         final modDetails = json.decode(response.body);
+        
+        // Extraemos la información que necesitamos
         final pictureUrl = modDetails['picture_url'] as String?;
-
+        final summary = modDetails['summary'] as String?;
+        final author = modDetails['author'] as String?;
+        
+        List<Map<String, dynamic>>? gallery;
         if (pictureUrl != null && pictureUrl.isNotEmpty) {
-          return [
-            {
-              "image": pictureUrl,
-              "thumbnail": pictureUrl,
-              "description": "Mod main image"
-            }
-          ];
+          gallery = [{"image": pictureUrl, "thumbnail": pictureUrl}];
         }
+
+        // Devolvemos un mapa con todos los datos.
+        return {
+          'gallery': gallery,
+          'summary': summary,
+          'author': author,
+        };
       }
 
-      print("Strategy to get images failed for mod $nexusId (code: ${response.statusCode}).");
+      print("Failed to fetch Nexus data for mod $nexusId (code: ${response.statusCode}).");
       return null;
     } catch (e) {
-      print("An exception occurred while getting images for mod $nexusId: $e");
+      print("An exception occurred while fetching Nexus data for mod $nexusId: $e");
       return null;
     }
   }
@@ -3027,6 +3076,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       List<Map<String, dynamic>>? galleryData}) async {
     final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
     Map<String, dynamic> modData = {};
+    if (galleryData != null) {
+      modData['gallery'] = galleryData;
+    }
 
     try {
       if (await infoFile.exists()) {
@@ -3039,9 +3091,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     if (updateCheckData != null) {
       modData['lastUpdateCheck'] = updateCheckData;
-    }
-    if (galleryData != null) {
-      modData['gallery'] = galleryData;
     }
 
     final encoder = JsonEncoder.withIndent('  ');
@@ -3173,10 +3222,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         'timestamp': DateTime.now().toIso8601String(),
         'statusCode': response.statusCode,
       };
-      final galleryData = await _fetchModImages(nexusId);
-
-      await _updateNexusInfoFile(modDirectory,
-          updateCheckData: updateCheckData, galleryData: galleryData);
+      await _updateNexusInfoFile(modDirectory, updateCheckData: updateCheckData);
     } catch (e) {
       print(
           'Could not update nexus_info.json file for $modName: $e');
@@ -3970,10 +4016,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: GestureDetector(
-              onDoubleTap: () {
-                _showImageGalleryDialog(modInfo);
-              },
+            child: InkWell( // Usamos InkWell para un mejor efecto visual al tocar
+              onDoubleTap: () => _showDetailsPage(modInfo), // <-- ACCIÓN DE UN SOLO CLIC
+              //onDoubleTap: () => _showImageGalleryDialog(modInfo), // Mantenemos el doble clic para la galería
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -4864,6 +4909,83 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
+  Future<void> _showDetailsPage(ModInfo modInfo) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ModDetailsPage(
+          modInfo: modInfo,
+          onSaveNotes: (newNotes) async {
+            await _updateUserNotes(modInfo, newNotes);
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updateUserNotes(ModInfo mod, String newNotes) async {
+    try {
+      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+      Map<String, dynamic> data = {};
+      if (await infoFile.exists()) {
+        final content = await infoFile.readAsString();
+        if (content.isNotEmpty) data = json.decode(content);
+      }
+
+      data['userNotes'] = newNotes;
+
+      final encoder = JsonEncoder.withIndent('  ');
+      await infoFile.writeAsString(encoder.convert(data));
+
+      // Actualiza el estado en memoria para un refresco instantáneo
+      final modIndex = _allMods.indexWhere((m) => m.directory.path == mod.directory.path);
+      if (modIndex != -1) {
+        setState(() {
+          _allMods[modIndex].userNotes = newNotes;
+        });
+      }
+    } catch (e) {
+      print('Error saving user notes: $e');
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: 'Error saving notes',
+          description: e.toString(),
+        );
+      }
+    }
+  }
+
+  /// Fetches gallery images for a mod from Nexus Mods API.
+  Future<List<Map<String, dynamic>>?> _fetchModImages(String nexusId) async {
+    if (_apiKey == null || _apiKey!.isEmpty) {
+      print("API Key not configured, not fetching mod images.");
+      return null;
+    }
+    final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
+    try {
+      final modDetailsUrl = Uri.parse(
+          'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId.json');
+      var response = await http.get(modDetailsUrl, headers: headers);
+
+      if (response.statusCode == 200) {
+        final modDetails = json.decode(response.body);
+        final pictureUrl = modDetails['picture_url'] as String?;
+        if (pictureUrl != null && pictureUrl.isNotEmpty) {
+          return [
+            {"image": pictureUrl, "thumbnail": pictureUrl}
+          ];
+        }
+      }
+      print("Failed to fetch mod images for mod $nexusId (code: ${response.statusCode}).");
+      return null;
+    } catch (e) {
+      print("An exception occurred while fetching mod images for mod $nexusId: $e");
+      return null;
+    }
+  }
+
   /// Muestra un diálogo para editar un valor de texto personalizado (versión o etiqueta).
   Future<void> _showEditDialog({
     required BuildContext context,
@@ -4967,6 +5089,283 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+
+}
+
+class ModDetailsPage extends StatefulWidget {
+  final ModInfo modInfo;
+  final Future<void> Function(String newNotes) onSaveNotes;
+
+  const ModDetailsPage({
+    super.key,
+    required this.modInfo,
+    required this.onSaveNotes,
+  });
+
+  @override
+  State<ModDetailsPage> createState() => _ModDetailsPageState();
+}
+
+class _ModDetailsPageState extends State<ModDetailsPage> {
+  late String _userNotes;
+  // ✅ Variable para decidir qué imagen mostrar
+  ImageProvider? _imageProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    _userNotes = widget.modInfo.userNotes ?? '';
+    _loadImageProvider(); // ✅ Llama a la nueva función al iniciar
+  }
+
+  // ✅ Nueva función para determinar qué imagen usar
+  void _loadImageProvider() {
+    // 1. Intenta cargar la portada personalizada
+    if (widget.modInfo.customCoverPath != null && widget.modInfo.customCoverPath!.isNotEmpty) {
+      final path = p.join(widget.modInfo.directory.path, widget.modInfo.customCoverPath!);
+      final file = File(path);
+      if (file.existsSync()) {
+        // Si existe, usa la imagen local. La ValueKey fuerza la recarga si el archivo cambia.
+        _imageProvider = FileImage(file, scale: 1.0);
+        return; // Termina aquí si la encontramos
+      }
+    }
+
+    // 2. Si no hay portada personalizada, usa la de Nexus
+    final imageUrl = (widget.modInfo.gallery != null && widget.modInfo.gallery!.isNotEmpty)
+        ? widget.modInfo.gallery!.first['image'] as String?
+        : null;
+    if (imageUrl != null) {
+      _imageProvider = NetworkImage(imageUrl);
+    }
+  }
+
+
+  Future<void> _showEditNotesDialog() async {
+    final notesController = TextEditingController(text: _userNotes);
+    final l10n = AppLocalizations.of(context)!;
+
+    final newNotes = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2d2d2d),
+        title: Text(l10n.editNotes),
+        content: TextField(
+          controller: notesController,
+          autofocus: true,
+          maxLines: 5,
+          decoration: InputDecoration(
+            hintText: l10n.notesHintText,
+            border: const OutlineInputBorder(),
+          ),
+          style: const TextStyle(color: Colors.white),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.dialogActionCancel),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(notesController.text),
+            child: Text(l10n.dialogActionSave),
+          ),
+        ],
+      ),
+    );
+
+    if (newNotes != null && newNotes != _userNotes) {
+      await widget.onSaveNotes(newNotes);
+      setState(() {
+        _userNotes = newNotes;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
+    return Scaffold(
+      backgroundColor: const Color(0xFF1e1e1e),
+      appBar: AppBar(
+        title: Text(l10n.modDetailsTitle, overflow: TextOverflow.ellipsis),
+        backgroundColor: const Color(0xFF2a2a2a),
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- COLUMNA IZQUIERDA: IMAGEN DEL MOD ---
+              Expanded(
+                flex: 1,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    AspectRatio(
+                      aspectRatio: 3 / 4,
+                      child: Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.black26,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.5),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                          // ✅ Usa la imagen decidida en _imageProvider
+                          image: _imageProvider != null
+                              ? DecorationImage(
+                                  image: _imageProvider!,
+                                  fit: BoxFit.cover,
+                                  alignment: widget.modInfo.customCoverAlignment ?? Alignment.center,
+                                )
+                              : null,
+                        ),
+                        // ✅ Muestra el placeholder solo si _imageProvider es nulo
+                        child: _imageProvider == null
+                            ? Center(
+                                child: Text(
+                                  widget.modInfo.customName,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white70),
+                                ),
+                              )
+                            : null, // Si hay imagen, no se necesita placeholder
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 30),
+
+              // --- COLUMNA DERECHA: DETALLES DEL MOD ---
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.modInfo.customName,
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    if (widget.modInfo.localVersion != null && widget.modInfo.localVersion!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text(
+                          '${l10n.modVersion}: ${widget.modInfo.localVersion}',
+                          style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.7)),
+                        ),
+                      ),
+                    const SizedBox(height: 15),
+
+                    if (widget.modInfo.author != null && widget.modInfo.author!.isNotEmpty) ...[
+                      Text(l10n.modAuthor, style: const TextStyle(color: Colors.tealAccent, fontSize: 14)),
+                      const SizedBox(height: 4),
+                      Text(widget.modInfo.author!, style: const TextStyle(fontSize: 18, color: Colors.white)),
+                      const SizedBox(height: 20),
+                    ],
+
+                    _buildInfoSection(
+                      context,
+                      l10n.modDescription,
+                      widget.modInfo.summary?.trim() ?? l10n.noDescriptionAvailable,
+                      icon: Icons.description_outlined,
+                    ),
+                    const SizedBox(height: 20),
+
+                    _buildInfoSection(
+                      context,
+                      l10n.personalNotes,
+                      _userNotes.isNotEmpty ? _userNotes : l10n.noNotesAvailable,
+                      icon: Icons.edit_note_outlined,
+                      isEditable: true,
+                      onEdit: _showEditNotesDialog,
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    if (widget.modInfo.fitMeshType != null && widget.modInfo.fitMeshType!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10.0),
+                        child: Text(
+                          '${l10n.modCategory}: ${widget.modInfo.fitMeshType}',
+                          style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.6)),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoSection(BuildContext context, String title, String content, {IconData? icon, bool isEditable = false, VoidCallback? onEdit}) {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, color: Colors.tealAccent.withOpacity(0.8), size: 20),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    title,
+                    style: const TextStyle(color: Colors.tealAccent, fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              if (isEditable && onEdit != null)
+                IconButton(
+                  icon: const Icon(Icons.edit_note_outlined, color: Colors.white70),
+                  onPressed: onEdit,
+                  tooltip: l10n.editNotes,
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            content,
+            style: TextStyle(
+              color: content == l10n.noDescriptionAvailable || content == l10n.noNotesAvailable
+                  ? Colors.white.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.9),
+              fontStyle: content == l10n.noDescriptionAvailable || content == l10n.noNotesAvailable
+                  ? FontStyle.italic
+                  : FontStyle.normal,
+              height: 1.5,
+              fontSize: 15,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

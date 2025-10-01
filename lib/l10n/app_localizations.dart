@@ -1497,6 +1497,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'There are no disabled mods to enable.'**
   String get snackBarNoModsToEnable;
+
+  /// No description provided for @editNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Notes'**
+  String get editNotes;
+
+  /// No description provided for @notesHintText.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your personal notes here...'**
+  String get notesHintText;
+
+  /// No description provided for @modAuthor.
+  ///
+  /// In en, this message translates to:
+  /// **'Author'**
+  String get modAuthor;
+
+  /// No description provided for @modDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get modDescription;
+
+  /// No description provided for @noDescriptionAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No description available.'**
+  String get noDescriptionAvailable;
+
+  /// No description provided for @personalNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal Notes'**
+  String get personalNotes;
+
+  /// No description provided for @noNotesAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No notes added yet.'**
+  String get noNotesAvailable;
+
+  /// No description provided for @modDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mod Details'**
+  String get modDetailsTitle;
+
+  /// No description provided for @modVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get modVersion;
+
+  /// No description provided for @modCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get modCategory;
 }
 
 class _AppLocalizationsDelegate

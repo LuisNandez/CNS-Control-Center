@@ -827,4 +827,34 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get snackBarNoModsToEnable => '有効にする無効なMODはありません。';
+
+  @override
+  String get editNotes => 'Edit Notes';
+
+  @override
+  String get notesHintText => 'Add your personal notes here...';
+
+  @override
+  String get modAuthor => 'Author';
+
+  @override
+  String get modDescription => 'Description';
+
+  @override
+  String get noDescriptionAvailable => 'No description available.';
+
+  @override
+  String get personalNotes => 'Personal Notes';
+
+  @override
+  String get noNotesAvailable => 'No notes added yet.';
+
+  @override
+  String get modDetailsTitle => 'Mod Details';
+
+  @override
+  String get modVersion => 'Version';
+
+  @override
+  String get modCategory => 'Category';
 }

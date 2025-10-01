@@ -281,6 +281,16 @@
             "count": { "type": "int" }
         }
     },
-    "snackBarNoModsToEnable": "There are no disabled mods to enable."
+    "snackBarNoModsToEnable": "There are no disabled mods to enable.",
+    "editNotes": "Edit Notes",
+    "notesHintText": "Add your personal notes here...",
+    "modAuthor": "Author",
+    "modDescription": "Description",
+    "noDescriptionAvailable": "No description available.",
+    "personalNotes": "Personal Notes",
+    "noNotesAvailable": "No notes added yet.",
+    "modDetailsTitle": "Mod Details",
+    "modVersion": "Version",
+    "modCategory": "Category"
 }
 
