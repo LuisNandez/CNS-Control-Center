@@ -846,6 +846,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String folderName = p.basename(entity.path);
             String displayName = _stripVersionFromFolderName(folderName);
             String customName = folderName;
+            DateTime modLastModified = DateTime.now();
             String? customVersion;
             String? customFitMeshType;
             String? summary;
@@ -853,6 +854,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String? userNotes;
 
             final infoFile = File(p.join(entity.path, 'nexus_info.json'));
+            final fileStat = await entity.stat(); // <-- Move this up so it's always assigned
             if (await infoFile.exists()) {
                 final content = await infoFile.readAsString();
                 Map<String, dynamic> data = json.decode(content);
@@ -877,7 +879,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   }
                 }
                 // --- FIN DE LA LÓGICA DE ACTUALIZACIÓN ---
-
+                DateTime? installDate;
+            if (data['installDate'] != null) {
+              installDate = DateTime.tryParse(data['installDate']);
+            }
+            // Usa la fecha de instalación si existe, si no, usa la fecha de modificación de la carpeta
+            modLastModified = installDate ?? fileStat.modified;
                 // Leemos los datos del mapa 'data' (que ahora puede estar actualizado)
                 nexusId = data['nexusId'];
                 installedVersion = data['installedVersion'];
@@ -935,14 +942,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             }
             installedVersion ??= ModInfo._extractVersionFromName(folderName);
 
-            final fileStat = await entity.stat();
+            // final fileStat = await entity.stat(); <-- Already declared above
 
             // Añade el mod a la lista con toda la información cargada (y potencialmente actualizada)
             mods.add(ModInfo(
               directory: entity,
               nexusId: nexusId,
               localVersion: installedVersion,
-              lastModified: fileStat.modified,
+              lastModified: modLastModified,
               isEnabled: isEnabled,
               origin: origin,
               displayName: displayName,
@@ -5229,7 +5236,7 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     AspectRatio(
-                      aspectRatio: 3 / 4.5,
+                      aspectRatio: 3 / 4,
                       child: Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
