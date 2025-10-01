@@ -3546,7 +3546,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
 
-  List<ModInfo> _getFilteredAndSortedMods() {
+  List<ModInfo> _getFilteredAndSortedMods(AppLocalizations l10n) {
     List<ModInfo> mods = List.from(_allMods);
 
     switch (_currentFilter) {
@@ -3565,7 +3565,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
     
     if (_searchQuery.isNotEmpty) {
-      mods.retainWhere((mod) => mod.customName.toLowerCase().contains(_searchQuery.toLowerCase()));
+      mods.retainWhere((mod) {
+        // Obtenemos la etiqueta visible, igual que en la UI.
+        final displayTag = mod.customFitMeshType ?? mod.fitMeshType ?? l10n.modCategoryOther;
+        final query = _searchQuery.toLowerCase();
+        
+        // Comprobamos si el nombre del mod coincide.
+        final nameMatch = mod.customName.toLowerCase().contains(query);
+        // Comprobamos si la etiqueta coincide.
+        final tagMatch = displayTag.toLowerCase().contains(query);
+
+        // El mod se mantiene si cualquiera de los dos coincide.
+        return nameMatch || tagMatch;
+      });
     }
 
     switch (_currentSort) {
@@ -3599,7 +3611,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final canInstall = _preparedMods.isNotEmpty && !_isLoading && !_isExtracting;
-    final filteredAndSortedMods = _getFilteredAndSortedMods();
+    final filteredAndSortedMods = _getFilteredAndSortedMods(l10n);
 
     final cnsUpdateIdentifier = _cnsUpdateInfo != null ? 'CNS_' + _cnsUpdateInfo!['version'] : '';
     final cnsIsIgnored = _ignoredUpdates.contains(cnsUpdateIdentifier);
