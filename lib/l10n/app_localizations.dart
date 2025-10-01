@@ -1557,6 +1557,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Category'**
   String get modCategory;
+
+  /// No description provided for @dialogTitleAddUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Mod Link'**
+  String get dialogTitleAddUrl;
+
+  /// No description provided for @dialogLabelUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Mod URL'**
+  String get dialogLabelUrl;
+
+  /// No description provided for @errorInvalidUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid URL.'**
+  String get errorInvalidUrl;
+
+  /// No description provided for @addLinkTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a download link for this mod'**
+  String get addLinkTooltip;
+
+  /// No description provided for @addLinkButtonText.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Link'**
+  String get addLinkButtonText;
+
+  /// No description provided for @openLinkButtonText.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Link'**
+  String get openLinkButtonText;
 }
 
 class _AppLocalizationsDelegate

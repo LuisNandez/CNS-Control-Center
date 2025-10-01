@@ -846,4 +846,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modCategory => 'Category';
+
+  @override
+  String get dialogTitleAddUrl => 'Add Mod Link';
+
+  @override
+  String get dialogLabelUrl => 'Mod URL';
+
+  @override
+  String get errorInvalidUrl => 'Please enter a valid URL.';
+
+  @override
+  String get addLinkTooltip => 'Add a download link for this mod';
+
+  @override
+  String get addLinkButtonText => 'Add Link';
+
+  @override
+  String get openLinkButtonText => 'Open Link';
 }

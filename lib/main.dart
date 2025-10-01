@@ -49,6 +49,7 @@ class ModInfo {
   final String? summary;   // Descripción/resumen del mod.
   final String? author;    // Autor del mod.
   String? userNotes;     // Notas personales del usuario.
+  final String? customSourceUrl;
 
   ModInfo({
     required this.directory,
@@ -70,6 +71,7 @@ class ModInfo {
     this.summary,
     this.author,
     this.userNotes,
+    this.customSourceUrl,
   });
 
 
@@ -852,6 +854,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String? summary;
             String? author;
             String? userNotes;
+            String? customSourceUrl;
 
             final infoFile = File(p.join(entity.path, 'nexus_info.json'));
             final fileStat = await entity.stat(); // <-- Move this up so it's always assigned
@@ -894,6 +897,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 summary = data['summary'];
                 author = data['author'];
                 userNotes = data['userNotes'];
+                customSourceUrl = data['customSourceUrl'];
 
                 if (installedVersion != null && installedVersion.toLowerCase().startsWith('v')) {
                   installedVersion = installedVersion.substring(1);
@@ -964,6 +968,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               summary: summary,
               author: author,
               userNotes: userNotes,
+              customSourceUrl: customSourceUrl,
             ));
           } catch (e) {
             print("Error processing directory ${entity.path}: $e");
@@ -4928,9 +4933,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           onSaveNotes: (newNotes) async {
             await _updateUserNotes(modInfo, newNotes);
           },
+          onSaveUrl: (newUrl) => _updateModCustomSourceUrl(modInfo, newUrl),
         ),
       ),
     );
+    setState(() {});
   }
 
   Future<void> _updateUserNotes(ModInfo mod, String newNotes) async {
@@ -5100,7 +5107,53 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       setState(() => _isLoading = false);
     }
   }
+  // Este método se encargará de guardar la URL personalizada en el archivo JSON del mod.
+  Future<void> _updateModCustomSourceUrl(ModInfo mod, String newUrl) async {
+    try {
+      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+      Map<String, dynamic> data = {};
+      if (await infoFile.exists()) {
+        final content = await infoFile.readAsString();
+        if (content.isNotEmpty) data = json.decode(content);
+      }
 
+      if (newUrl.isEmpty) {
+        data.remove('customSourceUrl');
+      } else {
+        data['customSourceUrl'] = newUrl;
+      }
+
+      final encoder = JsonEncoder.withIndent('  ');
+      await infoFile.writeAsString(encoder.convert(data));
+
+      // Actualiza el estado en memoria para un refresco instantáneo sin recargar todo
+      final modIndex = _allMods.indexWhere((m) => m.directory.path == mod.directory.path);
+      if (modIndex != -1) {
+         final updatedMod = ModInfo(
+          directory: mod.directory, isEnabled: mod.isEnabled, nexusId: mod.nexusId,
+          localVersion: mod.localVersion, lastModified: mod.lastModified,
+          origin: mod.origin, displayName: mod.displayName, customName: mod.customName,
+          gallery: mod.gallery, fitMeshType: mod.fitMeshType,
+          customCoverPath: mod.customCoverPath, customCoverAlignment: mod.customCoverAlignment,
+          customCoverLastModified: mod.customCoverLastModified,
+          customVersion: mod.customVersion, customFitMeshType: mod.customFitMeshType,
+          summary: mod.summary, author: mod.author, userNotes: mod.userNotes,
+          customSourceUrl: newUrl.isEmpty ? null : newUrl, // Aplica el valor actualizado
+        );
+        setState(() { _allMods[modIndex] = updatedMod; });
+      }
+    } catch (e) {
+      print('Error saving custom source URL: $e');
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: 'Error saving URL',
+          description: e.toString(),
+        );
+      }
+    }
+  }
 
 }
 
@@ -5110,13 +5163,14 @@ class ModDetailsPage extends StatefulWidget {
   final ModInfo modInfo;
   final ThumbnailService thumbnailService;
   final Future<void> Function(String newNotes) onSaveNotes;
-  
+  final Future<void> Function(String newUrl) onSaveUrl;
 
   const ModDetailsPage({
     super.key,
     required this.modInfo,
     required this.thumbnailService,
     required this.onSaveNotes,
+    required this.onSaveUrl,
   });
 
   @override
@@ -5124,20 +5178,25 @@ class ModDetailsPage extends StatefulWidget {
 }
 
 class _ModDetailsPageState extends State<ModDetailsPage> {
-  late String _userNotes;
+  // MODIFICACIÓN 1: Se crea una variable de estado para la información del mod.
+  // Esto nos permite modificarla y refrescar la UI al momento.
+  late ModInfo currentModInfo;
+  
   ImageProvider? _imageProvider;
   bool _isImageLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _userNotes = widget.modInfo.userNotes ?? '';
+    // MODIFICACIÓN 2: Se inicializa la variable de estado con la información del widget.
+    currentModInfo = widget.modInfo;
     _loadImageProvider();
   }
 
   Future<void> _loadImageProvider() async {
-    if (widget.modInfo.customCoverPath != null && widget.modInfo.customCoverPath!.isNotEmpty) {
-      final path = p.join(widget.modInfo.directory.path, widget.modInfo.customCoverPath!);
+    // Se usa 'currentModInfo' en lugar de 'widget.modInfo'
+    if (currentModInfo.customCoverPath != null && currentModInfo.customCoverPath!.isNotEmpty) {
+      final path = p.join(currentModInfo.directory.path, currentModInfo.customCoverPath!);
       final file = File(path);
       if (file.existsSync()) {
         if (mounted) {
@@ -5150,8 +5209,8 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
       }
     }
 
-    final imageUrl = (widget.modInfo.gallery != null && widget.modInfo.gallery!.isNotEmpty)
-        ? widget.modInfo.gallery!.first['image'] as String?
+    final imageUrl = (currentModInfo.gallery != null && currentModInfo.gallery!.isNotEmpty)
+        ? currentModInfo.gallery!.first['image'] as String?
         : null;
 
     if (imageUrl != null) {
@@ -5172,7 +5231,8 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
   }
 
   Future<void> _showEditNotesDialog() async {
-    final notesController = TextEditingController(text: _userNotes);
+    // Se usa 'currentModInfo' en lugar de 'widget.modInfo'
+    final notesController = TextEditingController(text: currentModInfo.userNotes ?? '');
     final l10n = AppLocalizations.of(context)!;
 
     final newNotes = await showDialog<String>(
@@ -5203,17 +5263,110 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
       ),
     );
 
-    if (newNotes != null && newNotes != _userNotes) {
+    if (newNotes != null && newNotes != currentModInfo.userNotes) {
       await widget.onSaveNotes(newNotes);
+      // MODIFICACIÓN: Actualizamos el estado local de las notas también.
       setState(() {
-        _userNotes = newNotes;
+        currentModInfo.userNotes = newNotes;
       });
+    }
+  }
+
+  Future<void> _showAddUrlDialog() async {
+    // Se usa 'currentModInfo' en lugar de 'widget.modInfo'
+    final urlController = TextEditingController(text: currentModInfo.customSourceUrl ?? '');
+    final l10n = AppLocalizations.of(context)!;
+    String? errorMessage;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF2d2d2d),
+              title: Text(l10n.dialogTitleAddUrl),
+              content: TextField(
+                controller: urlController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: l10n.dialogLabelUrl,
+                  errorText: errorMessage,
+                ),
+                style: const TextStyle(color: Colors.white),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(l10n.dialogActionCancel),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final url = urlController.text.trim();
+                    final uri = Uri.tryParse(url);
+                    if (url.isNotEmpty && uri != null && uri.hasAbsolutePath) {
+                      widget.onSaveUrl(url);
+                      // MODIFICACIÓN 3: Se actualiza el estado local y se refresca la UI.
+                      // Se crea un nuevo objeto ModInfo con la URL actualizada y se lo pasamos al `setState`.
+                      setState(() {
+                        currentModInfo = ModInfo(
+                          directory: currentModInfo.directory,
+                          nexusId: currentModInfo.nexusId,
+                          localVersion: currentModInfo.localVersion,
+                          lastModified: currentModInfo.lastModified,
+                          installDate: currentModInfo.installDate,
+                          isEnabled: currentModInfo.isEnabled,
+                          origin: currentModInfo.origin,
+                          displayName: currentModInfo.displayName,
+                          customName: currentModInfo.customName,
+                          gallery: currentModInfo.gallery,
+                          fitMeshType: currentModInfo.fitMeshType,
+                          customCoverPath: currentModInfo.customCoverPath,
+                          customCoverAlignment: currentModInfo.customCoverAlignment,
+                          customCoverLastModified: currentModInfo.customCoverLastModified,
+                          customVersion: currentModInfo.customVersion,
+                          customFitMeshType: currentModInfo.customFitMeshType,
+                          summary: currentModInfo.summary,
+                          author: currentModInfo.author,
+                          userNotes: currentModInfo.userNotes,
+                          customSourceUrl: url, // <-- El nuevo valor
+                        );
+                      });
+                      Navigator.of(context).pop();
+                    } else {
+                      setDialogState(() {
+                        errorMessage = l10n.errorInvalidUrl;
+                      });
+                    }
+                  },
+                  child: Text(l10n.dialogActionSave),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _onLinkButtonPressed() async {
+    // Se usa 'currentModInfo' en lugar de 'widget.modInfo'
+    if (currentModInfo.nexusId != null) {
+      final url = Uri.parse('https://www.nexusmods.com/stellarblade/mods/${currentModInfo.nexusId}');
+      if (await canLaunchUrl(url)) await launchUrl(url);
+    } else if (currentModInfo.customSourceUrl != null) {
+      final url = Uri.parse(currentModInfo.customSourceUrl!);
+      if (await canLaunchUrl(url)) await launchUrl(url);
+    } else {
+      await _showAddUrlDialog();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    // MODIFICACIÓN 4: Toda la lógica y widgets ahora usan `currentModInfo`.
+    final bool hasLink = currentModInfo.nexusId != null || (currentModInfo.customSourceUrl?.isNotEmpty ?? false);
 
     return Scaffold(
       backgroundColor: const Color(0xFF1e1e1e),
@@ -5226,14 +5379,8 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- COLUMNA IZQUIERDA: IMAGEN Y NUEVO BOTÓN (FIJA) ---
-            // MODIFICACIÓN: Se envuelve la portada en un Sizedbox para controlar su ancho.
             SizedBox(
-              // Aquí puedes definir un ancho fijo o usar MediaQuery para un ancho adaptable.
-              // Por ejemplo, para un ancho máximo de 300:
               width: 300, 
-              // O para que ocupe un porcentaje de la pantalla:
-              // width: MediaQuery.of(context).size.width * 0.25, 
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -5256,7 +5403,7 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                             ? DecorationImage(
                                 image: _imageProvider!,
                                 fit: BoxFit.cover,
-                                alignment: widget.modInfo.customCoverAlignment ?? Alignment.center,
+                                alignment: currentModInfo.customCoverAlignment ?? Alignment.center,
                               )
                             : null,
                       ),
@@ -5265,7 +5412,7 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                           : (_imageProvider == null
                               ? Center(
                                   child: Text(
-                                    widget.modInfo.customName,
+                                    currentModInfo.customName,
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white70),
                                   ),
@@ -5274,39 +5421,46 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  if (widget.modInfo.nexusId != null)
-                    DecoratedBox(
+                  
+                  Tooltip(
+                    message: hasLink ? l10n.openLinkButtonText : l10n.addLinkTooltip,
+                    child: DecoratedBox(
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Theme.of(context).colorScheme.secondary,
-                            const Color(0xFF00695C),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                        gradient: hasLink
+                            ? LinearGradient(
+                                colors: [
+                                  Theme.of(context).colorScheme.secondary,
+                                  const Color(0xFF00695C),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              )
+                            : null,
+                        color: hasLink ? null : Colors.grey.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
+                        boxShadow: hasLink ? [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
-                        ],
+                        ] : [],
+                        border: hasLink ? null : Border.all(color: Colors.grey.withOpacity(0.4)),
                       ),
                       child: ElevatedButton.icon(
-                        // MODIFICACIÓN: Nuevo icono y padding horizontal.
-                        icon: const Icon(Icons.link_rounded, size: 20, color: Colors.white), // Icono más moderno
-                        label: Text(
-                          l10n.openInNexusMods,
-                          style: const TextStyle(color: Colors.white, fontSize: 16), // Fuente un poco más grande
+                        icon: Icon(
+                          hasLink ? Icons.link_rounded : Icons.add_link_rounded,
+                          size: 20,
+                          color: hasLink ? Colors.white : Colors.grey[400],
                         ),
-                        onPressed: () async {
-                          final url = Uri.parse('https://www.nexusmods.com/stellarblade/mods/${widget.modInfo.nexusId}');
-                          if (await canLaunchUrl(url)) {
-                            await launchUrl(url);
-                          }
-                        },
+                        label: Text(
+                          hasLink ? l10n.openLinkButtonText : l10n.addLinkButtonText,
+                          style: TextStyle(
+                            color: hasLink ? Colors.white : Colors.grey[400],
+                            fontSize: 16,
+                          ),
+                        ),
+                        onPressed: _onLinkButtonPressed,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
@@ -5314,20 +5468,20 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20), // Más padding horizontal
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
                           textStyle: const TextStyle(
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                     ),
+                  ),
                 ],
               ),
             ),
 
             const SizedBox(width: 30),
 
-            // --- COLUMNA DERECHA: DETALLES DEL MOD (DESPLAZABLE) ---
             Expanded(
               flex: 2,
               child: SingleChildScrollView(
@@ -5335,49 +5489,49 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.modInfo.customName,
+                      currentModInfo.customName,
                       style: const TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
-                    if (widget.modInfo.localVersion != null && widget.modInfo.localVersion!.isNotEmpty)
+                    if (currentModInfo.localVersion != null && currentModInfo.localVersion!.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 4.0),
                         child: Text(
-                          '${l10n.modVersion}: ${widget.modInfo.localVersion}',
+                          '${l10n.modVersion}: ${currentModInfo.localVersion}',
                           style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.7)),
                         ),
                       ),
                     const SizedBox(height: 15),
-                    if (widget.modInfo.author != null && widget.modInfo.author!.isNotEmpty) ...[
+                    if (currentModInfo.author != null && currentModInfo.author!.isNotEmpty) ...[
                       Text(l10n.modAuthor, style: const TextStyle(color: Colors.tealAccent, fontSize: 14)),
                       const SizedBox(height: 4),
-                      Text(widget.modInfo.author!, style: const TextStyle(fontSize: 18, color: Colors.white)),
+                      Text(currentModInfo.author!, style: const TextStyle(fontSize: 18, color: Colors.white)),
                       const SizedBox(height: 20),
                     ],
                     _buildInfoSection(
                       context,
                       l10n.modDescription,
-                      widget.modInfo.summary?.trim() ?? l10n.noDescriptionAvailable,
+                      currentModInfo.summary?.trim() ?? l10n.noDescriptionAvailable,
                       icon: Icons.description_outlined,
                     ),
                     const SizedBox(height: 20),
                     _buildInfoSection(
                       context,
                       l10n.personalNotes,
-                      _userNotes.isNotEmpty ? _userNotes : l10n.noNotesAvailable,
+                      currentModInfo.userNotes?.isNotEmpty ?? false ? currentModInfo.userNotes! : l10n.noNotesAvailable,
                       icon: Icons.edit_note_outlined,
                       isEditable: true,
                       onEdit: _showEditNotesDialog,
                     ),
                     const SizedBox(height: 20),
-                    if (widget.modInfo.fitMeshType != null && widget.modInfo.fitMeshType!.isNotEmpty)
+                    if (currentModInfo.fitMeshType != null && currentModInfo.fitMeshType!.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 10.0),
                         child: Text(
-                          '${l10n.modCategory}: ${widget.modInfo.fitMeshType}',
+                          '${l10n.modCategory}: ${currentModInfo.fitMeshType}',
                           style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.6)),
                         ),
                       ),

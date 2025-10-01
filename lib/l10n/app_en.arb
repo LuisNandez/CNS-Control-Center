@@ -291,6 +291,12 @@
     "noNotesAvailable": "No notes added yet.",
     "modDetailsTitle": "Mod Details",
     "modVersion": "Version",
-    "modCategory": "Category"
+    "modCategory": "Category",
+    "dialogTitleAddUrl": "Add Mod Link",
+    "dialogLabelUrl": "Mod URL",
+    "errorInvalidUrl": "Please enter a valid URL.",
+    "addLinkTooltip": "Add a download link for this mod",
+    "addLinkButtonText": "Add Link",
+    "openLinkButtonText": "Open Link"
 }
 
