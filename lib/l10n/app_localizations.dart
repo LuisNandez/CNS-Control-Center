@@ -1593,6 +1593,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open Link'**
   String get openLinkButtonText;
+
+  /// No description provided for @editModTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Mod Details'**
+  String get editModTitle;
+
+  /// No description provided for @modNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Mod Name'**
+  String get modNameLabel;
+
+  /// No description provided for @authorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Author'**
+  String get authorLabel;
+
+  /// No description provided for @summaryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Description / Summary'**
+  String get summaryLabel;
+
+  /// No description provided for @notesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal Notes'**
+  String get notesLabel;
+
+  /// No description provided for @urlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Download URL'**
+  String get urlLabel;
+
+  /// No description provided for @changeCoverButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Cover Image'**
+  String get changeCoverButton;
+
+  /// No description provided for @editButtonTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Mod'**
+  String get editButtonTooltip;
 }
 
 class _AppLocalizationsDelegate

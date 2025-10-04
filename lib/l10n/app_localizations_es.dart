@@ -899,4 +899,28 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get openLinkButtonText => 'Open Link';
+
+  @override
+  String get editModTitle => 'Edit Mod Details';
+
+  @override
+  String get modNameLabel => 'Mod Name';
+
+  @override
+  String get authorLabel => 'Author';
+
+  @override
+  String get summaryLabel => 'Description / Summary';
+
+  @override
+  String get notesLabel => 'Personal Notes';
+
+  @override
+  String get urlLabel => 'Download URL';
+
+  @override
+  String get changeCoverButton => 'Change Cover Image';
+
+  @override
+  String get editButtonTooltip => 'Edit Mod';
 }

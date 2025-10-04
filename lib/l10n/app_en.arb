@@ -297,6 +297,14 @@
     "errorInvalidUrl": "Please enter a valid URL.",
     "addLinkTooltip": "Add a download link for this mod",
     "addLinkButtonText": "Add Link",
-    "openLinkButtonText": "Open Link"
+    "openLinkButtonText": "Open Link",
+    "editModTitle": "Edit Mod Details",
+    "modNameLabel": "Mod Name",
+    "authorLabel": "Author",
+    "summaryLabel": "Description / Summary",
+    "notesLabel": "Personal Notes",
+    "urlLabel": "Download URL",
+    "changeCoverButton": "Change Cover Image",
+    "editButtonTooltip": "Edit Mod"
 }
 

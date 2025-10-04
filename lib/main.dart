@@ -4625,84 +4625,58 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<void> _setCustomCover(ModInfo mod) async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'bmp'],
-      dialogTitle: 'Selecciona una portada para el mod',
-    );
+  FilePickerResult? result = await FilePicker.platform.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'pwebp', 'tiff'],
+    dialogTitle: 'Selecciona una portada para el mod',
+  );
 
-    if (result != null && result.files.single.path != null) {
-      final imageFile = File(result.files.single.path!);
-      final Alignment? alignment = await _showCoverAlignmentDialog(imageFile);
+  if (result != null && result.files.single.path != null) {
+    final imageFile = File(result.files.single.path!);
+    final Alignment? alignment = await _showCoverAlignmentDialog(imageFile);
 
-      if (alignment == null) return;
+    if (alignment == null) return;
 
-      setState(() => _isLoading = true);
-      try {
-        // Copia el nuevo archivo de portada (sobreescribirá el anterior si existe)
-        final extension = p.extension(imageFile.path);
-        final newFileName = '_custom_cover$extension';
-        final destinationPath = p.join(mod.directory.path, newFileName);
-        await imageFile.copy(destinationPath);
+    setState(() => _isLoading = true);
+    try {
+      // ===== INICIO DE LA CORRECCIÓN =====
+      // 1. Guarda los cambios en el archivo nexus_info.json
+      final extension = p.extension(imageFile.path);
+      final newFileName = '_custom_cover$extension';
+      final destinationPath = p.join(mod.directory.path, newFileName);
+      await imageFile.copy(destinationPath);
 
-        // Limpia la caché de la imagen para forzar la recarga del nuevo archivo
-        await FileImage(File(destinationPath)).evict();
-
-        // Actualiza el archivo de información del mod
-        final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
-        Map<String, dynamic> data = {};
-        if (await infoFile.exists()) {
-          data = json.decode(await infoFile.readAsString());
-        }
-        data['customCoverPath'] = newFileName;
-        data['customCoverAlignmentX'] = alignment.x;
-        data['customCoverAlignmentY'] = alignment.y;
-        final encoder = JsonEncoder.withIndent('  ');
-        await infoFile.writeAsString(encoder.convert(data));
-        
-        // Actualiza el estado del mod en memoria para un refresco instantáneo
-        final modIndex = _allMods.indexWhere((m) => m.directory.path == mod.directory.path);
-        if (modIndex != -1) {
-          final newCoverFile = File(destinationPath);
-          final lastModified = await newCoverFile.lastModified();
-
-          final updatedMod = ModInfo(
-            directory: mod.directory,
-            nexusId: mod.nexusId,
-            localVersion: mod.localVersion,
-            lastModified: mod.lastModified,
-            isEnabled: mod.isEnabled,
-            origin: mod.origin,
-            displayName: mod.displayName,
-            customName: mod.customName,
-            gallery: mod.gallery,
-            fitMeshType: mod.fitMeshType,
-            customCoverPath: newFileName,
-            customCoverAlignment: alignment,
-            customCoverLastModified: lastModified,
-          );
-
-          setState(() {
-            _allMods[modIndex] = updatedMod;
-          });
-        } else {
-          await _loadAllMods();
-        }
-
-      } catch (e) {
-        if (mounted) {
-          final l10n = AppLocalizations.of(context)!;
-          NotificationService.instance.show(
-            context: context,
-            type: NotificationType.error,
-            title: l10n.errorRestoringCoverText(e.toString()),
-          );
-        }
-      } finally {
-        setState(() => _isLoading = false);
+      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+      Map<String, dynamic> data = {};
+      if (await infoFile.exists()) {
+        final content = await infoFile.readAsString();
+        if (content.isNotEmpty) data = json.decode(content);
       }
+      data['customCoverPath'] = newFileName;
+      data['customCoverAlignmentX'] = alignment.x;
+      data['customCoverAlignmentY'] = alignment.y;
+      final encoder = JsonEncoder.withIndent('  ');
+      await infoFile.writeAsString(encoder.convert(data));
+      
+      // 2. Llama a _loadAllMods() para recargar discretamente toda la lista
+      // con la información 100% correcta desde los archivos.
+      await _loadAllMods(clearHighlight: false);
+      // ===== FIN DE LA CORRECCIÓN =====
+
+    } catch (e) {
+      if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: l10n.errorRestoringCoverText(e.toString()),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
+}
 
   Future<Alignment?> _showCoverAlignmentDialog(File imageFile) async {
     final image = await decodeImageFromList(imageFile.readAsBytesSync());
@@ -4832,77 +4806,49 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<void> _revertToDefaultCover(ModInfo mod) async {
-    if (mod.customCoverPath == null) return;
+  if (mod.customCoverPath == null) return;
 
-    setState(() => _isLoading = true);
-    try {
-      // 1. Borra el archivo de la imagen personalizada
-      final coverFile = File(p.join(mod.directory.path, mod.customCoverPath!));
-      if (await coverFile.exists()) {
-        await coverFile.delete();
-      }
-
-      // 2. Actualiza el archivo nexus_info.json para eliminar las referencias
-      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
-      if (await infoFile.exists()) {
-        final content = await infoFile.readAsString();
-        Map<String, dynamic> data = json.decode(content);
-        
-        data.remove('customCoverPath');
-        data.remove('customCoverAlignmentX');
-        data.remove('customCoverAlignmentY');
-        
-        final encoder = JsonEncoder.withIndent('  ');
-        await infoFile.writeAsString(encoder.convert(data));
-      }
-
-      // --- INICIO DE LA LÓGICA DE ACTUALIZACIÓN DIRIGIDA ---
-      // 3. Busca el mod en la lista actual
-      final modIndex = _allMods.indexWhere((m) => m.directory.path == mod.directory.path);
-      if (modIndex != -1) {
-        // 4. Crea un nuevo objeto ModInfo con la info de la portada reseteada
-        final updatedMod = ModInfo(
-          // Copia todos los datos existentes...
-          directory: mod.directory,
-          isEnabled: mod.isEnabled,
-          nexusId: mod.nexusId,
-          localVersion: mod.localVersion,
-          lastModified: mod.lastModified, // <-- IMPORTANTE: Conserva la fecha original
-          origin: mod.origin,
-          displayName: mod.displayName,
-          customName: mod.customName,
-          gallery: mod.gallery,
-          fitMeshType: mod.fitMeshType,
-          // ... y resetea los datos de la portada a null.
-          customCoverPath: null,
-          customCoverAlignment: null,
-          customCoverLastModified: null,
-        );
-
-        // 5. Reemplaza el mod antiguo en la lista y refresca la UI
-        setState(() {
-          _allMods[modIndex] = updatedMod;
-        });
-      } else {
-        // Si por alguna razón no se encuentra, recarga todo como antes
-        await _loadAllMods();
-      }
-      // --- FIN DE LA LÓGICA DE ACTUALIZACIÓN DIRIGIDA ---
-
-    } catch (e) {
-      if (mounted) {
-        final l10n = AppLocalizations.of(context)!;
-        NotificationService.instance.show(
-          context: context,
-          type: NotificationType.error,
-          title: l10n.errorRestoringCoverText(e.toString()),
-        );
-      }
-      await _loadAllMods();
-    } finally {
-      setState(() => _isLoading = false);
+  setState(() => _isLoading = true);
+  try {
+    // 1. Borra el archivo de la imagen personalizada.
+    final coverFile = File(p.join(mod.directory.path, mod.customCoverPath!));
+    if (await coverFile.exists()) {
+      await coverFile.delete();
     }
+
+    // 2. Actualiza el archivo nexus_info.json para eliminar las referencias.
+    final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+    if (await infoFile.exists()) {
+      final content = await infoFile.readAsString();
+      Map<String, dynamic> data = json.decode(content);
+      
+      data.remove('customCoverPath');
+      data.remove('customCoverAlignmentX');
+      data.remove('customCoverAlignmentY');
+      
+      final encoder = JsonEncoder.withIndent('  ');
+      await infoFile.writeAsString(encoder.convert(data));
+    }
+
+    // ===== CORRECCIÓN AQUÍ =====
+    // 3. Llama a _loadAllMods() para recargar la lista con la información
+    // 100% correcta desde los archivos, igual que en la función anterior.
+    await _loadAllMods(clearHighlight: false);
+    // ===========================
+
+  } catch (e) {
+    if (mounted) {
+      final l10n = AppLocalizations.of(context)!;
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.error,
+        title: l10n.errorRestoringCoverText(e.toString()),
+      );
+    }
+  } finally {
+    setState(() => _isLoading = false);
   }
+}
 
   /// Consulta la API de Nexus para verificar si un ID de mod es válido para Stellar Blade.
   Future<bool> _isValidNexusId(String modId) async {
@@ -4930,13 +4876,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         builder: (context) => ModDetailsPage(
           modInfo: modInfo,
           thumbnailService: _thumbnailService,
-          onSaveNotes: (newNotes) async {
-            await _updateUserNotes(modInfo, newNotes);
-          },
-          onSaveUrl: (newUrl) => _updateModCustomSourceUrl(modInfo, newUrl),
+          onSaveDetails: (newData) => _updateModDetails(modInfo, newData),
         ),
       ),
     );
+    // Refresca el estado por si el nombre (nombre de la carpeta) ha cambiado.
     setState(() {});
   }
 
@@ -5048,65 +4992,47 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   /// Guarda una propiedad personalizada (versión o etiqueta) en el JSON y actualiza el estado.
   Future<void> _updateModCustomProperty(ModInfo mod, {String? newVersion, String? newTag}) async {
-    setState(() => _isLoading = true);
-    try {
-      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
-      Map<String, dynamic> data = {};
-      if (await infoFile.exists()) {
-        final content = await infoFile.readAsString();
-        if(content.isNotEmpty) data = json.decode(content);
-      }
-
-      String? updatedVersion = mod.customVersion;
-      String? updatedTag = mod.customFitMeshType;
-
-      if (newVersion != null) {
-        if (newVersion.isEmpty) {
-          data.remove('customVersion');
-          updatedVersion = null;
-        } else {
-          data['customVersion'] = newVersion;
-          updatedVersion = newVersion;
-        }
-      }
-
-      if (newTag != null) {
-        if (newTag.isEmpty) {
-          data.remove('customFitMeshType');
-          updatedTag = null;
-        } else {
-          data['customFitMeshType'] = newTag;
-          updatedTag = newTag;
-        }
-      }
-
-      final encoder = JsonEncoder.withIndent('  ');
-      await infoFile.writeAsString(encoder.convert(data));
-
-      final modIndex = _allMods.indexWhere((m) => m.directory.path == mod.directory.path);
-      if (modIndex != -1) {
-        final updatedMod = ModInfo(
-          directory: mod.directory, isEnabled: mod.isEnabled, nexusId: mod.nexusId,
-          localVersion: mod.localVersion, lastModified: mod.lastModified,
-          origin: mod.origin, displayName: mod.displayName, customName: mod.customName,
-          gallery: mod.gallery, fitMeshType: mod.fitMeshType,
-          customCoverPath: mod.customCoverPath, customCoverAlignment: mod.customCoverAlignment,
-          customCoverLastModified: mod.customCoverLastModified,
-          // Aplica los valores actualizados
-          customVersion: updatedVersion,
-          customFitMeshType: updatedTag,
-        );
-        setState(() { _allMods[modIndex] = updatedMod; });
-      } else {
-        await _loadAllMods();
-      }
-    } catch (e) {
-      print('Error updating custom property: $e');
-      await _loadAllMods();
-    } finally {
-      setState(() => _isLoading = false);
+  setState(() => _isLoading = true);
+  try {
+    final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+    Map<String, dynamic> data = {};
+    if (await infoFile.exists()) {
+      final content = await infoFile.readAsString();
+      if(content.isNotEmpty) data = json.decode(content);
     }
+
+    if (newVersion != null) {
+      if (newVersion.isEmpty) {
+        data.remove('customVersion');
+      } else {
+        data['customVersion'] = newVersion;
+      }
+    }
+
+    if (newTag != null) {
+      if (newTag.isEmpty) {
+        data.remove('customFitMeshType');
+      } else {
+        data['customFitMeshType'] = newTag;
+      }
+    }
+
+    final encoder = JsonEncoder.withIndent('  ');
+    await infoFile.writeAsString(encoder.convert(data));
+
+    // ===== CORRECCIÓN AQUÍ =====
+    // 1. Se elimina la lógica manual que intentaba actualizar el estado local.
+    // 2. Se llama a _loadAllMods() para recargar la lista con la información
+    //    100% correcta desde el archivo, igual que con las portadas.
+    await _loadAllMods(clearHighlight: false);
+    // ===========================
+
+  } catch (e) {
+    print('Error updating custom property: $e');
+  } finally {
+    setState(() => _isLoading = false);
   }
+}
   // Este método se encargará de guardar la URL personalizada en el archivo JSON del mod.
   Future<void> _updateModCustomSourceUrl(ModInfo mod, String newUrl) async {
     try {
@@ -5155,6 +5081,74 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
+  Future<void> _updateModDetails(ModInfo mod, Map<String, dynamic> newData) async {
+  setState(() => _isLoading = true);
+  try {
+    Directory modDirectory = mod.directory;
+
+    // --- 1. Manejar cambio de nombre (renombrar carpeta) ---
+    if (newData.containsKey('customName') && newData['customName'] != mod.customName) {
+      final newName = (newData['customName'] as String).replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
+      final newPath = p.join(mod.directory.parent.path, newName);
+      if (await Directory(newPath).exists()) {
+        throw Exception('A mod with the name "$newName" already exists.');
+      }
+      await mod.directory.rename(newPath);
+      modDirectory = Directory(newPath); // Actualiza la referencia al directorio
+    }
+
+    final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
+    Map<String, dynamic> data = {};
+    if (await infoFile.exists()) {
+      final content = await infoFile.readAsString();
+      if (content.isNotEmpty) data = json.decode(content);
+    }
+    
+    // --- 2. Manejar cambio de portada ---
+    if (newData.containsKey('newCoverFile')) {
+      final imageFile = newData['newCoverFile'] as File;
+      final alignment = newData['newCoverAlignment'] as Alignment?;
+      
+      final extension = p.extension(imageFile.path);
+      final newFileName = '_custom_cover$extension';
+      final destinationPath = p.join(modDirectory.path, newFileName);
+      await imageFile.copy(destinationPath);
+      
+      data['customCoverPath'] = newFileName;
+      if (alignment != null) {
+        data['customCoverAlignmentX'] = alignment.x;
+        data['customCoverAlignmentY'] = alignment.y;
+      }
+    }
+    
+    // --- 3. Actualizar todos los demás campos de texto ---
+    data['customName'] = newData['customName'] ?? data['customName'];
+    data['author'] = newData['author'] ?? data['author'];
+    data['summary'] = newData['summary'] ?? data['summary'];
+    data['userNotes'] = newData['userNotes'] ?? data['userNotes'];
+    data['customSourceUrl'] = newData['customSourceUrl'] ?? data['customSourceUrl'];
+    
+    final encoder = JsonEncoder.withIndent('  ');
+    await infoFile.writeAsString(encoder.convert(data));
+
+    // --- 4. Refrescar la lista de mods ---
+    await _loadAllMods();
+
+  } catch (e) {
+    print('Error updating mod details: $e');
+    if (mounted) {
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.error,
+        title: 'Error Saving Changes',
+        description: e.toString(),
+      );
+    }
+  } finally {
+    setState(() => _isLoading = false);
+  }
+}
+
 }
 
 // main.dart (Modificación en el estilo del botón en ModDetailsPage)
@@ -5162,15 +5156,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 class ModDetailsPage extends StatefulWidget {
   final ModInfo modInfo;
   final ThumbnailService thumbnailService;
-  final Future<void> Function(String newNotes) onSaveNotes;
-  final Future<void> Function(String newUrl) onSaveUrl;
+  final Future<void> Function(Map<String, dynamic> newData) onSaveDetails;
 
   const ModDetailsPage({
     super.key,
     required this.modInfo,
     required this.thumbnailService,
-    required this.onSaveNotes,
-    required this.onSaveUrl,
+    required this.onSaveDetails,
   });
 
   @override
@@ -5178,166 +5170,245 @@ class ModDetailsPage extends StatefulWidget {
 }
 
 class _ModDetailsPageState extends State<ModDetailsPage> {
-  // MODIFICACIÓN 1: Se crea una variable de estado para la información del mod.
-  // Esto nos permite modificarla y refrescar la UI al momento.
   late ModInfo currentModInfo;
-  
   ImageProvider? _imageProvider;
   bool _isImageLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // MODIFICACIÓN 2: Se inicializa la variable de estado con la información del widget.
     currentModInfo = widget.modInfo;
     _loadImageProvider();
   }
 
+  @override
+  void didUpdateWidget(covariant ModDetailsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Si el mod base cambia, actualizamos el estado local
+    if (widget.modInfo != oldWidget.modInfo) {
+      setState(() {
+        currentModInfo = widget.modInfo;
+      });
+      _loadImageProvider();
+    }
+  }
+
   Future<void> _loadImageProvider() async {
-    // Se usa 'currentModInfo' en lugar de 'widget.modInfo'
+    // Forzar recarga de imagen de archivo para ver cambios en la portada
     if (currentModInfo.customCoverPath != null && currentModInfo.customCoverPath!.isNotEmpty) {
       final path = p.join(currentModInfo.directory.path, currentModInfo.customCoverPath!);
       final file = File(path);
       if (file.existsSync()) {
-        if (mounted) {
-          setState(() {
-            _imageProvider = FileImage(file);
-            _isImageLoading = false;
-          });
-        }
+        // Se usa una clave única para forzar la recarga desde el disco.
+        _imageProvider = FileImage(file)..evict();
+        if (mounted) setState(() => _isImageLoading = false);
         return;
       }
     }
 
     final imageUrl = (currentModInfo.gallery != null && currentModInfo.gallery!.isNotEmpty)
-        ? currentModInfo.gallery!.first['image'] as String?
-        : null;
+        ? currentModInfo.gallery!.first['image'] as String? : null;
 
     if (imageUrl != null) {
       final file = await widget.thumbnailService.getThumbnail(imageUrl);
       if (mounted && file != null) {
-        setState(() {
-          _imageProvider = FileImage(file);
-          _isImageLoading = false;
-        });
+        _imageProvider = FileImage(file);
+        setState(() => _isImageLoading = false);
       }
     } else {
-       if (mounted) {
-        setState(() {
-          _isImageLoading = false;
-        });
-      }
+       if (mounted) setState(() => _isImageLoading = false);
     }
   }
 
-  Future<void> _showEditNotesDialog() async {
-    // Se usa 'currentModInfo' en lugar de 'widget.modInfo'
-    final notesController = TextEditingController(text: currentModInfo.userNotes ?? '');
+  Future<void> _showEditAllDialog() async {
     final l10n = AppLocalizations.of(context)!;
+    
+    final nameController = TextEditingController(text: currentModInfo.customName);
+    final authorController = TextEditingController(text: currentModInfo.author ?? '');
+    final summaryController = TextEditingController(text: currentModInfo.summary ?? '');
+    final notesController = TextEditingController(text: currentModInfo.userNotes ?? '');
+    final urlController = TextEditingController(text: currentModInfo.customSourceUrl ?? '');
 
-    final newNotes = await showDialog<String>(
+    File? newCoverFile;
+    Alignment? newCoverAlignment;
+
+    final updatedData = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2d2d2d),
-        title: Text(l10n.editNotes),
-        content: TextField(
-          controller: notesController,
-          autofocus: true,
-          maxLines: 5,
-          decoration: InputDecoration(
-            hintText: l10n.notesHintText,
-            border: const OutlineInputBorder(),
-          ),
-          style: const TextStyle(color: Colors.white),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.dialogActionCancel),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(notesController.text),
-            child: Text(l10n.dialogActionSave),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Text(l10n.editModTitle),
+            content: SizedBox(
+              width: 500,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(controller: nameController, decoration: InputDecoration(labelText: l10n.modNameLabel)),
+                    const SizedBox(height: 16),
+                    TextField(controller: authorController, decoration: InputDecoration(labelText: l10n.authorLabel)),
+                    const SizedBox(height: 16),
+                    TextField(controller: summaryController, decoration: InputDecoration(labelText: l10n.summaryLabel), maxLines: 4),
+                    const SizedBox(height: 16),
+                    TextField(controller: notesController, decoration: InputDecoration(labelText: l10n.notesLabel), maxLines: 3),
+                    const SizedBox(height: 16),
+                    TextField(controller: urlController, decoration: InputDecoration(labelText: l10n.urlLabel)),
+                    const SizedBox(height: 24),
+                    if (newCoverFile != null)
+                      Image.file(newCoverFile!, height: 100),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.image_search),
+                      label: Text(l10n.changeCoverButton),
+                      onPressed: () async {
+                        FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'pwebp', 'tiff']);
+                        if (result != null && result.files.single.path != null) {
+                          final pickedFile = File(result.files.single.path!);
+                          final alignment = await _showCoverAlignmentDialog(pickedFile);
+                          setDialogState(() {
+                            newCoverFile = pickedFile;
+                            newCoverAlignment = alignment;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.dialogActionCancel)),
+              ElevatedButton(
+                onPressed: () {
+                  // ===== CORRECCIÓN AQUÍ =====
+                  // Se especifica el tipo del mapa como <String, dynamic> para que acepte cualquier tipo de valor.
+                  final Map<String, dynamic> dataToSave = {
+                    'customName': nameController.text,
+                    'author': authorController.text,
+                    'summary': summaryController.text,
+                    'userNotes': notesController.text,
+                    'customSourceUrl': urlController.text,
+                  };
+                  if (newCoverFile != null) {
+                    dataToSave['newCoverFile'] = newCoverFile;
+                    dataToSave['newCoverAlignment'] = newCoverAlignment;
+                  }
+                  Navigator.of(context).pop(dataToSave);
+                },
+                child: Text(l10n.dialogActionSave),
+              ),
+            ],
+          );
+        });
+      },
     );
 
-    if (newNotes != null && newNotes != currentModInfo.userNotes) {
-      await widget.onSaveNotes(newNotes);
-      // MODIFICACIÓN: Actualizamos el estado local de las notas también.
+    if (updatedData != null) {
+      await widget.onSaveDetails(updatedData);
+      
       setState(() {
-        currentModInfo.userNotes = newNotes;
+        currentModInfo = ModInfo(
+          directory: Directory(p.join(currentModInfo.directory.parent.path, updatedData['customName'])),
+          customName: updatedData['customName'],
+          author: updatedData['author'],
+          summary: updatedData['summary'],
+          userNotes: updatedData['userNotes'],
+          customSourceUrl: updatedData['customSourceUrl'],
+          nexusId: currentModInfo.nexusId,
+          localVersion: currentModInfo.localVersion,
+          lastModified: currentModInfo.lastModified,
+          installDate: currentModInfo.installDate,
+          isEnabled: currentModInfo.isEnabled,
+          origin: currentModInfo.origin,
+          displayName: currentModInfo.displayName,
+          gallery: currentModInfo.gallery,
+          fitMeshType: currentModInfo.fitMeshType,
+          customCoverPath: updatedData.containsKey('newCoverFile') ? '_custom_cover${p.extension((updatedData['newCoverFile'] as File).path)}' : currentModInfo.customCoverPath,
+          customCoverAlignment: updatedData.containsKey('newCoverFile') ? updatedData['newCoverAlignment'] as Alignment? : currentModInfo.customCoverAlignment,
+          customCoverLastModified: DateTime.now(),
+          customVersion: currentModInfo.customVersion,
+          customFitMeshType: currentModInfo.customFitMeshType,
+        );
+        _loadImageProvider();
       });
     }
   }
 
-  Future<void> _showAddUrlDialog() async {
-    // Se usa 'currentModInfo' en lugar de 'widget.modInfo'
-    final urlController = TextEditingController(text: currentModInfo.customSourceUrl ?? '');
+  Future<Alignment?> _showCoverAlignmentDialog(File imageFile) async {
+    // ... (Este método auxiliar se puede copiar de la clase _ModInstallerHomePageState si no lo tienes aquí ya)
+    final image = await decodeImageFromList(imageFile.readAsBytesSync());
+    final imageSize = Size(image.width.toDouble(), image.height.toDouble());
     final l10n = AppLocalizations.of(context)!;
-    String? errorMessage;
+    Offset offset = Offset.zero;
 
-    await showDialog<void>(
+    return showDialog<Alignment>(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            Size? containerSize; Size? scaledImageSize; Rect? initialImageRect;
+            double? cropWidth; double? cropHeight;
             return AlertDialog(
+              title: Text(l10n.setCoverText), contentPadding: EdgeInsets.zero,
               backgroundColor: const Color(0xFF2d2d2d),
-              title: Text(l10n.dialogTitleAddUrl),
-              content: TextField(
-                controller: urlController,
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: l10n.dialogLabelUrl,
-                  errorText: errorMessage,
+              content: SizedBox(width: 500, height: 600,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    containerSize = Size(constraints.maxWidth, constraints.maxHeight);
+                    final fittedSizes = applyBoxFit(BoxFit.contain, imageSize, containerSize!);
+                    scaledImageSize = fittedSizes.destination;
+                    const cardAspectRatio = 3 / 4.2;
+                    if ((scaledImageSize!.width / scaledImageSize!.height) > cardAspectRatio) {
+                      cropHeight = scaledImageSize!.height;
+                      cropWidth = cropHeight! * cardAspectRatio;
+                    } else {
+                      cropWidth = scaledImageSize!.width;
+                      cropHeight = cropWidth! / cardAspectRatio;
+                    }
+                    final cropRect = Rect.fromCenter(center: containerSize!.center(Offset.zero), width: cropWidth!, height: cropHeight!);
+                    initialImageRect = Alignment.center.inscribe(scaledImageSize!, Rect.fromLTWH(0, 0, containerSize!.width, containerSize!.height));
+                    final minDx = cropRect.right - (initialImageRect!.left + scaledImageSize!.width);
+                    final maxDx = cropRect.left - initialImageRect!.left;
+                    final minDy = cropRect.bottom - (initialImageRect!.top + scaledImageSize!.height);
+                    final maxDy = cropRect.top - initialImageRect!.top;
+                    return GestureDetector(
+                      onPanUpdate: (details) {
+                        setDialogState(() {
+                          offset = Offset(
+                            (offset.dx + details.delta.dx).clamp(min(minDx, maxDx), max(minDx, maxDx)),
+                            (offset.dy + details.delta.dy).clamp(min(minDy, maxDy), max(minDy, maxDy)),
+                          );
+                        });
+                      },
+                      child: ClipRect(
+                        child: Stack(alignment: Alignment.center,
+                          children: [
+                            Positioned(
+                              left: initialImageRect!.left + offset.dx, top: initialImageRect!.top + offset.dy,
+                              width: scaledImageSize!.width, height: scaledImageSize!.height,
+                              child: Image.file(imageFile, fit: BoxFit.fill),
+                            ),
+                            CustomPaint(size: containerSize!, painter: CropOverlayPainter(cropRect: cropRect)),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                style: const TextStyle(color: Colors.white),
               ),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.dialogActionCancel),
-                ),
+                TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.dialogActionCancel)),
                 ElevatedButton(
                   onPressed: () {
-                    final url = urlController.text.trim();
-                    final uri = Uri.tryParse(url);
-                    if (url.isNotEmpty && uri != null && uri.hasAbsolutePath) {
-                      widget.onSaveUrl(url);
-                      // MODIFICACIÓN 3: Se actualiza el estado local y se refresca la UI.
-                      // Se crea un nuevo objeto ModInfo con la URL actualizada y se lo pasamos al `setState`.
-                      setState(() {
-                        currentModInfo = ModInfo(
-                          directory: currentModInfo.directory,
-                          nexusId: currentModInfo.nexusId,
-                          localVersion: currentModInfo.localVersion,
-                          lastModified: currentModInfo.lastModified,
-                          installDate: currentModInfo.installDate,
-                          isEnabled: currentModInfo.isEnabled,
-                          origin: currentModInfo.origin,
-                          displayName: currentModInfo.displayName,
-                          customName: currentModInfo.customName,
-                          gallery: currentModInfo.gallery,
-                          fitMeshType: currentModInfo.fitMeshType,
-                          customCoverPath: currentModInfo.customCoverPath,
-                          customCoverAlignment: currentModInfo.customCoverAlignment,
-                          customCoverLastModified: currentModInfo.customCoverLastModified,
-                          customVersion: currentModInfo.customVersion,
-                          customFitMeshType: currentModInfo.customFitMeshType,
-                          summary: currentModInfo.summary,
-                          author: currentModInfo.author,
-                          userNotes: currentModInfo.userNotes,
-                          customSourceUrl: url, // <-- El nuevo valor
-                        );
-                      });
-                      Navigator.of(context).pop();
-                    } else {
-                      setDialogState(() {
-                        errorMessage = l10n.errorInvalidUrl;
-                      });
-                    }
+                    if (scaledImageSize == null || initialImageRect == null || cropWidth == null || cropHeight == null) return;
+                    final extraWidth = scaledImageSize!.width - cropWidth!;
+                    final extraHeight = scaledImageSize!.height - cropHeight!;
+                    final centerOffset = offset;
+                    final alignmentX = extraWidth > 0 ? (centerOffset.dx / (extraWidth / 2)) * -1 : 0.0;
+                    final alignmentY = extraHeight > 0 ? (centerOffset.dy / (extraHeight / 2)) * -1 : 0.0;
+                    final finalAlignment = Alignment(alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
+                    Navigator.of(context).pop(finalAlignment);
                   },
                   child: Text(l10n.dialogActionSave),
                 ),
@@ -5350,31 +5421,40 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
   }
 
   Future<void> _onLinkButtonPressed() async {
-    // Se usa 'currentModInfo' en lugar de 'widget.modInfo'
     if (currentModInfo.nexusId != null) {
       final url = Uri.parse('https://www.nexusmods.com/stellarblade/mods/${currentModInfo.nexusId}');
       if (await canLaunchUrl(url)) await launchUrl(url);
-    } else if (currentModInfo.customSourceUrl != null) {
+    } else if (currentModInfo.customSourceUrl != null && currentModInfo.customSourceUrl!.isNotEmpty) {
       final url = Uri.parse(currentModInfo.customSourceUrl!);
       if (await canLaunchUrl(url)) await launchUrl(url);
     } else {
-      await _showAddUrlDialog();
+      // Reutiliza la lógica de edición completa para añadir un link.
+      _showEditAllDialog();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    // MODIFICACIÓN 4: Toda la lógica y widgets ahora usan `currentModInfo`.
     final bool hasLink = currentModInfo.nexusId != null || (currentModInfo.customSourceUrl?.isNotEmpty ?? false);
 
     return Scaffold(
       backgroundColor: const Color(0xFF1e1e1e),
       appBar: AppBar(
-        title: Text(l10n.modDetailsTitle, overflow: TextOverflow.ellipsis),
+        title: Text(currentModInfo.customName, overflow: TextOverflow.ellipsis),
         backgroundColor: const Color(0xFF2a2a2a),
+        // --- BOTÓN DE EDITAR AÑADIDO AQUÍ ---
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_note_rounded),
+            tooltip: l10n.editButtonTooltip, // l10n.editButtonTooltip
+            onPressed: _showEditAllDialog,
+          ),
+        ],
       ),
       body: Padding(
+        // ... El resto del body se mantiene igual, solo asegúrate de que todo use `currentModInfo`
+        // en lugar de `widget.modInfo` para que los cambios se reflejen al instante.
         padding: const EdgeInsets.all(20.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -5496,11 +5576,13 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                         color: Colors.white,
                       ),
                     ),
-                    if (currentModInfo.localVersion != null && currentModInfo.localVersion!.isNotEmpty)
+                    if ((currentModInfo.customVersion ?? currentModInfo.localVersion) != null &&
+                        (currentModInfo.customVersion ?? currentModInfo.localVersion)!.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 4.0),
                         child: Text(
-                          '${l10n.modVersion}: ${currentModInfo.localVersion}',
+                          // Se usa la misma lógica que en la lista de mods: customVersion o, si no, localVersion.
+                          '${l10n.modVersion}: ${currentModInfo.customVersion ?? currentModInfo.localVersion}',
                           style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.7)),
                         ),
                       ),
@@ -5524,17 +5606,19 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                       currentModInfo.userNotes?.isNotEmpty ?? false ? currentModInfo.userNotes! : l10n.noNotesAvailable,
                       icon: Icons.edit_note_outlined,
                       isEditable: true,
-                      onEdit: _showEditNotesDialog,
+                      onEdit: () => _showEditAllDialog(),
                     ),
                     const SizedBox(height: 20),
-                    if (currentModInfo.fitMeshType != null && currentModInfo.fitMeshType!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10.0),
-                        child: Text(
-                          '${l10n.modCategory}: ${currentModInfo.fitMeshType}',
-                          style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.6)),
-                        ),
+                    if ((currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType) != null &&
+                      (currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType)!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10.0),
+                      child: Text(
+                        // Se usa la misma lógica que en la lista de mods: customFitMeshType o, si no, fitMeshType.
+                        '${l10n.modCategory}: ${currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType}',
+                        style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.6)),
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -5573,10 +5657,10 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                   ),
                 ],
               ),
-              if (isEditable && onEdit != null)
+              if (isEditable)
                 IconButton(
                   icon: const Icon(Icons.edit_note_outlined, color: Colors.white70),
-                  onPressed: onEdit,
+                  onPressed: () => _showEditAllDialog(),
                   tooltip: l10n.editNotes,
                 ),
             ],
