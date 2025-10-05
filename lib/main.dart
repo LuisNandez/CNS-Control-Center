@@ -4152,6 +4152,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                         title: l10n.editVersionText,
                         label: l10n.customVersionText,
                         initialValue: displayVersion,
+                        defaultValue: modInfo.localVersion ?? '',
                         onSave: (newValue) => _updateModCustomProperty(modInfo, newVersion: newValue),
                      ),
                      borderRadius: BorderRadius.circular(4),
@@ -4181,6 +4182,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                       title: l10n.editTagText,
                       label: l10n.customTagText,
                       initialValue: displayTag,
+                      defaultValue: modInfo.fitMeshType ?? l10n.modCategoryOther,
                       onSave: (newValue) => _updateModCustomProperty(modInfo, newTag: newValue),
                     ),
                     borderRadius: BorderRadius.circular(8),
@@ -4984,6 +4986,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     required String title,
     required String label,
     required String initialValue,
+    required String defaultValue,
     required Function(String) onSave,
   }) async {
     final controller = TextEditingController(text: initialValue);
@@ -4991,30 +4994,55 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     final newValue = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(labelText: label),
-        ),
-        actions: [
-          // Botón para restaurar el valor por defecto (guardando un string vacío)
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(''),
-            child: Text(l10n.dialogActionResetToDefault),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.dialogActionCancel), // Corregido para usar localización
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: Text(l10n.dialogActionSave), // Corregido para usar localización
-          ),
-        ],
-      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            // --- INICIO DE LA CORRECCIÓN ---
+            // Compara el texto actual con el valor predeterminado real del mod.
+            final bool isCurrentlyDefault = controller.text == defaultValue;
+
+            return AlertDialog(
+              title: Text(title),
+              content: TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(labelText: label),
+                onChanged: (value) => setDialogState(() {}),
+              ),
+              actions: [
+                TextButton(
+                  // Se deshabilita si el valor actual YA ES el predeterminado.
+                  onPressed: isCurrentlyDefault
+                      ? null
+                      : () {
+                          // Al hacer clic, el campo de texto se restaura al valor predeterminado.
+                          setDialogState(() {
+                            controller.text = defaultValue;
+                            controller.selection = TextSelection.fromPosition(
+                              TextPosition(offset: controller.text.length),
+                            );
+                          });
+                        },
+                  child: Text(l10n.dialogActionResetToDefault),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(l10n.dialogActionCancel),
+                ),
+                ElevatedButton(
+                  // Al guardar, se envía el valor que esté actualmente en el campo.
+                  onPressed: () => Navigator.of(context).pop(controller.text),
+                  child: Text(l10n.dialogActionSave),
+                ),
+              ],
+            );
+            // --- FIN DE LA CORRECCIÓN ---
+          },
+        );
+      },
     );
+
+    controller.dispose();
 
     if (newValue != null) {
       onSave(newValue);
