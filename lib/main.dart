@@ -46,7 +46,7 @@ class ModInfo {
   final DateTime? customCoverLastModified;
   final String? customVersion;
   final String? customFitMeshType;
-  final String? summary;   // Descripción/resumen del mod.
+  String? summary;   // Descripción/resumen del mod.
   final String? author;    // Autor del mod.
   String? userNotes;     // Notas personales del usuario.
   final String? customSourceUrl;
@@ -5081,20 +5081,20 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  Future<void> _updateModDetails(ModInfo mod, Map<String, dynamic> newData) async {
-  setState(() => _isLoading = true);
+  Future<ModInfo?> _updateModDetails(ModInfo mod, Map<String, dynamic> newData) async {
   try {
     Directory modDirectory = mod.directory;
 
-    // --- 1. Manejar cambio de nombre (renombrar carpeta) ---
     if (newData.containsKey('customName') && newData['customName'] != mod.customName) {
       final newName = (newData['customName'] as String).replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
       final newPath = p.join(mod.directory.parent.path, newName);
-      if (await Directory(newPath).exists()) {
+      if (await Directory(newPath).exists() && newPath != mod.directory.path) {
         throw Exception('A mod with the name "$newName" already exists.');
       }
-      await mod.directory.rename(newPath);
-      modDirectory = Directory(newPath); // Actualiza la referencia al directorio
+      if (newPath != mod.directory.path) {
+        await mod.directory.rename(newPath);
+      }
+      modDirectory = Directory(newPath);
     }
 
     final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
@@ -5104,16 +5104,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (content.isNotEmpty) data = json.decode(content);
     }
     
-    // --- 2. Manejar cambio de portada ---
     if (newData.containsKey('newCoverFile')) {
       final imageFile = newData['newCoverFile'] as File;
       final alignment = newData['newCoverAlignment'] as Alignment?;
-      
       final extension = p.extension(imageFile.path);
       final newFileName = '_custom_cover$extension';
       final destinationPath = p.join(modDirectory.path, newFileName);
       await imageFile.copy(destinationPath);
-      
       data['customCoverPath'] = newFileName;
       if (alignment != null) {
         data['customCoverAlignmentX'] = alignment.x;
@@ -5121,31 +5118,29 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     }
     
-    // --- 3. Actualizar todos los demás campos de texto ---
-    data['customName'] = newData['customName'] ?? data['customName'];
-    data['author'] = newData['author'] ?? data['author'];
-    data['summary'] = newData['summary'] ?? data['summary'];
-    data['userNotes'] = newData['userNotes'] ?? data['userNotes'];
-    data['customSourceUrl'] = newData['customSourceUrl'] ?? data['customSourceUrl'];
+    // ===== CORRECCIÓN AQUÍ =====
+    // Ahora solo actualizamos los campos que vienen en el mapa 'newData'.
+    if (newData.containsKey('customName')) data['customName'] = newData['customName'];
+    if (newData.containsKey('author')) data['author'] = newData['author'];
+    if (newData.containsKey('summary')) data['summary'] = newData['summary'];
+    if (newData.containsKey('userNotes')) data['userNotes'] = newData['userNotes'];
+    if (newData.containsKey('customSourceUrl')) data['customSourceUrl'] = newData['customSourceUrl'];
     
     final encoder = JsonEncoder.withIndent('  ');
     await infoFile.writeAsString(encoder.convert(data));
 
-    // --- 4. Refrescar la lista de mods ---
-    await _loadAllMods();
+    await _loadAllMods(clearHighlight: false);
 
+    return _allMods.firstWhere((m) => m.directory.path == modDirectory.path, orElse: () => mod);
   } catch (e) {
     print('Error updating mod details: $e');
     if (mounted) {
       NotificationService.instance.show(
-        context: context,
-        type: NotificationType.error,
-        title: 'Error Saving Changes',
-        description: e.toString(),
+        context: context, type: NotificationType.error,
+        title: 'Error Saving Changes', description: e.toString(),
       );
     }
-  } finally {
-    setState(() => _isLoading = false);
+    return null;
   }
 }
 
@@ -5184,7 +5179,6 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
   @override
   void didUpdateWidget(covariant ModDetailsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Si el mod base cambia, actualizamos el estado local
     if (widget.modInfo != oldWidget.modInfo) {
       setState(() {
         currentModInfo = widget.modInfo;
@@ -5194,12 +5188,10 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
   }
 
   Future<void> _loadImageProvider() async {
-    // Forzar recarga de imagen de archivo para ver cambios en la portada
     if (currentModInfo.customCoverPath != null && currentModInfo.customCoverPath!.isNotEmpty) {
       final path = p.join(currentModInfo.directory.path, currentModInfo.customCoverPath!);
       final file = File(path);
       if (file.existsSync()) {
-        // Se usa una clave única para forzar la recarga desde el disco.
         _imageProvider = FileImage(file)..evict();
         if (mounted) setState(() => _isImageLoading = false);
         return;
@@ -5220,13 +5212,13 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
     }
   }
 
-  Future<void> _showEditAllDialog() async {
+  // --- DIÁLOGO GENERAL SIMPLIFICADO ---
+  // Ahora solo edita nombre, autor, URL y portada.
+  Future<void> _showGeneralEditDialog() async {
     final l10n = AppLocalizations.of(context)!;
     
     final nameController = TextEditingController(text: currentModInfo.customName);
     final authorController = TextEditingController(text: currentModInfo.author ?? '');
-    final summaryController = TextEditingController(text: currentModInfo.summary ?? '');
-    final notesController = TextEditingController(text: currentModInfo.userNotes ?? '');
     final urlController = TextEditingController(text: currentModInfo.customSourceUrl ?? '');
 
     File? newCoverFile;
@@ -5248,10 +5240,6 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                     TextField(controller: nameController, decoration: InputDecoration(labelText: l10n.modNameLabel)),
                     const SizedBox(height: 16),
                     TextField(controller: authorController, decoration: InputDecoration(labelText: l10n.authorLabel)),
-                    const SizedBox(height: 16),
-                    TextField(controller: summaryController, decoration: InputDecoration(labelText: l10n.summaryLabel), maxLines: 4),
-                    const SizedBox(height: 16),
-                    TextField(controller: notesController, decoration: InputDecoration(labelText: l10n.notesLabel), maxLines: 3),
                     const SizedBox(height: 16),
                     TextField(controller: urlController, decoration: InputDecoration(labelText: l10n.urlLabel)),
                     const SizedBox(height: 24),
@@ -5280,13 +5268,9 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
               TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.dialogActionCancel)),
               ElevatedButton(
                 onPressed: () {
-                  // ===== CORRECCIÓN AQUÍ =====
-                  // Se especifica el tipo del mapa como <String, dynamic> para que acepte cualquier tipo de valor.
                   final Map<String, dynamic> dataToSave = {
                     'customName': nameController.text,
                     'author': authorController.text,
-                    'summary': summaryController.text,
-                    'userNotes': notesController.text,
                     'customSourceUrl': urlController.text,
                   };
                   if (newCoverFile != null) {
@@ -5306,14 +5290,16 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
     if (updatedData != null) {
       await widget.onSaveDetails(updatedData);
       
+      // Actualiza el estado local para reflejar los cambios inmediatamente
       setState(() {
         currentModInfo = ModInfo(
           directory: Directory(p.join(currentModInfo.directory.parent.path, updatedData['customName'])),
           customName: updatedData['customName'],
           author: updatedData['author'],
-          summary: updatedData['summary'],
-          userNotes: updatedData['userNotes'],
           customSourceUrl: updatedData['customSourceUrl'],
+          // Mantiene los datos que no se editaron
+          summary: currentModInfo.summary,
+          userNotes: currentModInfo.userNotes,
           nexusId: currentModInfo.nexusId,
           localVersion: currentModInfo.localVersion,
           lastModified: currentModInfo.lastModified,
@@ -5333,9 +5319,42 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
       });
     }
   }
+  
+  // --- NUEVO DIÁLOGO GENÉRICO ---
+  // Para editar un solo campo de texto a la vez (descripción, notas, etc.).
+  Future<String?> _showSingleFieldEditDialog({
+    required String title,
+    required String label,
+    required String initialValue,
+  }) async {
+    final controller = TextEditingController(text: initialValue);
+    final l10n = AppLocalizations.of(context)!;
+
+    return await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(labelText: label),
+          maxLines: null, // Permite múltiples líneas
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.dialogActionCancel),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: Text(l10n.dialogActionSave),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<Alignment?> _showCoverAlignmentDialog(File imageFile) async {
-    // ... (Este método auxiliar se puede copiar de la clase _ModInstallerHomePageState si no lo tienes aquí ya)
     final image = await decodeImageFromList(imageFile.readAsBytesSync());
     final imageSize = Size(image.width.toDouble(), image.height.toDouble());
     final l10n = AppLocalizations.of(context)!;
@@ -5428,8 +5447,24 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
       final url = Uri.parse(currentModInfo.customSourceUrl!);
       if (await canLaunchUrl(url)) await launchUrl(url);
     } else {
-      // Reutiliza la lógica de edición completa para añadir un link.
-      _showEditAllDialog();
+      _showGeneralEditDialog();
+    }
+  }
+
+  Future<void> _showInExplorer() async {
+    final uri = Uri.file(currentModInfo.directory.path);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.errorOpenFolder(currentModInfo.directory.path)),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 
@@ -5443,18 +5478,15 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
       appBar: AppBar(
         title: Text(currentModInfo.customName, overflow: TextOverflow.ellipsis),
         backgroundColor: const Color(0xFF2a2a2a),
-        // --- BOTÓN DE EDITAR AÑADIDO AQUÍ ---
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_note_rounded),
-            tooltip: l10n.editButtonTooltip, // l10n.editButtonTooltip
-            onPressed: _showEditAllDialog,
+            tooltip: l10n.editButtonTooltip,
+            onPressed: _showGeneralEditDialog,
           ),
         ],
       ),
       body: Padding(
-        // ... El resto del body se mantiene igual, solo asegúrate de que todo use `currentModInfo`
-        // en lugar de `widget.modInfo` para que los cambios se reflejen al instante.
         padding: const EdgeInsets.all(20.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -5556,6 +5588,27 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  Tooltip(
+                    message: l10n.showInFolder,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.folder_open, size: 20),
+                      label: Text(l10n.showInFolder),
+                      onPressed: _showInExplorer,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF424242), // Color gris oscuro
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -5581,7 +5634,6 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                       Padding(
                         padding: const EdgeInsets.only(top: 4.0),
                         child: Text(
-                          // Se usa la misma lógica que en la lista de mods: customVersion o, si no, localVersion.
                           '${l10n.modVersion}: ${currentModInfo.customVersion ?? currentModInfo.localVersion}',
                           style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.7)),
                         ),
@@ -5593,20 +5645,48 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                       Text(currentModInfo.author!, style: const TextStyle(fontSize: 18, color: Colors.white)),
                       const SizedBox(height: 20),
                     ],
+                    // --- SECCIÓN DE DESCRIPCIÓN EDITABLE ---
                     _buildInfoSection(
                       context,
                       l10n.modDescription,
                       currentModInfo.summary?.trim() ?? l10n.noDescriptionAvailable,
                       icon: Icons.description_outlined,
+                      isEditable: true,
+                      onEdit: () async {
+                        final newSummary = await _showSingleFieldEditDialog(
+                          title: l10n.modDescription,
+                          label: l10n.summaryLabel,
+                          initialValue: currentModInfo.summary ?? '',
+                        );
+                        if (newSummary != null) {
+                          await widget.onSaveDetails({'summary': newSummary});
+                          setState(() {
+                            currentModInfo.summary = newSummary;
+                          });
+                        }
+                      },
                     ),
                     const SizedBox(height: 20),
+                    // --- SECCIÓN DE NOTAS EDITABLE ---
                     _buildInfoSection(
                       context,
                       l10n.personalNotes,
                       currentModInfo.userNotes?.isNotEmpty ?? false ? currentModInfo.userNotes! : l10n.noNotesAvailable,
                       icon: Icons.edit_note_outlined,
                       isEditable: true,
-                      onEdit: () => _showEditAllDialog(),
+                      onEdit: () async {
+                        final newNotes = await _showSingleFieldEditDialog(
+                          title: l10n.personalNotes,
+                          label: l10n.notesLabel,
+                          initialValue: currentModInfo.userNotes ?? '',
+                        );
+                        if (newNotes != null) {
+                           await widget.onSaveDetails({'userNotes': newNotes});
+                           setState(() {
+                             currentModInfo.userNotes = newNotes;
+                           });
+                        }
+                      },
                     ),
                     const SizedBox(height: 20),
                     if ((currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType) != null &&
@@ -5614,7 +5694,6 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                     Padding(
                       padding: const EdgeInsets.only(top: 10.0),
                       child: Text(
-                        // Se usa la misma lógica que en la lista de mods: customFitMeshType o, si no, fitMeshType.
                         '${l10n.modCategory}: ${currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType}',
                         style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.6)),
                       ),
@@ -5629,6 +5708,8 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
     );
   }
 
+  // --- WIDGET AUXILIAR MODIFICADO ---
+  // Ahora incluye un botón de editar opcional.
   Widget _buildInfoSection(BuildContext context, String title, String content, {IconData? icon, bool isEditable = false, VoidCallback? onEdit}) {
     final l10n = AppLocalizations.of(context)!;
     return Container(
@@ -5659,9 +5740,12 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
               ),
               if (isEditable)
                 IconButton(
-                  icon: const Icon(Icons.edit_note_outlined, color: Colors.white70),
-                  onPressed: () => _showEditAllDialog(),
-                  tooltip: l10n.editNotes,
+                  icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
+                  onPressed: onEdit,
+                  tooltip: l10n.editButtonTooltip,
+                  splashRadius: 20,
+                  constraints: const BoxConstraints(),
+                  padding: EdgeInsets.zero,
                 ),
             ],
           ),
