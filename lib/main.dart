@@ -49,7 +49,9 @@ class ModInfo {
   String? summary;   // Descripción/resumen del mod.
   final String? customSummary;
   final String? author;    // Autor del mod.
+  final String? customAuthor;
   String? userNotes;     // Notas personales del usuario.
+  final String? sourceUrl;
   final String? customSourceUrl;
 
   ModInfo({
@@ -72,7 +74,9 @@ class ModInfo {
     this.summary,
     this.customSummary,
     this.author,
+    this.customAuthor,
     this.userNotes,
+    this.sourceUrl,
     this.customSourceUrl,
   });
 
@@ -856,7 +860,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String? summary;
             String? customSummary;
             String? author;
+            String? customAuthor;
             String? userNotes;
+            String? sourceUrl;
             String? customSourceUrl;
 
             final infoFile = File(p.join(entity.path, 'nexus_info.json'));
@@ -900,7 +906,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 summary = data['summary'];
                 customSummary = data['customSummary'];
                 author = data['author'];
+                customAuthor = data['customAuthor'];
                 userNotes = data['userNotes'];
+                sourceUrl = data['sourceUrl'];
                 customSourceUrl = data['customSourceUrl'];
 
                 if (installedVersion != null && installedVersion.toLowerCase().startsWith('v')) {
@@ -972,7 +980,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               summary: summary,
               customSummary: customSummary,
               author: author,
+              customAuthor: customAuthor,
               userNotes: userNotes,
+              sourceUrl: sourceUrl,
               customSourceUrl: customSourceUrl,
             ));
           } catch (e) {
@@ -2181,6 +2191,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         'installDate': DateTime.now().toIso8601String(),
         'managerVersion': _appVersion,
         'fitMeshType': fitMeshType,
+        'sourceUrl': 'https://www.nexusmods.com/stellarblade/mods/$nexusId',
       };
 
       final nexusData = await _fetchNexusModData(nexusId);
@@ -5182,8 +5193,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     }
     
-    if (newData.containsKey('customName')) data['customName'] = newData['customName'];
-    if (newData.containsKey('author')) data['author'] = newData['author'];
+    if (newData.containsKey('customName')) {
+      final value = newData['customName'] as String;
+      if (value.isEmpty || value == mod.displayName) data.remove('customName');
+      else data['customName'] = value;
+    }
+    if (newData.containsKey('author')) {
+      final value = newData['author'] as String;
+      if (value.isEmpty || value == mod.author) data.remove('customAuthor');
+      else data['customAuthor'] = value;
+    }
     
     // Si se edita la descripción ('summary'), se guarda en 'customSummary'.
     // Si la nueva descripción es igual a la original o está vacía, se elimina la clave.
@@ -5197,7 +5216,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
 
     if (newData.containsKey('userNotes')) data['userNotes'] = newData['userNotes'];
-    if (newData.containsKey('customSourceUrl')) data['customSourceUrl'] = newData['customSourceUrl'];
+    
+    if (newData.containsKey('customSourceUrl')) {
+      final value = newData['customSourceUrl'] as String;
+      if (value.isEmpty || value == mod.sourceUrl) data.remove('customSourceUrl');
+      else data['customSourceUrl'] = value;
+    }
     
     final encoder = JsonEncoder.withIndent('  ');
     await infoFile.writeAsString(encoder.convert(data));
@@ -5292,7 +5316,7 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
     final l10n = AppLocalizations.of(context)!;
     
     final nameController = TextEditingController(text: currentModInfo.customName);
-    final authorController = TextEditingController(text: currentModInfo.author ?? '');
+    final authorController = TextEditingController(text: currentModInfo.customAuthor ?? currentModInfo.author ?? '');
     final urlController = TextEditingController(text: currentModInfo.customSourceUrl ?? '');
 
     File? newCoverFile;
@@ -5303,6 +5327,25 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
       barrierDismissible: false,
       builder: (context) {
         return StatefulBuilder(builder: (context, setDialogState) {
+          final bool canResetName = nameController.text != currentModInfo.displayName;
+          final bool canResetAuthor = authorController.text != (currentModInfo.author ?? '');
+          final bool canResetUrl = urlController.text != (currentModInfo.sourceUrl ?? '');
+
+          Widget buildEditableRow(TextEditingController controller, String label, String defaultValue, bool canReset) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(child: TextField(controller: controller, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: label, isDense: true))),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: !canReset ? null : () => setDialogState(() => controller.text = defaultValue),
+                  child: Text(l10n.dialogActionResetToDefault, style: const TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4)),
+                ),
+              ],
+            );
+          }
+
           return AlertDialog(
             title: Text(l10n.editModTitle),
             content: SizedBox(
@@ -5311,11 +5354,22 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(controller: nameController, decoration: InputDecoration(labelText: l10n.modNameLabel)),
+                    Row(children: [
+                      Expanded(child: TextField(controller: nameController, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: l10n.modNameLabel))),
+                      TextButton(onPressed: !canResetName ? null : () => setDialogState(() => nameController.text = currentModInfo.displayName), child: Text(l10n.dialogActionResetToDefault)),
+                    ]),
                     const SizedBox(height: 16),
-                    TextField(controller: authorController, decoration: InputDecoration(labelText: l10n.authorLabel)),
+                    // --- CAMPO DE AUTOR ---
+                    Row(children: [
+                      Expanded(child: TextField(controller: authorController, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: l10n.authorLabel))),
+                      TextButton(onPressed: !canResetAuthor ? null : () => setDialogState(() => authorController.text = currentModInfo.author ?? ''), child: Text(l10n.dialogActionResetToDefault)),
+                    ]),
                     const SizedBox(height: 16),
-                    TextField(controller: urlController, decoration: InputDecoration(labelText: l10n.urlLabel)),
+                    // --- CAMPO DE URL ---
+                    Row(children: [
+                      Expanded(child: TextField(controller: urlController, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: l10n.urlLabel))),
+                      TextButton(onPressed: !canResetUrl ? null : () => setDialogState(() => urlController.text = ''), child: Text(l10n.dialogActionResetToDefault)),
+                    ]),
                     const SizedBox(height: 24),
                     if (newCoverFile != null)
                       Image.file(newCoverFile!, height: 100),
@@ -5360,6 +5414,10 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
         });
       },
     );
+
+    nameController.dispose();
+    authorController.dispose();
+    urlController.dispose();
 
     if (updatedData != null) {
       await widget.onSaveDetails(updatedData);
@@ -5541,16 +5599,17 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
   }
 
   Future<void> _onLinkButtonPressed() async {
-    if (currentModInfo.nexusId != null) {
-      final url = Uri.parse('https://www.nexusmods.com/stellarblade/mods/${currentModInfo.nexusId}');
-      if (await canLaunchUrl(url)) await launchUrl(url);
-    } else if (currentModInfo.customSourceUrl != null && currentModInfo.customSourceUrl!.isNotEmpty) {
-      final url = Uri.parse(currentModInfo.customSourceUrl!);
-      if (await canLaunchUrl(url)) await launchUrl(url);
+    final urlString = currentModInfo.customSourceUrl ?? currentModInfo.sourceUrl;
+    if (urlString != null && urlString.isNotEmpty) {
+      final url = Uri.parse(urlString);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url);
+      }
     } else {
       _showGeneralEditDialog();
     }
   }
+
 
   Future<void> _showInExplorer() async {
     final uri = Uri.file(currentModInfo.directory.path);
@@ -5572,7 +5631,7 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final bool hasLink = currentModInfo.nexusId != null || (currentModInfo.customSourceUrl?.isNotEmpty ?? false);
+    final bool hasLink = (currentModInfo.customSourceUrl ?? currentModInfo.sourceUrl)?.isNotEmpty ?? false;
 
     return Scaffold(
       backgroundColor: const Color(0xFF1e1e1e),
@@ -5740,10 +5799,11 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                         ),
                       ),
                     const SizedBox(height: 15),
-                    if (currentModInfo.author != null && currentModInfo.author!.isNotEmpty) ...[
+                    if ((currentModInfo.customAuthor ?? currentModInfo.author)?.isNotEmpty ?? false) ...[
                       Text(l10n.modAuthor, style: const TextStyle(color: Colors.tealAccent, fontSize: 14)),
                       const SizedBox(height: 4),
-                      Text(currentModInfo.author!, style: const TextStyle(fontSize: 18, color: Colors.white)),
+                      // Muestra el autor personalizado o el original
+                      Text(currentModInfo.customAuthor ?? currentModInfo.author!, style: const TextStyle(fontSize: 18, color: Colors.white)),
                       const SizedBox(height: 20),
                     ],
                     // --- SECCIÓN DE DESCRIPCIÓN EDITABLE ---
