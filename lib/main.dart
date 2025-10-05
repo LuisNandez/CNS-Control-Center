@@ -47,6 +47,7 @@ class ModInfo {
   final String? customVersion;
   final String? customFitMeshType;
   String? summary;   // Descripción/resumen del mod.
+  final String? customSummary;
   final String? author;    // Autor del mod.
   String? userNotes;     // Notas personales del usuario.
   final String? customSourceUrl;
@@ -69,6 +70,7 @@ class ModInfo {
     this.customVersion,
     this.customFitMeshType,
     this.summary,
+    this.customSummary,
     this.author,
     this.userNotes,
     this.customSourceUrl,
@@ -852,6 +854,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String? customVersion;
             String? customFitMeshType;
             String? summary;
+            String? customSummary;
             String? author;
             String? userNotes;
             String? customSourceUrl;
@@ -895,6 +898,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 gallery = data['gallery'];
                 fitMeshType = data['fitMeshType'];
                 summary = data['summary'];
+                customSummary = data['customSummary'];
                 author = data['author'];
                 userNotes = data['userNotes'];
                 customSourceUrl = data['customSourceUrl'];
@@ -966,6 +970,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               customVersion: customVersion,
               customFitMeshType: customFitMeshType,
               summary: summary,
+              customSummary: customSummary,
               author: author,
               userNotes: userNotes,
               customSourceUrl: customSourceUrl,
@@ -5177,11 +5182,20 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     }
     
-    // ===== CORRECCIÓN AQUÍ =====
-    // Ahora solo actualizamos los campos que vienen en el mapa 'newData'.
     if (newData.containsKey('customName')) data['customName'] = newData['customName'];
     if (newData.containsKey('author')) data['author'] = newData['author'];
-    if (newData.containsKey('summary')) data['summary'] = newData['summary'];
+    
+    // Si se edita la descripción ('summary'), se guarda en 'customSummary'.
+    // Si la nueva descripción es igual a la original o está vacía, se elimina la clave.
+    if (newData.containsKey('summary')) {
+      final newCustomSummary = newData['summary'] as String;
+      if (newCustomSummary.isEmpty || newCustomSummary == mod.summary) {
+        data.remove('customSummary');
+      } else {
+        data['customSummary'] = newCustomSummary;
+      }
+    }
+
     if (newData.containsKey('userNotes')) data['userNotes'] = newData['userNotes'];
     if (newData.containsKey('customSourceUrl')) data['customSourceUrl'] = newData['customSourceUrl'];
     
@@ -5386,31 +5400,58 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
     required String title,
     required String label,
     required String initialValue,
+    String? defaultValue,
   }) async {
     final controller = TextEditingController(text: initialValue);
     final l10n = AppLocalizations.of(context)!;
 
     return await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(labelText: label),
-          maxLines: null, // Permite múltiples líneas
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.dialogActionCancel),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: Text(l10n.dialogActionSave),
-          ),
-        ],
-      ),
+      builder: (context) {
+        // --- INICIO DE LA MODIFICACIÓN ---
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            // Comprueba si el texto actual es igual al valor predeterminado.
+            final bool isCurrentlyDefault = controller.text == (defaultValue ?? '');
+
+            return AlertDialog(
+              title: Text(title),
+              content: TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(labelText: label),
+                maxLines: null, // Permite múltiples líneas
+                onChanged: (value) => setDialogState(() {}), // Actualiza el estado al escribir
+              ),
+              actions: [
+                // Solo muestra el botón si se proporciona un valor predeterminado
+                if (defaultValue != null)
+                  TextButton(
+                    onPressed: isCurrentlyDefault ? null : () {
+                      setDialogState(() {
+                        controller.text = defaultValue;
+                        // Mueve el cursor al final del texto
+                        controller.selection = TextSelection.fromPosition(
+                          TextPosition(offset: controller.text.length),
+                        );
+                      });
+                    },
+                    child: Text(l10n.dialogActionResetToDefault),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(l10n.dialogActionCancel),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(controller.text),
+                  child: Text(l10n.dialogActionSave),
+                ),
+              ],
+            );
+          },
+        );
+        // --- FIN DE LA MODIFICACIÓN ---
+      },
     );
   }
 
@@ -5709,19 +5750,48 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                     _buildInfoSection(
                       context,
                       l10n.modDescription,
-                      currentModInfo.summary?.trim() ?? l10n.noDescriptionAvailable,
+                      // Muestra la descripción personalizada, si no, la original.
+                      currentModInfo.customSummary ?? currentModInfo.summary?.trim() ?? l10n.noDescriptionAvailable,
                       icon: Icons.description_outlined,
                       isEditable: true,
                       onEdit: () async {
                         final newSummary = await _showSingleFieldEditDialog(
                           title: l10n.modDescription,
                           label: l10n.summaryLabel,
-                          initialValue: currentModInfo.summary ?? '',
+                          // El valor inicial para editar es el personalizado o el original.
+                          initialValue: currentModInfo.customSummary ?? currentModInfo.summary ?? '',
+                          // El valor para restablecer es SIEMPRE el original.
+                          defaultValue: currentModInfo.summary ?? '',
                         );
                         if (newSummary != null) {
+                          // La clave 'summary' es interpretada por _updateModDetails para guardarla como customSummary
                           await widget.onSaveDetails({'summary': newSummary});
                           setState(() {
-                            currentModInfo.summary = newSummary;
+                             // Actualiza el estado local para un refresco visual inmediato
+                             currentModInfo = ModInfo(
+                                directory: currentModInfo.directory,
+                                nexusId: currentModInfo.nexusId,
+                                localVersion: currentModInfo.localVersion,
+                                lastModified: currentModInfo.lastModified,
+                                installDate: currentModInfo.installDate,
+                                isEnabled: currentModInfo.isEnabled,
+                                origin: currentModInfo.origin,
+                                displayName: currentModInfo.displayName,
+                                customName: currentModInfo.customName,
+                                gallery: currentModInfo.gallery,
+                                fitMeshType: currentModInfo.fitMeshType,
+                                customCoverPath: currentModInfo.customCoverPath,
+                                customCoverAlignment: currentModInfo.customCoverAlignment,
+                                customCoverLastModified: currentModInfo.customCoverLastModified,
+                                customVersion: currentModInfo.customVersion,
+                                customFitMeshType: currentModInfo.customFitMeshType,
+                                summary: currentModInfo.summary, // El original no cambia
+                                // Actualiza el customSummary localmente
+                                customSummary: (newSummary == currentModInfo.summary || newSummary.isEmpty) ? null : newSummary,
+                                author: currentModInfo.author,
+                                userNotes: currentModInfo.userNotes,
+                                customSourceUrl: currentModInfo.customSourceUrl
+                             );
                           });
                         }
                       },
