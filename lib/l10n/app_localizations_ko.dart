@@ -896,4 +896,13 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get editButtonTooltip => 'Edit Mod';
+
+  @override
+  String get errorSavingNotes => 'Error saving notes';
+
+  @override
+  String get errorSavingUrl => 'Error saving URL';
+
+  @override
+  String get errorSavingChanges => 'Error Saving Changes';
 }

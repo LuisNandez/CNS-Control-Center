@@ -3169,11 +3169,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             modDirectory: Directory(
                 p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss')), displayName: ''));
       } else if (job.mod != null) {
+        // Determina qué versión usar para la comprobación de actualizaciones.
+        // Prioriza la 'customVersion' definida por el usuario.
+        final String versionForCheck = job.mod!.customVersion != null && job.mod!.customVersion!.isNotEmpty
+            ? job.mod!.customVersion!
+            : job.mod!.localVersion ?? '0';
+
+        // Se considera que una versión existe si la versión personalizada o la local están presentes.
+        final bool hasVersionForCheck = (job.mod!.customVersion != null && job.mod!.customVersion!.isNotEmpty) ||
+                                         (job.mod!.localVersion != null && job.mod!.localVersion!.isNotEmpty);
+
         futures.add(_checkSingleModUpdate(
             headers: headers,
             nexusId: job.mod!.nexusId!,
-            localVersion: job.mod!.localVersion ?? '0',
-            hasLocalVersion: job.mod!.localVersion != null,
+            localVersion: versionForCheck,       // Usar la versión determinada
+            hasLocalVersion: hasVersionForCheck, // Usar el nuevo booleano
             modName: job.mod!.customName,
             displayName: job.mod!.displayName,
             modDirectory: job.mod!.directory));
@@ -3371,15 +3381,25 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       try {
         final modToRecheck = _allMods
             .firstWhere((m) => m.nexusId == nexusId);
-        final versionToCheck = newVersion ?? modToRecheck.localVersion;
+        // Prioriza la versión para la nueva comprobación en este orden:
+        // 1. Una nueva versión pasada explícitamente a la función.
+        // 2. La versión personalizada del mod si existe.
+        // 3. La versión local (automática) del mod.
+        final versionToCheck = newVersion ??
+            (modToRecheck.customVersion?.isNotEmpty == true
+                ? modToRecheck.customVersion
+                : modToRecheck.localVersion);
+
         if (versionToCheck != null) {
+          final hasVersionForCheck = versionToCheck.isNotEmpty;
           final updateInfo = await _checkSingleModUpdate(
               headers: headers,
               nexusId: modToRecheck.nexusId!,
               localVersion: versionToCheck,
-              hasLocalVersion: true,
+              hasLocalVersion: hasVersionForCheck,
               modName: modToRecheck.customName,
-              modDirectory: modToRecheck.directory, displayName: '');
+              modDirectory: modToRecheck.directory, 
+              displayName: modToRecheck.displayName); // Pasar el displayName
           setState(() {
             if (updateInfo == null) {
               _modUpdates.remove(modToRecheck.directory.path);
@@ -3491,12 +3511,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     required String uniqueIdentifier,
   }) async {
     final l10n = AppLocalizations.of(context)!;
+    final String cleanedVersion = newVersion.toLowerCase().startsWith('v')
+        ? newVersion.substring(1)
+        : newVersion;
 
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.updateAvailable(newVersion)),
+        title: Text(l10n.updateAvailable(cleanedVersion)),
         content: Text(l10n.dialogContentUpdateOptions),
         actions: [
           TextButton(
@@ -4085,7 +4108,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                       left: 8,
                       child: IconButton(
                         icon: const Icon(Icons.notification_important_rounded, color: Colors.yellowAccent),
-                        tooltip: l10n.updateAvailable(updateInfo['version']),
+                        tooltip: l10n.updateAvailable(
+                          (updateInfo['version'] as String).toLowerCase().startsWith('v')
+                            ? (updateInfo['version'] as String).substring(1)
+                            : updateInfo['version']
+                        ),
                         onPressed: () {
                           if (modInfo.nexusId != null) {
                             _showUpdateOptionsDialog(
@@ -4359,7 +4386,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               IconButton(
                 icon: const Icon(Icons.notification_important,
                     color: Colors.yellowAccent),
-                tooltip: l10n.updateAvailable(updateInfo['version']),
+                tooltip: l10n.updateAvailable(
+                  (updateInfo['version'] as String).toLowerCase().startsWith('v')
+                    ? (updateInfo['version'] as String).substring(1)
+                    : updateInfo['version']
+                ),
                 onPressed: () {
                   if (modInfo.nexusId != null) {
                     _showUpdateOptionsDialog(
@@ -4884,7 +4915,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     setState(() {});
   }
 
-  Future<void> _updateUserNotes(ModInfo mod, String newNotes) async {
+  Future<void> _updateUserNotes(ModInfo mod, String newNotes, dynamic l10n) async {
     try {
       final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
       Map<String, dynamic> data = {};
@@ -4911,7 +4942,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         NotificationService.instance.show(
           context: context,
           type: NotificationType.error,
-          title: 'Error saving notes',
+          title: l10n.errorSavingNotes,
           description: e.toString(),
         );
       }
@@ -4975,11 +5006,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
+            child: Text(l10n.dialogActionCancel), // Corregido para usar localización
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Guardar'),
+            child: Text(l10n.dialogActionSave), // Corregido para usar localización
           ),
         ],
       ),
@@ -5034,7 +5065,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 }
   // Este método se encargará de guardar la URL personalizada en el archivo JSON del mod.
-  Future<void> _updateModCustomSourceUrl(ModInfo mod, String newUrl) async {
+  Future<void> _updateModCustomSourceUrl(ModInfo mod, String newUrl, dynamic l10n) async {
     try {
       final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
       Map<String, dynamic> data = {};
@@ -5074,7 +5105,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         NotificationService.instance.show(
           context: context,
           type: NotificationType.error,
-          title: 'Error saving URL',
+          title: l10n.errorSavingUrl,
           description: e.toString(),
         );
       }
@@ -5134,10 +5165,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     return _allMods.firstWhere((m) => m.directory.path == modDirectory.path, orElse: () => mod);
   } catch (e) {
     print('Error updating mod details: $e');
+    final l10n = AppLocalizations.of(context)!;
     if (mounted) {
       NotificationService.instance.show(
         context: context, type: NotificationType.error,
-        title: 'Error Saving Changes', description: e.toString(),
+        title: l10n.errorSavingChanges, description: e.toString(),
       );
     }
     return null;

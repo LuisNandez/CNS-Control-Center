@@ -1641,6 +1641,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edit Mod'**
   String get editButtonTooltip;
+
+  /// No description provided for @errorSavingNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Error saving notes'**
+  String get errorSavingNotes;
+
+  /// No description provided for @errorSavingUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Error saving URL'**
+  String get errorSavingUrl;
+
+  /// No description provided for @errorSavingChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Error Saving Changes'**
+  String get errorSavingChanges;
 }
 
 class _AppLocalizationsDelegate

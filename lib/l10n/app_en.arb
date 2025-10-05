@@ -305,6 +305,9 @@
     "notesLabel": "Personal Notes",
     "urlLabel": "Download URL",
     "changeCoverButton": "Change Cover Image",
-    "editButtonTooltip": "Edit Mod"
+    "editButtonTooltip": "Edit Mod",
+    "errorSavingNotes": "Error saving notes",
+    "errorSavingUrl": "Error saving URL",
+    "errorSavingChanges": "Error Saving Changes"
 }
 
