@@ -826,89 +826,89 @@ class AppLocalizationsKo extends AppLocalizations {
   String get snackBarNoModsToEnable => '활성화할 비활성화된 모드가 없습니다.';
 
   @override
-  String get editNotes => 'Edit Notes';
+  String get editNotes => '메모 편집';
 
   @override
-  String get notesHintText => 'Add your personal notes here...';
+  String get notesHintText => '여기에 개인 메모를 추가하세요...';
 
   @override
-  String get modAuthor => 'Author';
+  String get modAuthor => '제작자';
 
   @override
-  String get modDescription => 'Description';
+  String get modDescription => '설명';
 
   @override
-  String get noDescriptionAvailable => 'No description available.';
+  String get noDescriptionAvailable => '설명이 없습니다.';
 
   @override
-  String get personalNotes => 'Personal Notes';
+  String get personalNotes => '개인 메모';
 
   @override
-  String get noNotesAvailable => 'No notes added yet.';
+  String get noNotesAvailable => '아직 추가된 메모가 없습니다.';
 
   @override
-  String get modDetailsTitle => 'Mod Details';
+  String get modDetailsTitle => '모드 세부 정보';
 
   @override
-  String get modVersion => 'Version';
+  String get modVersion => '버전';
 
   @override
-  String get modCategory => 'Category';
+  String get modCategory => '카테고리';
 
   @override
-  String get dialogTitleAddUrl => 'Add Mod Link';
+  String get dialogTitleAddUrl => '모드 링크 추가';
 
   @override
-  String get dialogLabelUrl => 'Mod URL';
+  String get dialogLabelUrl => '모드 URL';
 
   @override
-  String get errorInvalidUrl => 'Please enter a valid URL.';
+  String get errorInvalidUrl => '유효한 URL을 입력하세요.';
 
   @override
-  String get addLinkTooltip => 'Add a download link for this mod';
+  String get addLinkTooltip => '이 모드의 다운로드 링크 추가';
 
   @override
-  String get addLinkButtonText => 'Add Link';
+  String get addLinkButtonText => '링크 추가';
 
   @override
-  String get openLinkButtonText => 'Open Link';
+  String get openLinkButtonText => '링크 열기';
 
   @override
-  String get editModTitle => 'Edit Mod Details';
+  String get editModTitle => '모드 세부 정보 편집';
 
   @override
-  String get modNameLabel => 'Mod Name';
+  String get modNameLabel => '모드 이름';
 
   @override
-  String get authorLabel => 'Author';
+  String get authorLabel => '제작자';
 
   @override
-  String get summaryLabel => 'Description / Summary';
+  String get summaryLabel => '설명 / 요약';
 
   @override
-  String get notesLabel => 'Personal Notes';
+  String get notesLabel => '개인 메모';
 
   @override
-  String get urlLabel => 'Download URL';
+  String get urlLabel => '다운로드 URL';
 
   @override
-  String get changeCoverButton => 'Change Cover Image';
+  String get changeCoverButton => '커버 이미지 변경';
 
   @override
-  String get editButtonTooltip => 'Edit Mod';
+  String get editButtonTooltip => '모드 편집';
 
   @override
-  String get errorSavingNotes => 'Error saving notes';
+  String get errorSavingNotes => '메모 저장 오류';
 
   @override
-  String get errorSavingUrl => 'Error saving URL';
+  String get errorSavingUrl => 'URL 저장 오류';
 
   @override
-  String get errorSavingChanges => 'Error Saving Changes';
+  String get errorSavingChanges => '변경 사항 저장 오류';
 
   @override
-  String get errorTranslation => 'Could not translate description';
+  String get errorTranslation => '설명을 번역할 수 없습니다';
 
   @override
-  String get translateDescription => 'Translate description';
+  String get translateDescription => '설명 번역';
 }

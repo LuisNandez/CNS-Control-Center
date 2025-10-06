@@ -845,89 +845,89 @@ class AppLocalizationsRu extends AppLocalizations {
   String get snackBarNoModsToEnable => 'Нет отключенных модов для включения.';
 
   @override
-  String get editNotes => 'Edit Notes';
+  String get editNotes => 'Редактировать заметки';
 
   @override
-  String get notesHintText => 'Add your personal notes here...';
+  String get notesHintText => 'Добавьте свои личные заметки здесь...';
 
   @override
-  String get modAuthor => 'Author';
+  String get modAuthor => 'Автор';
 
   @override
-  String get modDescription => 'Description';
+  String get modDescription => 'Описание';
 
   @override
-  String get noDescriptionAvailable => 'No description available.';
+  String get noDescriptionAvailable => 'Описание недоступно.';
 
   @override
-  String get personalNotes => 'Personal Notes';
+  String get personalNotes => 'Личные заметки';
 
   @override
-  String get noNotesAvailable => 'No notes added yet.';
+  String get noNotesAvailable => 'Заметок пока нет.';
 
   @override
-  String get modDetailsTitle => 'Mod Details';
+  String get modDetailsTitle => 'Сведения о моде';
 
   @override
-  String get modVersion => 'Version';
+  String get modVersion => 'Версия';
 
   @override
-  String get modCategory => 'Category';
+  String get modCategory => 'Категория';
 
   @override
-  String get dialogTitleAddUrl => 'Add Mod Link';
+  String get dialogTitleAddUrl => 'Добавить ссылку на мод';
 
   @override
-  String get dialogLabelUrl => 'Mod URL';
+  String get dialogLabelUrl => 'URL мода';
 
   @override
-  String get errorInvalidUrl => 'Please enter a valid URL.';
+  String get errorInvalidUrl => 'Пожалуйста, введите действительный URL.';
 
   @override
-  String get addLinkTooltip => 'Add a download link for this mod';
+  String get addLinkTooltip => 'Добавить ссылку для скачивания этого мода';
 
   @override
-  String get addLinkButtonText => 'Add Link';
+  String get addLinkButtonText => 'Добавить ссылку';
 
   @override
-  String get openLinkButtonText => 'Open Link';
+  String get openLinkButtonText => 'Открыть ссылку';
 
   @override
-  String get editModTitle => 'Edit Mod Details';
+  String get editModTitle => 'Редактировать сведения о моде';
 
   @override
-  String get modNameLabel => 'Mod Name';
+  String get modNameLabel => 'Название мода';
 
   @override
-  String get authorLabel => 'Author';
+  String get authorLabel => 'Автор';
 
   @override
-  String get summaryLabel => 'Description / Summary';
+  String get summaryLabel => 'Описание / Сводка';
 
   @override
-  String get notesLabel => 'Personal Notes';
+  String get notesLabel => 'Личные заметки';
 
   @override
-  String get urlLabel => 'Download URL';
+  String get urlLabel => 'URL для скачивания';
 
   @override
-  String get changeCoverButton => 'Change Cover Image';
+  String get changeCoverButton => 'Изменить обложку';
 
   @override
-  String get editButtonTooltip => 'Edit Mod';
+  String get editButtonTooltip => 'Редактировать мод';
 
   @override
-  String get errorSavingNotes => 'Error saving notes';
+  String get errorSavingNotes => 'Ошибка сохранения заметок';
 
   @override
-  String get errorSavingUrl => 'Error saving URL';
+  String get errorSavingUrl => 'Ошибка сохранения URL';
 
   @override
-  String get errorSavingChanges => 'Error Saving Changes';
+  String get errorSavingChanges => 'Ошибка сохранения изменений';
 
   @override
-  String get errorTranslation => 'Could not translate description';
+  String get errorTranslation => 'Не удалось перевести описание';
 
   @override
-  String get translateDescription => 'Translate description';
+  String get translateDescription => 'Перевести описание';
 }

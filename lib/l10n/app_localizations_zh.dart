@@ -818,89 +818,89 @@ class AppLocalizationsZh extends AppLocalizations {
   String get snackBarNoModsToEnable => '没有要启用的禁用模组。';
 
   @override
-  String get editNotes => 'Edit Notes';
+  String get editNotes => '编辑笔记';
 
   @override
-  String get notesHintText => 'Add your personal notes here...';
+  String get notesHintText => '在此处添加您的个人笔记...';
 
   @override
-  String get modAuthor => 'Author';
+  String get modAuthor => '作者';
 
   @override
-  String get modDescription => 'Description';
+  String get modDescription => '描述';
 
   @override
-  String get noDescriptionAvailable => 'No description available.';
+  String get noDescriptionAvailable => '无可用描述。';
 
   @override
-  String get personalNotes => 'Personal Notes';
+  String get personalNotes => '个人笔记';
 
   @override
-  String get noNotesAvailable => 'No notes added yet.';
+  String get noNotesAvailable => '尚未添加笔记。';
 
   @override
-  String get modDetailsTitle => 'Mod Details';
+  String get modDetailsTitle => '模组详情';
 
   @override
-  String get modVersion => 'Version';
+  String get modVersion => '版本';
 
   @override
-  String get modCategory => 'Category';
+  String get modCategory => '类别';
 
   @override
-  String get dialogTitleAddUrl => 'Add Mod Link';
+  String get dialogTitleAddUrl => '添加模组链接';
 
   @override
-  String get dialogLabelUrl => 'Mod URL';
+  String get dialogLabelUrl => '模组 URL';
 
   @override
-  String get errorInvalidUrl => 'Please enter a valid URL.';
+  String get errorInvalidUrl => '请输入有效的 URL。';
 
   @override
-  String get addLinkTooltip => 'Add a download link for this mod';
+  String get addLinkTooltip => '为此模组添加下载链接';
 
   @override
-  String get addLinkButtonText => 'Add Link';
+  String get addLinkButtonText => '添加链接';
 
   @override
-  String get openLinkButtonText => 'Open Link';
+  String get openLinkButtonText => '打开链接';
 
   @override
-  String get editModTitle => 'Edit Mod Details';
+  String get editModTitle => '编辑模组详情';
 
   @override
-  String get modNameLabel => 'Mod Name';
+  String get modNameLabel => '模组名称';
 
   @override
-  String get authorLabel => 'Author';
+  String get authorLabel => '作者';
 
   @override
-  String get summaryLabel => 'Description / Summary';
+  String get summaryLabel => '描述/摘要';
 
   @override
-  String get notesLabel => 'Personal Notes';
+  String get notesLabel => '个人笔记';
 
   @override
-  String get urlLabel => 'Download URL';
+  String get urlLabel => '下载 URL';
 
   @override
-  String get changeCoverButton => 'Change Cover Image';
+  String get changeCoverButton => '更改封面图片';
 
   @override
-  String get editButtonTooltip => 'Edit Mod';
+  String get editButtonTooltip => '编辑模组';
 
   @override
-  String get errorSavingNotes => 'Error saving notes';
+  String get errorSavingNotes => '保存笔记时出错';
 
   @override
-  String get errorSavingUrl => 'Error saving URL';
+  String get errorSavingUrl => '保存 URL 时出错';
 
   @override
-  String get errorSavingChanges => 'Error Saving Changes';
+  String get errorSavingChanges => '保存更改时出错';
 
   @override
-  String get errorTranslation => 'Could not translate description';
+  String get errorTranslation => '无法翻译描述';
 
   @override
-  String get translateDescription => 'Translate description';
+  String get translateDescription => '翻译描述';
 }

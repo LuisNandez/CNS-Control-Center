@@ -829,89 +829,89 @@ class AppLocalizationsJa extends AppLocalizations {
   String get snackBarNoModsToEnable => '有効にする無効なMODはありません。';
 
   @override
-  String get editNotes => 'Edit Notes';
+  String get editNotes => 'ノートを編集';
 
   @override
-  String get notesHintText => 'Add your personal notes here...';
+  String get notesHintText => 'ここに個人的なノートを追加...';
 
   @override
-  String get modAuthor => 'Author';
+  String get modAuthor => '作者';
 
   @override
-  String get modDescription => 'Description';
+  String get modDescription => '説明';
 
   @override
-  String get noDescriptionAvailable => 'No description available.';
+  String get noDescriptionAvailable => '説明はありません。';
 
   @override
-  String get personalNotes => 'Personal Notes';
+  String get personalNotes => '個人的なノート';
 
   @override
-  String get noNotesAvailable => 'No notes added yet.';
+  String get noNotesAvailable => 'まだノートは追加されていません。';
 
   @override
-  String get modDetailsTitle => 'Mod Details';
+  String get modDetailsTitle => 'MOD詳細';
 
   @override
-  String get modVersion => 'Version';
+  String get modVersion => 'バージョン';
 
   @override
-  String get modCategory => 'Category';
+  String get modCategory => 'カテゴリー';
 
   @override
-  String get dialogTitleAddUrl => 'Add Mod Link';
+  String get dialogTitleAddUrl => 'MODリンクを追加';
 
   @override
-  String get dialogLabelUrl => 'Mod URL';
+  String get dialogLabelUrl => 'MOD URL';
 
   @override
-  String get errorInvalidUrl => 'Please enter a valid URL.';
+  String get errorInvalidUrl => '有効なURLを入力してください。';
 
   @override
-  String get addLinkTooltip => 'Add a download link for this mod';
+  String get addLinkTooltip => 'このMODのダウンロードリンクを追加';
 
   @override
-  String get addLinkButtonText => 'Add Link';
+  String get addLinkButtonText => 'リンクを追加';
 
   @override
-  String get openLinkButtonText => 'Open Link';
+  String get openLinkButtonText => 'リンクを開く';
 
   @override
-  String get editModTitle => 'Edit Mod Details';
+  String get editModTitle => 'MOD詳細を編集';
 
   @override
-  String get modNameLabel => 'Mod Name';
+  String get modNameLabel => 'MOD名';
 
   @override
-  String get authorLabel => 'Author';
+  String get authorLabel => '作者';
 
   @override
-  String get summaryLabel => 'Description / Summary';
+  String get summaryLabel => '説明/概要';
 
   @override
-  String get notesLabel => 'Personal Notes';
+  String get notesLabel => '個人的なノート';
 
   @override
-  String get urlLabel => 'Download URL';
+  String get urlLabel => 'ダウンロードURL';
 
   @override
-  String get changeCoverButton => 'Change Cover Image';
+  String get changeCoverButton => 'カバー画像を変更';
 
   @override
-  String get editButtonTooltip => 'Edit Mod';
+  String get editButtonTooltip => 'MODを編集';
 
   @override
-  String get errorSavingNotes => 'Error saving notes';
+  String get errorSavingNotes => 'ノートの保存中にエラーが発生しました';
 
   @override
-  String get errorSavingUrl => 'Error saving URL';
+  String get errorSavingUrl => 'URLの保存中にエラーが発生しました';
 
   @override
-  String get errorSavingChanges => 'Error Saving Changes';
+  String get errorSavingChanges => '変更の保存中にエラーが発生しました';
 
   @override
-  String get errorTranslation => 'Could not translate description';
+  String get errorTranslation => '説明を翻訳できませんでした';
 
   @override
-  String get translateDescription => 'Translate description';
+  String get translateDescription => '説明を翻訳';
 }

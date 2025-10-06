@@ -856,89 +856,90 @@ class AppLocalizationsFr extends AppLocalizations {
       'Il n\'y a aucun mod désactivé à activer.';
 
   @override
-  String get editNotes => 'Edit Notes';
+  String get editNotes => 'Modifier les Notes';
 
   @override
-  String get notesHintText => 'Add your personal notes here...';
+  String get notesHintText => 'Ajoutez vos notes personnelles ici...';
 
   @override
-  String get modAuthor => 'Author';
+  String get modAuthor => 'Auteur';
 
   @override
   String get modDescription => 'Description';
 
   @override
-  String get noDescriptionAvailable => 'No description available.';
+  String get noDescriptionAvailable => 'Aucune description disponible.';
 
   @override
-  String get personalNotes => 'Personal Notes';
+  String get personalNotes => 'Notes Personnelles';
 
   @override
-  String get noNotesAvailable => 'No notes added yet.';
+  String get noNotesAvailable => 'Aucune note ajoutée pour le moment.';
 
   @override
-  String get modDetailsTitle => 'Mod Details';
+  String get modDetailsTitle => 'Détails du Mod';
 
   @override
   String get modVersion => 'Version';
 
   @override
-  String get modCategory => 'Category';
+  String get modCategory => 'Catégorie';
 
   @override
-  String get dialogTitleAddUrl => 'Add Mod Link';
+  String get dialogTitleAddUrl => 'Ajouter un Lien de Mod';
 
   @override
-  String get dialogLabelUrl => 'Mod URL';
+  String get dialogLabelUrl => 'URL du Mod';
 
   @override
-  String get errorInvalidUrl => 'Please enter a valid URL.';
+  String get errorInvalidUrl => 'Veuillez saisir une URL valide.';
 
   @override
-  String get addLinkTooltip => 'Add a download link for this mod';
+  String get addLinkTooltip => 'Ajouter un lien de téléchargement pour ce mod';
 
   @override
-  String get addLinkButtonText => 'Add Link';
+  String get addLinkButtonText => 'Ajouter un Lien';
 
   @override
-  String get openLinkButtonText => 'Open Link';
+  String get openLinkButtonText => 'Ouvrir le Lien';
 
   @override
-  String get editModTitle => 'Edit Mod Details';
+  String get editModTitle => 'Modifier les Détails du Mod';
 
   @override
-  String get modNameLabel => 'Mod Name';
+  String get modNameLabel => 'Nom du Mod';
 
   @override
-  String get authorLabel => 'Author';
+  String get authorLabel => 'Auteur';
 
   @override
-  String get summaryLabel => 'Description / Summary';
+  String get summaryLabel => 'Description / Résumé';
 
   @override
-  String get notesLabel => 'Personal Notes';
+  String get notesLabel => 'Notes Personnelles';
 
   @override
-  String get urlLabel => 'Download URL';
+  String get urlLabel => 'URL de Téléchargement';
 
   @override
-  String get changeCoverButton => 'Change Cover Image';
+  String get changeCoverButton => 'Changer l\'Image de Couverture';
 
   @override
-  String get editButtonTooltip => 'Edit Mod';
+  String get editButtonTooltip => 'Modifier le Mod';
 
   @override
-  String get errorSavingNotes => 'Error saving notes';
+  String get errorSavingNotes => 'Erreur lors de la sauvegarde des notes';
 
   @override
-  String get errorSavingUrl => 'Error saving URL';
+  String get errorSavingUrl => 'Erreur lors de la sauvegarde de l\'URL';
 
   @override
-  String get errorSavingChanges => 'Error Saving Changes';
+  String get errorSavingChanges =>
+      'Erreur lors de la Sauvegarde des Modifications';
 
   @override
-  String get errorTranslation => 'Could not translate description';
+  String get errorTranslation => 'Impossible de traduire la description';
 
   @override
-  String get translateDescription => 'Translate description';
+  String get translateDescription => 'Traduire la description';
 }
