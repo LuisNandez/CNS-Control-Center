@@ -874,20 +874,24 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 // --- INICIO DE LA LÓGICA DE ACTUALIZACIÓN AUTOMÁTICA ---
                 final String? modManagerVersion = data['managerVersion'];
                 final String? nexusIdForCheck = data['nexusId'];
+                
                 bool needsMetadataUpdate = modManagerVersion == null || (_compareVersions(_appVersion, modManagerVersion) > 0);
 
-                if (needsMetadataUpdate && nexusIdForCheck != null && (data['summary'] == null || data['author'] == null)) {
-                  print('Auto-updating metadata for mod: ${data['customName']}');
+                if (needsMetadataUpdate && nexusIdForCheck != null) {
+                  print('Auto-updating metadata for mod: ${data['displayName']}');
                   final nexusData = await _fetchNexusModData(nexusIdForCheck);
 
                   if (nexusData != null) {
                     data['summary'] ??= nexusData['summary'];
                     data['author'] ??= nexusData['author'];
-                    data['managerVersion'] = _appVersion; // Actualizamos la versión para no volver a revisar
+                    data['gallery'] ??= nexusData['gallery'];
+                    // ✅ LÍNEA AÑADIDA: Asegura que la URL de origen exista.
+                    data['sourceUrl'] ??= 'https://www.nexusmods.com/stellarblade/mods/$nexusIdForCheck';
+                    data['managerVersion'] = _appVersion; 
 
                     final encoder = JsonEncoder.withIndent('  ');
                     await infoFile.writeAsString(encoder.convert(data));
-                    print('...metadata for ${data['customName']} updated successfully.');
+                    print('...metadata for ${data['displayName']} updated successfully.');
                   }
                 }
                 // --- FIN DE LA LÓGICA DE ACTUALIZACIÓN ---
@@ -2891,32 +2895,22 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     if (newCustomName.isEmpty || newCustomName == mod.customName) {
       return;
     }
-
-    final sanitizedName = newCustomName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
-    final newPath = p.join(mod.directory.parent.path, sanitizedName);
-
-    if (await Directory(newPath).exists()) {
-      if (mounted) {
-        NotificationService.instance.show(
-          context: context,
-          type: NotificationType.error,
-          title: l10n.errorModNameExists(sanitizedName),
-        );
-      }
-      return;
-    }
     
     setState(() => _isLoading = true);
     try {
-      await mod.directory.rename(newPath);
-
-      final infoFile = File(p.join(newPath, 'nexus_info.json'));
+      // Ya no se renombra la carpeta. Solo se actualiza el archivo JSON.
+      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
       if (await infoFile.exists()) {
         try {
           final content = await infoFile.readAsString();
           Map<String, dynamic> data = json.decode(content);
           
-          data['customName'] = newCustomName; 
+          // Asigna el nuevo nombre personalizado o lo elimina si es igual al original.
+          if (newCustomName == mod.displayName) {
+            data.remove('customName');
+          } else {
+            data['customName'] = newCustomName;
+          }
           
           final encoder = JsonEncoder.withIndent('  ');
           await infoFile.writeAsString(encoder.convert(data));
@@ -2925,6 +2919,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         }
       }
       
+      // Recarga la lista de mods para que la UI refleje el nuevo nombre.
       await _loadAllMods();
 
     } catch (e) {
@@ -5157,90 +5152,79 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<ModInfo?> _updateModDetails(ModInfo mod, Map<String, dynamic> newData) async {
-  try {
-    Directory modDirectory = mod.directory;
-
-    if (newData.containsKey('customName') && newData['customName'] != mod.customName) {
-      final newName = (newData['customName'] as String).replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
-      final newPath = p.join(mod.directory.parent.path, newName);
-      if (await Directory(newPath).exists() && newPath != mod.directory.path) {
-        throw Exception('A mod with the name "$newName" already exists.');
+    try {
+      // La lógica para renombrar la carpeta se ha eliminado por completo.
+      // La variable 'modDirectory' ahora siempre se refiere a la carpeta original.
+      Directory modDirectory = mod.directory;
+  
+      final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
+      Map<String, dynamic> data = {};
+      if (await infoFile.exists()) {
+        final content = await infoFile.readAsString();
+        if (content.isNotEmpty) data = json.decode(content);
       }
-      if (newPath != mod.directory.path) {
-        await mod.directory.rename(newPath);
+      
+      if (newData.containsKey('newCoverFile')) {
+        final imageFile = newData['newCoverFile'] as File;
+        final alignment = newData['newCoverAlignment'] as Alignment?;
+        final extension = p.extension(imageFile.path);
+        final newFileName = '_custom_cover$extension';
+        final destinationPath = p.join(modDirectory.path, newFileName);
+        await imageFile.copy(destinationPath);
+        data['customCoverPath'] = newFileName;
+        if (alignment != null) {
+          data['customCoverAlignmentX'] = alignment.x;
+          data['customCoverAlignmentY'] = alignment.y;
+        }
       }
-      modDirectory = Directory(newPath);
-    }
-
-    final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
-    Map<String, dynamic> data = {};
-    if (await infoFile.exists()) {
-      final content = await infoFile.readAsString();
-      if (content.isNotEmpty) data = json.decode(content);
-    }
-    
-    if (newData.containsKey('newCoverFile')) {
-      final imageFile = newData['newCoverFile'] as File;
-      final alignment = newData['newCoverAlignment'] as Alignment?;
-      final extension = p.extension(imageFile.path);
-      final newFileName = '_custom_cover$extension';
-      final destinationPath = p.join(modDirectory.path, newFileName);
-      await imageFile.copy(destinationPath);
-      data['customCoverPath'] = newFileName;
-      if (alignment != null) {
-        data['customCoverAlignmentX'] = alignment.x;
-        data['customCoverAlignmentY'] = alignment.y;
+      
+      if (newData.containsKey('customName')) {
+        final value = newData['customName'] as String;
+        if (value.isEmpty || value == mod.displayName) data.remove('customName');
+        else data['customName'] = value;
       }
-    }
-    
-    if (newData.containsKey('customName')) {
-      final value = newData['customName'] as String;
-      if (value.isEmpty || value == mod.displayName) data.remove('customName');
-      else data['customName'] = value;
-    }
-    if (newData.containsKey('author')) {
-      final value = newData['author'] as String;
-      if (value.isEmpty || value == mod.author) data.remove('customAuthor');
-      else data['customAuthor'] = value;
-    }
-    
-    // Si se edita la descripción ('summary'), se guarda en 'customSummary'.
-    // Si la nueva descripción es igual a la original o está vacía, se elimina la clave.
-    if (newData.containsKey('summary')) {
-      final newCustomSummary = newData['summary'] as String;
-      if (newCustomSummary.isEmpty || newCustomSummary == mod.summary) {
-        data.remove('customSummary');
-      } else {
-        data['customSummary'] = newCustomSummary;
+      if (newData.containsKey('author')) {
+        final value = newData['author'] as String;
+        if (value.isEmpty || value == mod.author) data.remove('customAuthor');
+        else data['customAuthor'] = value;
       }
+      
+      if (newData.containsKey('summary')) {
+        final newCustomSummary = newData['summary'] as String;
+        if (newCustomSummary.isEmpty || newCustomSummary == mod.summary) {
+          data.remove('customSummary');
+        } else {
+          data['customSummary'] = newCustomSummary;
+        }
+      }
+  
+      if (newData.containsKey('userNotes')) data['userNotes'] = newData['userNotes'];
+      
+      if (newData.containsKey('customSourceUrl')) {
+        final value = newData['customSourceUrl'] as String;
+        if (value.isEmpty || value == mod.sourceUrl) data.remove('customSourceUrl');
+        else data['customSourceUrl'] = value;
+      }
+      
+      final encoder = JsonEncoder.withIndent('  ');
+      await infoFile.writeAsString(encoder.convert(data));
+  
+      await _loadAllMods(clearHighlight: false);
+  
+      // Busca el mod actualizado usando la ruta original, que ya no cambia.
+      return _allMods.firstWhere((m) => m.directory.path == modDirectory.path, orElse: () => mod);
+    } catch (e) {
+      print('Error updating mod details: $e');
+      final l10n = AppLocalizations.of(context)!;
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context, type: NotificationType.error,
+          title: l10n.errorSavingChanges, description: e.toString(),
+        );
+      }
+      return null;
     }
-
-    if (newData.containsKey('userNotes')) data['userNotes'] = newData['userNotes'];
-    
-    if (newData.containsKey('customSourceUrl')) {
-      final value = newData['customSourceUrl'] as String;
-      if (value.isEmpty || value == mod.sourceUrl) data.remove('customSourceUrl');
-      else data['customSourceUrl'] = value;
-    }
-    
-    final encoder = JsonEncoder.withIndent('  ');
-    await infoFile.writeAsString(encoder.convert(data));
-
-    await _loadAllMods(clearHighlight: false);
-
-    return _allMods.firstWhere((m) => m.directory.path == modDirectory.path, orElse: () => mod);
-  } catch (e) {
-    print('Error updating mod details: $e');
-    final l10n = AppLocalizations.of(context)!;
-    if (mounted) {
-      NotificationService.instance.show(
-        context: context, type: NotificationType.error,
-        title: l10n.errorSavingChanges, description: e.toString(),
-      );
-    }
-    return null;
   }
-}
 
 }
 
@@ -5249,7 +5233,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 class ModDetailsPage extends StatefulWidget {
   final ModInfo modInfo;
   final ThumbnailService thumbnailService;
-  final Future<void> Function(Map<String, dynamic> newData) onSaveDetails;
+  // Cambia Future<void> por Future<ModInfo?>
+  final Future<ModInfo?> Function(Map<String, dynamic> newData) onSaveDetails;
 
   const ModDetailsPage({
     super.key,
@@ -5317,7 +5302,13 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
     
     final nameController = TextEditingController(text: currentModInfo.customName);
     final authorController = TextEditingController(text: currentModInfo.customAuthor ?? currentModInfo.author ?? '');
-    final urlController = TextEditingController(text: currentModInfo.customSourceUrl ?? '');
+    final String defaultUrl = currentModInfo.sourceUrl ??
+        (currentModInfo.nexusId != null
+            ? 'https://www.nexusmods.com/stellarblade/mods/${currentModInfo.nexusId}'
+            : '');
+    
+    // El controlador se inicializa con la URL personalizada, o con la predeterminada (ahora siempre correcta).
+    final urlController = TextEditingController(text: currentModInfo.customSourceUrl ?? defaultUrl);
 
     File? newCoverFile;
     Alignment? newCoverAlignment;
@@ -5368,7 +5359,7 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                     // --- CAMPO DE URL ---
                     Row(children: [
                       Expanded(child: TextField(controller: urlController, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: l10n.urlLabel))),
-                      TextButton(onPressed: !canResetUrl ? null : () => setDialogState(() => urlController.text = ''), child: Text(l10n.dialogActionResetToDefault)),
+                      TextButton(onPressed: !canResetUrl ? null : () => setDialogState(() => urlController.text = defaultUrl), child: Text(l10n.dialogActionResetToDefault)),
                     ]),
                     const SizedBox(height: 24),
                     if (newCoverFile != null)
@@ -5419,36 +5410,18 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
     authorController.dispose();
     urlController.dispose();
 
-    if (updatedData != null) {
-      await widget.onSaveDetails(updatedData);
+   if (updatedData != null) {
+      // 1. Llama a la función de guardado y espera el resultado.
+      final updatedModInfo = await widget.onSaveDetails(updatedData);
       
-      // Actualiza el estado local para reflejar los cambios inmediatamente
-      setState(() {
-        currentModInfo = ModInfo(
-          directory: Directory(p.join(currentModInfo.directory.parent.path, updatedData['customName'])),
-          customName: updatedData['customName'],
-          author: updatedData['author'],
-          customSourceUrl: updatedData['customSourceUrl'],
-          // Mantiene los datos que no se editaron
-          summary: currentModInfo.summary,
-          userNotes: currentModInfo.userNotes,
-          nexusId: currentModInfo.nexusId,
-          localVersion: currentModInfo.localVersion,
-          lastModified: currentModInfo.lastModified,
-          installDate: currentModInfo.installDate,
-          isEnabled: currentModInfo.isEnabled,
-          origin: currentModInfo.origin,
-          displayName: currentModInfo.displayName,
-          gallery: currentModInfo.gallery,
-          fitMeshType: currentModInfo.fitMeshType,
-          customCoverPath: updatedData.containsKey('newCoverFile') ? '_custom_cover${p.extension((updatedData['newCoverFile'] as File).path)}' : currentModInfo.customCoverPath,
-          customCoverAlignment: updatedData.containsKey('newCoverFile') ? updatedData['newCoverAlignment'] as Alignment? : currentModInfo.customCoverAlignment,
-          customCoverLastModified: DateTime.now(),
-          customVersion: currentModInfo.customVersion,
-          customFitMeshType: currentModInfo.customFitMeshType,
-        );
-        _loadImageProvider();
-      });
+      // 2. Si el guardado fue exitoso, actualiza el estado con la información correcta.
+      if (updatedModInfo != null && mounted) {
+        setState(() {
+          // 'updatedModInfo' contiene la ruta a la carpeta real y sin cambios.
+          currentModInfo = updatedModInfo;
+          _loadImageProvider();
+        });
+      }
     }
   }
   
