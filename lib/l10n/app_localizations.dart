@@ -1659,6 +1659,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Error Saving Changes'**
   String get errorSavingChanges;
+
+  /// No description provided for @errorTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not translate description'**
+  String get errorTranslation;
+
+  /// No description provided for @translateDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate description'**
+  String get translateDescription;
 }
 
 class _AppLocalizationsDelegate

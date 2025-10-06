@@ -308,6 +308,8 @@
     "editButtonTooltip": "Edit Mod",
     "errorSavingNotes": "Error saving notes",
     "errorSavingUrl": "Error saving URL",
-    "errorSavingChanges": "Error Saving Changes"
+    "errorSavingChanges": "Error Saving Changes",
+    "errorTranslation": "Could not translate description",
+    "translateDescription": "Translate description"
 }
 

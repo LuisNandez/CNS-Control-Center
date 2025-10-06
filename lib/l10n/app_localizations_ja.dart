@@ -908,4 +908,10 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get errorSavingChanges => 'Error Saving Changes';
+
+  @override
+  String get errorTranslation => 'Could not translate description';
+
+  @override
+  String get translateDescription => 'Translate description';
 }

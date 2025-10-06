@@ -16,6 +16,7 @@ import 'package:window_manager/window_manager.dart';
 import 'settings_page.dart';
 import 'thumbnail_service.dart';
 import 'notification_service.dart';
+import 'package:translator/translator.dart';
 
 class AppPrefs {
   static const String languageCode = 'languageCode';
@@ -5251,12 +5252,28 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
   late ModInfo currentModInfo;
   ImageProvider? _imageProvider;
   bool _isImageLoading = true;
+  bool _isTranslating = false;
+  bool _showTranslateButton = false;
+  bool _isDependenciesInitialized = false;
 
   @override
-  void initState() {
-    super.initState();
-    currentModInfo = widget.modInfo;
-    _loadImageProvider();
+void initState() {
+  super.initState();
+  // --- CORRECCIÓN: Asegúrate de que esta línea esté presente ---
+  currentModInfo = widget.modInfo;
+  // -----------------------------------------------------------
+  _loadImageProvider();
+}
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Este método se ejecuta después de initState y tiene un context válido.
+    // Usamos un flag para que solo se ejecute la primera vez.
+    if (!_isDependenciesInitialized) {
+      _checkIfTranslationIsPossible();
+      _isDependenciesInitialized = true;
+    }
   }
 
   @override
@@ -5265,8 +5282,88 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
     if (widget.modInfo != oldWidget.modInfo) {
       setState(() {
         currentModInfo = widget.modInfo;
+        _showTranslateButton = false;
       });
       _loadImageProvider();
+      _checkIfTranslationIsPossible();
+    }
+  }
+
+  void _checkIfTranslationIsPossible() async {
+  final summary = currentModInfo.summary;
+  if (summary == null ||
+      summary.trim().isEmpty ||
+      (currentModInfo.customSummary?.isNotEmpty ?? false)) {
+    if (mounted) setState(() => _showTranslateButton = false);
+    return;
+  }
+  
+  if (!mounted) return;
+  final String currentLocale = Localizations.localeOf(context).languageCode;
+
+  try {
+    final translator = GoogleTranslator();
+    final snippet = summary.length > 150 ? summary.substring(0, 150) : summary;
+
+    // --- SOLUCIÓN DEFINITIVA: USAR UN IDIOMA PIVOTE ---
+    // Traducimos la muestra a un tercer idioma neutral (alemán) para forzar
+    // una detección de origen fiable, sin importar el idioma de la app.
+    const String pivotLocale = 'de';
+    final translation = await translator.translate(snippet, to: pivotLocale);
+    final detectedLanguageCode = translation.sourceLanguage.code.toLowerCase();
+    // --- FIN DE LA SOLUCIÓN DEFINITIVA ---
+
+    print('Idioma detectado: $detectedLanguageCode, Idioma de la App: $currentLocale');
+
+    if (mounted && detectedLanguageCode != currentLocale && detectedLanguageCode != 'auto') {
+      setState(() => _showTranslateButton = true);
+    } else {
+      setState(() => _showTranslateButton = false);
+    }
+  } catch (e) {
+    print("Error detectando el idioma: $e");
+    if (mounted) setState(() => _showTranslateButton = false);
+  }
+}
+
+  Future<void> _translateSummary() async {
+    final l10n = AppLocalizations.of(context)!;
+    if (currentModInfo.summary == null || currentModInfo.summary!.trim().isEmpty) return;
+
+    setState(() => _isTranslating = true);
+
+    try {
+      final translator = GoogleTranslator();
+      final currentLocale = Localizations.localeOf(context).languageCode;
+      
+      final translation = await translator.translate(
+        currentModInfo.summary!,
+        from: 'auto', // Detecta el idioma automáticamente
+        to: currentLocale,
+      );
+
+      final updatedMod = await widget.onSaveDetails({'summary': translation.text});
+      
+      // Actualiza la UI con la nueva información.
+      if (updatedMod != null && mounted) {
+        setState(() {
+          currentModInfo = updatedMod;
+          _showTranslateButton = false; // Oculta el botón después de traducir.
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: l10n.errorTranslation,
+          description: e.toString(),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isTranslating = false);
+      }
     }
   }
 
@@ -5797,37 +5894,32 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                           defaultValue: currentModInfo.summary ?? '',
                         );
                         if (newSummary != null) {
-                          // La clave 'summary' es interpretada por _updateModDetails para guardarla como customSummary
-                          await widget.onSaveDetails({'summary': newSummary});
-                          setState(() {
-                             // Actualiza el estado local para un refresco visual inmediato
-                             currentModInfo = ModInfo(
-                                directory: currentModInfo.directory,
-                                nexusId: currentModInfo.nexusId,
-                                localVersion: currentModInfo.localVersion,
-                                lastModified: currentModInfo.lastModified,
-                                installDate: currentModInfo.installDate,
-                                isEnabled: currentModInfo.isEnabled,
-                                origin: currentModInfo.origin,
-                                displayName: currentModInfo.displayName,
-                                customName: currentModInfo.customName,
-                                gallery: currentModInfo.gallery,
-                                fitMeshType: currentModInfo.fitMeshType,
-                                customCoverPath: currentModInfo.customCoverPath,
-                                customCoverAlignment: currentModInfo.customCoverAlignment,
-                                customCoverLastModified: currentModInfo.customCoverLastModified,
-                                customVersion: currentModInfo.customVersion,
-                                customFitMeshType: currentModInfo.customFitMeshType,
-                                summary: currentModInfo.summary, // El original no cambia
-                                // Actualiza el customSummary localmente
-                                customSummary: (newSummary == currentModInfo.summary || newSummary.isEmpty) ? null : newSummary,
-                                author: currentModInfo.author,
-                                userNotes: currentModInfo.userNotes,
-                                customSourceUrl: currentModInfo.customSourceUrl
-                             );
-                          });
+                          final updatedMod = await widget.onSaveDetails({'summary': newSummary});
+                          if (updatedMod != null && mounted) {
+                            setState(() {
+                               currentModInfo = updatedMod;
+                            });
+                          }
                         }
                       },
+                      translateButton: (_showTranslateButton)
+        ? (_isTranslating
+            ? const Padding(
+                padding: EdgeInsets.all(4.0),
+                child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2)))
+            : IconButton(
+                icon: const Icon(Icons.translate,
+                    color: Colors.white70, size: 20),
+                onPressed: _translateSummary,
+                tooltip: l10n.translateDescription,
+                splashRadius: 20,
+                constraints: const BoxConstraints(),
+                padding: EdgeInsets.zero,
+              ))
+        : null,
                     ),
                     const SizedBox(height: 20),
                     // --- SECCIÓN DE NOTAS EDITABLE ---
@@ -5873,7 +5965,11 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
 
   // --- WIDGET AUXILIAR MODIFICADO ---
   // Ahora incluye un botón de editar opcional.
-  Widget _buildInfoSection(BuildContext context, String title, String content, {IconData? icon, bool isEditable = false, VoidCallback? onEdit}) {
+  Widget _buildInfoSection(BuildContext context, String title, String content,
+      {IconData? icon,
+      bool isEditable = false,
+      VoidCallback? onEdit,
+      Widget? translateButton}) { // El parámetro ahora está definido aquí
     final l10n = AppLocalizations.of(context)!;
     return Container(
       width: double.infinity,
@@ -5901,15 +5997,24 @@ class _ModDetailsPageState extends State<ModDetailsPage> {
                   ),
                 ],
               ),
-              if (isEditable)
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
-                  onPressed: onEdit,
-                  tooltip: l10n.editButtonTooltip,
-                  splashRadius: 20,
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
-                ),
+              Row(
+                children: [
+                  if (isEditable)
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
+                      onPressed: onEdit,
+                      tooltip: l10n.editButtonTooltip,
+                      splashRadius: 20,
+                      constraints: const BoxConstraints(),
+                      padding: EdgeInsets.zero,
+                    ),
+                  // --- CORRECCIÓN 3: Uso del parámetro ---
+                  if (translateButton != null) ...[ // Se usa la variable del parámetro
+                    const SizedBox(width: 8),
+                    translateButton, // Se usa la variable del parámetro
+                  ],
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 10),
