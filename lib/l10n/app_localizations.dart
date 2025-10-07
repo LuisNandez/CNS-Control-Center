@@ -1773,6 +1773,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Instalación de CNS Principal existente detectada y adoptada'**
   String get cnsInstallationDetected;
+
+  /// No description provided for @ue4ssRequiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'UE4SS Required'**
+  String get ue4ssRequiredTitle;
+
+  /// No description provided for @ue4ssRequiredContent.
+  ///
+  /// In en, this message translates to:
+  /// **'To install the Main CNS System, you must first install UE4SS. You can download it from the following link:'**
+  String get ue4ssRequiredContent;
+
+  /// No description provided for @uninstallDependencyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Dependency Detected'**
+  String get uninstallDependencyTitle;
+
+  /// No description provided for @uninstallDependencyContent.
+  ///
+  /// In en, this message translates to:
+  /// **'You must uninstall the Main CNS System before you can uninstall UE4SS, as CNS depends on it.'**
+  String get uninstallDependencyContent;
+
+  /// No description provided for @dialogActionUnderstood.
+  ///
+  /// In en, this message translates to:
+  /// **'Understood'**
+  String get dialogActionUnderstood;
 }
 
 class _AppLocalizationsDelegate

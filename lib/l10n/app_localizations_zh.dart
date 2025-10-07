@@ -968,4 +968,21 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get cnsInstallationDetected =>
       'Instalación de CNS Principal existente detectada y adoptada';
+
+  @override
+  String get ue4ssRequiredTitle => 'UE4SS Required';
+
+  @override
+  String get ue4ssRequiredContent =>
+      'To install the Main CNS System, you must first install UE4SS. You can download it from the following link:';
+
+  @override
+  String get uninstallDependencyTitle => 'Dependency Detected';
+
+  @override
+  String get uninstallDependencyContent =>
+      'You must uninstall the Main CNS System before you can uninstall UE4SS, as CNS depends on it.';
+
+  @override
+  String get dialogActionUnderstood => 'Understood';
 }

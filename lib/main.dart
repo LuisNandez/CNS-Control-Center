@@ -392,6 +392,25 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<bool> _uninstallCoreComponent({required bool isUe4ss}) async {
   final l10n = AppLocalizations.of(context)!;
   final componentName = isUe4ss ? "UE4SS" : "CNS";
+
+  // Si se intenta desinstalar UE4SS mientras CNS aún está instalado...
+  if (isUe4ss && _isCnsCoreInstalled) {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2a2a2a),
+        title: Text(l10n.uninstallDependencyTitle),
+        content: Text(l10n.uninstallDependencyContent),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.dialogActionUnderstood),
+          ),
+        ],
+      ),
+    );
+    return false; // Detiene la desinstalación.
+  }
   
   final confirm = await showDialog<bool>(
     context: context,
@@ -1804,6 +1823,41 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _promptAndUpdateCNS(Directory sourceSBDir) async {
   final l10n = AppLocalizations.of(context)!;
+
+  if (!_isUe4ssInstalled) {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2a2a2a),
+        title: Text(l10n.ue4ssRequiredTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.ue4ssRequiredContent),
+            const SizedBox(height: 20),
+            InkWell(
+              onTap: () => launchUrl(Uri.parse("https://github.com/Chrisr0/RE-UE4SS/releases")),
+              child: const Text(
+                "https://github.com/Chrisr0/RE-UE4SS/releases",
+                style: TextStyle(
+                  color: Colors.tealAccent,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.dialogActionClose),
+          ),
+        ],
+      ),
+    );
+    return; // Detiene la instalación si UE4SS no está presente.
+  }
   
   if (_isCnsCoreInstalled) {
     final reinstall = await showDialog<bool>(

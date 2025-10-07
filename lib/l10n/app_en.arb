@@ -327,6 +327,11 @@
     "uninstallButton": "Uninstall",
     "cnsCoreSystem": "Custom Nanosuit System",
     "ue4ssInstallationDetected": "Instalación de UE4SS existente detectada y adoptada",
-    "cnsInstallationDetected": "Instalación de CNS Principal existente detectada y adoptada"
+    "cnsInstallationDetected": "Instalación de CNS Principal existente detectada y adoptada",
+    "ue4ssRequiredTitle": "UE4SS Required",
+    "ue4ssRequiredContent": "To install the Main CNS System, you must first install UE4SS. You can download it from the following link:",
+    "uninstallDependencyTitle": "Dependency Detected",
+    "uninstallDependencyContent": "You must uninstall the Main CNS System before you can uninstall UE4SS, as CNS depends on it.",
+    "dialogActionUnderstood": "Understood"
 }
 
