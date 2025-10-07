@@ -356,6 +356,23 @@
     "dialogActionDowngrade": "Downgrade",
     "dialogTitleCNSInstall": "Install Main CNS System",
     "dialogContentCNSInstall": "You are about to install the base Custom Nanosuit System (CNS). This is required for CNS mods to work. Do you wish to continue?",
-    "dialogActionInstall": "Install"
+    "dialogActionInstall": "Install",
+    "settingsDeveloperOptions": "Developer Options",
+    "devDeleteNexusInfoTitle": "Delete All nexus_info.json Files",
+    "devDeleteNexusInfoDesc": "Removes all manager metadata files from every mod. This is useful for forcing a full repair.",
+    "devExtractIdsTitle": "Extract Identifiers",
+    "devExtractIdsDesc": "Creates a file named 'ID Mods.json' on your desktop containing the displayName and nexusId of each mod.",
+    "devConfirmDeleteTitle": "Confirm Deletion",
+    "devConfirmDeleteDesc": "Are you sure you want to permanently delete all nexus_info.json files? This will remove all custom names, covers, and metadata. This action cannot be undone.",
+    "devDeleteSuccessTitle": "Deletion Complete",
+    "devDeleteSuccessDesc": "Successfully deleted {count} nexus_info.json files.",
+    "devConfirmExtractTitle": "Confirm Extraction",
+    "devConfirmExtractDesc": "This will scan all your mods and create 'ID Mods.json' on your desktop. This will overwrite any existing file with the same name. Do you want to continue?",
+    "devExtractAction": "Extract",
+    "devExtractNoData": "No mods with valid identifiers were found to extract.",
+    "devExtractDesktopNotFound": "Error: Could not find the Desktop directory.",
+    "devExtractSuccessTitle": "Extraction Complete",
+    "devExtractSuccessDesc": "File successfully created at: {path}",
+    "errorDialogTitle": "An Error Occurred"
 }
 

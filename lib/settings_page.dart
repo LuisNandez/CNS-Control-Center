@@ -12,6 +12,8 @@ class SettingsPage extends StatefulWidget {
   final bool isCnsCoreInstalled;
   final Future<bool> Function() onUninstallUE4SS;
   final Future<bool> Function() onUninstallCNS;
+  final VoidCallback onDeleteAllNexusInfo;
+  final VoidCallback onExtractModIds;
   // ++ FIN DE NUEVOS PARÁMETROS ++
 
   final Future<String?> Function() onSelectGamePath;
@@ -34,6 +36,8 @@ class SettingsPage extends StatefulWidget {
     required this.isCnsCoreInstalled,
     required this.onUninstallUE4SS,
     required this.onUninstallCNS,
+    required this.onDeleteAllNexusInfo,
+    required this.onExtractModIds,
     // ++ FIN DE CAMBIOS EN CONSTRUCTOR ++
 
     required this.onSelectGamePath,
@@ -203,11 +207,29 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: Text(l10n.settingsAboutDesc),
             onTap: widget.onShowAboutDialog,
           ),
+          
+          // ++ NEW SECTION FOR DEVELOPER OPTIONS ++
+          const Divider(),
+          _SettingsSectionHeader(title: l10n.settingsDeveloperOptions),
+          ListTile(
+            leading: const Icon(Icons.delete_sweep_outlined, color: Colors.orangeAccent),
+            title: Text(l10n.devDeleteNexusInfoTitle),
+            subtitle: Text(l10n.devDeleteNexusInfoDesc),
+            onTap: widget.onDeleteAllNexusInfo,
+          ),
+          ListTile(
+            leading: const Icon(Icons.upload_file_outlined, color: Colors.lightBlueAccent),
+            title: Text(l10n.devExtractIdsTitle),
+            subtitle: Text(l10n.devExtractIdsDesc),
+            onTap: widget.onExtractModIds,
+          ),
+          // ++ END OF NEW SECTION ++
         ],
       ),
     );
   }
 }
+
 
 class _SettingsSectionHeader extends StatelessWidget {
   final String title;

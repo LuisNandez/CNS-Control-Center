@@ -1049,4 +1049,65 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get dialogActionInstall => 'Install';
+
+  @override
+  String get settingsDeveloperOptions => 'Developer Options';
+
+  @override
+  String get devDeleteNexusInfoTitle => 'Delete All nexus_info.json Files';
+
+  @override
+  String get devDeleteNexusInfoDesc =>
+      'Removes all manager metadata files from every mod. This is useful for forcing a full repair.';
+
+  @override
+  String get devExtractIdsTitle => 'Extract Identifiers';
+
+  @override
+  String get devExtractIdsDesc =>
+      'Creates a file named \'ID Mods.json\' on your desktop containing the displayName and nexusId of each mod.';
+
+  @override
+  String get devConfirmDeleteTitle => 'Confirm Deletion';
+
+  @override
+  String get devConfirmDeleteDesc =>
+      'Are you sure you want to permanently delete all nexus_info.json files? This will remove all custom names, covers, and metadata. This action cannot be undone.';
+
+  @override
+  String get devDeleteSuccessTitle => 'Deletion Complete';
+
+  @override
+  String devDeleteSuccessDesc(Object count) {
+    return 'Successfully deleted $count nexus_info.json files.';
+  }
+
+  @override
+  String get devConfirmExtractTitle => 'Confirm Extraction';
+
+  @override
+  String get devConfirmExtractDesc =>
+      'This will scan all your mods and create \'ID Mods.json\' on your desktop. This will overwrite any existing file with the same name. Do you want to continue?';
+
+  @override
+  String get devExtractAction => 'Extract';
+
+  @override
+  String get devExtractNoData =>
+      'No mods with valid identifiers were found to extract.';
+
+  @override
+  String get devExtractDesktopNotFound =>
+      'Error: Could not find the Desktop directory.';
+
+  @override
+  String get devExtractSuccessTitle => 'Extraction Complete';
+
+  @override
+  String devExtractSuccessDesc(Object path) {
+    return 'File successfully created at: $path';
+  }
+
+  @override
+  String get errorDialogTitle => 'An Error Occurred';
 }

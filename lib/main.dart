@@ -17,6 +17,7 @@ import 'settings_page.dart';
 import 'thumbnail_service.dart';
 import 'notification_service.dart';
 import 'package:translator/translator.dart';
+import 'package:path_provider/path_provider.dart';
 
 class AppPrefs {
   static const String languageCode = 'languageCode';
@@ -213,11 +214,11 @@ enum _AlternativeVersionAction { cancel, replace, installAsNew }
 
 class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   static const String _defaultUe4ssManifestContent = r'''
-["dwmapi.dll","ue4ss","ue4ss/Default_UVTD_Configs","ue4ss/Default_UVTD_Configs/Config","ue4ss/Default_UVTD_Configs/Config/case_preserving_variants.json","ue4ss/Default_UVTD_Configs/Config/member_rename_map.json","ue4ss/Default_UVTD_Configs/Config/object_items.json","ue4ss/Default_UVTD_Configs/Config/pdbs_to_dump.json","ue4ss/Default_UVTD_Configs/Config/private_variables.json","ue4ss/Default_UVTD_Configs/Config/types_not_to_dump.json","ue4ss/Default_UVTD_Configs/Config/uprefix_to_fprefix.json","ue4ss/Default_UVTD_Configs/Config/valid_udt_names.json","ue4ss/Default_UVTD_Configs/Config/virtual_generator_includes.json","ue4ss/LICENSE","ue4ss/Mods","ue4ss/Mods/ActorDumperMod","ue4ss/Mods/ActorDumperMod/Scripts","ue4ss/Mods/ActorDumperMod/Scripts/main.lua","ue4ss/Mods/BPML_GenericFunctions","ue4ss/Mods/BPML_GenericFunctions/Scripts","ue4ss/Mods/BPML_GenericFunctions/Scripts/main.lua","ue4ss/Mods/BPModLoaderMod","ue4ss/Mods/BPModLoaderMod/load_order.txt","ue4ss/Mods/BPModLoaderMod/Scripts","ue4ss/Mods/BPModLoaderMod/Scripts/main.lua","ue4ss/Mods/CheatManagerEnablerMod","ue4ss/Mods/CheatManagerEnablerMod/Scripts","ue4ss/Mods/CheatManagerEnablerMod/Scripts/main.lua","ue4ss/Mods/ConsoleCommandsMod","ue4ss/Mods/ConsoleCommandsMod/Scripts","ue4ss/Mods/ConsoleCommandsMod/Scripts/dump_object.lua","ue4ss/Mods/ConsoleCommandsMod/Scripts/main.lua","ue4ss/Mods/ConsoleCommandsMod/Scripts/set.lua","ue4ss/Mods/ConsoleCommandsMod/Scripts/summon_unloaded_assets.lua","ue4ss/Mods/ConsoleEnablerMod","ue4ss/Mods/ConsoleEnablerMod/Scripts","ue4ss/Mods/ConsoleEnablerMod/Scripts/main.lua","ue4ss/Mods/jsbLuaProfilerMod","ue4ss/Mods/jsbLuaProfilerMod/Scripts","ue4ss/Mods/jsbLuaProfilerMod/Scripts/main.lua","ue4ss/Mods/Keybinds","ue4ss/Mods/Keybinds/Scripts","ue4ss/Mods/Keybinds/Scripts/main.lua","ue4ss/Mods/LineTraceMod","ue4ss/Mods/LineTraceMod/Scripts","ue4ss/Mods/LineTraceMod/Scripts/main.lua","ue4ss/Mods/mods.json","ue4ss/Mods/mods.txt","ue4ss/Mods/shared","ue4ss/Mods/shared/jsbProfiler","ue4ss/Mods/shared/jsbProfiler/jsbProfi.lua","ue4ss/Mods/shared/Types.lua","ue4ss/Mods/shared/UEHelpers","ue4ss/Mods/shared/UEHelpers/UEHelpers.lua","ue4ss/Mods/SplitScreenMod","ue4ss/Mods/SplitScreenMod/Scripts","ue4ss/Mods/SplitScreenMod/Scripts/main.lua","ue4ss/UE4SS-settings.ini","ue4ss/UE4SS.dll","ue4ss/UE4SS_Signatures","ue4ss/UE4SS_Signatures/FName_ToString.lua.example","ue4ss/UE4SS_Signatures/FText_Constructor.lua","ue4ss/UE4SS_Signatures/GNatives.lua","ue4ss/UE4SS_Signatures/GUObjectArray.lua","ue4ss/UE4SS_Signatures/GUObjectArray.lua.example","ue4ss/VTableLayout.ini"]
+  ["dwmapi.dll","ue4ss","ue4ss/Default_UVTD_Configs","ue4ss/Default_UVTD_Configs/Config","ue4ss/Default_UVTD_Configs/Config/case_preserving_variants.json","ue4ss/Default_UVTD_Configs/Config/member_rename_map.json","ue4ss/Default_UVTD_Configs/Config/object_items.json","ue4ss/Default_UVTD_Configs/Config/pdbs_to_dump.json","ue4ss/Default_UVTD_Configs/Config/private_variables.json","ue4ss/Default_UVTD_Configs/Config/types_not_to_dump.json","ue4ss/Default_UVTD_Configs/Config/uprefix_to_fprefix.json","ue4ss/Default_UVTD_Configs/Config/valid_udt_names.json","ue4ss/Default_UVTD_Configs/Config/virtual_generator_includes.json","ue4ss/LICENSE","ue4ss/Mods","ue4ss/Mods/ActorDumperMod","ue4ss/Mods/ActorDumperMod/Scripts","ue4ss/Mods/ActorDumperMod/Scripts/main.lua","ue4ss/Mods/BPML_GenericFunctions","ue4ss/Mods/BPML_GenericFunctions/Scripts","ue4ss/Mods/BPML_GenericFunctions/Scripts/main.lua","ue4ss/Mods/BPModLoaderMod","ue4ss/Mods/BPModLoaderMod/load_order.txt","ue4ss/Mods/BPModLoaderMod/Scripts","ue4ss/Mods/BPModLoaderMod/Scripts/main.lua","ue4ss/Mods/CheatManagerEnablerMod","ue4ss/Mods/CheatManagerEnablerMod/Scripts","ue4ss/Mods/CheatManagerEnablerMod/Scripts/main.lua","ue4ss/Mods/ConsoleCommandsMod","ue4ss/Mods/ConsoleCommandsMod/Scripts","ue4ss/Mods/ConsoleCommandsMod/Scripts/dump_object.lua","ue4ss/Mods/ConsoleCommandsMod/Scripts/main.lua","ue4ss/Mods/ConsoleCommandsMod/Scripts/set.lua","ue4ss/Mods/ConsoleCommandsMod/Scripts/summon_unloaded_assets.lua","ue4ss/Mods/ConsoleEnablerMod","ue4ss/Mods/ConsoleEnablerMod/Scripts","ue4ss/Mods/ConsoleEnablerMod/Scripts/main.lua","ue4ss/Mods/jsbLuaProfilerMod","ue4ss/Mods/jsbLuaProfilerMod/Scripts","ue4ss/Mods/jsbLuaProfilerMod/Scripts/main.lua","ue4ss/Mods/Keybinds","ue4ss/Mods/Keybinds/Scripts","ue4ss/Mods/Keybinds/Scripts/main.lua","ue4ss/Mods/LineTraceMod","ue4ss/Mods/LineTraceMod/Scripts","ue4ss/Mods/LineTraceMod/Scripts/main.lua","ue4ss/Mods/mods.json","ue4ss/Mods/mods.txt","ue4ss/Mods/shared","ue4ss/Mods/shared/jsbProfiler","ue4ss/Mods/shared/jsbProfiler/jsbProfi.lua","ue4ss/Mods/shared/Types.lua","ue4ss/Mods/shared/UEHelpers","ue4ss/Mods/shared/UEHelpers/UEHelpers.lua","ue4ss/Mods/SplitScreenMod","ue4ss/Mods/SplitScreenMod/Scripts","ue4ss/Mods/SplitScreenMod/Scripts/main.lua","ue4ss/UE4SS-settings.ini","ue4ss/UE4SS.dll","ue4ss/UE4SS_Signatures","ue4ss/UE4SS_Signatures/FName_ToString.lua.example","ue4ss/UE4SS_Signatures/FText_Constructor.lua","ue4ss/UE4SS_Signatures/GNatives.lua","ue4ss/UE4SS_Signatures/GUObjectArray.lua","ue4ss/UE4SS_Signatures/GUObjectArray.lua.example","ue4ss/VTableLayout.ini"]
   ''';
 
   static const String _defaultCnsManifestContent = r'''
-["Binaries","Binaries/Win64","Binaries/Win64/ue4ss","Binaries/Win64/ue4ss/Mods","Binaries/Win64/ue4ss/Mods/DekCNS","Binaries/Win64/ue4ss/Mods/DekCNS/enabled.txt","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/config.lua","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/json.lua","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/main.lua","Binaries/Win64/ue4ss/nexus_info.json","Content","Content/Paks","Content/Paks/LogicMods","Content/Paks/LogicMods/DekCNS_P.pak","Content/Paks/LogicMods/DekCNS_P.ucas","Content/Paks/LogicMods/DekCNS_P.utoc","Content/Paks/~mods","Content/Paks/~mods/CustomNanosuitSystem","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultAccessories.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultEarrings.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultFaces.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultHairs.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfits.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsAdam.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsDrone.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsLily.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultWeaponsTest.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-Defaults.dekcns.json"]
+  ["Binaries","Binaries/Win64","Binaries/Win64/ue4ss","Binaries/Win64/ue4ss/Mods","Binaries/Win64/ue4ss/Mods/DekCNS","Binaries/Win64/ue4ss/Mods/DekCNS/enabled.txt","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/config.lua","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/json.lua","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/main.lua","Binaries/Win64/ue4ss/nexus_info.json","Content","Content/Paks","Content/Paks/LogicMods","Content/Paks/LogicMods/DekCNS_P.pak","Content/Paks/LogicMods/DekCNS_P.ucas","Content/Paks/LogicMods/DekCNS_P.utoc","Content/Paks/~mods","Content/Paks/~mods/CustomNanosuitSystem","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultAccessories.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultEarrings.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultFaces.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultHairs.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfits.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsAdam.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsDrone.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsLily.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultWeaponsTest.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-Defaults.dekcns.json"]
   ''';
   final List<_PreparedMod> _preparedMods = [];
   _PreparedUE4SS? _preparedUE4SS;
@@ -4051,6 +4052,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     onShowApiKeyDialog: _showApiKeyDialog,
                     onManageSkippedVersions: _manageSkippedVersions,
                     onShowLanguageDialog: _showLanguageDialog,
+                    onDeleteAllNexusInfo: _deleteAllNexusInfoFiles,
+                    onExtractModIds: _extractModIdentifiers,
                     onShowAboutDialog: _showAboutDialog,
                     onRunSelfHealing: _showSelfHealConfirmationDialog,
                   ),
@@ -5530,6 +5533,177 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
   return null;
 }
+
+/// Displays a confirmation dialog and then proceeds to delete all nexus_info.json files.
+  Future<void> _deleteAllNexusInfoFiles() async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2a2a2a),
+        title: Text(l10n.devConfirmDeleteTitle),
+        content: Text(l10n.devConfirmDeleteDesc),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.dialogActionCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: Text(l10n.dialogActionDelete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    int deleteCount = 0;
+    try {
+      for (final mod in _allMods) {
+        final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+        if (await infoFile.exists()) {
+          try {
+            await infoFile.delete();
+            deleteCount++;
+          } catch (e) {
+            print('Could not delete nexus_info.json for ${mod.customName}: $e');
+          }
+        }
+      }
+      
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.success,
+          title: l10n.devDeleteSuccessTitle,
+          description: l10n.devDeleteSuccessDesc(deleteCount),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: l10n.errorDialogTitle,
+          description: e.toString(),
+        );
+      }
+    } finally {
+      await _loadAllMods();
+      setState(() => _isLoading = false);
+    }
+  }
+
+  /// Extracts mod identifiers to a JSON file on the user's desktop.
+  Future<void> _extractModIdentifiers() async {
+    final l10n = AppLocalizations.of(context)!;
+     final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2a2a2a),
+        title: Text(l10n.devConfirmExtractTitle),
+        content: Text(l10n.devConfirmExtractDesc),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.dialogActionCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
+            child: Text(l10n.devExtractAction),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+    
+    setState(() => _isLoading = true);
+    try {
+      final Map<String, dynamic> extractedData = {};
+      for (final mod in _allMods) {
+        final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+        if (await infoFile.exists()) {
+          try {
+            final content = await infoFile.readAsString();
+            final data = json.decode(content);
+            final displayName = data['displayName'] as String?;
+            final nexusId = data['nexusId'] as String?;
+
+            if (displayName != null && nexusId != null && displayName.isNotEmpty && nexusId.isNotEmpty) {
+              extractedData[displayName] = {'nexusId': nexusId};
+            }
+          } catch (e) {
+            print('Could not parse nexus_info.json for ${mod.customName}, skipping.');
+          }
+        }
+      }
+
+      if (extractedData.isEmpty) {
+        if (mounted) {
+          NotificationService.instance.show(
+            context: context,
+            type: NotificationType.info,
+            title: l10n.devExtractNoData,
+          );
+        }
+        return;
+      }
+      
+      String? homePath;
+      if (Platform.isWindows) {
+        homePath = Platform.environment['USERPROFILE'];
+      } else if (Platform.isLinux || Platform.isMacOS) {
+        homePath = Platform.environment['HOME'];
+      }
+
+      if (homePath == null) {
+        throw Exception('Could not find the home directory environment variable.');
+      }
+      
+      final desktopDir = Directory(p.join(homePath, 'Desktop'));
+      if (!await desktopDir.exists()) {
+         if (mounted) {
+           NotificationService.instance.show(
+            context: context,
+            type: NotificationType.error,
+            title: l10n.devExtractDesktopNotFound,
+          );
+         }
+         return;
+      }
+      
+      final outputFile = File(p.join(desktopDir.path, 'ID Mods.json'));
+
+      final encoder = JsonEncoder.withIndent('  ');
+      await outputFile.writeAsString(encoder.convert(extractedData));
+      
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.success,
+          title: l10n.devExtractSuccessTitle,
+          description: l10n.devExtractSuccessDesc(outputFile.path),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: l10n.errorDialogTitle,
+          description: e.toString(),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
 
 }
 

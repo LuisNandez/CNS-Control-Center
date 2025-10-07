@@ -859,6 +859,27 @@
   },
   "EVE Marvel Rivals - Phoenix": {
     "nexusId": "2139"
+  },
+  "Maid": {
+    "nexusId": "2131"
+  },
+  "Devil": {
+    "nexusId": "2134"
+  },
+  "Shield_Maiden-Magic_Parade": {
+    "nexusId": "2155"
+  },
+  "AiK Orca Exploration Suit": {
+    "nexusId": "2150"
+  },
+  "Denimskirt": {
+    "nexusId": "2147"
+  },
+  "Revealing Planet Diving Prototype Suit (7th) V2": {
+    "nexusId": "2145"
+  },
+  "Hoodie": {
+    "nexusId": "2143"
   }
 
 }

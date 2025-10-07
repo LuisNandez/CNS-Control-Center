@@ -1845,6 +1845,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Install'**
   String get dialogActionInstall;
+
+  /// No description provided for @settingsDeveloperOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer Options'**
+  String get settingsDeveloperOptions;
+
+  /// No description provided for @devDeleteNexusInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete All nexus_info.json Files'**
+  String get devDeleteNexusInfoTitle;
+
+  /// No description provided for @devDeleteNexusInfoDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Removes all manager metadata files from every mod. This is useful for forcing a full repair.'**
+  String get devDeleteNexusInfoDesc;
+
+  /// No description provided for @devExtractIdsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Extract Identifiers'**
+  String get devExtractIdsTitle;
+
+  /// No description provided for @devExtractIdsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Creates a file named \'ID Mods.json\' on your desktop containing the displayName and nexusId of each mod.'**
+  String get devExtractIdsDesc;
+
+  /// No description provided for @devConfirmDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Deletion'**
+  String get devConfirmDeleteTitle;
+
+  /// No description provided for @devConfirmDeleteDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to permanently delete all nexus_info.json files? This will remove all custom names, covers, and metadata. This action cannot be undone.'**
+  String get devConfirmDeleteDesc;
+
+  /// No description provided for @devDeleteSuccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Deletion Complete'**
+  String get devDeleteSuccessTitle;
+
+  /// No description provided for @devDeleteSuccessDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Successfully deleted {count} nexus_info.json files.'**
+  String devDeleteSuccessDesc(Object count);
+
+  /// No description provided for @devConfirmExtractTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Extraction'**
+  String get devConfirmExtractTitle;
+
+  /// No description provided for @devConfirmExtractDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'This will scan all your mods and create \'ID Mods.json\' on your desktop. This will overwrite any existing file with the same name. Do you want to continue?'**
+  String get devConfirmExtractDesc;
+
+  /// No description provided for @devExtractAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Extract'**
+  String get devExtractAction;
+
+  /// No description provided for @devExtractNoData.
+  ///
+  /// In en, this message translates to:
+  /// **'No mods with valid identifiers were found to extract.'**
+  String get devExtractNoData;
+
+  /// No description provided for @devExtractDesktopNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: Could not find the Desktop directory.'**
+  String get devExtractDesktopNotFound;
+
+  /// No description provided for @devExtractSuccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Extraction Complete'**
+  String get devExtractSuccessTitle;
+
+  /// No description provided for @devExtractSuccessDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'File successfully created at: {path}'**
+  String devExtractSuccessDesc(Object path);
+
+  /// No description provided for @errorDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'An Error Occurred'**
+  String get errorDialogTitle;
 }
 
 class _AppLocalizationsDelegate
