@@ -310,6 +310,23 @@
     "errorSavingUrl": "Error saving URL",
     "errorSavingChanges": "Error Saving Changes",
     "errorTranslation": "Could not translate description",
-    "translateDescription": "Translate description"
+    "translateDescription": "Translate description",
+    "dialogTitleUE4SSReinstall": "Reinstall UE4SS",
+    "dialogContentUE4SSReinstall": "UE4SS already seems to be installed. Do you want to overwrite the existing installation? This can be useful if you suspect corrupt files.",
+    "dialogTitleCNSReinstall": "Reinstall CNS System",
+    "dialogContentCNSReinstall": "The main CNS system already seems to be installed. Do you want to reinstall it? Your existing mods will not be affected.",
+    "dialogTitleUninstall": "Uninstall {componentName}",
+    "dialogContentUninstall": "Are you sure you want to uninstall {componentName}? This action will remove the core component files but will not affect your installed mods.",
+    "dialogActionUninstall": "Yes, uninstall",
+    "statusUninstalling": "Uninstalling {componentName}...",
+    "snackBarUninstalled": "{componentName} uninstalled successfully",
+    "errorUninstalling": "Error uninstalling {componentName}",
+    "settingsCoreComponents": "Core Components",
+    "installedStatus": "Installed",
+    "notInstalledStatus": "Not detected",
+    "uninstallButton": "Uninstall",
+    "cnsCoreSystem": "Custom Nanosuit System",
+    "ue4ssInstallationDetected": "Instalación de UE4SS existente detectada y adoptada",
+    "cnsInstallationDetected": "Instalación de CNS Principal existente detectada y adoptada"
 }
 

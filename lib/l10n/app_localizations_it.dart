@@ -941,4 +941,69 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get translateDescription => 'Traduci descrizione';
+
+  @override
+  String get dialogTitleUE4SSReinstall => 'Reinstall UE4SS';
+
+  @override
+  String get dialogContentUE4SSReinstall =>
+      'UE4SS already seems to be installed. Do you want to overwrite the existing installation? This can be useful if you suspect corrupt files.';
+
+  @override
+  String get dialogTitleCNSReinstall => 'Reinstall CNS System';
+
+  @override
+  String get dialogContentCNSReinstall =>
+      'The main CNS system already seems to be installed. Do you want to reinstall it? Your existing mods will not be affected.';
+
+  @override
+  String dialogTitleUninstall(Object componentName) {
+    return 'Uninstall $componentName';
+  }
+
+  @override
+  String dialogContentUninstall(Object componentName) {
+    return 'Are you sure you want to uninstall $componentName? This action will remove the core component files but will not affect your installed mods.';
+  }
+
+  @override
+  String get dialogActionUninstall => 'Yes, uninstall';
+
+  @override
+  String statusUninstalling(Object componentName) {
+    return 'Uninstalling $componentName...';
+  }
+
+  @override
+  String snackBarUninstalled(Object componentName) {
+    return '$componentName uninstalled successfully';
+  }
+
+  @override
+  String errorUninstalling(Object componentName) {
+    return 'Error uninstalling $componentName';
+  }
+
+  @override
+  String get settingsCoreComponents => 'Core Components';
+
+  @override
+  String get installedStatus => 'Installed';
+
+  @override
+  String get notInstalledStatus => 'Not detected';
+
+  @override
+  String get uninstallButton => 'Uninstall';
+
+  @override
+  String get cnsCoreSystem => 'Custom Nanosuit System';
+
+  @override
+  String get ue4ssInstallationDetected =>
+      'Instalación de UE4SS existente detectada y adoptada';
+
+  @override
+  String get cnsInstallationDetected =>
+      'Instalación de CNS Principal existente detectada y adoptada';
 }

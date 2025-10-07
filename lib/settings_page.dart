@@ -7,13 +7,20 @@ class SettingsPage extends StatefulWidget {
   final String? initialApiKey;
   final Map<String, String> skippedVersions;
 
+  // ++ NUEVOS PARÁMETROS PARA GESTIONAR UE4SS Y CNS ++
+  final bool isUe4ssInstalled;
+  final bool isCnsCoreInstalled;
+  final Future<bool> Function() onUninstallUE4SS;
+  final Future<bool> Function() onUninstallCNS;
+  // ++ FIN DE NUEVOS PARÁMETROS ++
+
   final Future<String?> Function() onSelectGamePath;
   final Future<String?> Function() onSelect7zipPath;
   final Future<String?> Function() onShowApiKeyDialog;
   final Future<void> Function() onManageSkippedVersions;
   final VoidCallback onShowLanguageDialog;
   final VoidCallback onShowAboutDialog;
-  final VoidCallback onRunSelfHealing; // <-- Nuevo Callback
+  final VoidCallback onRunSelfHealing;
 
   const SettingsPage({
     super.key,
@@ -21,13 +28,21 @@ class SettingsPage extends StatefulWidget {
     required this.initialSevenZipPath,
     required this.initialApiKey,
     required this.skippedVersions,
+    
+    // ++ AÑADIR NUEVOS PARÁMETROS AL CONSTRUCTOR ++
+    required this.isUe4ssInstalled,
+    required this.isCnsCoreInstalled,
+    required this.onUninstallUE4SS,
+    required this.onUninstallCNS,
+    // ++ FIN DE CAMBIOS EN CONSTRUCTOR ++
+
     required this.onSelectGamePath,
     required this.onSelect7zipPath,
     required this.onShowApiKeyDialog,
     required this.onManageSkippedVersions,
     required this.onShowLanguageDialog,
     required this.onShowAboutDialog,
-    required this.onRunSelfHealing, // <-- Nuevo Callback
+    required this.onRunSelfHealing,
   });
 
   @override
@@ -39,12 +54,17 @@ class _SettingsPageState extends State<SettingsPage> {
   late String? sevenZipPath;
   late String? apiKey;
 
+  late bool isUe4ssInstalled;
+  late bool isCnsCoreInstalled;
+
   @override
   void initState() {
     super.initState();
     gameRootPath = widget.initialGameRootPath;
     sevenZipPath = widget.initialSevenZipPath;
     apiKey = widget.initialApiKey;
+    isUe4ssInstalled = widget.isUe4ssInstalled;
+    isCnsCoreInstalled = widget.isCnsCoreInstalled;
   }
 
   @override
@@ -90,13 +110,64 @@ class _SettingsPageState extends State<SettingsPage> {
               }
             },
           ),
-          // --- NUEVA OPCIÓN DE REPARACIÓN ---
           ListTile(
             leading: const Icon(Icons.build_circle_outlined),
             title: Text(l10n.settingsRepairMods),
             subtitle: Text(l10n.settingsRepairModsDesc),
             onTap: widget.onRunSelfHealing,
           ),
+          
+          // ++ NUEVA SECCIÓN PARA GESTIONAR COMPONENTES PRINCIPALES ++
+          const Divider(),
+          _SettingsSectionHeader(title: l10n.settingsCoreComponents),
+
+          // ListTile para gestionar UE4SS
+          ListTile(
+            leading: const Icon(Icons.usb_rounded), // Ícono representativo
+            title: const Text("UE4SS"),
+            subtitle: Text(
+              isUe4ssInstalled ? l10n.installedStatus : l10n.notInstalledStatus,
+              style: TextStyle(color: isUe4ssInstalled ? Colors.greenAccent : Colors.grey),
+            ),
+            trailing: isUe4ssInstalled
+                ? TextButton(
+                    onPressed: () async {
+                      final success = await widget.onUninstallUE4SS();
+                      if (success && mounted) {
+                        setState(() {
+                          isUe4ssInstalled = false;
+                        });
+                      }
+                    },
+                    child: Text(l10n.uninstallButton, style: const TextStyle(color: Colors.redAccent)),
+                  )
+                : null,
+          ),
+
+          // ListTile para gestionar el Sistema CNS
+          ListTile(
+            leading: const Icon(Icons.memory_rounded), // Ícono representativo
+            title: Text(l10n.cnsCoreSystem),
+            subtitle: Text(
+              isCnsCoreInstalled ? l10n.installedStatus : l10n.notInstalledStatus,
+              style: TextStyle(color: isCnsCoreInstalled ? Colors.greenAccent : Colors.grey),
+            ),
+            trailing: isCnsCoreInstalled
+                ? TextButton(
+                    onPressed: () async {
+                      final success = await widget.onUninstallCNS();
+                      if (success && mounted) {
+                        setState(() {
+                          isCnsCoreInstalled = false;
+                        });
+                      }
+                    },
+                    child: Text(l10n.uninstallButton, style: const TextStyle(color: Colors.redAccent)),
+                  )
+                : null,
+          ),
+          // ++ FIN DE LA NUEVA SECCIÓN ++
+
           const Divider(),
           _SettingsSectionHeader(title: l10n.settingsConnectivity),
           ListTile(

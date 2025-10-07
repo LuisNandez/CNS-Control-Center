@@ -1671,6 +1671,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Translate description'**
   String get translateDescription;
+
+  /// No description provided for @dialogTitleUE4SSReinstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Reinstall UE4SS'**
+  String get dialogTitleUE4SSReinstall;
+
+  /// No description provided for @dialogContentUE4SSReinstall.
+  ///
+  /// In en, this message translates to:
+  /// **'UE4SS already seems to be installed. Do you want to overwrite the existing installation? This can be useful if you suspect corrupt files.'**
+  String get dialogContentUE4SSReinstall;
+
+  /// No description provided for @dialogTitleCNSReinstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Reinstall CNS System'**
+  String get dialogTitleCNSReinstall;
+
+  /// No description provided for @dialogContentCNSReinstall.
+  ///
+  /// In en, this message translates to:
+  /// **'The main CNS system already seems to be installed. Do you want to reinstall it? Your existing mods will not be affected.'**
+  String get dialogContentCNSReinstall;
+
+  /// No description provided for @dialogTitleUninstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Uninstall {componentName}'**
+  String dialogTitleUninstall(Object componentName);
+
+  /// No description provided for @dialogContentUninstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to uninstall {componentName}? This action will remove the core component files but will not affect your installed mods.'**
+  String dialogContentUninstall(Object componentName);
+
+  /// No description provided for @dialogActionUninstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, uninstall'**
+  String get dialogActionUninstall;
+
+  /// No description provided for @statusUninstalling.
+  ///
+  /// In en, this message translates to:
+  /// **'Uninstalling {componentName}...'**
+  String statusUninstalling(Object componentName);
+
+  /// No description provided for @snackBarUninstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'{componentName} uninstalled successfully'**
+  String snackBarUninstalled(Object componentName);
+
+  /// No description provided for @errorUninstalling.
+  ///
+  /// In en, this message translates to:
+  /// **'Error uninstalling {componentName}'**
+  String errorUninstalling(Object componentName);
+
+  /// No description provided for @settingsCoreComponents.
+  ///
+  /// In en, this message translates to:
+  /// **'Core Components'**
+  String get settingsCoreComponents;
+
+  /// No description provided for @installedStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed'**
+  String get installedStatus;
+
+  /// No description provided for @notInstalledStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Not detected'**
+  String get notInstalledStatus;
+
+  /// No description provided for @uninstallButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Uninstall'**
+  String get uninstallButton;
+
+  /// No description provided for @cnsCoreSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Nanosuit System'**
+  String get cnsCoreSystem;
+
+  /// No description provided for @ue4ssInstallationDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Instalación de UE4SS existente detectada y adoptada'**
+  String get ue4ssInstallationDetected;
+
+  /// No description provided for @cnsInstallationDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Instalación de CNS Principal existente detectada y adoptada'**
+  String get cnsInstallationDetected;
 }
 
 class _AppLocalizationsDelegate
