@@ -14,6 +14,7 @@ class SettingsPage extends StatefulWidget {
   final Future<bool> Function() onUninstallCNS;
   final VoidCallback onDeleteAllNexusInfo;
   final VoidCallback onExtractModIds;
+  final bool isDeveloperModeEnabled;
   // ++ FIN DE NUEVOS PARÁMETROS ++
 
   final Future<String?> Function() onSelectGamePath;
@@ -38,6 +39,7 @@ class SettingsPage extends StatefulWidget {
     required this.onUninstallCNS,
     required this.onDeleteAllNexusInfo,
     required this.onExtractModIds,
+    required this.isDeveloperModeEnabled,
     // ++ FIN DE CAMBIOS EN CONSTRUCTOR ++
 
     required this.onSelectGamePath,
@@ -209,21 +211,22 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           
           // ++ NEW SECTION FOR DEVELOPER OPTIONS ++
-          const Divider(),
-          _SettingsSectionHeader(title: l10n.settingsDeveloperOptions),
-          ListTile(
-            leading: const Icon(Icons.delete_sweep_outlined, color: Colors.orangeAccent),
-            title: Text(l10n.devDeleteNexusInfoTitle),
-            subtitle: Text(l10n.devDeleteNexusInfoDesc),
-            onTap: widget.onDeleteAllNexusInfo,
-          ),
-          ListTile(
-            leading: const Icon(Icons.upload_file_outlined, color: Colors.lightBlueAccent),
-            title: Text(l10n.devExtractIdsTitle),
-            subtitle: Text(l10n.devExtractIdsDesc),
-            onTap: widget.onExtractModIds,
-          ),
-          // ++ END OF NEW SECTION ++
+          if (widget.isDeveloperModeEnabled) ...[
+            const Divider(),
+            _SettingsSectionHeader(title: l10n.settingsDeveloperOptions),
+            ListTile(
+              leading: const Icon(Icons.delete_sweep_outlined, color: Colors.orangeAccent),
+              title: Text(l10n.devDeleteNexusInfoTitle),
+              subtitle: Text(l10n.devDeleteNexusInfoDesc),
+              onTap: widget.onDeleteAllNexusInfo,
+            ),
+            ListTile(
+              leading: const Icon(Icons.upload_file_outlined, color: Colors.lightBlueAccent),
+              title: Text(l10n.devExtractIdsTitle),
+              subtitle: Text(l10n.devExtractIdsDesc),
+              onTap: widget.onExtractModIds,
+            ),
+          ]
         ],
       ),
     );

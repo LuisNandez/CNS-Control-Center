@@ -900,109 +900,107 @@ class AppLocalizationsKo extends AppLocalizations {
   String get translateDescription => '설명 번역';
 
   @override
-  String get dialogTitleUE4SSReinstall => 'Reinstall UE4SS';
+  String get dialogTitleUE4SSReinstall => 'UE4SS 재설치';
 
   @override
   String get dialogContentUE4SSReinstall =>
-      'UE4SS already seems to be installed.\nDo you want to overwrite the existing installation? This can be useful if you suspect corrupt files.';
+      'UE4SS가 이미 설치된 것 같습니다. 기존 설치를 덮어쓰시겠습니까? 손상된 파일이 의심될 때 유용할 수 있습니다.';
 
   @override
-  String get dialogTitleCNSReinstall => 'Reinstall CNS System';
+  String get dialogTitleCNSReinstall => 'CNS 시스템 재설치';
 
   @override
   String get dialogContentCNSReinstall =>
-      'The main CNS system already seems to be installed.\nDo you want to reinstall it? Your existing mods will not be affected.';
+      '주 CNS 시스템이 이미 설치된 것 같습니다. 재설치하시겠습니까? 기존 모드에는 영향을 미치지 않습니다.';
 
   @override
   String dialogTitleUninstall(Object componentName) {
-    return 'Uninstall $componentName';
+    return '$componentName 제거';
   }
 
   @override
   String dialogContentUninstall(Object componentName) {
-    return 'Are you sure you want to uninstall $componentName?\nThis action will remove the core component files but will not affect your installed mods.';
+    return '$componentName을(를) 제거하시겠습니까? 이 작업은 핵심 구성 요소 파일을 제거하지만 설치된 모드에는 영향을 주지 않습니다.';
   }
 
   @override
-  String get dialogActionUninstall => 'Yes, uninstall';
+  String get dialogActionUninstall => '예, 제거합니다';
 
   @override
   String statusUninstalling(Object componentName) {
-    return 'Uninstalling $componentName...';
+    return '$componentName 제거 중...';
   }
 
   @override
   String snackBarUninstalled(Object componentName) {
-    return '$componentName uninstalled successfully';
+    return '$componentName이(가) 성공적으로 제거되었습니다';
   }
 
   @override
   String errorUninstalling(Object componentName) {
-    return 'Error uninstalling $componentName';
+    return '$componentName 제거 중 오류 발생';
   }
 
   @override
-  String get settingsCoreComponents => 'Core Components';
+  String get settingsCoreComponents => '핵심 구성 요소';
 
   @override
-  String get installedStatus => 'Installed';
+  String get installedStatus => '설치됨';
 
   @override
-  String get notInstalledStatus => 'Not detected';
+  String get notInstalledStatus => '감지되지 않음';
 
   @override
-  String get uninstallButton => 'Uninstall';
+  String get uninstallButton => '제거';
 
   @override
-  String get cnsCoreSystem => 'Custom Nanosuit System';
+  String get cnsCoreSystem => '커스텀 나노슈트 시스템';
 
   @override
-  String get ue4ssInstallationDetected =>
-      'Instalación de UE4SS existente detectada y adoptada';
+  String get ue4ssInstallationDetected => '기존 UE4SS 설치가 감지되어 채택되었습니다';
 
   @override
-  String get cnsInstallationDetected =>
-      'Instalación de CNS Principal existente detectada y adoptada';
+  String get cnsInstallationDetected => '기존 주 CNS 설치가 감지되어 채택되었습니다';
 
   @override
-  String get ue4ssRequiredTitle => 'UE4SS Required';
+  String get ue4ssRequiredTitle => 'UE4SS 필요';
 
   @override
   String get ue4ssRequiredContent =>
-      'To install the Main CNS System, you must first install UE4SS.\nYou can download it from the following link:';
+      '주 CNS 시스템을 설치하려면 먼저 UE4SS를 설치해야 합니다. 다음 링크에서 다운로드할 수 있습니다:';
 
   @override
-  String get uninstallDependencyTitle => 'Dependency Detected';
+  String get uninstallDependencyTitle => '종속성 감지됨';
 
   @override
   String get uninstallDependencyContent =>
-      'You must uninstall the Main CNS System before you can uninstall UE4SS, as CNS depends on it.';
+      'CNS는 UE4SS에 의존하므로 UE4SS를 제거하기 전에 주 CNS 시스템을 먼저 제거해야 합니다.';
 
   @override
-  String get dialogActionUnderstood => 'Understood';
+  String get dialogActionUnderstood => '이해했습니다';
 
   @override
-  String get appTitleNoCns => 'Custom Nanosuit System (Not Installed)';
+  String get appTitleNoCns => '커스텀 나노슈트 시스템 (설치되지 않음)';
 
   @override
-  String get dialogTitleCNSUpdate => 'Update Main CNS System';
+  String get dialogTitleCNSUpdate => '주 CNS 시스템 업데이트';
 
   @override
   String dialogContentCNSUpdate(Object oldVersion, Object newVersion) {
-    return 'You are about to update CNS from version $oldVersion to the new version $newVersion.\nDo you wish to continue?';
+    return 'CNS를 버전 $oldVersion에서 새 버전 $newVersion(으)로 업데이트하려고 합니다. 계속하시겠습니까?';
   }
 
   @override
-  String get dialogTitleCNSDowngrade => 'Downgrade CNS Version';
+  String get dialogTitleCNSDowngrade => 'CNS 버전 다운그레이드';
 
   @override
   String dialogContentCNSDowngrade(Object oldVersion, Object newVersion) {
-    return 'Warning!\nYou are about to install an older version of CNS ($newVersion) than your current one ($oldVersion). This may cause issues.\nAre you sure?';
+    return '경고! 현재 버전($oldVersion)보다 이전 버전의 CNS($newVersion)를 설치하려고 합니다. 문제가 발생할 수 있습니다. 확실합니까?';
   }
 
   @override
   String dialogContentCNSReinstallVersion(Object version) {
-    return 'You already have version $version of CNS installed.\nDo you want to reinstall the files anyway?';
+    return '이미 CNS 버전 $version이(가) 설치되어 있습니다. 파일을 다시 설치하시겠습니까?';
   }
 
   @override
@@ -1012,73 +1010,71 @@ class AppLocalizationsKo extends AppLocalizations {
   String get dialogActionDowngrade => '다운그레이드';
 
   @override
-  String get dialogTitleCNSInstall => 'Install Main CNS System';
+  String get dialogTitleCNSInstall => '주 CNS 시스템 설치';
 
   @override
   String get dialogContentCNSInstall =>
-      'You are about to install the base Custom Nanosuit System (CNS).\nThis is required for CNS mods to work. Do you wish to continue?';
+      '기본 커스텀 나노슈트 시스템(CNS)을 설치하려고 합니다. CNS 모드가 작동하려면 이 시스템이 필요합니다. 계속하시겠습니까?';
 
   @override
-  String get dialogActionInstall => 'Install';
+  String get dialogActionInstall => '설치';
 
   @override
-  String get settingsDeveloperOptions => 'Developer Options';
+  String get settingsDeveloperOptions => '개발자 옵션';
 
   @override
-  String get devDeleteNexusInfoTitle => 'Delete All nexus_info.json Files';
+  String get devDeleteNexusInfoTitle => '모든 nexus_info.json 파일 삭제';
 
   @override
   String get devDeleteNexusInfoDesc =>
-      'Removes all manager metadata files from every mod. This is useful for forcing a full repair.';
+      '모든 모드에서 관리자 메타데이터 파일을 제거합니다. 전체 복구를 강제할 때 유용합니다.';
 
   @override
-  String get devExtractIdsTitle => 'Extract Identifiers';
+  String get devExtractIdsTitle => '식별자 추출';
 
   @override
   String get devExtractIdsDesc =>
-      'Creates a file named \'ID Mods.json\' on your desktop containing the displayName and nexusId of each mod.';
+      '바탕화면에 각 모드의 displayName과 nexusId를 포함하는 \'ID Mods.json\' 파일을 생성합니다.';
 
   @override
-  String get devConfirmDeleteTitle => 'Confirm Deletion';
+  String get devConfirmDeleteTitle => '삭제 확인';
 
   @override
   String get devConfirmDeleteDesc =>
-      'Are you sure you want to permanently delete all nexus_info.json files? This will remove all custom names, covers, and metadata. This action cannot be undone.';
+      '모든 nexus_info.json 파일을 영구적으로 삭제하시겠습니까? 이렇게 하면 모든 사용자 지정 이름, 커버 및 메타데이터가 제거됩니다. 이 작업은 되돌릴 수 없습니다.';
 
   @override
-  String get devDeleteSuccessTitle => 'Deletion Complete';
+  String get devDeleteSuccessTitle => '삭제 완료';
 
   @override
   String devDeleteSuccessDesc(Object count) {
-    return 'Successfully deleted $count nexus_info.json files.';
+    return '$count개의 nexus_info.json 파일을 성공적으로 삭제했습니다.';
   }
 
   @override
-  String get devConfirmExtractTitle => 'Confirm Extraction';
+  String get devConfirmExtractTitle => '추출 확인';
 
   @override
   String get devConfirmExtractDesc =>
-      'This will scan all your mods and create \'ID Mods.json\' on your desktop. This will overwrite any existing file with the same name. Do you want to continue?';
+      '모든 모드를 스캔하여 바탕화면에 \'ID Mods.json\'을 생성합니다. 같은 이름의 기존 파일은 덮어쓰여집니다. 계속하시겠습니까?';
 
   @override
-  String get devExtractAction => 'Extract';
+  String get devExtractAction => '추출';
 
   @override
-  String get devExtractNoData =>
-      'No mods with valid identifiers were found to extract.';
+  String get devExtractNoData => '추출할 유효한 식별자가 있는 모드를 찾을 수 없습니다.';
 
   @override
-  String get devExtractDesktopNotFound =>
-      'Error: Could not find the Desktop directory.';
+  String get devExtractDesktopNotFound => '오류: 바탕화면 디렉토리를 찾을 수 없습니다.';
 
   @override
-  String get devExtractSuccessTitle => 'Extraction Complete';
+  String get devExtractSuccessTitle => '추출 완료';
 
   @override
   String devExtractSuccessDesc(Object path) {
-    return 'File successfully created at: $path';
+    return '파일이 성공적으로 생성되었습니다: $path';
   }
 
   @override
-  String get errorDialogTitle => 'An Error Occurred';
+  String get errorDialogTitle => '오류가 발생했습니다';
 }

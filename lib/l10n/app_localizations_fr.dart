@@ -930,109 +930,109 @@ class AppLocalizationsFr extends AppLocalizations {
   String get translateDescription => 'Traduire la description';
 
   @override
-  String get dialogTitleUE4SSReinstall => 'Reinstall UE4SS';
+  String get dialogTitleUE4SSReinstall => 'Réinstaller UE4SS';
 
   @override
   String get dialogContentUE4SSReinstall =>
-      'UE4SS already seems to be installed.\nDo you want to overwrite the existing installation? This can be useful if you suspect corrupt files.';
+      'UE4SS semble déjà être installé. Voulez-vous écraser l\'installation existante ? Cela peut être utile si vous suspectez des fichiers corrompus.';
 
   @override
-  String get dialogTitleCNSReinstall => 'Reinstall CNS System';
+  String get dialogTitleCNSReinstall => 'Réinstaller le système CNS';
 
   @override
   String get dialogContentCNSReinstall =>
-      'The main CNS system already seems to be installed.\nDo you want to reinstall it? Your existing mods will not be affected.';
+      'Le système CNS principal semble déjà être installé. Voulez-vous le réinstaller ? Vos mods existants ne seront pas affectés.';
 
   @override
   String dialogTitleUninstall(Object componentName) {
-    return 'Uninstall $componentName';
+    return 'Désinstaller $componentName';
   }
 
   @override
   String dialogContentUninstall(Object componentName) {
-    return 'Are you sure you want to uninstall $componentName?\nThis action will remove the core component files but will not affect your installed mods.';
+    return 'Êtes-vous sûr de vouloir désinstaller $componentName ? Cette action supprimera les fichiers principaux du composant mais n\'affectera pas vos mods installés.';
   }
 
   @override
-  String get dialogActionUninstall => 'Yes, uninstall';
+  String get dialogActionUninstall => 'Oui, désinstaller';
 
   @override
   String statusUninstalling(Object componentName) {
-    return 'Uninstalling $componentName...';
+    return 'Désinstallation de $componentName...';
   }
 
   @override
   String snackBarUninstalled(Object componentName) {
-    return '$componentName uninstalled successfully';
+    return '$componentName désinstallé avec succès';
   }
 
   @override
   String errorUninstalling(Object componentName) {
-    return 'Error uninstalling $componentName';
+    return 'Erreur lors de la désinstallation de $componentName';
   }
 
   @override
-  String get settingsCoreComponents => 'Core Components';
+  String get settingsCoreComponents => 'Composants principaux';
 
   @override
-  String get installedStatus => 'Installed';
+  String get installedStatus => 'Installé';
 
   @override
-  String get notInstalledStatus => 'Not detected';
+  String get notInstalledStatus => 'Non détecté';
 
   @override
-  String get uninstallButton => 'Uninstall';
+  String get uninstallButton => 'Désinstaller';
 
   @override
   String get cnsCoreSystem => 'Custom Nanosuit System';
 
   @override
   String get ue4ssInstallationDetected =>
-      'Instalación de UE4SS existente detectada y adoptada';
+      'Installation existante d\'UE4SS détectée et adoptée';
 
   @override
   String get cnsInstallationDetected =>
-      'Instalación de CNS Principal existente detectada y adoptada';
+      'Installation principale existante de CNS détectée et adoptée';
 
   @override
-  String get ue4ssRequiredTitle => 'UE4SS Required';
+  String get ue4ssRequiredTitle => 'UE4SS Requis';
 
   @override
   String get ue4ssRequiredContent =>
-      'To install the Main CNS System, you must first install UE4SS.\nYou can download it from the following link:';
+      'Pour installer le système CNS principal, vous devez d\'abord installer UE4SS. Vous pouvez le télécharger à partir du lien suivant :';
 
   @override
-  String get uninstallDependencyTitle => 'Dependency Detected';
+  String get uninstallDependencyTitle => 'Dépendance Détectée';
 
   @override
   String get uninstallDependencyContent =>
-      'You must uninstall the Main CNS System before you can uninstall UE4SS, as CNS depends on it.';
+      'Vous devez désinstaller le système CNS principal avant de pouvoir désinstaller UE4SS, car CNS en dépend.';
 
   @override
-  String get dialogActionUnderstood => 'Understood';
+  String get dialogActionUnderstood => 'Compris';
 
   @override
-  String get appTitleNoCns => 'Custom Nanosuit System (Not Installed)';
+  String get appTitleNoCns => 'Custom Nanosuit System (Non installé)';
 
   @override
-  String get dialogTitleCNSUpdate => 'Update Main CNS System';
+  String get dialogTitleCNSUpdate => 'Mettre à jour le système CNS principal';
 
   @override
   String dialogContentCNSUpdate(Object oldVersion, Object newVersion) {
-    return 'You are about to update CNS from version $oldVersion to the new version $newVersion.\nDo you wish to continue?';
+    return 'Vous êtes sur le point de mettre à jour CNS de la version $oldVersion vers la nouvelle version $newVersion. Souhaitez-vous continuer ?';
   }
 
   @override
-  String get dialogTitleCNSDowngrade => 'Downgrade CNS Version';
+  String get dialogTitleCNSDowngrade => 'Rétrograder la version de CNS';
 
   @override
   String dialogContentCNSDowngrade(Object oldVersion, Object newVersion) {
-    return 'Warning!\nYou are about to install an older version of CNS ($newVersion) than your current one ($oldVersion). This may cause issues.\nAre you sure?';
+    return 'Attention ! Vous êtes sur le point d\'installer une version plus ancienne de CNS ($newVersion) que votre version actuelle ($oldVersion). Cela peut causer des problèmes. Êtes-vous sûr ?';
   }
 
   @override
   String dialogContentCNSReinstallVersion(Object version) {
-    return 'You already have version $version of CNS installed.\nDo you want to reinstall the files anyway?';
+    return 'Vous avez déjà la version $version de CNS installée. Voulez-vous quand même réinstaller les fichiers ?';
   }
 
   @override
@@ -1042,73 +1042,74 @@ class AppLocalizationsFr extends AppLocalizations {
   String get dialogActionDowngrade => 'Rétrograder';
 
   @override
-  String get dialogTitleCNSInstall => 'Install Main CNS System';
+  String get dialogTitleCNSInstall => 'Installer le système CNS principal';
 
   @override
   String get dialogContentCNSInstall =>
-      'You are about to install the base Custom Nanosuit System (CNS).\nThis is required for CNS mods to work. Do you wish to continue?';
+      'Vous êtes sur le point d\'installer le système de base Custom Nanosuit System (CNS). Ceci est nécessaire pour que les mods CNS fonctionnent. Souhaitez-vous continuer ?';
 
   @override
-  String get dialogActionInstall => 'Install';
+  String get dialogActionInstall => 'Installer';
 
   @override
-  String get settingsDeveloperOptions => 'Developer Options';
+  String get settingsDeveloperOptions => 'Options pour les développeurs';
 
   @override
-  String get devDeleteNexusInfoTitle => 'Delete All nexus_info.json Files';
+  String get devDeleteNexusInfoTitle =>
+      'Supprimer tous les fichiers nexus_info.json';
 
   @override
   String get devDeleteNexusInfoDesc =>
-      'Removes all manager metadata files from every mod. This is useful for forcing a full repair.';
+      'Supprime tous les fichiers de métadonnées du gestionnaire de chaque mod. Utile pour forcer une réparation complète.';
 
   @override
-  String get devExtractIdsTitle => 'Extract Identifiers';
+  String get devExtractIdsTitle => 'Extraire les identifiants';
 
   @override
   String get devExtractIdsDesc =>
-      'Creates a file named \'ID Mods.json\' on your desktop containing the displayName and nexusId of each mod.';
+      'Crée un fichier nommé \'ID Mods.json\' sur votre bureau contenant le displayName et le nexusId de chaque mod.';
 
   @override
-  String get devConfirmDeleteTitle => 'Confirm Deletion';
+  String get devConfirmDeleteTitle => 'Confirmer la suppression';
 
   @override
   String get devConfirmDeleteDesc =>
-      'Are you sure you want to permanently delete all nexus_info.json files? This will remove all custom names, covers, and metadata. This action cannot be undone.';
+      'Êtes-vous sûr de vouloir supprimer définitivement tous les fichiers nexus_info.json ? Cela supprimera tous les noms, couvertures et métadonnées personnalisés. Cette action est irréversible.';
 
   @override
-  String get devDeleteSuccessTitle => 'Deletion Complete';
+  String get devDeleteSuccessTitle => 'Suppression terminée';
 
   @override
   String devDeleteSuccessDesc(Object count) {
-    return 'Successfully deleted $count nexus_info.json files.';
+    return '$count fichiers nexus_info.json supprimés avec succès.';
   }
 
   @override
-  String get devConfirmExtractTitle => 'Confirm Extraction';
+  String get devConfirmExtractTitle => 'Confirmer l\'extraction';
 
   @override
   String get devConfirmExtractDesc =>
-      'This will scan all your mods and create \'ID Mods.json\' on your desktop. This will overwrite any existing file with the same name. Do you want to continue?';
+      'Cela analysera tous vos mods et créera \'ID Mods.json\' sur votre bureau. Tout fichier existant du même nom sera écrasé. Voulez-vous continuer ?';
 
   @override
-  String get devExtractAction => 'Extract';
+  String get devExtractAction => 'Extraire';
 
   @override
   String get devExtractNoData =>
-      'No mods with valid identifiers were found to extract.';
+      'Aucun mod avec des identifiants valides n\'a été trouvé pour l\'extraction.';
 
   @override
   String get devExtractDesktopNotFound =>
-      'Error: Could not find the Desktop directory.';
+      'Erreur : Impossible de trouver le répertoire du Bureau.';
 
   @override
-  String get devExtractSuccessTitle => 'Extraction Complete';
+  String get devExtractSuccessTitle => 'Extraction terminée';
 
   @override
   String devExtractSuccessDesc(Object path) {
-    return 'File successfully created at: $path';
+    return 'Fichier créé avec succès à : $path';
   }
 
   @override
-  String get errorDialogTitle => 'An Error Occurred';
+  String get errorDialogTitle => 'Une erreur est survenue';
 }

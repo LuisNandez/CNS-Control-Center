@@ -903,109 +903,107 @@ class AppLocalizationsJa extends AppLocalizations {
   String get translateDescription => '説明を翻訳';
 
   @override
-  String get dialogTitleUE4SSReinstall => 'Reinstall UE4SS';
+  String get dialogTitleUE4SSReinstall => 'UE4SSを再インストール';
 
   @override
   String get dialogContentUE4SSReinstall =>
-      'UE4SS already seems to be installed.\nDo you want to overwrite the existing installation? This can be useful if you suspect corrupt files.';
+      'UE4SSはすでにインストールされているようです。既存のインストールを上書きしますか？ファイルが破損している疑いがある場合に便利です。';
 
   @override
-  String get dialogTitleCNSReinstall => 'Reinstall CNS System';
+  String get dialogTitleCNSReinstall => 'CNSシステムを再インストール';
 
   @override
   String get dialogContentCNSReinstall =>
-      'The main CNS system already seems to be installed.\nDo you want to reinstall it? Your existing mods will not be affected.';
+      'メインのCNSシステムはすでにインストールされているようです。再インストールしますか？既存のMODには影響しません。';
 
   @override
   String dialogTitleUninstall(Object componentName) {
-    return 'Uninstall $componentName';
+    return '$componentNameをアンインストール';
   }
 
   @override
   String dialogContentUninstall(Object componentName) {
-    return 'Are you sure you want to uninstall $componentName?\nThis action will remove the core component files but will not affect your installed mods.';
+    return '$componentNameをアンインストールしてもよろしいですか？この操作により、コンポーネントのコアファイルは削除されますが、インストール済みのMODには影響しません。';
   }
 
   @override
-  String get dialogActionUninstall => 'Yes, uninstall';
+  String get dialogActionUninstall => 'はい、アンインストールします';
 
   @override
   String statusUninstalling(Object componentName) {
-    return 'Uninstalling $componentName...';
+    return '$componentNameをアンインストール中...';
   }
 
   @override
   String snackBarUninstalled(Object componentName) {
-    return '$componentName uninstalled successfully';
+    return '$componentNameが正常にアンインストールされました';
   }
 
   @override
   String errorUninstalling(Object componentName) {
-    return 'Error uninstalling $componentName';
+    return '$componentNameのアンインストール中にエラーが発生しました';
   }
 
   @override
-  String get settingsCoreComponents => 'Core Components';
+  String get settingsCoreComponents => 'コアコンポーネント';
 
   @override
-  String get installedStatus => 'Installed';
+  String get installedStatus => 'インストール済み';
 
   @override
-  String get notInstalledStatus => 'Not detected';
+  String get notInstalledStatus => '検出されません';
 
   @override
-  String get uninstallButton => 'Uninstall';
+  String get uninstallButton => 'アンインストール';
 
   @override
-  String get cnsCoreSystem => 'Custom Nanosuit System';
+  String get cnsCoreSystem => 'カスタムナノスーツシステム';
 
   @override
-  String get ue4ssInstallationDetected =>
-      'Instalación de UE4SS existente detectada y adoptada';
+  String get ue4ssInstallationDetected => '既存のUE4SSインストールが検出され、採用されました';
 
   @override
-  String get cnsInstallationDetected =>
-      'Instalación de CNS Principal existente detectada y adoptada';
+  String get cnsInstallationDetected => '既存のメインCNSインストールが検出され、採用されました';
 
   @override
-  String get ue4ssRequiredTitle => 'UE4SS Required';
+  String get ue4ssRequiredTitle => 'UE4SSが必要です';
 
   @override
   String get ue4ssRequiredContent =>
-      'To install the Main CNS System, you must first install UE4SS.\nYou can download it from the following link:';
+      'メインCNSシステムをインストールするには、まずUE4SSをインストールする必要があります。次のリンクからダウンロードできます：';
 
   @override
-  String get uninstallDependencyTitle => 'Dependency Detected';
+  String get uninstallDependencyTitle => '依存関係が検出されました';
 
   @override
   String get uninstallDependencyContent =>
-      'You must uninstall the Main CNS System before you can uninstall UE4SS, as CNS depends on it.';
+      'CNSはUE4SSに依存しているため、UE4SSをアンインストールする前にメインCNSシステムをアンインストールする必要があります。';
 
   @override
-  String get dialogActionUnderstood => 'Understood';
+  String get dialogActionUnderstood => '了解しました';
 
   @override
-  String get appTitleNoCns => 'Custom Nanosuit System (Not Installed)';
+  String get appTitleNoCns => 'カスタムナノスーツシステム（未インストール）';
 
   @override
-  String get dialogTitleCNSUpdate => 'Update Main CNS System';
+  String get dialogTitleCNSUpdate => 'メインCNSシステムを更新';
 
   @override
   String dialogContentCNSUpdate(Object oldVersion, Object newVersion) {
-    return 'You are about to update CNS from version $oldVersion to the new version $newVersion.\nDo you wish to continue?';
+    return 'CNSをバージョン$oldVersionから新しいバージョン$newVersionに更新しようとしています。続行しますか？';
   }
 
   @override
-  String get dialogTitleCNSDowngrade => 'Downgrade CNS Version';
+  String get dialogTitleCNSDowngrade => 'CNSバージョンをダウングレード';
 
   @override
   String dialogContentCNSDowngrade(Object oldVersion, Object newVersion) {
-    return 'Warning!\nYou are about to install an older version of CNS ($newVersion) than your current one ($oldVersion). This may cause issues.\nAre you sure?';
+    return '警告！現在のバージョン（$oldVersion）より古いバージョンのCNS（$newVersion）をインストールしようとしています。問題が発生する可能性があります。よろしいですか？';
   }
 
   @override
   String dialogContentCNSReinstallVersion(Object version) {
-    return 'You already have version $version of CNS installed.\nDo you want to reinstall the files anyway?';
+    return 'すでにCNSのバージョン$versionがインストールされています。ファイルを再インストールしますか？';
   }
 
   @override
@@ -1015,73 +1013,71 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dialogActionDowngrade => 'ダウングレード';
 
   @override
-  String get dialogTitleCNSInstall => 'Install Main CNS System';
+  String get dialogTitleCNSInstall => 'メインCNSシステムをインストール';
 
   @override
   String get dialogContentCNSInstall =>
-      'You are about to install the base Custom Nanosuit System (CNS).\nThis is required for CNS mods to work. Do you wish to continue?';
+      'ベースとなるカスタムナノスーツシステム（CNS）をインストールしようとしています。これはCNS MODが機能するために必要です。続行しますか？';
 
   @override
-  String get dialogActionInstall => 'Install';
+  String get dialogActionInstall => 'インストール';
 
   @override
-  String get settingsDeveloperOptions => 'Developer Options';
+  String get settingsDeveloperOptions => '開発者向けオプション';
 
   @override
-  String get devDeleteNexusInfoTitle => 'Delete All nexus_info.json Files';
+  String get devDeleteNexusInfoTitle => 'すべてのnexus_info.jsonファイルを削除';
 
   @override
   String get devDeleteNexusInfoDesc =>
-      'Removes all manager metadata files from every mod. This is useful for forcing a full repair.';
+      'すべてのMODからマネージャーのメタデータファイルを削除します。完全な修復を強制する場合に便利です。';
 
   @override
-  String get devExtractIdsTitle => 'Extract Identifiers';
+  String get devExtractIdsTitle => '識別子を抽出';
 
   @override
   String get devExtractIdsDesc =>
-      'Creates a file named \'ID Mods.json\' on your desktop containing the displayName and nexusId of each mod.';
+      '各MODのdisplayNameとnexusIdを含む「ID Mods.json」という名前のファイルをデスクトップに作成します。';
 
   @override
-  String get devConfirmDeleteTitle => 'Confirm Deletion';
+  String get devConfirmDeleteTitle => '削除の確認';
 
   @override
   String get devConfirmDeleteDesc =>
-      'Are you sure you want to permanently delete all nexus_info.json files? This will remove all custom names, covers, and metadata. This action cannot be undone.';
+      'すべてのnexus_info.jsonファイルを完全に削除してもよろしいですか？これにより、すべてのカスタム名、カバー、メタデータが削除されます。この操作は元に戻せません。';
 
   @override
-  String get devDeleteSuccessTitle => 'Deletion Complete';
+  String get devDeleteSuccessTitle => '削除完了';
 
   @override
   String devDeleteSuccessDesc(Object count) {
-    return 'Successfully deleted $count nexus_info.json files.';
+    return '$count個のnexus_info.jsonファイルを正常に削除しました。';
   }
 
   @override
-  String get devConfirmExtractTitle => 'Confirm Extraction';
+  String get devConfirmExtractTitle => '抽出の確認';
 
   @override
   String get devConfirmExtractDesc =>
-      'This will scan all your mods and create \'ID Mods.json\' on your desktop. This will overwrite any existing file with the same name. Do you want to continue?';
+      'これにより、すべてのMODがスキャンされ、デスクトップに「ID Mods.json」が作成されます。同名の既存ファイルは上書きされます。続行しますか？';
 
   @override
-  String get devExtractAction => 'Extract';
+  String get devExtractAction => '抽出';
 
   @override
-  String get devExtractNoData =>
-      'No mods with valid identifiers were found to extract.';
+  String get devExtractNoData => '抽出する有効な識別子を持つMODが見つかりませんでした。';
 
   @override
-  String get devExtractDesktopNotFound =>
-      'Error: Could not find the Desktop directory.';
+  String get devExtractDesktopNotFound => 'エラー：デスクトップディレクトリが見つかりませんでした。';
 
   @override
-  String get devExtractSuccessTitle => 'Extraction Complete';
+  String get devExtractSuccessTitle => '抽出完了';
 
   @override
   String devExtractSuccessDesc(Object path) {
-    return 'File successfully created at: $path';
+    return 'ファイルが正常に作成されました：$path';
   }
 
   @override
-  String get errorDialogTitle => 'An Error Occurred';
+  String get errorDialogTitle => 'エラーが発生しました';
 }

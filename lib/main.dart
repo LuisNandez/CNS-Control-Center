@@ -269,6 +269,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   bool _isUe4ssInstalled = false;
   bool _isCnsCoreInstalled = false;
 
+  bool _developerModeEnabled = false;
+  int _versionTapCount = 0;
+
   // ++ THUMBNAIL SERVICE INSTANCE ++
   final ThumbnailService _thumbnailService = ThumbnailService();
 
@@ -2025,114 +2028,106 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<void> _installMod() async {
-    final l10n = AppLocalizations.of(context)!;
-    if (_finalModsPath == null) {
-      setState(() {
-        _statusMessage = l10n.errorGamePathUndefined;
-        _statusColor = Colors.redAccent;
-      });
-      return;
-    }
-    if (_preparedMods.isEmpty) {
-      setState(() {
-        _statusMessage = l10n.errorInstallNoSelection;
-        _statusColor = Colors.redAccent;
-      });
-      return;
-    }
-
+  final l10n = AppLocalizations.of(context)!;
+  if (_finalModsPath == null) {
     setState(() {
-      _isLoading = true;
-      _lastInstalledModNames.clear();
+      _statusMessage = l10n.errorGamePathUndefined;
+      _statusColor = Colors.redAccent;
     });
+    return;
+  }
+  if (_preparedMods.isEmpty) {
+    setState(() {
+      _statusMessage = l10n.errorInstallNoSelection;
+      _statusColor = Colors.redAccent;
+    });
+    return;
+  }
 
-    List<String> installedNames = [];
-    String? errorMessage;
-    int successCount = 0;
-    int failCount = 0;
+  setState(() {
+    _isLoading = true;
+    _lastInstalledModNames.clear();
+  });
 
-    try {
-      for (final preparedMod in _preparedMods) {
-        try {
-          final modName = await _installSingleModFromDirectory(
-            preparedMod.sourceDir,
-            nexusId: preparedMod.nexusId,
-            nexusVersion: preparedMod.nexusVersion,
-          );
-          if (modName != null) {
-            installedNames.add(modName);
-            successCount++;
-            if (mounted && _preparedMods.length > 1) {
-              NotificationService.instance.show(
-                context: context,
-                type: NotificationType.success,
-                title: l10n.snackBarModInstalled(modName),
-              );
-            }
-          } else {
-            failCount++;
-          }
-        } catch (e) {
-          print('Failed to install mod from ${preparedMod.sourceDir.path}: $e');
+  List<String> installedNames = [];
+  String? errorMessage;
+  int successCount = 0;
+  int failCount = 0;
+
+  try {
+    for (final preparedMod in _preparedMods) {
+      try {
+        final modName = await _installSingleModFromDirectory(
+          preparedMod.sourceDir,
+          nexusId: preparedMod.nexusId,
+          nexusVersion: preparedMod.nexusVersion,
+        );
+        if (modName != null) {
+          installedNames.add(modName);
+          successCount++;
+          // ++ CORRECTION: The individual notification that appeared inside this loop has been removed. ++
+        } else {
           failCount++;
         }
-      }
-
-      if (mounted) {
-        if (_preparedMods.length > 1) {
-          Color snackBarColor = (failCount > 0)
-              ? (successCount > 0 ? Colors.orange : Colors.red)
-              : Colors.green[600]!;
-          NotificationService.instance.show(
-            context: context,
-            type: failCount > 0
-                ? (successCount > 0 ? NotificationType.info : NotificationType.error)
-                : NotificationType.success,
-            title: l10n.snackBarBatchInstallComplete(failCount, successCount),
-          );
-        } else if (successCount == 1) {
-          NotificationService.instance.show(
-            context: context,
-            type: NotificationType.success,
-            title: l10n.snackBarModInstalled(installedNames.first),
-          );
-        }
-      }
-    } catch (e) {
-      errorMessage = e.toString();
-      if (mounted) {
-        NotificationService.instance.show(
-          context: context,
-          type: NotificationType.error,
-          title: l10n.statusError(errorMessage),
-        );
-      }
-    } finally {
-      setState(() {
-        _lastInstalledModNames = installedNames;
-        if (errorMessage == null) {
-          _statusMessage = installedNames.isNotEmpty
-              ? l10n.statusInstallationComplete
-              : 'Installation produced no new mods.';
-        } else {
-          _statusMessage = l10n.statusError(errorMessage);
-          _statusColor = Colors.redAccent;
-        }
-        _clearSelection();
-        _isLoading = false;
-      });
-      await _loadAllMods(clearHighlight: false);
-      try {
-        if (_tempExtractionDir != null && await _tempExtractionDir!.exists()) {
-          await _tempExtractionDir!.delete(recursive: true);
-        }
-        _tempExtractionDir = null;
-        await _cleanUpOrphanedTempDirs();
       } catch (e) {
-        print('Failed to clean up temp directory: $e');
+        print('Failed to install mod from ${preparedMod.sourceDir.path}: $e');
+        failCount++;
       }
     }
+
+    if (mounted) {
+      // This block now correctly handles showing the final summary.
+      if (_preparedMods.length > 1) {
+        NotificationService.instance.show(
+          context: context,
+          type: failCount > 0
+              ? (successCount > 0 ? NotificationType.info : NotificationType.error)
+              : NotificationType.success,
+          title: l10n.snackBarBatchInstallComplete(failCount, successCount),
+        );
+      } else if (successCount == 1) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.success,
+          title: l10n.snackBarModInstalled(installedNames.first),
+        );
+      }
+    }
+  } catch (e) {
+    errorMessage = e.toString();
+    if (mounted) {
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.error,
+        title: l10n.statusError(errorMessage),
+      );
+    }
+  } finally {
+    setState(() {
+      _lastInstalledModNames = installedNames;
+      if (errorMessage == null) {
+        _statusMessage = installedNames.isNotEmpty
+            ? l10n.statusInstallationComplete
+            : 'Installation produced no new mods.';
+      } else {
+        _statusMessage = l10n.statusError(errorMessage);
+        _statusColor = Colors.redAccent;
+      }
+      _clearSelection();
+      _isLoading = false;
+    });
+    await _loadAllMods(clearHighlight: false);
+    try {
+      if (_tempExtractionDir != null && await _tempExtractionDir!.exists()) {
+        await _tempExtractionDir!.delete(recursive: true);
+      }
+      _tempExtractionDir = null;
+      await _cleanUpOrphanedTempDirs();
+    } catch (e) {
+      print('Failed to clean up temp directory: $e');
+    }
   }
+}
 
   Future<String?> _installSingleModFromDirectory(Directory modDir,
       {bool recursive = false, String? nexusId, String? nexusVersion}) async {
@@ -3025,6 +3020,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   void _showAboutDialog() {
     final l10n = AppLocalizations.of(context)!;
+    _versionTapCount = 0;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -3036,7 +3032,30 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           children: [
             Text(l10n.aboutContent),
             const SizedBox(height: 12),
-            Text(l10n.aboutVersion(_appVersion)),
+            StatefulBuilder(
+            builder: (BuildContext context, StateSetter setDialogState) {
+              return GestureDetector(
+                onTap: () {
+                  setDialogState(() {
+                    _versionTapCount++;
+                  });
+
+                  if (_versionTapCount >= 7) {
+                    setState(() {
+                      _developerModeEnabled = true;
+                    });
+                    Navigator.of(context).pop(); // Cierra el diálogo
+                    NotificationService.instance.show(
+                      context: context,
+                      type: NotificationType.success,
+                      title: 'Developer Mode Enabled!',
+                    );
+                  }
+                },
+                child: Text(l10n.aboutVersion(_appVersion)),
+              );
+            },
+          ),
             const SizedBox(height: 20),
             InkWell(
               child: Text(
@@ -3355,7 +3374,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         
         // Extraemos la información que necesitamos
         final pictureUrl = modDetails['picture_url'] as String?;
-        final summary = modDetails['summary'] as String?;
+        String? summary = modDetails['summary'] as String?;
+      if (summary != null) {
+        // Replaces the HTML line break tag with a real newline character.
+        summary = summary.replaceAll('<br />', '\n');
+      }
         final author = modDetails['author'] as String?;
         
         List<Map<String, dynamic>>? gallery;
@@ -4054,6 +4077,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     onShowLanguageDialog: _showLanguageDialog,
                     onDeleteAllNexusInfo: _deleteAllNexusInfoFiles,
                     onExtractModIds: _extractModIdentifiers,
+                    isDeveloperModeEnabled: _developerModeEnabled,
                     onShowAboutDialog: _showAboutDialog,
                     onRunSelfHealing: _showSelfHealConfirmationDialog,
                   ),
@@ -4899,17 +4923,35 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           },
                     tooltip: l10n.openModsFolder),
                 IconButton(
-                    icon: const Icon(Icons.power_outlined, color: Colors.greenAccent),
+                    icon: Icon(Icons.power_outlined, 
+                      // ++ START: COLOR CHANGE ++
+                      color: (_isLoading || !hasDisabledMods) 
+                             ? Colors.greenAccent.withOpacity(0.4) 
+                             : Colors.greenAccent
+                      // ++ END: COLOR CHANGE ++
+                    ),
                     onPressed: _isLoading || !hasDisabledMods ? null : _enableAllMods,
                     tooltip: l10n.enableAllModsTooltip
                 ),
                 IconButton(
-                    icon: const Icon(Icons.power_off_outlined, color: Colors.orangeAccent),
+                    icon: Icon(Icons.power_off_outlined, 
+                      // ++ START: COLOR CHANGE ++
+                      color: (_isLoading || !hasEnabledMods) 
+                             ? Colors.orangeAccent.withOpacity(0.4) 
+                             : Colors.orangeAccent
+                      // ++ END: COLOR CHANGE ++
+                    ),
                     onPressed: _isLoading || !hasEnabledMods ? null : _disableAllMods,
                     tooltip: l10n.disableAllModsTooltip
                 ),
                 IconButton(
-                    icon: const Icon(Icons.delete_sweep_outlined, color: Colors.redAccent),
+                    icon: Icon(Icons.delete_sweep_outlined, 
+                      // ++ START: COLOR CHANGE ++
+                      color: (_isLoading || !hasDisabledMods) 
+                             ? Colors.redAccent.withOpacity(0.4) 
+                             : Colors.redAccent
+                      // ++ END: COLOR CHANGE ++
+                    ),
                     onPressed: _isLoading || !hasDisabledMods ? null : _deleteDisabledMods,
                     tooltip: l10n.deleteAllModsTooltip
                 ),

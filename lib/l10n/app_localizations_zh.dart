@@ -892,109 +892,106 @@ class AppLocalizationsZh extends AppLocalizations {
   String get translateDescription => '翻译描述';
 
   @override
-  String get dialogTitleUE4SSReinstall => 'Reinstall UE4SS';
+  String get dialogTitleUE4SSReinstall => '重新安装 UE4SS';
 
   @override
   String get dialogContentUE4SSReinstall =>
-      'UE4SS already seems to be installed.\nDo you want to overwrite the existing installation? This can be useful if you suspect corrupt files.';
+      'UE4SS 似乎已安装。您想覆盖现有安装吗？如果您怀疑文件损坏，这可能很有用。';
 
   @override
-  String get dialogTitleCNSReinstall => 'Reinstall CNS System';
+  String get dialogTitleCNSReinstall => '重新安装 CNS 系统';
 
   @override
   String get dialogContentCNSReinstall =>
-      'The main CNS system already seems to be installed.\nDo you want to reinstall it? Your existing mods will not be affected.';
+      '主 CNS 系统似乎已安装。您想重新安装它吗？您现有的模组不会受到影响。';
 
   @override
   String dialogTitleUninstall(Object componentName) {
-    return 'Uninstall $componentName';
+    return '卸载 $componentName';
   }
 
   @override
   String dialogContentUninstall(Object componentName) {
-    return 'Are you sure you want to uninstall $componentName?\nThis action will remove the core component files but will not affect your installed mods.';
+    return '您确定要卸载 $componentName 吗？此操作将删除核心组件文件，但不会影响您已安装的模组。';
   }
 
   @override
-  String get dialogActionUninstall => 'Yes, uninstall';
+  String get dialogActionUninstall => '是的，卸载';
 
   @override
   String statusUninstalling(Object componentName) {
-    return 'Uninstalling $componentName...';
+    return '正在卸载 $componentName...';
   }
 
   @override
   String snackBarUninstalled(Object componentName) {
-    return '$componentName uninstalled successfully';
+    return '$componentName 卸载成功';
   }
 
   @override
   String errorUninstalling(Object componentName) {
-    return 'Error uninstalling $componentName';
+    return '卸载 $componentName 时出错';
   }
 
   @override
-  String get settingsCoreComponents => 'Core Components';
+  String get settingsCoreComponents => '核心组件';
 
   @override
-  String get installedStatus => 'Installed';
+  String get installedStatus => '已安装';
 
   @override
-  String get notInstalledStatus => 'Not detected';
+  String get notInstalledStatus => '未检测到';
 
   @override
-  String get uninstallButton => 'Uninstall';
+  String get uninstallButton => '卸载';
 
   @override
-  String get cnsCoreSystem => 'Custom Nanosuit System';
+  String get cnsCoreSystem => '自定义纳米服系统';
 
   @override
-  String get ue4ssInstallationDetected =>
-      'Instalación de UE4SS existente detectada y adoptada';
+  String get ue4ssInstallationDetected => '检测到并采用现有 UE4SS 安装';
 
   @override
-  String get cnsInstallationDetected =>
-      'Instalación de CNS Principal existente detectada y adoptada';
+  String get cnsInstallationDetected => '检测到并采用现有主 CNS 安装';
 
   @override
-  String get ue4ssRequiredTitle => 'UE4SS Required';
+  String get ue4ssRequiredTitle => '需要 UE4SS';
 
   @override
-  String get ue4ssRequiredContent =>
-      'To install the Main CNS System, you must first install UE4SS.\nYou can download it from the following link:';
+  String get ue4ssRequiredContent => '要安装主 CNS 系统，您必须首先安装 UE4SS。您可以从以下链接下载：';
 
   @override
-  String get uninstallDependencyTitle => 'Dependency Detected';
+  String get uninstallDependencyTitle => '检测到依赖项';
 
   @override
   String get uninstallDependencyContent =>
-      'You must uninstall the Main CNS System before you can uninstall UE4SS, as CNS depends on it.';
+      '您必须先卸载主 CNS 系统，然后才能卸载 UE4SS，因为 CNS 依赖于它。';
 
   @override
-  String get dialogActionUnderstood => 'Understood';
+  String get dialogActionUnderstood => '好的';
 
   @override
-  String get appTitleNoCns => 'Custom Nanosuit System (Not Installed)';
+  String get appTitleNoCns => '自定义纳米服系统 (未安装)';
 
   @override
-  String get dialogTitleCNSUpdate => 'Update Main CNS System';
+  String get dialogTitleCNSUpdate => '更新主 CNS 系统';
 
   @override
   String dialogContentCNSUpdate(Object oldVersion, Object newVersion) {
-    return 'You are about to update CNS from version $oldVersion to the new version $newVersion.\nDo you wish to continue?';
+    return '您即将将 CNS 从版本 $oldVersion 更新到新版本 $newVersion。您希望继续吗？';
   }
 
   @override
-  String get dialogTitleCNSDowngrade => 'Downgrade CNS Version';
+  String get dialogTitleCNSDowngrade => '降级 CNS 版本';
 
   @override
   String dialogContentCNSDowngrade(Object oldVersion, Object newVersion) {
-    return 'Warning!\nYou are about to install an older version of CNS ($newVersion) than your current one ($oldVersion). This may cause issues.\nAre you sure?';
+    return '警告！您即将安装比当前版本 ($oldVersion) 更旧的 CNS 版本 ($newVersion)。这可能会导致问题。您确定吗？';
   }
 
   @override
   String dialogContentCNSReinstallVersion(Object version) {
-    return 'You already have version $version of CNS installed.\nDo you want to reinstall the files anyway?';
+    return '您已经安装了 CNS 版本 $version。您还想重新安装文件吗？';
   }
 
   @override
@@ -1004,73 +1001,70 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dialogActionDowngrade => '降级';
 
   @override
-  String get dialogTitleCNSInstall => 'Install Main CNS System';
+  String get dialogTitleCNSInstall => '安装主 CNS 系统';
 
   @override
   String get dialogContentCNSInstall =>
-      'You are about to install the base Custom Nanosuit System (CNS).\nThis is required for CNS mods to work. Do you wish to continue?';
+      '您即将安装基础的自定义纳米服系统 (CNS)。这是 CNS 模组正常工作所必需的。您希望继续吗？';
 
   @override
-  String get dialogActionInstall => 'Install';
+  String get dialogActionInstall => '安装';
 
   @override
-  String get settingsDeveloperOptions => 'Developer Options';
+  String get settingsDeveloperOptions => '开发者选项';
 
   @override
-  String get devDeleteNexusInfoTitle => 'Delete All nexus_info.json Files';
+  String get devDeleteNexusInfoTitle => '删除所有 nexus_info.json 文件';
 
   @override
-  String get devDeleteNexusInfoDesc =>
-      'Removes all manager metadata files from every mod. This is useful for forcing a full repair.';
+  String get devDeleteNexusInfoDesc => '从每个模组中删除所有管理器元数据文件。这对于强制进行完全修复很有用。';
 
   @override
-  String get devExtractIdsTitle => 'Extract Identifiers';
+  String get devExtractIdsTitle => '提取标识符';
 
   @override
   String get devExtractIdsDesc =>
-      'Creates a file named \'ID Mods.json\' on your desktop containing the displayName and nexusId of each mod.';
+      '在您的桌面上创建一个名为“ID Mods.json”的文件，其中包含每个模组的 displayName 和 nexusId。';
 
   @override
-  String get devConfirmDeleteTitle => 'Confirm Deletion';
+  String get devConfirmDeleteTitle => '确认删除';
 
   @override
   String get devConfirmDeleteDesc =>
-      'Are you sure you want to permanently delete all nexus_info.json files? This will remove all custom names, covers, and metadata. This action cannot be undone.';
+      '您确定要永久删除所有 nexus_info.json 文件吗？这将删除所有自定义名称、封面和元数据。此操作无法撤销。';
 
   @override
-  String get devDeleteSuccessTitle => 'Deletion Complete';
+  String get devDeleteSuccessTitle => '删除完成';
 
   @override
   String devDeleteSuccessDesc(Object count) {
-    return 'Successfully deleted $count nexus_info.json files.';
+    return '成功删除 $count 个 nexus_info.json 文件。';
   }
 
   @override
-  String get devConfirmExtractTitle => 'Confirm Extraction';
+  String get devConfirmExtractTitle => '确认提取';
 
   @override
   String get devConfirmExtractDesc =>
-      'This will scan all your mods and create \'ID Mods.json\' on your desktop. This will overwrite any existing file with the same name. Do you want to continue?';
+      '这将扫描您的所有模组并在您的桌面上创建“ID Mods.json”。这将覆盖任何同名的现有文件。您想继续吗？';
 
   @override
-  String get devExtractAction => 'Extract';
+  String get devExtractAction => '提取';
 
   @override
-  String get devExtractNoData =>
-      'No mods with valid identifiers were found to extract.';
+  String get devExtractNoData => '未找到具有有效标识符的模组可供提取。';
 
   @override
-  String get devExtractDesktopNotFound =>
-      'Error: Could not find the Desktop directory.';
+  String get devExtractDesktopNotFound => '错误：找不到桌面目录。';
 
   @override
-  String get devExtractSuccessTitle => 'Extraction Complete';
+  String get devExtractSuccessTitle => '提取完成';
 
   @override
   String devExtractSuccessDesc(Object path) {
-    return 'File successfully created at: $path';
+    return '文件已成功创建于：$path';
   }
 
   @override
-  String get errorDialogTitle => 'An Error Occurred';
+  String get errorDialogTitle => '发生错误';
 }
