@@ -534,18 +534,6 @@ abstract class AppLocalizations {
   /// **'7-Zip has not been detected yet. Please make sure it is installed in the default path and try again.'**
   String get dialogContent7zipNotFound;
 
-  /// No description provided for @dialogTitleCNSUpdate.
-  ///
-  /// In en, this message translates to:
-  /// **'Main System Update Detected'**
-  String get dialogTitleCNSUpdate;
-
-  /// No description provided for @dialogContentCNSUpdate.
-  ///
-  /// In en, this message translates to:
-  /// **'An update for the \"Custom Nanosuit System\" has been detected.\n\nThis will replace files in the main game folder (StellarBlade\\SB). Do you wish to continue?'**
-  String get dialogContentCNSUpdate;
-
   /// No description provided for @dialogTitleMultipleJsons.
   ///
   /// In en, this message translates to:
@@ -617,12 +605,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Install Anyway'**
   String get dialogActionInstallAnyway;
-
-  /// No description provided for @dialogActionUpdate.
-  ///
-  /// In en, this message translates to:
-  /// **'Update'**
-  String get dialogActionUpdate;
 
   /// No description provided for @dialogActionDelete.
   ///
@@ -1282,12 +1264,6 @@ abstract class AppLocalizations {
     String newVersion,
   );
 
-  /// No description provided for @dialogActionDowngrade.
-  ///
-  /// In en, this message translates to:
-  /// **'Downgrade'**
-  String get dialogActionDowngrade;
-
   /// No description provided for @dialogTitleReinstall.
   ///
   /// In en, this message translates to:
@@ -1803,6 +1779,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Understood'**
   String get dialogActionUnderstood;
+
+  /// No description provided for @appTitleNoCns.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Nanosuit System (Not Installed)'**
+  String get appTitleNoCns;
+
+  /// No description provided for @dialogTitleCNSUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Main CNS System'**
+  String get dialogTitleCNSUpdate;
+
+  /// No description provided for @dialogContentCNSUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'You are about to update CNS from version {oldVersion} to the new version {newVersion}. Do you wish to continue?'**
+  String dialogContentCNSUpdate(Object oldVersion, Object newVersion);
+
+  /// No description provided for @dialogTitleCNSDowngrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Downgrade CNS Version'**
+  String get dialogTitleCNSDowngrade;
+
+  /// No description provided for @dialogContentCNSDowngrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning! You are about to install an older version of CNS ({newVersion}) than your current one ({oldVersion}). This may cause issues. Are you sure?'**
+  String dialogContentCNSDowngrade(Object oldVersion, Object newVersion);
+
+  /// No description provided for @dialogContentCNSReinstallVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'You already have version {version} of CNS installed. Do you want to reinstall the files anyway?'**
+  String dialogContentCNSReinstallVersion(Object version);
+
+  /// No description provided for @dialogActionUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get dialogActionUpdate;
+
+  /// No description provided for @dialogActionDowngrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Downgrade'**
+  String get dialogActionDowngrade;
+
+  /// No description provided for @dialogTitleCNSInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Install Main CNS System'**
+  String get dialogTitleCNSInstall;
+
+  /// No description provided for @dialogContentCNSInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'You are about to install the base Custom Nanosuit System (CNS). This is required for CNS mods to work. Do you wish to continue?'**
+  String get dialogContentCNSInstall;
+
+  /// No description provided for @dialogActionInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Install'**
+  String get dialogActionInstall;
 }
 
 class _AppLocalizationsDelegate

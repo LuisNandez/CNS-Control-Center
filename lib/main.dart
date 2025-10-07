@@ -217,7 +217,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   ''';
 
   static const String _defaultCnsManifestContent = r'''
-["Binaries","Binaries/Win64","Binaries/Win64/ue4ss","Binaries/Win64/ue4ss/Mods","Binaries/Win64/ue4ss/Mods/DekCNS","Binaries/Win64/ue4ss/Mods/DekCNS/enabled.txt","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/config.lua","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/json.lua","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/main.lua","Binaries/Win64/ue4ss/UE4SS-settings.ini","Content","Content/Paks","Content/Paks/LogicMods","Content/Paks/LogicMods/DekCNS_P.pak","Content/Paks/LogicMods/DekCNS_P.ucas","Content/Paks/LogicMods/DekCNS_P.utoc","Content/Paks/~mods","Content/Paks/~mods/CustomNanosuitSystem","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultAccessories.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultEarrings.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultFaces.dekcns.json","Content/Paks/~mods/CustomNansuitSystem/DekCNS-DefaultHairs.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfits.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsAdam.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsDrone.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsLily.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultWeaponsTest.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-Defaults.dekcns.json"]
+["Binaries","Binaries/Win64","Binaries/Win64/ue4ss","Binaries/Win64/ue4ss/Mods","Binaries/Win64/ue4ss/Mods/DekCNS","Binaries/Win64/ue4ss/Mods/DekCNS/enabled.txt","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/config.lua","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/json.lua","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/main.lua","Binaries/Win64/ue4ss/nexus_info.json","Content","Content/Paks","Content/Paks/LogicMods","Content/Paks/LogicMods/DekCNS_P.pak","Content/Paks/LogicMods/DekCNS_P.ucas","Content/Paks/LogicMods/DekCNS_P.utoc","Content/Paks/~mods","Content/Paks/~mods/CustomNanosuitSystem","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultAccessories.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultEarrings.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultFaces.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultHairs.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfits.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsAdam.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsDrone.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsLily.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultWeaponsTest.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-Defaults.dekcns.json"]
   ''';
   final List<_PreparedMod> _preparedMods = [];
   _PreparedUE4SS? _preparedUE4SS;
@@ -879,49 +879,60 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<String?> _readCNSData() async {
-    if (_gameRootPath == null) return null;
-
-    String? newVersion;
-    try {
-      final infoFile = File(p.join(
-          _gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss', 'nexus_info.json'));
-      if (await infoFile.exists()) {
-        final content = await infoFile.readAsString();
-        final data = json.decode(content);
-        setState(() {
-          _cnsNexusId = data['nexusId'];
-          _cnsVersion = data['installedVersion'];
-        });
-        newVersion = data['installedVersion'];
-      }
-    } catch (e) {
-      print('Error reading CNS nexus_info.json: $e');
-    }
-
-    if (_cnsVersion == null) {
-      try {
-        final luaFile = File(p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64',
-            'ue4ss', 'Mods', 'DekCNS', 'Scripts', 'main.lua'));
-        if (await luaFile.exists()) {
-          final content = await luaFile.readAsString();
-          final regex = RegExp(r'local CNS_Version = "(.+)"');
-          final match = regex.firstMatch(content);
-          if (match != null && match.group(1) != null) {
-            setState(() {
-              _cnsVersion = match.group(1);
-            });
-            newVersion = match.group(1);
-          }
-        } else {
-          setState(() => _cnsVersion = null);
-        }
-      } catch (e) {
-        print('Error reading CNS version from LUA: $e');
-        setState(() => _cnsVersion = null);
-      }
-    }
-    return newVersion;
+  if (_gameRootPath == null) {
+    setState(() {
+      _cnsVersion = null;
+      _cnsNexusId = null;
+    });
+    return null;
   }
+
+  // Primero, reinicia la versión a null.
+  // Si no se encuentran los archivos, este será el valor final.
+  setState(() {
+    _cnsVersion = null;
+    _cnsNexusId = null;
+  });
+
+  String? newVersion;
+
+  // Intenta leer desde nexus_info.json (fuente principal)
+  try {
+    final infoFile = File(p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss', 'nexus_info.json'));
+    if (await infoFile.exists()) {
+      final content = await infoFile.readAsString();
+      final data = json.decode(content);
+      setState(() {
+        _cnsNexusId = data['nexusId'];
+        _cnsVersion = data['installedVersion'];
+      });
+      newVersion = data['installedVersion'];
+      return newVersion; // Versión encontrada, terminamos aquí.
+    }
+  } catch (e) {
+    print('Error reading CNS nexus_info.json: $e');
+  }
+
+  // Si no se encontró arriba, intenta leer desde el archivo main.lua
+  try {
+    final luaFile = File(p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss', 'Mods', 'DekCNS', 'Scripts', 'main.lua'));
+    if (await luaFile.exists()) {
+      final content = await luaFile.readAsString();
+      final regex = RegExp(r'local CNS_Version = "(.+)"');
+      final match = regex.firstMatch(content);
+      if (match != null && match.group(1) != null) {
+        setState(() {
+          _cnsVersion = match.group(1);
+        });
+        newVersion = match.group(1);
+      }
+    }
+  } catch (e) {
+    print('Error reading CNS version from LUA: $e');
+  }
+
+  return newVersion;
+}
 
   Future<String?> _selectGamePathManually() async {
     try {
@@ -1858,38 +1869,70 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
     return; // Detiene la instalación si UE4SS no está presente.
   }
+
+  final newVersion = await _getVersionFromCnsPackage(sourceSBDir);
   
   if (_isCnsCoreInstalled) {
-    final reinstall = await showDialog<bool>(
+    // CASO: YA HAY UNA VERSIÓN INSTALADA (Actualizar, Reinstalar o Revertir)
+    final oldVersion = _cnsVersion ?? "N/A";
+    
+    // Comparamos la nueva versión con la antigua.
+    final comparison = (newVersion != null && _cnsVersion != null)
+        ? _compareVersions(newVersion, _cnsVersion!)
+        : 1; // Si no podemos comparar, asumimos que es una actualización.
+
+    String title, content, actionText;
+    Color actionColor = Colors.orangeAccent;
+
+    if (comparison > 0) {
+      // UPDATE (Actualización)
+      title = l10n.dialogTitleCNSUpdate;
+      content = l10n.dialogContentCNSUpdate(oldVersion, newVersion!);
+      actionText = l10n.dialogActionUpdate;
+      actionColor = Colors.tealAccent;
+    } else if (comparison < 0) {
+      // DOWNGRADE (Revertir)
+      title = l10n.dialogTitleCNSDowngrade;
+      content = l10n.dialogContentCNSDowngrade(oldVersion, newVersion!);
+      actionText = l10n.dialogActionDowngrade;
+      actionColor = Colors.redAccent;
+    } else {
+      // REINSTALL (Misma versión)
+      title = l10n.dialogTitleCNSReinstall;
+      content = l10n.dialogContentCNSReinstallVersion(newVersion ?? oldVersion);
+      actionText = l10n.dialogActionReinstall;
+    }
+
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.dialogTitleCNSReinstall),
-        content: Text(l10n.dialogContentCNSReinstall),
+        title: Text(title),
+        content: Text(content),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l10n.dialogActionCancel)),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.orangeAccent),
-            child: Text(l10n.dialogActionReinstall),
+            style: TextButton.styleFrom(foregroundColor: actionColor),
+            child: Text(actionText),
           ),
         ],
-      ),
+      )
     );
-    if (reinstall != true) return;
+    if (confirm != true) return;
   } else {
       final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.dialogTitleCNSUpdate),
-        content: Text(l10n.dialogContentCNSUpdate),
+        title: Text(l10n.dialogTitleCNSInstall),
+        content: Text(l10n.dialogContentCNSInstall),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l10n.dialogActionCancel)),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
-            child: Text(l10n.dialogActionUpdateSystem),
+            child: Text(l10n.dialogActionInstall),
           ),
         ],
       ),
@@ -3956,8 +3999,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         title: Row(
           children: [
             Text(_cnsVersion != null
-                ? l10n.appTitleWithVersion(_cnsVersion!)
-                : l10n.appTitle),
+            ? l10n.appTitleWithVersion(_cnsVersion!)
+            : l10n.appTitleNoCns), // Usará el nuevo texto cuando no haya versión
             if (_cnsUpdateInfo != null && !cnsIsIgnored)
               Padding(
                 padding: const EdgeInsets.only(left: 8.0),
@@ -5470,6 +5513,23 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       return null;
     }
   }
+
+  Future<String?> _getVersionFromCnsPackage(Directory sourceSBDir) async {
+  try {
+    final luaFile = File(p.join(sourceSBDir.path, 'Binaries', 'Win64', 'ue4ss', 'Mods', 'DekCNS', 'Scripts', 'main.lua'));
+    if (await luaFile.exists()) {
+      final content = await luaFile.readAsString();
+      final regex = RegExp(r'local CNS_Version = "(.+)"');
+      final match = regex.firstMatch(content);
+      if (match != null && match.group(1) != null) {
+        return match.group(1);
+      }
+    }
+  } catch (e) {
+    print("No se pudo leer la versión del paquete CNS: $e");
+  }
+  return null;
+}
 
 }
 

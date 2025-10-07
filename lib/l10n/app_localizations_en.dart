@@ -255,13 +255,6 @@ class AppLocalizationsEn extends AppLocalizations {
       '7-Zip has not been detected yet. Please make sure it is installed in the default path and try again.';
 
   @override
-  String get dialogTitleCNSUpdate => 'Main System Update Detected';
-
-  @override
-  String get dialogContentCNSUpdate =>
-      'An update for the \"Custom Nanosuit System\" has been detected.\n\nThis will replace files in the main game folder (StellarBlade\\SB). Do you wish to continue?';
-
-  @override
   String get dialogTitleMultipleJsons => 'Multiple .json Files Detected';
 
   @override
@@ -304,9 +297,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dialogActionInstallAnyway => 'Install Anyway';
-
-  @override
-  String get dialogActionUpdate => 'Update';
 
   @override
   String get dialogActionDelete => 'Delete';
@@ -717,9 +707,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get dialogActionDowngrade => 'Downgrade';
-
-  @override
   String get dialogTitleReinstall => 'Reinstall Mod';
 
   @override
@@ -1013,4 +1000,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dialogActionUnderstood => 'Understood';
+
+  @override
+  String get appTitleNoCns => 'Custom Nanosuit System (Not Installed)';
+
+  @override
+  String get dialogTitleCNSUpdate => 'Update Main CNS System';
+
+  @override
+  String dialogContentCNSUpdate(Object oldVersion, Object newVersion) {
+    return 'You are about to update CNS from version $oldVersion to the new version $newVersion. Do you wish to continue?';
+  }
+
+  @override
+  String get dialogTitleCNSDowngrade => 'Downgrade CNS Version';
+
+  @override
+  String dialogContentCNSDowngrade(Object oldVersion, Object newVersion) {
+    return 'Warning! You are about to install an older version of CNS ($newVersion) than your current one ($oldVersion). This may cause issues. Are you sure?';
+  }
+
+  @override
+  String dialogContentCNSReinstallVersion(Object version) {
+    return 'You already have version $version of CNS installed. Do you want to reinstall the files anyway?';
+  }
+
+  @override
+  String get dialogActionUpdate => 'Update';
+
+  @override
+  String get dialogActionDowngrade => 'Downgrade';
+
+  @override
+  String get dialogTitleCNSInstall => 'Install Main CNS System';
+
+  @override
+  String get dialogContentCNSInstall =>
+      'You are about to install the base Custom Nanosuit System (CNS). This is required for CNS mods to work. Do you wish to continue?';
+
+  @override
+  String get dialogActionInstall => 'Install';
 }

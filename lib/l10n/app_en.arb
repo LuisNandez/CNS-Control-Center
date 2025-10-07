@@ -70,8 +70,6 @@
     "dialogTitle7zip": "7-Zip is Required",
     "dialogContent7zip": "To decompress this file, the application needs 7-Zip.\n\nPlease install it from its official page and then press \"Confirm\".",
     "dialogContent7zipNotFound": "7-Zip has not been detected yet. Please make sure it is installed in the default path and try again.",
-    "dialogTitleCNSUpdate": "Main System Update Detected",
-    "dialogContentCNSUpdate": "An update for the \"Custom Nanosuit System\" has been detected.\n\nThis will replace files in the main game folder (StellarBlade\\SB). Do you wish to continue?",
     "dialogTitleMultipleJsons": "Multiple .json Files Detected",
     "dialogContentMultipleJsons": "{count} .json files have been detected. This could be a mod with multiple components.\n\nDo you want to install them all together in a single mod folder?",
     "dialogTitleModExists": "Mod Already Exists",
@@ -84,7 +82,6 @@
     "dialogActionConfirmInstallation": "Confirm Installation",
     "dialogActionUpdateSystem": "Update System",
     "dialogActionInstallAnyway": "Install Anyway",
-    "dialogActionUpdate": "Update",
     "dialogActionDelete": "Delete",
     "dialogActionClose": "Close",
     "snackBarBatchInstallComplete": "Batch installation complete. Success: {successCount}, Failed: {failedCount}.",
@@ -216,7 +213,6 @@
         "newVersion": { "type": "String", "example": "1.0" }
     }
 },
-    "dialogActionDowngrade": "Downgrade",
     "dialogTitleReinstall": "Reinstall Mod",
     "dialogContentReinstall": "You are about to reinstall version '{version}' of the mod '{modName}'.",
     "dialogActionReinstall": "Reinstall",
@@ -332,6 +328,34 @@
     "ue4ssRequiredContent": "To install the Main CNS System, you must first install UE4SS. You can download it from the following link:",
     "uninstallDependencyTitle": "Dependency Detected",
     "uninstallDependencyContent": "You must uninstall the Main CNS System before you can uninstall UE4SS, as CNS depends on it.",
-    "dialogActionUnderstood": "Understood"
+    "dialogActionUnderstood": "Understood",
+    "appTitleNoCns": "Custom Nanosuit System (Not Installed)",
+    "dialogTitleCNSUpdate": "Update Main CNS System",
+    "dialogContentCNSUpdate": "You are about to update CNS from version {oldVersion} to the new version {newVersion}. Do you wish to continue?",
+    "@dialogContentCNSUpdate": {
+        "placeholders": {
+            "oldVersion": {},
+            "newVersion": {}
+        }
+    },
+    "dialogTitleCNSDowngrade": "Downgrade CNS Version",
+    "dialogContentCNSDowngrade": "Warning! You are about to install an older version of CNS ({newVersion}) than your current one ({oldVersion}). This may cause issues. Are you sure?",
+    "@dialogContentCNSDowngrade": {
+        "placeholders": {
+            "oldVersion": {},
+            "newVersion": {}
+        }
+    },
+    "dialogContentCNSReinstallVersion": "You already have version {version} of CNS installed. Do you want to reinstall the files anyway?",
+    "@dialogContentCNSReinstallVersion": {
+        "placeholders": {
+            "version": {}
+        }
+    },
+    "dialogActionUpdate": "Update",
+    "dialogActionDowngrade": "Downgrade",
+    "dialogTitleCNSInstall": "Install Main CNS System",
+    "dialogContentCNSInstall": "You are about to install the base Custom Nanosuit System (CNS). This is required for CNS mods to work. Do you wish to continue?",
+    "dialogActionInstall": "Install"
 }
 

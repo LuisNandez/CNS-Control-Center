@@ -244,13 +244,6 @@ class AppLocalizationsKo extends AppLocalizations {
       '7-Zip이 아직 감지되지 않았습니다. 기본 경로에 설치되었는지 확인하고 다시 시도하세요.';
 
   @override
-  String get dialogTitleCNSUpdate => '주 시스템 업데이트 감지됨';
-
-  @override
-  String get dialogContentCNSUpdate =>
-      '\"사용자 지정 나노슈트 시스템\"에 대한 업데이트가 감지되었습니다.\n\n이는 주 게임 폴더(StellarBlade\\SB)의 파일을 교체합니다. 계속하시겠습니까?';
-
-  @override
   String get dialogTitleMultipleJsons => '여러 .json 파일 감지됨';
 
   @override
@@ -293,9 +286,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dialogActionInstallAnyway => '그냥 설치';
-
-  @override
-  String get dialogActionUpdate => '업데이트';
 
   @override
   String get dialogActionDelete => '삭제';
@@ -697,9 +687,6 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get dialogActionDowngrade => '다운그레이드';
-
-  @override
   String get dialogTitleReinstall => '모드 재설치';
 
   @override
@@ -917,14 +904,14 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dialogContentUE4SSReinstall =>
-      'UE4SS already seems to be installed. Do you want to overwrite the existing installation? This can be useful if you suspect corrupt files.';
+      'UE4SS already seems to be installed.\nDo you want to overwrite the existing installation? This can be useful if you suspect corrupt files.';
 
   @override
   String get dialogTitleCNSReinstall => 'Reinstall CNS System';
 
   @override
   String get dialogContentCNSReinstall =>
-      'The main CNS system already seems to be installed. Do you want to reinstall it? Your existing mods will not be affected.';
+      'The main CNS system already seems to be installed.\nDo you want to reinstall it? Your existing mods will not be affected.';
 
   @override
   String dialogTitleUninstall(Object componentName) {
@@ -933,7 +920,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String dialogContentUninstall(Object componentName) {
-    return 'Are you sure you want to uninstall $componentName? This action will remove the core component files but will not affect your installed mods.';
+    return 'Are you sure you want to uninstall $componentName?\nThis action will remove the core component files but will not affect your installed mods.';
   }
 
   @override
@@ -982,7 +969,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get ue4ssRequiredContent =>
-      'To install the Main CNS System, you must first install UE4SS. You can download it from the following link:';
+      'To install the Main CNS System, you must first install UE4SS.\nYou can download it from the following link:';
 
   @override
   String get uninstallDependencyTitle => 'Dependency Detected';
@@ -993,4 +980,44 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dialogActionUnderstood => 'Understood';
+
+  @override
+  String get appTitleNoCns => 'Custom Nanosuit System (Not Installed)';
+
+  @override
+  String get dialogTitleCNSUpdate => 'Update Main CNS System';
+
+  @override
+  String dialogContentCNSUpdate(Object oldVersion, Object newVersion) {
+    return 'You are about to update CNS from version $oldVersion to the new version $newVersion.\nDo you wish to continue?';
+  }
+
+  @override
+  String get dialogTitleCNSDowngrade => 'Downgrade CNS Version';
+
+  @override
+  String dialogContentCNSDowngrade(Object oldVersion, Object newVersion) {
+    return 'Warning!\nYou are about to install an older version of CNS ($newVersion) than your current one ($oldVersion). This may cause issues.\nAre you sure?';
+  }
+
+  @override
+  String dialogContentCNSReinstallVersion(Object version) {
+    return 'You already have version $version of CNS installed.\nDo you want to reinstall the files anyway?';
+  }
+
+  @override
+  String get dialogActionUpdate => '업데이트';
+
+  @override
+  String get dialogActionDowngrade => '다운그레이드';
+
+  @override
+  String get dialogTitleCNSInstall => 'Install Main CNS System';
+
+  @override
+  String get dialogContentCNSInstall =>
+      'You are about to install the base Custom Nanosuit System (CNS).\nThis is required for CNS mods to work. Do you wish to continue?';
+
+  @override
+  String get dialogActionInstall => 'Install';
 }

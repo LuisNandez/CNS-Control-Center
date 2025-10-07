@@ -240,13 +240,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dialogContent7zipNotFound => '尚未检测到 7-Zip。请确保它已安装在默认路径中，然后重试。';
 
   @override
-  String get dialogTitleCNSUpdate => '检测到主系统更新';
-
-  @override
-  String get dialogContentCNSUpdate =>
-      '检测到“自定义纳米服系统”的更新。\n\n这将替换主游戏文件夹（StellarBlade\\SB）中的文件。您希望继续吗？';
-
-  @override
   String get dialogTitleMultipleJsons => '检测到多个 .json 文件';
 
   @override
@@ -289,9 +282,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dialogActionInstallAnyway => '仍然安装';
-
-  @override
-  String get dialogActionUpdate => '更新';
 
   @override
   String get dialogActionDelete => '删除';
@@ -689,9 +679,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get dialogActionDowngrade => '降级';
-
-  @override
   String get dialogTitleReinstall => '重新安装模组';
 
   @override
@@ -909,14 +896,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dialogContentUE4SSReinstall =>
-      'UE4SS already seems to be installed. Do you want to overwrite the existing installation? This can be useful if you suspect corrupt files.';
+      'UE4SS already seems to be installed.\nDo you want to overwrite the existing installation? This can be useful if you suspect corrupt files.';
 
   @override
   String get dialogTitleCNSReinstall => 'Reinstall CNS System';
 
   @override
   String get dialogContentCNSReinstall =>
-      'The main CNS system already seems to be installed. Do you want to reinstall it? Your existing mods will not be affected.';
+      'The main CNS system already seems to be installed.\nDo you want to reinstall it? Your existing mods will not be affected.';
 
   @override
   String dialogTitleUninstall(Object componentName) {
@@ -925,7 +912,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String dialogContentUninstall(Object componentName) {
-    return 'Are you sure you want to uninstall $componentName? This action will remove the core component files but will not affect your installed mods.';
+    return 'Are you sure you want to uninstall $componentName?\nThis action will remove the core component files but will not affect your installed mods.';
   }
 
   @override
@@ -974,7 +961,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get ue4ssRequiredContent =>
-      'To install the Main CNS System, you must first install UE4SS. You can download it from the following link:';
+      'To install the Main CNS System, you must first install UE4SS.\nYou can download it from the following link:';
 
   @override
   String get uninstallDependencyTitle => 'Dependency Detected';
@@ -985,4 +972,44 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dialogActionUnderstood => 'Understood';
+
+  @override
+  String get appTitleNoCns => 'Custom Nanosuit System (Not Installed)';
+
+  @override
+  String get dialogTitleCNSUpdate => 'Update Main CNS System';
+
+  @override
+  String dialogContentCNSUpdate(Object oldVersion, Object newVersion) {
+    return 'You are about to update CNS from version $oldVersion to the new version $newVersion.\nDo you wish to continue?';
+  }
+
+  @override
+  String get dialogTitleCNSDowngrade => 'Downgrade CNS Version';
+
+  @override
+  String dialogContentCNSDowngrade(Object oldVersion, Object newVersion) {
+    return 'Warning!\nYou are about to install an older version of CNS ($newVersion) than your current one ($oldVersion). This may cause issues.\nAre you sure?';
+  }
+
+  @override
+  String dialogContentCNSReinstallVersion(Object version) {
+    return 'You already have version $version of CNS installed.\nDo you want to reinstall the files anyway?';
+  }
+
+  @override
+  String get dialogActionUpdate => '更新';
+
+  @override
+  String get dialogActionDowngrade => '降级';
+
+  @override
+  String get dialogTitleCNSInstall => 'Install Main CNS System';
+
+  @override
+  String get dialogContentCNSInstall =>
+      'You are about to install the base Custom Nanosuit System (CNS).\nThis is required for CNS mods to work. Do you wish to continue?';
+
+  @override
+  String get dialogActionInstall => 'Install';
 }
