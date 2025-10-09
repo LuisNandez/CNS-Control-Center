@@ -17,7 +17,6 @@ import 'settings_page.dart';
 import 'thumbnail_service.dart';
 import 'notification_service.dart';
 import 'package:translator/translator.dart';
-import 'package:path_provider/path_provider.dart';
 
 class AppPrefs {
   static const String languageCode = 'languageCode';
