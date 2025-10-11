@@ -1153,5 +1153,68 @@
   },
   "YuLinglong_Hair": {
     "nexusId": "1786"
+  },
+  "Monsoon version A": {
+    "nexusId": "1930"
+  },
+  "Monsoon version B": {
+    "nexusId": "1930"
+  },
+  "Monsoon version C": {
+    "nexusId": "1930"
+  },
+  "Lace Corset": {
+    "nexusId": "2250"
+  },
+  "Late Date": {
+    "nexusId": "2249"
+  },
+  "W Monsoon A - base color": {
+    "nexusId": "2070"
+  },
+  "W Monsoon A - teal-white ~ W Monsoon A - white-teal": {
+    "nexusId": "2070"
+  },
+  "W Monsoon A - teal-white": {
+    "nexusId": "2070"
+  },
+  "W Monsoon A - white-teal": {
+    "nexusId": "2070"
+  },
+  "W Monsoon A - white GOLD ~ W Monsoon A - white-red": {
+    "nexusId": "2070"
+  },
+  "W Monsoon A - white GOLD": {
+    "nexusId": "2070"
+  },
+  "W Monsoon A - white-red": {
+    "nexusId": "2070"
+  },
+  "W Monsoon B - Base color ~ W Monsoon B - white - gold": {
+    "nexusId": "2070"
+  },
+  "W Monsoon B - Base color": {
+    "nexusId": "2070"
+  },
+  "W Monsoon B - white - gold": {
+    "nexusId": "2070"
+  },
+  "WMonsoon B green - copper ~ W Monsoon B - white - red": {
+    "nexusId": "2070"
+  },
+  "WMonsoon B green - copper": {
+    "nexusId": "2070"
+  },
+  "W Monsoon B - white - red": {
+    "nexusId": "2070"
+  },
+  "WMonsoon B teal - white ~ WMonsoon B - violet - gold": {
+    "nexusId": "2070"
+  },
+  "WMonsoon B teal - white": {
+    "nexusId": "2070"
+  },
+  "WMonsoon B - violet - gold": {
+    "nexusId": "2070"
   }
 }
