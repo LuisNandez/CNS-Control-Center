@@ -82,6 +82,58 @@ class ModInfo {
     this.customSourceUrl,
   });
 
+  ModInfo copyWith({
+    Directory? directory,
+    String? nexusId,
+    String? localVersion,
+    DateTime? lastModified,
+    DateTime? installDate,
+    bool? isEnabled,
+    String? origin,
+    String? displayName,
+    String? customName,
+    List<dynamic>? gallery,
+    String? fitMeshType,
+    String? customCoverPath,
+    Alignment? customCoverAlignment,
+    DateTime? customCoverLastModified,
+    String? customVersion,
+    String? customFitMeshType,
+    String? summary,
+    String? customSummary,
+    String? author,
+    String? customAuthor,
+    String? userNotes,
+    String? sourceUrl,
+    String? customSourceUrl,
+  }) {
+    return ModInfo(
+      directory: directory ?? this.directory,
+      nexusId: nexusId ?? this.nexusId,
+      localVersion: localVersion ?? this.localVersion,
+      lastModified: lastModified ?? this.lastModified,
+      installDate: installDate ?? this.installDate,
+      isEnabled: isEnabled ?? this.isEnabled,
+      origin: origin ?? this.origin,
+      displayName: displayName ?? this.displayName,
+      customName: customName ?? this.customName,
+      gallery: gallery ?? this.gallery,
+      fitMeshType: fitMeshType ?? this.fitMeshType,
+      customCoverPath: customCoverPath ?? this.customCoverPath,
+      customCoverAlignment: customCoverAlignment ?? this.customCoverAlignment,
+      customCoverLastModified: customCoverLastModified ?? this.customCoverLastModified,
+      customVersion: customVersion ?? this.customVersion,
+      customFitMeshType: customFitMeshType ?? this.customFitMeshType,
+      summary: summary ?? this.summary,
+      customSummary: customSummary ?? this.customSummary,
+      author: author ?? this.author,
+      customAuthor: customAuthor ?? this.customAuthor,
+      userNotes: userNotes ?? this.userNotes,
+      sourceUrl: sourceUrl ?? this.sourceUrl,
+      customSourceUrl: customSourceUrl ?? this.customSourceUrl,
+    );
+  }
+
 
   static String? _extractVersionFromName(String name) {
     // Extracts a version number (e.g., 1.0.0) from a file/folder name (e.g., ModName v1.0.0)
@@ -3200,46 +3252,61 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 
-  Future<void> _updateModCustomName(ModInfo mod, String newCustomName) async {
-    final l10n = AppLocalizations.of(context)!;
+  Future<ModInfo?> _updateModCustomName(ModInfo mod, String newCustomName) async {
     if (newCustomName.isEmpty || newCustomName == mod.customName) {
-      return;
+      return null; // No hay cambios, no hagas nada
     }
     
-    setState(() => _isLoading = true);
     try {
-      // Ya no se renombra la carpeta. Solo se actualiza el archivo JSON.
       final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+      Map<String, dynamic> data = {};
       if (await infoFile.exists()) {
-        try {
-          final content = await infoFile.readAsString();
-          Map<String, dynamic> data = json.decode(content);
-          
-          // Asigna el nuevo nombre personalizado o lo elimina si es igual al original.
-          if (newCustomName == mod.displayName) {
-            data.remove('customName');
-          } else {
-            data['customName'] = newCustomName;
-          }
-          
-          final encoder = JsonEncoder.withIndent('  ');
-          await infoFile.writeAsString(encoder.convert(data));
-        } catch (e) {
-          print("Could not update customName in nexus_info.json: $e");
-        }
+        final content = await infoFile.readAsString();
+        if(content.isNotEmpty) data = json.decode(content);
       }
       
-      // Recarga la lista de mods para que la UI refleje el nuevo nombre.
-      await _loadAllMods();
+      if (newCustomName == mod.displayName) {
+        data.remove('customName');
+      } else {
+        data['customName'] = newCustomName;
+      }
+      
+      final encoder = JsonEncoder.withIndent('  ');
+      await infoFile.writeAsString(encoder.convert(data));
 
+      // Reconstruye manualmente el objeto para asegurar que el nombre se actualice
+      return ModInfo(
+        directory: mod.directory,
+        nexusId: mod.nexusId,
+        localVersion: mod.localVersion,
+        lastModified: mod.lastModified,
+        installDate: mod.installDate,
+        isEnabled: mod.isEnabled,
+        origin: mod.origin,
+        displayName: mod.displayName,
+        // Asigna directamente desde el mapa 'data', con fallback al nombre de visualización
+        customName: data['customName'] ?? mod.displayName,
+        gallery: mod.gallery,
+        fitMeshType: mod.fitMeshType,
+        customCoverPath: mod.customCoverPath,
+        customCoverAlignment: mod.customCoverAlignment,
+        customCoverLastModified: mod.customCoverLastModified,
+        customVersion: mod.customVersion,
+        customFitMeshType: mod.customFitMeshType,
+        summary: mod.summary,
+        customSummary: mod.customSummary,
+        author: mod.author,
+        customAuthor: mod.customAuthor,
+        userNotes: mod.userNotes,
+        sourceUrl: mod.sourceUrl,
+        customSourceUrl: mod.customSourceUrl,
+      );
     } catch (e) {
        setState(() {
         _statusMessage = "Error renaming mod: $e";
         _statusColor = Colors.redAccent;
       });
-      await _loadAllMods();
-    } finally {
-      setState(() => _isLoading = false);
+      return null;
     }
   }
 
@@ -3247,82 +3314,86 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   // main.dart
 
-  Future<void> _showEditModNameDialog(ModInfo modInfo) async {
+  Future<ModInfo?> _showEditModNameDialog(ModInfo modInfo) async {
     final nameController = TextEditingController(text: modInfo.customName);
     final l10n = AppLocalizations.of(context)!;
 
     final newName = await showDialog<String>(
       context: context,
       builder: (BuildContext context) {
-        // En lugar de AlertDialog, usamos el widget base 'Dialog'.
-        return Dialog(
-          backgroundColor: const Color(0xFF2a2a2a),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.0),
-          ),
-          // Construimos el contenido manualmente con una Columna.
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              // ESTA ES LA PROPIEDAD MÁS IMPORTANTE:
-              // Le dice a la columna que ocupe el mínimo espacio vertical necesario,
-              // evitando que se expanda para llenar toda la pantalla.
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                // 1. Título del Diálogo
-                Text(
-                  l10n.dialogTitleEditModName,
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 20),
-
-                // 2. Campo de Texto
-                TextField(
-                  controller: nameController,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: l10n.dialogLabelNewName,
-                    hintText: modInfo.customName,
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // 3. Fila de Acciones (Botones)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return StatefulBuilder( // Use StatefulBuilder to manage dialog state
+          builder: (context, setDialogState) {
+            return Dialog(
+              backgroundColor: const Color(0xFF2a2a2a),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(modInfo.displayName),
-                      child: Text(l10n.dialogActionResetToDefault),
+                    Text(
+                      l10n.dialogTitleEditModName,
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: nameController,
+                      autofocus: true,
+                      // Add onChanged to rebuild the dialog and update button states
+                      onChanged: (value) => setDialogState(() {}),
+                      decoration: InputDecoration(
+                        labelText: l10n.dialogLabelNewName,
+                        hintText: modInfo.customName,
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                     Row(
-                      children: [
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
                         TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: Text(l10n.dialogActionCancel),
+                          // The button is disabled if the name is already the default
+                          onPressed: nameController.text == modInfo.displayName
+                            ? null
+                            : () {
+                                // ++ LÍNEA CORREGIDA ++
+                                // This now updates the text and rebuilds the dialog
+                                setDialogState(() => nameController.text = modInfo.displayName);
+                            },
+                          child: Text(l10n.dialogActionResetToDefault),
                         ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () => Navigator.of(context).pop(nameController.text),
-                          child: Text(l10n.dialogActionSave),
+                        Row(
+                          children: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: Text(l10n.dialogActionCancel),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: () => Navigator.of(context).pop(nameController.text),
+                              child: Text(l10n.dialogActionSave),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
 
-    // La lógica para guardar no cambia.
     if (newName != null && newName.trim().isNotEmpty) {
-      await _updateModCustomName(modInfo, newName.trim());
+      return await _updateModCustomName(modInfo, newName.trim());
     }
+    
+    return null;
   }
 
   int _compareVersions(String v1, String v2) {
@@ -4428,8 +4499,18 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final displayVersion = modInfo.customVersion ?? modInfo.localVersion;
     final displayTag = modInfo.customFitMeshType ?? modInfo.fitMeshType ?? l10n.modCategoryOther;
 
+    void _performSurgicalUpdate(ModInfo? updatedMod) {
+      if (updatedMod == null) return;
+      final modIndex = _allMods.indexWhere((m) => m.directory.path == updatedMod.directory.path);
+      if (modIndex != -1) {
+        setState(() {
+          _allMods[modIndex] = updatedMod;
+        });
+      }
+    }
+
     return Card(
-      key: UniqueKey(),
+      key: ValueKey(modInfo.directory.path), // Usa una clave consistente
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         side: BorderSide(
@@ -4535,14 +4616,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 ),
                 if (displayVersion != null)
                    InkWell(
-                     onTap: () => _showEditDialog(
+                     onTap: () async {
+                       final updatedMod = await _showEditDialog(
                         context: context,
                         title: l10n.editVersionText,
                         label: l10n.customVersionText,
                         initialValue: displayVersion,
                         defaultValue: modInfo.localVersion ?? '',
                         onSave: (newValue) => _updateModCustomProperty(modInfo, newVersion: newValue),
-                     ),
+                     );
+                     _performSurgicalUpdate(updatedMod);
+                     },
                      borderRadius: BorderRadius.circular(4),
                      child: Padding(
                        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
@@ -4565,14 +4649,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               children: [
                 Flexible(
                   child: InkWell(
-                    onTap: () => _showEditDialog(
+                    onTap: () async {
+                      final updatedMod = await _showEditDialog(
                       context: context,
                       title: l10n.editTagText,
                       label: l10n.customTagText,
                       initialValue: displayTag,
                       defaultValue: modInfo.fitMeshType ?? l10n.modCategoryOther,
                       onSave: (newValue) => _updateModCustomProperty(modInfo, newTag: newValue),
-                    ),
+                    );
+                    _performSurgicalUpdate(updatedMod);
+                    },
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
                       padding:
@@ -4610,6 +4697,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     PopupMenuButton<String>(
                       icon: const Icon(Icons.more_vert, size: 20),
                       onSelected: (value) async {
+                        if (value == 'edit') {
+                          final updatedMod = await _showEditModNameDialog(modInfo);
+                          // ++ LÓGICA DE ACTUALIZACIÓN AQUÍ ++
+                          _performSurgicalUpdate(updatedMod);
+                        } else {
                         switch (value) {
                           case 'edit':
                             _showEditModNameDialog(modInfo);
@@ -4638,6 +4730,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                             _deleteModPermanently(modInfo);
                             break;
                         }
+                      }
                       },
                       // ++ INICIO DE LA CORRECCIÓN ++
                       itemBuilder: (context) => [
@@ -5451,13 +5544,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   /// Muestra un diálogo para editar un valor de texto personalizado (versión o etiqueta).
-  Future<void> _showEditDialog({
+  Future<ModInfo?> _showEditDialog({
     required BuildContext context,
     required String title,
     required String label,
     required String initialValue,
     required String defaultValue,
-    required Function(String) onSave,
+    required Future<ModInfo?> Function(String) onSave,
   }) async {
     final controller = TextEditingController(text: initialValue);
     final l10n = AppLocalizations.of(context)!;
@@ -5467,25 +5560,22 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            // --- INICIO DE LA CORRECCIÓN ---
-            // Compara el texto actual con el valor predeterminado real del mod.
             final bool isCurrentlyDefault = controller.text == defaultValue;
-
             return AlertDialog(
               title: Text(title),
               content: TextField(
                 controller: controller,
                 autofocus: true,
+                onChanged: (value) => setDialogState(() {}), // Rebuild on text change
                 decoration: InputDecoration(labelText: label),
-                onChanged: (value) => setDialogState(() {}),
               ),
               actions: [
                 TextButton(
-                  // Se deshabilita si el valor actual YA ES el predeterminado.
                   onPressed: isCurrentlyDefault
                       ? null
                       : () {
-                          // Al hacer clic, el campo de texto se restaura al valor predeterminado.
+                          // ++ LÍNEA CORREGIDA ++
+                          // This now updates the text and rebuilds the dialog
                           setDialogState(() {
                             controller.text = defaultValue;
                             controller.selection = TextSelection.fromPosition(
@@ -5500,13 +5590,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   child: Text(l10n.dialogActionCancel),
                 ),
                 ElevatedButton(
-                  // Al guardar, se envía el valor que esté actualmente en el campo.
                   onPressed: () => Navigator.of(context).pop(controller.text),
                   child: Text(l10n.dialogActionSave),
                 ),
               ],
             );
-            // --- FIN DE LA CORRECCIÓN ---
           },
         );
       },
@@ -5515,53 +5603,73 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     controller.dispose();
 
     if (newValue != null) {
-      onSave(newValue);
+      return await onSave(newValue);
     }
+    
+    return null;
   }
-
   /// Guarda una propiedad personalizada (versión o etiqueta) en el JSON y actualiza el estado.
-  Future<void> _updateModCustomProperty(ModInfo mod, {String? newVersion, String? newTag}) async {
-  setState(() => _isLoading = true);
-  try {
-    final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
-    Map<String, dynamic> data = {};
-    if (await infoFile.exists()) {
-      final content = await infoFile.readAsString();
-      if(content.isNotEmpty) data = json.decode(content);
-    }
-
-    if (newVersion != null) {
-      if (newVersion.isEmpty) {
-        data.remove('customVersion');
-      } else {
-        data['customVersion'] = newVersion;
+  Future<ModInfo?> _updateModCustomProperty(ModInfo mod, {String? newVersion, String? newTag}) async {
+    try {
+      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+      Map<String, dynamic> data = {};
+      if (await infoFile.exists()) {
+        final content = await infoFile.readAsString();
+        if(content.isNotEmpty) data = json.decode(content);
       }
-    }
 
-    if (newTag != null) {
-      if (newTag.isEmpty) {
-        data.remove('customFitMeshType');
-      } else {
-        data['customFitMeshType'] = newTag;
+      if (newVersion != null) {
+        if (newVersion.isEmpty || newVersion == mod.localVersion) {
+          data.remove('customVersion');
+        } else {
+          data['customVersion'] = newVersion;
+        }
       }
+
+      if (newTag != null) {
+        if (newTag.isEmpty || newTag == mod.fitMeshType) {
+          data.remove('customFitMeshType');
+        } else {
+          data['customFitMeshType'] = newTag;
+        }
+      }
+
+      final encoder = JsonEncoder.withIndent('  ');
+      await infoFile.writeAsString(encoder.convert(data));
+      
+      // Reconstruye manualmente el objeto para asegurar que los nulos se apliquen
+      return ModInfo(
+        directory: mod.directory,
+        nexusId: mod.nexusId,
+        localVersion: mod.localVersion,
+        lastModified: mod.lastModified,
+        installDate: mod.installDate,
+        isEnabled: mod.isEnabled,
+        origin: mod.origin,
+        displayName: mod.displayName,
+        customName: mod.customName,
+        gallery: mod.gallery,
+        fitMeshType: mod.fitMeshType,
+        customCoverPath: mod.customCoverPath,
+        customCoverAlignment: mod.customCoverAlignment,
+        customCoverLastModified: mod.customCoverLastModified,
+        // Asigna directamente desde el mapa 'data' para reflejar los valores eliminados
+        customVersion: data['customVersion'],
+        customFitMeshType: data['customFitMeshType'],
+        summary: mod.summary,
+        customSummary: mod.customSummary,
+        author: mod.author,
+        customAuthor: mod.customAuthor,
+        userNotes: mod.userNotes,
+        sourceUrl: mod.sourceUrl,
+        customSourceUrl: mod.customSourceUrl,
+      );
+
+    } catch (e) {
+      print('Error updating custom property: $e');
+      return null;
     }
-
-    final encoder = JsonEncoder.withIndent('  ');
-    await infoFile.writeAsString(encoder.convert(data));
-
-    // ===== CORRECCIÓN AQUÍ =====
-    // 1. Se elimina la lógica manual que intentaba actualizar el estado local.
-    // 2. Se llama a _loadAllMods() para recargar la lista con la información
-    //    100% correcta desde el archivo, igual que con las portadas.
-    await _loadAllMods(clearHighlight: false);
-    // ===========================
-
-  } catch (e) {
-    print('Error updating custom property: $e');
-  } finally {
-    setState(() => _isLoading = false);
   }
-}
   // Este método se encargará de guardar la URL personalizada en el archivo JSON del mod.
   Future<void> _updateModCustomSourceUrl(ModInfo mod, String newUrl, dynamic l10n) async {
     try {
