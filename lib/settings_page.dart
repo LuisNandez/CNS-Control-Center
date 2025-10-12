@@ -87,7 +87,7 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           _SettingsSectionHeader(title: l10n.settingsGeneral),
           ListTile(
-            leading: const Icon(Icons.language_outlined),
+            leading: const Icon(Icons.translate_outlined),
             title: Text(l10n.settingsLanguage),
             subtitle: Text(l10n.settingsLanguageDesc),
             onTap: widget.onShowLanguageDialog,
@@ -106,7 +106,7 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.archive_outlined),
+            leading: const Icon(Icons.folder_zip_outlined),
             title: Text(l10n.settings7zipPath),
             subtitle: Text(sevenZipPath ?? l10n.settings7zipPathAuto),
             onTap: () async {
@@ -129,7 +129,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
           // ListTile para gestionar UE4SS
           ListTile(
-            leading: const Icon(Icons.usb_rounded), // Ícono representativo
+            leading: const Icon(Icons.shape_line_outlined), // Ícono representativo
             title: const Text("UE4SS"),
             subtitle: Text(
               isUe4ssInstalled ? l10n.installedStatus : l10n.notInstalledStatus,

@@ -4340,7 +4340,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final hasCustomCover = modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty;
     File? customCoverFile;
     if (hasCustomCover) {
-      // Creamos el objeto File de forma optimista, sin comprobar si existe aquí.
       final path = p.join(modInfo.directory.path, modInfo.customCoverPath!);
       customCoverFile = File(path);
     }
@@ -4364,23 +4363,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: InkWell( // Usamos InkWell para un mejor efecto visual al tocar
-              onDoubleTap: () => _showDetailsPage(modInfo), // <-- ACCIÓN DE UN SOLO CLIC
-              //onDoubleTap: () => _showImageGalleryDialog(modInfo), // Mantenemos el doble clic para la galería
+            child: InkWell(
+              onTap: () => _showDetailsPage(modInfo),
               child: Stack(
                 fit: StackFit.expand,
                 children: [
                   Container(
                     color: Colors.black.withOpacity(0.5),
-                    // ++ USE THE NEW THUMBNAIL WIDGET ++
                     child: customCoverFile != null
                       ? Image.file(
                           customCoverFile,
-                          key: ValueKey(modInfo.customCoverLastModified), // Volvemos a la ValueKey que es más eficiente
+                          key: ValueKey(modInfo.customCoverLastModified),
                           fit: BoxFit.cover,
                           alignment: modInfo.customCoverAlignment ?? Alignment.center,
-                          // Si el archivo no se encuentra (por la condición de carrera),
-                          // usa la imagen de Nexus como fallback.
                           errorBuilder: (context, error, stackTrace) {
                             return ModThumbnailImage(
                               imageUrl: thumbnailUrl,
@@ -4562,42 +4557,88 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                             break;
                         }
                       },
+                      // ++ INICIO DE LA CORRECCIÓN ++
                       itemBuilder: (context) => [
                         PopupMenuItem(
                           value: 'edit',
-                          child: Text(l10n.editModNameTooltip),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.edit_outlined, size: 20),
+                              const SizedBox(width: 12),
+                              Flexible(child: Text(l10n.editModNameTooltip)),
+                            ],
+                          ),
                         ),
                         PopupMenuItem(
                           value: 'set_cover',
-                          child: Text(l10n.setCoverTooltip),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.add_photo_alternate_outlined, size: 20),
+                              const SizedBox(width: 12),
+                              Flexible(child: Text(l10n.setCoverTooltip)),
+                            ],
+                          ),
                         ),
                         if (modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty)
                           PopupMenuItem(
                             value: 'revert_cover',
-                            child: Text(l10n.restoreOriginalCoverText),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.photo_filter_outlined, size: 20),
+                                const SizedBox(width: 12),
+                                Flexible(child: Text(l10n.restoreOriginalCoverText)),
+                              ],
+                            ),
                           ),
                         PopupMenuItem(
                           value: 'folder',
-                          child: Text(l10n.showInFolder),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.folder_open_outlined, size: 20),
+                              const SizedBox(width: 12),
+                              Flexible(child: Text(l10n.showInFolder)),
+                            ],
+                          ),
                         ),
                         if (modInfo.nexusId != null)
                           PopupMenuItem(
                             value: 'gallery',
-                            child: Text(l10n.viewImageGallery),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.photo_library_outlined, size: 20),
+                                const SizedBox(width: 12),
+                                Flexible(child: Text(l10n.viewImageGallery)),
+                              ],
+                            ),
                           ),
                         if (modInfo.nexusId != null)
                           PopupMenuItem(
                             value: 'nexus',
-                            child: Text(l10n.openInNexusMods),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.open_in_browser_outlined, size: 20),
+                                const SizedBox(width: 12),
+                                Flexible(child: Text(l10n.openInNexusMods)),
+                              ],
+                            ),
                           ),
                         if (!modInfo.isEnabled)
                           const PopupMenuDivider(),
                         if (!modInfo.isEnabled)
                           PopupMenuItem(
                             value: 'delete',
-                            child: Text(l10n.deletePermanently, style: const TextStyle(color: Colors.redAccent)),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.delete_forever_outlined, size: 20, color: Colors.redAccent),
+                                const SizedBox(width: 12),
+                                Flexible(
+                                  child: Text(l10n.deletePermanently, style: const TextStyle(color: Colors.redAccent)),
+                                ),
+                              ],
+                            ),
                           ),
                       ],
+                      // ++ FIN DE LA CORRECCIÓN ++
                     ),
                   ],
                 ),
@@ -6296,7 +6337,7 @@ void initState() {
                       ),
                       child: ElevatedButton.icon(
                         icon: Icon(
-                          hasLink ? Icons.link_rounded : Icons.add_link_rounded,
+                          hasLink ? Icons.open_in_browser_outlined : Icons.add_link_rounded,
                           size: 20,
                           color: hasLink ? Colors.white : Colors.grey[400],
                         ),
@@ -6416,7 +6457,7 @@ void initState() {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2)))
             : IconButton(
-                icon: const Icon(Icons.translate,
+                icon: const Icon(Icons.g_translate_outlined,
                     color: Colors.white70, size: 20),
                 onPressed: _translateSummary,
                 tooltip: l10n.translateDescription,
