@@ -1947,6 +1947,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'An Error Occurred'**
   String get errorDialogTitle;
+
+  /// No description provided for @modDetailsCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get modDetailsCategory;
+
+  /// No description provided for @modDetailsAuthor.
+  ///
+  /// In en, this message translates to:
+  /// **'Author'**
+  String get modDetailsAuthor;
+
+  /// No description provided for @modDetailsNexusId.
+  ///
+  /// In en, this message translates to:
+  /// **'Nexus ID'**
+  String get modDetailsNexusId;
+
+  /// No description provided for @modDetailsInstalledOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed on'**
+  String get modDetailsInstalledOn;
+
+  /// No description provided for @unknownAuthor.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get unknownAuthor;
 }
 
 class _AppLocalizationsDelegate

@@ -373,6 +373,13 @@
     "devExtractDesktopNotFound": "Error: Could not find the Desktop directory.",
     "devExtractSuccessTitle": "Extraction Complete",
     "devExtractSuccessDesc": "File successfully created at: {path}",
-    "errorDialogTitle": "An Error Occurred"
+    "errorDialogTitle": "An Error Occurred",
+    "modDetailsCategory": "Category",
+    "modDetailsAuthor": "Author",
+    "modDetailsNexusId": "Nexus ID",
+    "modDetailsInstalledOn": "Installed on",
+    "unknownAuthor": "Unknown",
+    "imageGallery": "Image Gallery",
+    "noDescriptionAvailable": "No description available."
 }
 

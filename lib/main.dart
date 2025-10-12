@@ -17,6 +17,7 @@ import 'settings_page.dart';
 import 'thumbnail_service.dart';
 import 'notification_service.dart';
 import 'package:translator/translator.dart';
+import 'package:intl/intl.dart';
 
 class AppPrefs {
   static const String languageCode = 'languageCode';
@@ -3716,95 +3717,79 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  void _showImageGalleryDialog(ModInfo modInfo) {
-    final l10n = AppLocalizations.of(context)!;
-    
-    // Primero, intenta encontrar una portada personalizada local
-    File? customCoverFile;
-    if (modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty) {
-      final path = p.join(modInfo.directory.path, modInfo.customCoverPath!);
-      final file = File(path);
-      if (file.existsSync()) {
-        customCoverFile = file;
-      }
-    }
+  void _showImageGalleryDialog(ModInfo modInfo, {int initialIndex = 0, String? initialImage}) {
+  final l10n = AppLocalizations.of(context)!;
+  final List<String> images = (modInfo.gallery ?? [])
+      .map((img) => img['image'] as String)
+      .toList();
 
-    Widget content;
-    
-    if (customCoverFile != null) {
-      // Si existe la portada personalizada, prepara el widget para mostrarla
-      content = InteractiveViewer(
-        panEnabled: true,
-        minScale: 1.0,
-        maxScale: 4.0,
-        child: Center(
-          child: Image.file(
-            customCoverFile,
-            fit: BoxFit.contain,
-          ),
+  if (modInfo.customCoverPath != null) {
+    final customCoverFullPath = p.join(modInfo.directory.path, modInfo.customCoverPath!);
+    if (!images.contains(customCoverFullPath)) {
+      images.insert(0, customCoverFullPath);
+    }
+  }
+
+  if (images.isEmpty) {
+    // No hacer nada si no hay imágenes
+    return;
+  }
+
+  // Determina el índice inicial si se pasó una imagen específica
+  int finalInitialIndex = initialIndex;
+  if (initialImage != null) {
+    int foundIndex = images.indexOf(initialImage);
+    if (foundIndex != -1) {
+      finalInitialIndex = foundIndex;
+    }
+  }
+
+  final pageController = PageController(initialPage: finalInitialIndex);
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: <Widget>[
+            PageView.builder(
+              controller: pageController,
+              itemCount: images.length,
+              itemBuilder: (context, index) {
+                final imageUrl = images[index];
+                final isLocal = !imageUrl.startsWith('http');
+                return InteractiveViewer(
+                  panEnabled: true,
+                  minScale: 1.0,
+                  maxScale: 4.0,
+                  child: Center(
+                    child: isLocal
+                      ? Image.file(File(imageUrl))
+                      : Image.network(imageUrl),
+                  ),
+                );
+              },
+            ),
+            Positioned(
+              top: 15,
+              right: 15,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withOpacity(0.5),
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+                tooltip: l10n.dialogActionClose,
+              ),
+            ),
+          ],
         ),
       );
-    } else {
-      // Si no, usa la lógica anterior para mostrar la galería de Nexus
-      final images = modInfo.gallery;
-      if (images != null && images.isNotEmpty) {
-        content = InteractiveViewer(
-          panEnabled: true,
-          minScale: 1.0,
-          maxScale: 4.0,
-          child: Center(
-            child: Image.network(
-              images.first['image'],
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return const Center(child: CircularProgressIndicator());
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return const Center(child: Icon(Icons.error, color: Colors.redAccent));
-              },
-              fit: BoxFit.contain,
-            ),
-          ),
-        );
-      } else {
-        content = Center(child: Text(l10n.noImagesFound));
-      }
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          contentPadding: EdgeInsets.zero,
-          backgroundColor: const Color(0xFF1e1e1e),
-          content: Stack(
-            children: <Widget>[
-              SizedBox(
-                width: MediaQuery.of(context).size.width * 0.9,
-                height: MediaQuery.of(context).size.height * 0.8,
-                child: content, // El widget de contenido se decide arriba
-              ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withOpacity(0.5),
-                    shape: const CircleBorder(),
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
-                  tooltip: l10n.dialogActionClose,
-                ),
-              ),
-            ],
-          ),
-          actions: null,
-        );
-      },
-    );
-  }
+    },
+  );
+}
 
   Future<void> _showUpdateOptionsDialog({
     required String newVersion,
@@ -3990,6 +3975,103 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
 
     return mods;
+  }
+
+   Future<Map<String, dynamic>?> _showGeneralEditDialog(
+      ModInfo modInfo, BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    
+    final nameController = TextEditingController(text: modInfo.customName);
+    final authorController = TextEditingController(text: modInfo.customAuthor ?? modInfo.author ?? '');
+    final String defaultUrl = modInfo.sourceUrl ?? (modInfo.nexusId != null ? 'https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}' : '');
+    final urlController = TextEditingController(text: modInfo.customSourceUrl ?? defaultUrl);
+
+    File? newCoverFile;
+    Alignment? newCoverAlignment;
+
+    final updatedData = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setDialogState) {
+          final bool canResetName = nameController.text != modInfo.displayName;
+          final bool canResetAuthor = authorController.text != (modInfo.author ?? '');
+          final bool canResetUrl = urlController.text != (modInfo.sourceUrl ?? '');
+
+          return AlertDialog(
+            title: Text(l10n.editModTitle),
+            content: SizedBox(
+              width: 500,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(children: [
+                      Expanded(child: TextField(controller: nameController, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: l10n.modNameLabel))),
+                      TextButton(onPressed: !canResetName ? null : () => setDialogState(() => nameController.text = modInfo.displayName), child: Text(l10n.dialogActionResetToDefault)),
+                    ]),
+                    const SizedBox(height: 16),
+                    Row(children: [
+                      Expanded(child: TextField(controller: authorController, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: l10n.authorLabel))),
+                      TextButton(onPressed: !canResetAuthor ? null : () => setDialogState(() => authorController.text = modInfo.author ?? ''), child: Text(l10n.dialogActionResetToDefault)),
+                    ]),
+                    const SizedBox(height: 16),
+                    Row(children: [
+                      Expanded(child: TextField(controller: urlController, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: l10n.urlLabel))),
+                      TextButton(onPressed: !canResetUrl ? null : () => setDialogState(() => urlController.text = defaultUrl), child: Text(l10n.dialogActionResetToDefault)),
+                    ]),
+                    const SizedBox(height: 24),
+                    if (newCoverFile != null)
+                      Image.file(newCoverFile!, height: 100),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.image_search),
+                      label: Text(l10n.changeCoverButton),
+                      onPressed: () async {
+                        FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'pwebp', 'tiff']);
+                        if (result != null && result.files.single.path != null) {
+                          final pickedFile = File(result.files.single.path!);
+                          final alignment = await _showCoverAlignmentDialog(pickedFile);
+                          if (alignment != null) {
+                            setDialogState(() {
+                              newCoverFile = pickedFile;
+                              newCoverAlignment = alignment;
+                            });
+                          }
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.dialogActionCancel)),
+              ElevatedButton(
+                onPressed: () {
+                  final Map<String, dynamic> dataToSave = {
+                    'customName': nameController.text,
+                    'author': authorController.text,
+                    'customSourceUrl': urlController.text,
+                  };
+                  if (newCoverFile != null) {
+                    dataToSave['newCoverFile'] = newCoverFile;
+                    dataToSave['newCoverAlignment'] = newCoverAlignment;
+                  }
+                  Navigator.of(context).pop(dataToSave);
+                },
+                child: Text(l10n.dialogActionSave),
+              ),
+            ],
+          );
+        });
+      },
+    );
+
+    nameController.dispose();
+    authorController.dispose();
+    urlController.dispose();
+    
+    return updatedData;
   }
 
   @override
@@ -5273,18 +5355,24 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<void> _showDetailsPage(ModInfo modInfo) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ModDetailsPage(
-          modInfo: modInfo,
-          thumbnailService: _thumbnailService,
-          onSaveDetails: (newData) => _updateModDetails(modInfo, newData),
-        ),
+    final bool needsReload = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _ModDetailsPanel(
+        initialModInfo: modInfo,
+        thumbnailService: _thumbnailService,
+        onUpdateDetails: _updateModDetails,
+        onShowInExplorer: _showInExplorer,
+        onShowImageGallery: _showImageGalleryDialog,
+        onShowGeneralEditDialog: _showGeneralEditDialog,
       ),
-    );
-    // Refresca el estado por si el nombre (nombre de la carpeta) ha cambiado.
-    setState(() {});
+    ) ?? false; // Si se cierra sin valor, asumimos que no hay cambios.
+
+    // Si el panel nos dijo que algo cambió, recargamos la lista principal.
+    if (needsReload) {
+      await _loadAllMods(clearHighlight: false);
+    }
   }
 
   Future<void> _updateUserNotes(ModInfo mod, String newNotes, dynamic l10n) async {
@@ -5512,8 +5600,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<ModInfo?> _updateModDetails(ModInfo mod, Map<String, dynamic> newData) async {
     try {
-      // La lógica para renombrar la carpeta se ha eliminado por completo.
-      // La variable 'modDirectory' ahora siempre se refiere a la carpeta original.
       Directory modDirectory = mod.directory;
   
       final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
@@ -5568,10 +5654,37 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       final encoder = JsonEncoder.withIndent('  ');
       await infoFile.writeAsString(encoder.convert(data));
   
-      await _loadAllMods(clearHighlight: false);
+      // --- LÍNEA ELIMINADA ---
+      // await _loadAllMods(clearHighlight: false);  <-- ESTO CAUSABA EL PARPADEO
   
-      // Busca el mod actualizado usando la ruta original, que ya no cambia.
-      return _allMods.firstWhere((m) => m.directory.path == modDirectory.path, orElse: () => mod);
+      // Ahora, construimos y devolvemos un nuevo objeto ModInfo con los datos actualizados
+      // para que el panel pueda refrescar su propia UI sin afectar el fondo.
+      return ModInfo(
+        directory: modDirectory,
+        isEnabled: mod.isEnabled,
+        lastModified: mod.lastModified,
+        installDate: mod.installDate,
+        displayName: data['displayName'] ?? mod.displayName,
+        customName: data['customName'] ?? data['displayName'] ?? mod.displayName,
+        nexusId: data['nexusId'] ?? mod.nexusId,
+        localVersion: data['installedVersion'] ?? mod.localVersion,
+        customVersion: data['customVersion'],
+        origin: data['origin'] ?? mod.origin,
+        gallery: data['gallery'] ?? mod.gallery,
+        fitMeshType: data['fitMeshType'] ?? mod.fitMeshType,
+        customFitMeshType: data['customFitMeshType'],
+        customCoverPath: data['customCoverPath'],
+        customCoverAlignment: data.containsKey('customCoverAlignmentX') ? Alignment(data['customCoverAlignmentX'], data['customCoverAlignmentY']) : null,
+        customCoverLastModified: data.containsKey('customCoverPath') ? await File(p.join(modDirectory.path, data['customCoverPath'])).lastModified() : null,
+        summary: data['summary'] ?? mod.summary,
+        customSummary: data['customSummary'],
+        author: data['author'] ?? mod.author,
+        customAuthor: data['customAuthor'],
+        userNotes: data['userNotes'],
+        sourceUrl: data['sourceUrl'] ?? mod.sourceUrl,
+        customSourceUrl: data['customSourceUrl'],
+      );
+
     } catch (e) {
       print('Error updating mod details: $e');
       final l10n = AppLocalizations.of(context)!;
@@ -5772,7 +5885,77 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
+  Widget _buildDetailRow(String title, String value, {bool isLink = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$title: ',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[400]),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: isLink ? Colors.tealAccent : Colors.white,
+                decoration: isLink ? TextDecoration.underline : TextDecoration.none,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
+
+}
+
+class ModImage extends StatelessWidget {
+  final String imageUrl;
+  final bool isLocal;
+  final DateTime? lastModified;
+  final BoxFit fit;
+  final double? height;
+
+  const ModImage({
+    super.key,
+    required this.imageUrl,
+    this.isLocal = false,
+    this.lastModified,
+    this.fit = BoxFit.cover,
+    this.height,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Si la imagen es local (un archivo del sistema)
+    if (isLocal) {
+      return Image.file(
+        File(imageUrl),
+        key: ValueKey(lastModified), // Ayuda a recargar la imagen si cambia
+        height: height,
+        width: double.infinity,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) =>
+            const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+      );
+    }
+    // Si la imagen es de una URL (Nexus Mods)
+    return Image.network(
+      imageUrl,
+      height: height,
+      width: double.infinity,
+      fit: fit,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return const Center(child: CircularProgressIndicator());
+      },
+      errorBuilder: (context, error, stackTrace) =>
+          const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+    );
+  }
 }
 
 // main.dart (Modificación en el estilo del botón en ModDetailsPage)
@@ -6587,11 +6770,19 @@ void initState() {
 class ModThumbnailImage extends StatefulWidget {
   final String? imageUrl;
   final ThumbnailService thumbnailService;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final bool isLocal;
 
   const ModThumbnailImage({
     super.key,
     required this.imageUrl,
     required this.thumbnailService,
+    this.width,
+    this.height,
+    this.fit = BoxFit.cover,
+    this.isLocal = false, // Las imágenes de Nexus no son locales por defecto
   });
 
   @override
@@ -6600,7 +6791,7 @@ class ModThumbnailImage extends StatefulWidget {
 
 class _ModThumbnailImageState extends State<ModThumbnailImage> {
   File? _imageFile;
-  bool _isLoading = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -6612,43 +6803,26 @@ class _ModThumbnailImageState extends State<ModThumbnailImage> {
   void didUpdateWidget(covariant ModThumbnailImage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.imageUrl != oldWidget.imageUrl) {
-      // When the widget is reused for a different image, reload it.
       _loadImage();
     }
   }
 
-  void _loadImage() {
-    // Reset state for the new image
-    _imageFile = null; 
-    _isLoading = false;
-
+  void _loadImage() async {
     if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
-      // If there's no URL, don't do anything. The build method will show a placeholder.
-      if(mounted) setState(() {});
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
-    
-    // First, try to get the image synchronously from the in-memory cache.
-    final cachedFile = widget.thumbnailService.getFromMemoryCache(widget.imageUrl!);
-    if (cachedFile != null) {
-      // If it exists, use it immediately.
-      _imageFile = cachedFile;
-      if (mounted) setState(() {});
-    } else {
-      // If not in memory, load it asynchronously from disk/network.
-      _loadThumbnailAsync();
+
+    // Si es una imagen local, simplemente la usamos
+    if (widget.isLocal) {
+      _imageFile = File(widget.imageUrl!);
+      if (mounted) setState(() => _isLoading = false);
+      return;
     }
-  }
 
-  Future<void> _loadThumbnailAsync() async {
-    if (widget.imageUrl == null || _isLoading) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
+    // Si es de red, usamos el servicio de caché
+    setState(() => _isLoading = true);
     final file = await widget.thumbnailService.getThumbnail(widget.imageUrl!);
-
     if (mounted) {
       setState(() {
         _imageFile = file;
@@ -6659,36 +6833,26 @@ class _ModThumbnailImageState extends State<ModThumbnailImage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_imageFile != null) {
-      // If we have the file, display it.
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2.0));
+    }
+
+    if (_imageFile != null && _imageFile!.existsSync()) {
       return Image.file(
         _imageFile!,
-        fit: BoxFit.cover,
-        // Add a fade-in effect for a smoother appearance
-        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded) {
-            // If the image was already in memory (from Flutter's own image cache), show it instantly.
-            return child;
-          }
-          return AnimatedOpacity(
-            opacity: frame == null ? 0 : 1,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-            child: child,
-          );
-        },
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
       );
     }
 
-    if (_isLoading) {
-      // While loading from disk/network, show a progress indicator.
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2.0));
-    }
-    
-    // Default placeholder if there's no image URL or if it failed to load.
-    return const Icon(Icons.extension, size: 60, color: Colors.white38);
+    return Container(
+      width: widget.width,
+      height: widget.height,
+      color: Colors.black26,
+      child: const Icon(Icons.extension, size: 60, color: Colors.white38),
+    );
   }
-  
 }
 
 class CropOverlayPainter extends CustomPainter {
@@ -6720,5 +6884,268 @@ class CropOverlayPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
     return false;
+  }
+}
+
+class _ModDetailsPanel extends StatefulWidget {
+  final ModInfo initialModInfo;
+  final ThumbnailService thumbnailService;
+  // Funciones que necesita del widget principal
+  final Future<ModInfo?> Function(ModInfo, Map<String, dynamic>) onUpdateDetails;
+  final Future<void> Function(Directory) onShowInExplorer;
+  final void Function(ModInfo) onShowImageGallery;
+  final Future<Map<String, dynamic>?> Function(ModInfo, BuildContext) onShowGeneralEditDialog;
+
+  const _ModDetailsPanel({
+    required this.initialModInfo,
+    required this.thumbnailService,
+    required this.onUpdateDetails,
+    required this.onShowInExplorer,
+    required this.onShowImageGallery,
+    required this.onShowGeneralEditDialog,
+  });
+
+  @override
+  State<_ModDetailsPanel> createState() => _ModDetailsPanelState();
+}
+
+class _ModDetailsPanelState extends State<_ModDetailsPanel> {
+  late ModInfo currentModInfo;
+  bool _isTranslating = false;
+  bool _showTranslateButton = false;
+  bool _needsReloadOnClose = false;
+
+  @override
+  void initState() {
+    super.initState();
+    currentModInfo = widget.initialModInfo;
+    // Comprueba si se puede traducir tan pronto como el widget se renderiza por primera vez.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkIfTranslationIsPossible();
+    });
+  }
+
+  // Comprueba si la descripción se puede traducir
+  Future<void> _checkIfTranslationIsPossible() async {
+    final summary = currentModInfo.customSummary ?? currentModInfo.summary;
+    if (summary == null || summary.trim().isEmpty) {
+      if (!mounted) return;
+      setState(() => _showTranslateButton = false);
+      return;
+    }
+
+    final String currentLocale = Localizations.localeOf(context).languageCode;
+    try {
+      final translator = GoogleTranslator();
+      final snippet = summary.length > 150 ? summary.substring(0, 150) : summary;
+      const String pivotLocale = 'de';
+      final translation = await translator.translate(snippet, to: pivotLocale);
+      final detectedLanguageCode = translation.sourceLanguage.code.toLowerCase();
+      
+      final bool needsTranslation = detectedLanguageCode != currentLocale && detectedLanguageCode != 'auto';
+      
+      if (!mounted) return; // Comprobación de seguridad para evitar el error
+      setState(() => _showTranslateButton = needsTranslation);
+    } catch (e) {
+      print("Error detectando el idioma: $e");
+      if (!mounted) return;
+      setState(() => _showTranslateButton = false);
+    }
+  }
+
+  // Traduce el resumen
+  Future<void> _translateSummary() async {
+    final l10n = AppLocalizations.of(context)!;
+    if (currentModInfo.summary == null || currentModInfo.summary!.trim().isEmpty) return;
+
+    setState(() => _isTranslating = true);
+    
+    try {
+      final translator = GoogleTranslator();
+      final currentLocale = Localizations.localeOf(context).languageCode;
+      final translation = await translator.translate(currentModInfo.summary!, from: 'auto', to: currentLocale);
+      
+      final updatedMod = await widget.onUpdateDetails(currentModInfo, {'summary': translation.text});
+      
+      if (updatedMod != null) {
+        if (!mounted) return;
+        setState(() {
+          currentModInfo = updatedMod;
+          _showTranslateButton = false; // Oculta el botón después de traducir
+          _needsReloadOnClose = true;
+        });
+      }
+    } catch (e) {
+      NotificationService.instance.show(context: context, type: NotificationType.error, title: l10n.errorTranslation, description: e.toString());
+    } finally {
+      if (!mounted) return;
+      setState(() => _isTranslating = false);
+    }
+  }
+
+  // Muestra diálogo para editar un solo campo (notas, descripción)
+  Future<String?> _showSingleFieldEditDialog({required String title, required String label, required String initialValue, String? defaultValue}) async {
+    final controller = TextEditingController(text: initialValue);
+    final l10n = AppLocalizations.of(context)!;
+    return await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setDialogState) {
+          final bool isCurrentlyDefault = controller.text == (defaultValue ?? '');
+          return AlertDialog(
+            title: Text(title),
+            content: TextField(controller: controller, autofocus: true, decoration: InputDecoration(labelText: label), maxLines: null, onChanged: (v) => setDialogState(() {})),
+            actions: [
+              if (defaultValue != null) TextButton(onPressed: isCurrentlyDefault ? null : () => setDialogState(() => controller.text = defaultValue), child: Text(l10n.dialogActionResetToDefault)),
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.dialogActionCancel)),
+              ElevatedButton(onPressed: () => Navigator.of(context).pop(controller.text), child: Text(l10n.dialogActionSave)),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  // Construye las secciones de texto
+  Widget _buildInfoSection({required String title, required String content, required IconData icon, VoidCallback? onEdit}) {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(children: [
+                Icon(icon, color: Colors.tealAccent.withOpacity(0.8), size: 20),
+                const SizedBox(width: 8),
+                Text(title, style: const TextStyle(color: Colors.tealAccent, fontSize: 15, fontWeight: FontWeight.bold)),
+              ]),
+              Row(children: [
+                if (title == l10n.modDescription) // Solo muestra el botón de traducir en la descripción
+                  _showTranslateButton
+                      ? (_isTranslating
+                          ? const Padding(padding: EdgeInsets.all(4.0), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+                          : IconButton(icon: const Icon(Icons.translate, color: Colors.white70, size: 20), onPressed: _translateSummary, tooltip: l10n.translateDescription))
+                      : const SizedBox(),
+                if (onEdit != null) IconButton(icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20), onPressed: onEdit, tooltip: l10n.editButtonTooltip, splashRadius: 20, constraints: const BoxConstraints(), padding: EdgeInsets.zero),
+              ]),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(content, style: TextStyle(color: content.startsWith('No') ? Colors.white.withOpacity(0.5) : Colors.white.withOpacity(0.9), fontStyle: content.startsWith('No') ? FontStyle.italic : FontStyle.normal, height: 1.5, fontSize: 15)),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final bool hasLink = (currentModInfo.customSourceUrl ?? currentModInfo.sourceUrl)?.isNotEmpty ?? false;
+    String? mainImagePath;
+    if (currentModInfo.customCoverPath != null && currentModInfo.customCoverPath!.isNotEmpty) {
+      mainImagePath = p.join(currentModInfo.directory.path, currentModInfo.customCoverPath!);
+    } else if (currentModInfo.gallery != null && currentModInfo.gallery!.isNotEmpty) {
+      mainImagePath = currentModInfo.gallery!.first['image'];
+    }
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, scrollController) {
+        return Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(color: const Color(0xFF1e1e1e), borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              automaticallyImplyLeading: false,
+              centerTitle: true,
+              title: Container(height: 5, width: 40, decoration: BoxDecoration(color: Colors.grey[700], borderRadius: BorderRadius.circular(5))),
+              actions: [
+                IconButton(icon: const Icon(Icons.edit_note_rounded), tooltip: l10n.editButtonTooltip, onPressed: () async {
+                  final updatedData = await widget.onShowGeneralEditDialog(currentModInfo, context);
+                  if (updatedData != null) {
+                    final updatedMod = await widget.onUpdateDetails(currentModInfo, updatedData);
+                    if (updatedMod != null) {
+                      setState(() => currentModInfo = updatedMod);
+                      _needsReloadOnClose = true;
+                    }
+                  }
+                }),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop(_needsReloadOnClose)),
+              ],
+            ),
+            body: SingleChildScrollView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AspectRatio(aspectRatio: 16 / 9, child: Card(clipBehavior: Clip.antiAlias, margin: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: Stack(fit: StackFit.expand, children: [
+                      if (mainImagePath != null) ModImage(imageUrl: mainImagePath, isLocal: !mainImagePath.startsWith('http'), lastModified: currentModInfo.customCoverLastModified)
+                      else const Center(child: Icon(Icons.extension, size: 80, color: Colors.white24)),
+                      Positioned(top: 8, right: 8, child: IconButton(style: IconButton.styleFrom(backgroundColor: Colors.black.withOpacity(0.4)), icon: const Icon(Icons.fullscreen_outlined, color: Colors.white), onPressed: () => widget.onShowImageGallery(currentModInfo))),
+                    ]),
+                  )),
+                  const SizedBox(height: 20),
+                  Text(currentModInfo.customName, textAlign: TextAlign.center, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  Row(children: [
+                    Expanded(child: ElevatedButton.icon(icon: const Icon(Icons.folder_open), label: Text(l10n.showInFolder), onPressed: () => widget.onShowInExplorer(currentModInfo.directory))),
+                    const SizedBox(width: 12),
+                    Expanded(child: ElevatedButton.icon(icon: Icon(hasLink ? Icons.link_rounded : Icons.add_link_rounded), label: Text(hasLink ? l10n.openLinkButtonText : l10n.addLinkButtonText), onPressed: () async {
+                      final urlString = currentModInfo.customSourceUrl ?? currentModInfo.sourceUrl;
+                      if (urlString != null && urlString.isNotEmpty) {
+                        final url = Uri.parse(urlString);
+                        if (await canLaunchUrl(url)) await launchUrl(url);
+                      } else {
+                        final updatedData = await widget.onShowGeneralEditDialog(currentModInfo, context);
+                        if (updatedData != null) {
+                          final updatedMod = await widget.onUpdateDetails(currentModInfo, updatedData);
+                          if (updatedMod != null) {
+                            setState(() => currentModInfo = updatedMod);
+                            _needsReloadOnClose = true;
+                          }
+                        }
+                      }
+                    }, style: ElevatedButton.styleFrom(backgroundColor: hasLink ? Theme.of(context).colorScheme.secondary : Colors.grey.withOpacity(0.2), foregroundColor: Colors.white))),
+                  ]),
+                  const SizedBox(height: 30),
+                  _buildInfoSection(title: l10n.modDescription, content: currentModInfo.customSummary ?? currentModInfo.summary ?? l10n.noDescriptionAvailable, icon: Icons.description_outlined, onEdit: () async {
+                    final newSummary = await _showSingleFieldEditDialog(title: l10n.modDescription, label: l10n.summaryLabel, initialValue: currentModInfo.customSummary ?? currentModInfo.summary ?? '', defaultValue: currentModInfo.summary ?? '');
+                    if (newSummary != null) {
+                      final updatedMod = await widget.onUpdateDetails(currentModInfo, {'summary': newSummary});
+                      if (updatedMod != null) {
+                        setState(() { currentModInfo = updatedMod; _needsReloadOnClose = true; });
+                      }
+                    }
+                  }),
+                  const SizedBox(height: 20),
+                  _buildInfoSection(title: l10n.personalNotes, content: currentModInfo.userNotes?.isNotEmpty ?? false ? currentModInfo.userNotes! : l10n.noNotesAvailable, icon: Icons.edit_note_outlined, onEdit: () async {
+                    final newNotes = await _showSingleFieldEditDialog(title: l10n.personalNotes, label: l10n.notesLabel, initialValue: currentModInfo.userNotes ?? '');
+                    if (newNotes != null) {
+                      final updatedMod = await widget.onUpdateDetails(currentModInfo, {'userNotes': newNotes});
+                      if (updatedMod != null) {
+                        setState(() { currentModInfo = updatedMod; _needsReloadOnClose = true; });
+                      }
+                    }
+                  }),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

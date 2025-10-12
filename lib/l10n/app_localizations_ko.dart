@@ -1077,4 +1077,19 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get errorDialogTitle => '오류가 발생했습니다';
+
+  @override
+  String get modDetailsCategory => 'Category';
+
+  @override
+  String get modDetailsAuthor => 'Author';
+
+  @override
+  String get modDetailsNexusId => 'Nexus ID';
+
+  @override
+  String get modDetailsInstalledOn => 'Installed on';
+
+  @override
+  String get unknownAuthor => 'Unknown';
 }

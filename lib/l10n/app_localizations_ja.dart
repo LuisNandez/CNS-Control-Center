@@ -1080,4 +1080,19 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get errorDialogTitle => 'エラーが発生しました';
+
+  @override
+  String get modDetailsCategory => 'Category';
+
+  @override
+  String get modDetailsAuthor => 'Author';
+
+  @override
+  String get modDetailsNexusId => 'Nexus ID';
+
+  @override
+  String get modDetailsInstalledOn => 'Installed on';
+
+  @override
+  String get unknownAuthor => 'Unknown';
 }
