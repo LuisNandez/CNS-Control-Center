@@ -5355,7 +5355,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<void> _showDetailsPage(ModInfo modInfo) async {
-    final bool needsReload = await showModalBottomSheet<bool>(
+    final updatedModInfo = await showModalBottomSheet<ModInfo?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -5367,11 +5367,23 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         onShowImageGallery: _showImageGalleryDialog,
         onShowGeneralEditDialog: _showGeneralEditDialog,
       ),
-    ) ?? false; // Si se cierra sin valor, asumimos que no hay cambios.
+    );
 
-    // Si el panel nos dijo que algo cambió, recargamos la lista principal.
-    if (needsReload) {
-      await _loadAllMods(clearHighlight: false);
+    // Si el panel devolvió un mod actualizado (no nulo)...
+    if (updatedModInfo != null) {
+      // Busca el índice del mod original en la lista principal.
+      final modIndex = _allMods.indexWhere(
+          (mod) => mod.directory.path == updatedModInfo.directory.path);
+
+      // Si lo encuentra, lo reemplaza directamente en la lista.
+      if (modIndex != -1) {
+        setState(() {
+          _allMods[modIndex] = updatedModInfo;
+        });
+      } else {
+        // Como fallback, si por alguna razón no lo encuentra, recarga todo.
+        await _loadAllMods(clearHighlight: false);
+      }
     }
   }
 
@@ -7081,7 +7093,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                     }
                   }
                 }),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop(_needsReloadOnClose)),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop(_needsReloadOnClose ? currentModInfo : null),),
               ],
             ),
             body: SingleChildScrollView(
