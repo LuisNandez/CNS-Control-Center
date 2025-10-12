@@ -5448,7 +5448,28 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<void> _showDetailsPage(ModInfo modInfo) async {
-    final updatedModInfo = await showModalBottomSheet<ModInfo?>(
+    void onPanelClosed(ModInfo? updatedModInfo) {
+      if (updatedModInfo != null) {
+        // ++ INICIO DE LA CORRECCIÓN ++
+        // Usamos addPostFrameCallback para posponer la actualización hasta que el árbol de widgets
+        // esté desbloqueado (después de que el panel se haya cerrado por completo).
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return; // Buena práctica: verificar si el widget aún existe.
+          
+          final modIndex = _allMods.indexWhere(
+              (mod) => mod.directory.path == updatedModInfo.directory.path);
+
+          if (modIndex != -1) {
+            setState(() {
+              _allMods[modIndex] = updatedModInfo;
+            });
+          }
+        });
+        // ++ FIN DE LA CORRECCIÓN ++
+      }
+    }
+
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -5459,25 +5480,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         onShowInExplorer: _showInExplorer,
         onShowImageGallery: _showImageGalleryDialog,
         onShowGeneralEditDialog: _showGeneralEditDialog,
+        onPanelClosed: onPanelClosed,
       ),
     );
-
-    // Si el panel devolvió un mod actualizado (no nulo)...
-    if (updatedModInfo != null) {
-      // Busca el índice del mod original en la lista principal.
-      final modIndex = _allMods.indexWhere(
-          (mod) => mod.directory.path == updatedModInfo.directory.path);
-
-      // Si lo encuentra, lo reemplaza directamente en la lista.
-      if (modIndex != -1) {
-        setState(() {
-          _allMods[modIndex] = updatedModInfo;
-        });
-      } else {
-        // Como fallback, si por alguna razón no lo encuentra, recarga todo.
-        await _loadAllMods(clearHighlight: false);
-      }
-    }
   }
 
   Future<void> _updateUserNotes(ModInfo mod, String newNotes, dynamic l10n) async {
@@ -7015,6 +7020,7 @@ class _ModDetailsPanel extends StatefulWidget {
   final Future<void> Function(Directory) onShowInExplorer;
   final void Function(ModInfo) onShowImageGallery;
   final Future<Map<String, dynamic>?> Function(ModInfo, BuildContext) onShowGeneralEditDialog;
+  final Function(ModInfo?) onPanelClosed;
 
   const _ModDetailsPanel({
     required this.initialModInfo,
@@ -7023,6 +7029,7 @@ class _ModDetailsPanel extends StatefulWidget {
     required this.onShowInExplorer,
     required this.onShowImageGallery,
     required this.onShowGeneralEditDialog,
+    required this.onPanelClosed,
   });
 
   @override
@@ -7041,11 +7048,18 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
     currentModInfo = widget.initialModInfo;
     // Comprueba si se puede traducir tan pronto como el widget se renderiza por primera vez.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkIfTranslationIsPossible();
+      if (mounted) _checkIfTranslationIsPossible();
     });
   }
 
-  // Comprueba si la descripción se puede traducir
+  /// El método dispose() se llama AUTOMÁTICAMENTE cuando el widget se va a destruir.
+  // Es el lugar perfecto para nuestra lógica de cierre.
+  @override
+  void dispose() {
+    // Llama al "mensajero" y le entrega el mod actualizado si hubo cambios.
+    widget.onPanelClosed(_needsReloadOnClose ? currentModInfo : null);
+    super.dispose();
+  }
   Future<void> _checkIfTranslationIsPossible() async {
     final summary = currentModInfo.customSummary ?? currentModInfo.summary;
     if (summary == null || summary.trim().isEmpty) {
@@ -7173,17 +7187,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
       mainImagePath = currentModInfo.gallery!.first['image'];
     }
 
-    return PopScope(
-      // canPop: false nos da el control. El panel no se cerrará por sí mismo.
-      canPop: false, 
-      // onPopInvoked se activa cuando el usuario INTENTA cerrar el panel.
-      onPopInvoked: (bool didPop) {
-        // Si por alguna razón ya se cerró, no hacemos nada.
-        if (didPop) return;
-        // Cerramos manualmente el panel, devolviendo nuestros datos.
-        Navigator.of(context).pop(_needsReloadOnClose ? currentModInfo : null);
-      },
-      child: DraggableScrollableSheet(
+    return DraggableScrollableSheet(
       initialChildSize: 0.9,
       minChildSize: 0.5,
       maxChildSize: 0.95,
@@ -7214,7 +7218,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                 IconButton(
                     icon: const Icon(Icons.close), 
                     // El botón "X" ahora también intenta un pop, que será interceptado por PopScope
-                    onPressed: () => Navigator.of(context).maybePop(),
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
               ],
             ),
@@ -7280,7 +7284,6 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
           ),
         );
       },
-      ),
-    );
+      );
   }
 }
