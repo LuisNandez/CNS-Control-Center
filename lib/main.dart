@@ -17,7 +17,6 @@ import 'settings_page.dart';
 import 'thumbnail_service.dart';
 import 'notification_service.dart';
 import 'package:translator/translator.dart';
-import 'package:intl/intl.dart';
 
 class AppPrefs {
   static const String languageCode = 'languageCode';
@@ -149,7 +148,7 @@ void main() async {
   await windowManager.ensureInitialized();
 
   WindowOptions windowOptions = const WindowOptions(
-    minimumSize: Size(600, 660),
+    minimumSize: Size(650, 700),
     size: Size(1100, 700),
     center: true,
     title: 'CNS Control Center',
@@ -5775,6 +5774,25 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         if (value.isEmpty || value == mod.sourceUrl) data.remove('customSourceUrl');
         else data['customSourceUrl'] = value;
       }
+
+      // Añade la lógica para manejar la versión y la etiqueta personalizadas.
+      if (newData.containsKey('customVersion')) {
+        final value = newData['customVersion'] as String;
+        if (value.isEmpty || value == mod.localVersion) {
+          data.remove('customVersion');
+        } else {
+          data['customVersion'] = value;
+        }
+      }
+
+      if (newData.containsKey('customFitMeshType')) {
+        final value = newData['customFitMeshType'] as String;
+        if (value.isEmpty || value == mod.fitMeshType) {
+          data.remove('customFitMeshType');
+        } else {
+          data['customFitMeshType'] = value;
+        }
+      }
       
       final encoder = JsonEncoder.withIndent('  ');
       await infoFile.writeAsString(encoder.convert(data));
@@ -7187,6 +7205,8 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
       mainImagePath = currentModInfo.gallery!.first['image'];
     }
 
+    final displayVersion = currentModInfo.customVersion ?? currentModInfo.localVersion;
+
     return DraggableScrollableSheet(
       initialChildSize: 0.9,
       minChildSize: 0.5,
@@ -7217,7 +7237,6 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                 }),
                 IconButton(
                     icon: const Icon(Icons.close), 
-                    // El botón "X" ahora también intenta un pop, que será interceptado por PopScope
                     onPressed: () => Navigator.of(context).pop(),
                   ),
               ],
@@ -7236,8 +7255,29 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                     ]),
                   )),
                   const SizedBox(height: 20),
-                  Text(currentModInfo.customName, textAlign: TextAlign.center, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                  Text(
+                    currentModInfo.customName,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                    maxLines: 2, // Límite de dos líneas
+                    overflow: TextOverflow.ellipsis, // Muestra "..." si el texto es muy largo
+                  ),
+                  // ++ INICIO DE LA MODIFICACIÓN: AUTOR COMO SUBTÍTULO ++
+                  const SizedBox(height: 4),
+                  Text(
+                    // Muestra "by [Autor]" o nada si no hay autor
+                    (currentModInfo.customAuthor ?? currentModInfo.author ?? '').isNotEmpty
+                      ? "by ${currentModInfo.customAuthor ?? currentModInfo.author!}"
+                      : "",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey[400],
+                    ),
+                  ),
                   const SizedBox(height: 20),
+                  // ++ FIN DE LA MODIFICACIÓN ++
                   Row(children: [
                     Expanded(child: ElevatedButton.icon(icon: const Icon(Icons.folder_open), label: Text(l10n.showInFolder), onPressed: () => widget.onShowInExplorer(currentModInfo.directory))),
                     const SizedBox(width: 12),
@@ -7278,6 +7318,68 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                       }
                     }
                   }),
+                  // ++ INICIO DE LA MODIFICACIÓN: TAG COMO PIE DE PÁGINA ++
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Versión (izquierda)
+                      if (displayVersion != null && displayVersion.isNotEmpty)
+                        InkWell(
+                          onTap: () async {
+                            final newVersion = await _showSingleFieldEditDialog(
+                              title: l10n.editVersionText,
+                              label: l10n.customVersionText,
+                              initialValue: displayVersion,
+                              defaultValue: currentModInfo.localVersion ?? '',
+                            );
+                            if (newVersion != null) {
+                              final updatedMod = await widget.onUpdateDetails(currentModInfo, {'customVersion': newVersion});
+                              if (updatedMod != null) {
+                                setState(() { currentModInfo = updatedMod; _needsReloadOnClose = true; });
+                              }
+                            }
+                          },
+                          child: Text(
+                            "v$displayVersion",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      // Etiqueta (derecha)
+                      InkWell(
+                        onTap: () async {
+                          final newTag = await _showSingleFieldEditDialog(
+                            title: l10n.editTagText,
+                            label: l10n.customTagText,
+                            initialValue: currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType ?? l10n.modCategoryOther,
+                            defaultValue: currentModInfo.fitMeshType ?? '',
+                          );
+                          if (newTag != null) {
+                            final updatedMod = await widget.onUpdateDetails(currentModInfo, {'customFitMeshType': newTag});
+                            if (updatedMod != null) {
+                              setState(() { currentModInfo = updatedMod; _needsReloadOnClose = true; });
+                            }
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType ?? l10n.modCategoryOther,
+                            style: const TextStyle(fontSize: 12, color: Colors.white70),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // ++ FIN DE LA MODIFICACIÓN ++
                 ],
               ),
             ),
