@@ -7173,7 +7173,17 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
       mainImagePath = currentModInfo.gallery!.first['image'];
     }
 
-    return DraggableScrollableSheet(
+    return PopScope(
+      // canPop: false nos da el control. El panel no se cerrará por sí mismo.
+      canPop: false, 
+      // onPopInvoked se activa cuando el usuario INTENTA cerrar el panel.
+      onPopInvoked: (bool didPop) {
+        // Si por alguna razón ya se cerró, no hacemos nada.
+        if (didPop) return;
+        // Cerramos manualmente el panel, devolviendo nuestros datos.
+        Navigator.of(context).pop(_needsReloadOnClose ? currentModInfo : null);
+      },
+      child: DraggableScrollableSheet(
       initialChildSize: 0.9,
       minChildSize: 0.5,
       maxChildSize: 0.95,
@@ -7201,7 +7211,11 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                     }
                   }
                 }),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop(_needsReloadOnClose ? currentModInfo : null),),
+                IconButton(
+                    icon: const Icon(Icons.close), 
+                    // El botón "X" ahora también intenta un pop, que será interceptado por PopScope
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
               ],
             ),
             body: SingleChildScrollView(
@@ -7266,6 +7280,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
           ),
         );
       },
+      ),
     );
   }
 }
