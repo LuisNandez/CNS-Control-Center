@@ -283,6 +283,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
+  String _normalizeName(String name) {
+    // Primero, elimina la extensión del archivo si existe (como .zip, .rar, etc.)
+    final withoutExtension = p.basenameWithoutExtension(name);
+    return withoutExtension
+        .toLowerCase()
+        .replaceAll(RegExp(r'[_ -]'), ''); // Elimina guiones bajos, espacios y guiones
+  }
+
   @override
   void initState() {
     super.initState();
@@ -3594,32 +3602,27 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           .toList();
 
       filesToConsider = cnsFiles.isNotEmpty ? cnsFiles : compatibleFiles;
+      dynamic bestMatchFile;
 
-      final modsWithSameId = _allMods.where((m) => m.nexusId == nexusId).length;
-      if (modsWithSameId > 1) {
-        final keywords = displayName.toLowerCase().split(' ').where((s) => s.isNotEmpty).toList();
-        int highestScore = 0;
-
-        const exclusiveTerms = ['no tail', 'notail'];
-
+      //final modsWithSameId = _allMods.where((m) => m.nexusId == nexusId).length;
+      if (filesToConsider.length == 1) {
+        // Si solo hay un archivo candidato, lo tomamos directamente.
+        bestMatchFile = filesToConsider.first;
+      } else {
+        // Si hay múltiples candidatos, usamos el sistema de puntuación para decidir.
+        final normalizedDisplayName = _normalizeName(displayName);
+        final keywords = displayName.toLowerCase().split(RegExp(r'[_ -]')).where((s) => s.isNotEmpty).toList();
+        
         final fileScores = filesToConsider.map((file) {
-          final fileName = (file['file_name'] as String).toLowerCase();
-          final modDisplayNameLower = displayName.toLowerCase();
+          final rawFileName = file['file_name'] as String;
+          final normalizedFileName = _normalizeName(rawFileName);
           int score = 0;
-          bool isMismatch = false;
-
-          for (final term in exclusiveTerms) {
-            if (fileName.contains(term) && !modDisplayNameLower.contains(term)) {
-              isMismatch = true;
-              break;
-            }
-          }
-
-          if (isMismatch) {
-            score = -1; 
+          
+          if (normalizedFileName.contains(normalizedDisplayName)) {
+            score = 100;
           } else {
             for (final keyword in keywords) {
-              if (fileName.contains(keyword)) {
+              if (normalizedFileName.contains(keyword)) {
                 score++;
               }
             }
@@ -3627,51 +3630,34 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           return {'file': file, 'score': score};
         }).toList();
 
-        for (final scoredFile in fileScores) {
-          if (scoredFile['score'] as int > highestScore) {
-            highestScore = scoredFile['score'] as int;
-          }
-        }
+        // Ordenamos la lista para que el archivo con la puntuación más alta quede primero.
+        fileScores.sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
 
-        if (highestScore > 0) {
-          final bestMatches = fileScores
-              .where((scoredFile) => scoredFile['score'] == highestScore)
-              .map((scoredFile) => scoredFile['file'])
-              .toList();
-          
-          if (bestMatches.isNotEmpty) {
-            filesToConsider = bestMatches;
-          }
+        // Tomamos el mejor candidato, pero solo si su puntuación es mayor que cero.
+        if (fileScores.isNotEmpty && fileScores.first['score'] as int > 0) {
+          bestMatchFile = fileScores.first['file'];
         }
       }
+      // ++ FIN DE LA LÓGICA CORREGIDA ++
 
-      dynamic highestVersionFile;
-      String highestVersion = "0";
-      for (final file in filesToConsider) {
-        final currentVersion = file['version'] as String?;
-        if (currentVersion != null && _compareVersions(currentVersion, highestVersion) > 0) {
-          highestVersion = currentVersion;
-          highestVersionFile = file;
-        }
-      }
-
-      if (highestVersionFile != null) {
-        final latestVersion = highestVersionFile['version'] as String;
+      // Ahora, solo si hemos encontrado un candidato válido, procedemos a la comprobación de versión.
+      if (bestMatchFile != null) {
+        final latestVersion = bestMatchFile['version'] as String;
         
         final skippedVersion = _skippedVersions[nexusId];
         final isSkipped = skippedVersion != null && _compareVersions(latestVersion, skippedVersion) <= 0;
 
+        // Comparamos la versión del MEJOR CANDIDATO con la versión local.
         if (hasLocalVersion && !isSkipped && _compareVersions(latestVersion, localVersion) > 0) {
           return {
             'version': latestVersion,
-            'fileId': highestVersionFile['file_id'] as int,
+            'fileId': bestMatchFile['file_id'] as int,
           };
         }
       }
     }
     return null;
   }
-
 
   Future<void> _recheckSpecificMod(String nexusId, {String? newVersion}) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
