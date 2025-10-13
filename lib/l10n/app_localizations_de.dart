@@ -1124,4 +1124,12 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get unknownAuthor => 'Unknown';
+
+  @override
+  String get statusInstalling => 'Installing...';
+
+  @override
+  String statusInstallingMod(int index, int total, String modName) {
+    return 'Installing $index/$total: $modName';
+  }
 }

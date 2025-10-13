@@ -151,7 +151,7 @@ void main() async {
   await windowManager.ensureInitialized();
 
   WindowOptions windowOptions = const WindowOptions(
-    minimumSize: Size(650, 700),
+    minimumSize: Size(680, 700),
     size: Size(1100, 700),
     center: true,
     title: 'CNS Control Center',
@@ -317,6 +317,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   bool _isExtracting = false;
   double _extractionProgress = 0.0;
   String _extractionStatus = '';
+
+  bool _isInstalling = false;
+  double _installationProgress = 0.0;
+  String _installationStatus = '';
 
   ModFilter _currentFilter = ModFilter.all;
   ModSort _currentSort = ModSort.date;
@@ -502,11 +506,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               });
               hasProcessedInitialFiles = true; // Marcamos como procesados.
             }
-            final canInstall = _preparedMods.isNotEmpty && !_isLoading && !_isExtracting;
+            final canInstall = _preparedMods.isNotEmpty && !_isLoading && !_isExtracting && !_isInstalling;
             return WillPopScope(
               onWillPop: () async {
                 // CASO 1: Si está ocupado (extrayendo/instalando), bloquea el cierre.
-                if (_isExtracting || _isLoading) {
+                if (_isExtracting || _isLoading || _isInstalling) {
                   return false;
                 }
 
@@ -568,14 +572,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                               child: ElevatedButton.icon(
                                 icon: const Icon(Icons.archive),
                                 label: Text(l10n.selectModArchive),
-                                onPressed: _isLoading ? null : () async {
-                                  // ++ INICIO DE LA MODIFICACIÓN ++
-                                  // No es necesario pasar el setter aquí porque _pickArchive no
-                                  // actualiza el estado durante su ejecución, solo al final.
-                                  await _pickArchive(panelStateSetter: setPanelState); 
-                                  setPanelState(() {});
-                                  // ++ FIN DE LA MODIFICACIÓN ++
-                                },
+                                onPressed: (_isLoading || _isExtracting || _isInstalling) ? null : () async {
+                                    await _pickArchive(panelStateSetter: setPanelState);
+                                    setPanelState(() {});
+                                  },
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -632,12 +632,34 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                               ),
                             ],
                           )
+                          else if (_isInstalling) // <-- AÑADIDO ESTE CASO
+                            Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                  child: Text(
+                                    _installationStatus, // Usa el nuevo estado
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(color: Colors.white70),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                LinearProgressIndicator(
+                                  value: _installationProgress, // Usa el nuevo progreso
+                                  backgroundColor: Colors.grey[800],
+                                  valueColor: const AlwaysStoppedAnimation<Color>(
+                                    Colors.greenAccent, // Un color diferente para distinguirla
+                                  ),
+                                ),
+                              ],
+                            )
                         else
-                          Text(
-                            _statusMessage,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 14, color: _statusColor),
-                          ),
+                            Text( // El mensaje de estado general
+                              _statusMessage,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 14, color: _statusColor),
+                            ),
 
                         const SizedBox(height: 16),
                       ],
@@ -2596,10 +2618,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       return;
     }
 
+    // Usa los nuevos estados de instalación en lugar de _isLoading
     updateState(() {
-      _isLoading = true;
+      _isInstalling = true;
+      _installationProgress = 0.0;
+      _installationStatus = l10n.statusInstalling; // Necesitarás esta traducción
       _lastInstalledModNames.clear();
     });
+    
 
     List<String> installedNames = [];
     String? errorMessage;
@@ -2607,7 +2633,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     int failCount = 0;
 
     try {
-      for (final preparedMod in _preparedMods) {
+      for (int i = 0; i < _preparedMods.length; i++) {
+        final preparedMod = _preparedMods[i];
         try {
           final modName = await _installSingleModFromDirectory(
             preparedMod.sourceDir,
@@ -2617,7 +2644,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           if (modName != null) {
             installedNames.add(modName);
             successCount++;
-            // ++ CORRECTION: The individual notification that appeared inside this loop has been removed. ++
+            updateState(() {
+              _installationProgress = (i + 1) / _preparedMods.length;
+              _installationStatus = l10n.statusInstallingMod(
+                i + 1,
+                _preparedMods.length,
+                modName,
+              ); // Necesitarás esta traducción
+            });
           } else {
             failCount++;
           }
@@ -2669,6 +2703,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         }
         _clearSelection();
         _isLoading = false;
+        _isInstalling = false;
       });
       //await _loadAllMods(clearHighlight: false);
       try {
@@ -5901,16 +5936,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              icon: const Icon(Icons.add_circle_outline_rounded),
+              icon: const Icon(Icons.add_circle_outline_outlined),
               label: Text(l10n.installNewMod), // Asegúrate de tener esta traducción
               onPressed: _showInstallationPanel, // Este método lo crearemos a continuación
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
                 backgroundColor: Colors.teal,
                 foregroundColor: Colors.white,
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 0),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),

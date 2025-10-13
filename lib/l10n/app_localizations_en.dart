@@ -134,7 +134,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'API Key is required to find the latest version for mods without a local version.';
 
   @override
-  String get installNewMod => 'Install New Mod';
+  String get installNewMod => 'Install Mod';
 
   @override
   String get selectFiles => 'Select Files';
@@ -1116,4 +1116,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get unknownAuthor => 'Unknown';
+
+  @override
+  String get statusInstalling => 'Installing...';
+
+  @override
+  String statusInstallingMod(int index, int total, String modName) {
+    return 'Installing $index/$total: $modName';
+  }
 }

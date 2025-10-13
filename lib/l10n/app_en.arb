@@ -36,7 +36,7 @@
     "snackBarRepairComplete": "Repair complete. {count} mod(s) were updated.",
     "snackBarRepairNoMods": "No legacy mods were found that needed repairing.",
     "errorApiRequiredForRepair": "API Key is required to find the latest version for mods without a local version.",
-    "installNewMod": "Install New Mod",
+    "installNewMod": "Install Mod",
     "selectFiles": "Select Files",
     "selectFolder": "Select Folder",
     "installSelectedMod": "Install Selected Mod",
@@ -380,6 +380,30 @@
     "modDetailsInstalledOn": "Installed on",
     "unknownAuthor": "Unknown",
     "imageGallery": "Image Gallery",
-    "noDescriptionAvailable": "No description available."
+    "noDescriptionAvailable": "No description available.",
+
+    "statusInstalling": "Installing...",
+    "@statusInstalling": {
+        "description": "General status message when the installation process begins."
+    },
+
+    "statusInstallingMod": "Installing {index}/{total}: {modName}",
+    "@statusInstallingMod": {
+        "description": "Status message shown for each mod being installed, indicating progress.",
+        "placeholders": {
+        "index": {
+            "type": "int",
+            "example": "1"
+        },
+        "total": {
+            "type": "int",
+            "example": "5"
+        },
+        "modName": {
+            "type": "String",
+            "example": "Cool Mod"
+        }
+        }
+    }
 }
 

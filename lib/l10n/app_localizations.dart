@@ -333,7 +333,7 @@ abstract class AppLocalizations {
   /// No description provided for @installNewMod.
   ///
   /// In en, this message translates to:
-  /// **'Install New Mod'**
+  /// **'Install Mod'**
   String get installNewMod;
 
   /// No description provided for @selectFiles.
@@ -1977,6 +1977,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unknown'**
   String get unknownAuthor;
+
+  /// General status message when the installation process begins.
+  ///
+  /// In en, this message translates to:
+  /// **'Installing...'**
+  String get statusInstalling;
+
+  /// Status message shown for each mod being installed, indicating progress.
+  ///
+  /// In en, this message translates to:
+  /// **'Installing {index}/{total}: {modName}'**
+  String statusInstallingMod(int index, int total, String modName);
 }
 
 class _AppLocalizationsDelegate
