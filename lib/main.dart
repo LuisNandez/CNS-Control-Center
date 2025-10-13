@@ -470,6 +470,229 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     return paths;
   }
 
+  Future<void> _showInstallationPanel({List<File>? initialFiles}) async { 
+    // Limpia cualquier selección anterior al abrir el panel
+    if (_preparedMods.isNotEmpty) {
+      _clearSelection();
+    }
+  
+    final l10n = AppLocalizations.of(context)!;
+    
+    // El panel se reconstruirá internamente usando este StateSetter
+    // para no afectar a la pantalla principal.
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF2a2a2a),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      // Bloquea el cierre al tocar fuera del panel.
+      //isDismissible: false,
+      // Bloquea el cierre al deslizar el panel hacia abajo.
+      enableDrag: false,
+      builder: (context) {
+        var hasProcessedInitialFiles = false;
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setPanelState) {
+            if (initialFiles != null && !hasProcessedInitialFiles) {
+              // Usamos un post-frame callback para evitar errores de "setState durante el build".
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _processArchives(initialFiles, panelStateSetter: setPanelState);
+              });
+              hasProcessedInitialFiles = true; // Marcamos como procesados.
+            }
+            final canInstall = _preparedMods.isNotEmpty && !_isLoading && !_isExtracting;
+            return WillPopScope(
+              onWillPop: () async {
+                // CASO 1: Si está ocupado (extrayendo/instalando), bloquea el cierre.
+                if (_isExtracting || _isLoading) {
+                  return false;
+                }
+
+                // CASO 2: Si hay mods listos, límpialo todo antes de cerrar.
+                if (_preparedMods.isNotEmpty) {
+                  await _cancelAndCleanInstallation();
+                  // Actualiza el mensaje en la pantalla principal de forma segura.
+                  setState(() {
+                     _statusMessage = AppLocalizations.of(context)!.statusSelectionCancelled;
+                     _statusColor = Colors.white;
+                  });
+                }
+                
+                // CASO 3: Si no está ocupado y no hay nada seleccionado, permite el cierre.
+                return true;
+              },
+            child: DropTarget(
+                onDragDone: (details) async {
+                final files = details.files.map((f) => File(f.path)).toList();
+                if (files.isNotEmpty) {
+                  // ++ INICIO DE LA MODIFICACIÓN ++
+                  // Pasa el actualizador de estado del panel a la función de lógica
+                  await _processArchives(files, panelStateSetter: setPanelState);
+                  setPanelState(() {}); // Actualiza la UI una última vez si es necesario
+                  // ++ FIN DE LA MODIFICACIÓN ++
+                }
+              },
+              onDragEntered: (details) => setPanelState(() => _isDragging = true),
+              onDragExited: (details) => setPanelState(() => _isDragging = false),
+              child: Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Barra superior para cerrar el panel
+                        Center(
+                          child: Container(
+                            height: 5,
+                            width: 40,
+                            margin: const EdgeInsets.only(bottom: 20),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[700],
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                          ),
+                        ),
+                        
+                        // Contenido del panel
+                        Text(l10n.installNewMod, style: Theme.of(context).textTheme.headlineSmall),
+                        const SizedBox(height: 16),
+                        
+                        // Botones de selección e instalación
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                icon: const Icon(Icons.archive),
+                                label: Text(l10n.selectModArchive),
+                                onPressed: _isLoading ? null : () async {
+                                  // ++ INICIO DE LA MODIFICACIÓN ++
+                                  // No es necesario pasar el setter aquí porque _pickArchive no
+                                  // actualiza el estado durante su ejecución, solo al final.
+                                  await _pickArchive(panelStateSetter: setPanelState); 
+                                  setPanelState(() {});
+                                  // ++ FIN DE LA MODIFICACIÓN ++
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                icon: const Icon(Icons.download_for_offline),
+                                label: Text(l10n.installSelectedMod),
+                                onPressed: canInstall ? () async {
+                                  // ++ INICIO DE LA MODIFICACIÓN ++
+                                  // Pasa el setter a la función de instalación
+                                  await _installMod(panelStateSetter: setPanelState);
+                                  if (mounted) Navigator.pop(context); // Cierra el panel
+                                  // ++ FIN DE LA MODIFICACIÓN ++
+                                } : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: canInstall ? Colors.tealAccent : Colors.grey[700],
+                                  foregroundColor: Colors.black87,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // Vista previa de la instalación
+                        if (_modsToInstallPreviewMap.isNotEmpty)
+                          _buildSelectionPreviewSection(
+                            l10n,
+                            panelStateSetter: setPanelState, // <-- PASA EL SETTER AQUÍ
+                          ),
+                        
+                        
+                        const SizedBox(height: 20),
+
+                        // Indicadores de estado y progreso
+                        if (_isExtracting)
+                          Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                child: Text(
+                                  _extractionStatus,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.white70),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              LinearProgressIndicator(
+                                value: _extractionProgress,
+                                backgroundColor: Colors.grey[800],
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                  Colors.tealAccent,
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          Text(
+                            _statusMessage,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 14, color: _statusColor),
+                          ),
+
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+
+                  // Overlay de arrastrar y soltar
+                  if (_isDragging)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                        border: Border.all(color: Colors.tealAccent, width: 3),
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.download_for_offline, size: 80, color: Colors.tealAccent),
+                            const SizedBox(height: 20),
+                            Text(l10n.dropTargetOverlay, style: const TextStyle(color: Colors.white, fontSize: 24)),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    // Cuando el panel se cierra, recargamos la lista principal de mods.
+    await _loadAllMods();
+  }
+
+  Future<void> _cancelAndCleanInstallation() async {
+    // Limpia las listas de estado de la instalación.
+    _preparedMods.clear();
+    _modsToInstallPreviewMap.clear();
+
+    // Intenta eliminar de forma segura el directorio de extracción temporal.
+    try {
+      if (_tempExtractionDir != null && await _tempExtractionDir!.exists()) {
+        await _tempExtractionDir!.delete(recursive: true);
+        _tempExtractionDir = null; // Libera la referencia
+        print('Temporary extraction directory cleaned up successfully.');
+      }
+    } catch (e) {
+      print('Failed to clean up temp directory during cancellation: $e');
+    }
+  }
+
   /// Desinstala un componente principal (UE4SS o CNS) leyendo su manifiesto.
   Future<bool> _uninstallCoreComponent({required bool isUe4ss}) async {
     final l10n = AppLocalizations.of(context)!;
@@ -1606,7 +1829,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  Future<void> _pickArchive() async {
+  Future<void> _pickArchive({StateSetter? panelStateSetter}) async { // <-- AÑADE EL PARÁMETRO AQUÍ
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -1615,17 +1838,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       );
       if (result != null && result.files.isNotEmpty) {
         final files = result.paths.map((path) => File(path!)).toList();
-        await _processArchives(files);
+        // ++ PASA EL PARÁMETRO A LA SIGUIENTE FUNCIÓN ++
+        await _processArchives(files, panelStateSetter: panelStateSetter); 
       }
     } catch (e) {
-      setState(
+      // Usa el setter si está disponible, si no, usa setState
+      final updateState = panelStateSetter ?? setState;
+      updateState(
         () => _statusMessage = AppLocalizations.of(
           context,
         )!.statusError(e.toString()),
       );
     }
   }
-
   Future<Map<String, String>?> _extractNexusInfoFromName(String name) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
       if (mounted) {
@@ -1881,9 +2106,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  Future<void> _processArchives(List<File> archives) async {
+  Future<void> _processArchives(List<File> archives, {StateSetter? panelStateSetter}) async {
     final l10n = AppLocalizations.of(context)!;
-    setState(() {
+    final updateState = panelStateSetter ?? setState;
+    updateState(() {
       _isExtracting = true;
       _extractionProgress = 0.0;
       _extractionStatus = '';
@@ -1908,7 +2134,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         final archiveFile = archives[i];
         final fileName = p.basename(archiveFile.path);
 
-        setState(() {
+        updateState(() {
           _extractionProgress = (i + 1) / archives.length;
           _extractionStatus = l10n.statusExtractingMultipleFiles(
             i + 1,
@@ -2016,15 +2242,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         await _promptAndInstallUE4SS(_preparedUE4SS!.sourceDir);
       } else if (cnsUpdateInitiated && _preparedMods.isEmpty) {
       } else {
-        await _prepareInstallationPreview();
+        await _prepareInstallationPreview(panelStateSetter: panelStateSetter);
       }
     } catch (e) {
-      setState(() {
+      updateState(() {
         _statusMessage = l10n.statusError(e.toString());
         _statusColor = Colors.redAccent;
       });
     } finally {
-      setState(() {
+      updateState(() {
         _isExtracting = false;
       });
     }
@@ -2078,13 +2304,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     return null;
   }
 
-  Future<void> _prepareInstallationPreview() async {
+  Future<void> _prepareInstallationPreview({StateSetter? panelStateSetter}) async {
+    // ++ INICIO DE LA MODIFICACIÓN ++
     if (_preparedMods.isEmpty) {
       _clearSelection(
         message: AppLocalizations.of(context)!.errorNoCompatibleFilesInArchive,
+        panelStateSetter: panelStateSetter, // <-- Pasa el actualizador del panel
       );
       return;
     }
+    // ++ FIN DE LA MODIFICACIÓN ++
 
     final Map<String, List<String>> previewMap = {};
 
@@ -2105,7 +2334,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     }
 
-    setState(() {
+    // Usa el actualizador de estado del panel si se proporciona
+    final updateState = panelStateSetter ?? setState;
+    updateState(() {
       _modsToInstallPreviewMap = previewMap;
       _statusMessage = AppLocalizations.of(
         context,
@@ -2347,24 +2578,25 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  Future<void> _installMod() async {
+  Future<void> _installMod({StateSetter? panelStateSetter}) async {
     final l10n = AppLocalizations.of(context)!;
+    final updateState = panelStateSetter ?? setState;
     if (_finalModsPath == null) {
-      setState(() {
+      updateState(() {
         _statusMessage = l10n.errorGamePathUndefined;
         _statusColor = Colors.redAccent;
       });
       return;
     }
     if (_preparedMods.isEmpty) {
-      setState(() {
+      updateState(() {
         _statusMessage = l10n.errorInstallNoSelection;
         _statusColor = Colors.redAccent;
       });
       return;
     }
 
-    setState(() {
+    updateState(() {
       _isLoading = true;
       _lastInstalledModNames.clear();
     });
@@ -2438,7 +2670,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         _clearSelection();
         _isLoading = false;
       });
-      await _loadAllMods(clearHighlight: false);
+      //await _loadAllMods(clearHighlight: false);
       try {
         if (_tempExtractionDir != null && await _tempExtractionDir!.exists()) {
           await _tempExtractionDir!.delete(recursive: true);
@@ -3355,10 +3587,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  void _clearSelection({String? message}) {
-    setState(() {
-      _preparedMods.clear();
-      _modsToInstallPreviewMap.clear();
+  Future<void> _clearSelection({String? message, StateSetter? panelStateSetter}) async {
+    final updateState = panelStateSetter ?? setState;
+
+    // Primero, ejecuta la lógica de limpieza de datos y archivos.
+    await _cancelAndCleanInstallation();
+
+    // Después, actualiza la UI para mostrar el resultado.
+    updateState(() {
       if (mounted) {
         _statusMessage =
             message ?? AppLocalizations.of(context)!.statusSelectionCancelled;
@@ -4745,10 +4981,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       ),
       body: DropTarget(
         onDragDone: (details) async {
-          final paths = details.files.map((file) => file.path).toList();
-          if (paths.isNotEmpty) {
-            final files = paths.map((path) => File(path)).toList();
-            await _processArchives(files);
+          final files = details.files.map((file) => File(file.path)).toList();
+          if (files.isNotEmpty) {
+            // En lugar de procesar, ahora abre el panel CON los archivos.
+            _showInstallationPanel(initialFiles: files);
           }
         },
         onDragEntered: (details) => setState(() => _isDragging = true),
@@ -4762,9 +4998,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildInstallerSection(canInstall, l10n),
                         if (_modsToInstallPreviewMap.isNotEmpty)
-                          _buildSelectionPreviewSection(l10n),
                         const Divider(height: 30, thickness: 1),
                         Expanded(
                           child: _buildModsListSection(
@@ -4776,7 +5010,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        if (_isExtracting)
+                        /*if (_isExtracting)
                           Column(
                             children: [
                               Padding(
@@ -4799,8 +5033,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                 ),
                               ),
                             ],
-                          )
-                        else if (_isCheckingForUpdates)
+                          )*/
+                        if (_isCheckingForUpdates)
                           Column(
                             children: [
                               Padding(
@@ -4961,7 +5195,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 
-  Widget _buildSelectionPreviewSection(AppLocalizations l10n) {
+  Widget _buildSelectionPreviewSection(AppLocalizations l10n, {
+    required StateSetter panelStateSetter, // <-- AÑADE ESTE PARÁMETRO
+  }) {
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -4976,7 +5213,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             TextButton.icon(
               icon: const Icon(Icons.cancel, size: 18),
               label: Text(l10n.cancelSelection),
-              onPressed: () => _clearSelection(),
+              onPressed: () => _clearSelection(panelStateSetter: panelStateSetter),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.redAccent,
                 padding: const EdgeInsets.symmetric(
@@ -5663,12 +5900,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.tealAccent,
+            ElevatedButton.icon(
+              icon: const Icon(Icons.add_circle_outline_rounded),
+              label: Text(l10n.installNewMod), // Asegúrate de tener esta traducción
+              onPressed: _showInstallationPanel, // Este método lo crearemos a continuación
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
               ),
             ),
             const SizedBox(width: 16),
@@ -7465,11 +7704,10 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                             }
                           },
                           child: Text(
-                            "v$displayVersion",
+                            "${l10n.modVersion}: $displayVersion",
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 14,
                               color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
