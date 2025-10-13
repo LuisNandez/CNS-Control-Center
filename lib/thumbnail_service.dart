@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:io';
 import 'dart:convert';
 import 'package:path/path.dart' as p;

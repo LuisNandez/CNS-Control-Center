@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print, curly_braces_in_flow_control_structures, no_leading_underscores_for_local_identifiers, constant_pattern_never_matches_value_type, unreachable_switch_default, non_constant_identifier_names, use_build_context_synchronously, deprecated_member_use, prefer_interpolation_to_compose_strings, control_flow_in_finally
+
 import 'dart:io';
 import 'dart:convert';
 import 'dart:math';
@@ -39,19 +41,20 @@ class ModInfo {
   bool isEnabled;
   final String? origin;
   final String displayName; // Internal identifier, not user-editable.
-  String customName;      // User-editable name.
-  final List<dynamic>? gallery; // Added to store image gallery info from Nexus Mods.
+  String customName; // User-editable name.
+  final List<dynamic>?
+  gallery; // Added to store image gallery info from Nexus Mods.
   final String? fitMeshType;
   final String? customCoverPath;
   final Alignment? customCoverAlignment;
   final DateTime? customCoverLastModified;
   final String? customVersion;
   final String? customFitMeshType;
-  String? summary;   // Descripción/resumen del mod.
+  String? summary; // Descripción/resumen del mod.
   final String? customSummary;
-  final String? author;    // Autor del mod.
+  final String? author; // Autor del mod.
   final String? customAuthor;
-  String? userNotes;     // Notas personales del usuario.
+  String? userNotes; // Notas personales del usuario.
   final String? sourceUrl;
   final String? customSourceUrl;
 
@@ -120,7 +123,8 @@ class ModInfo {
       fitMeshType: fitMeshType ?? this.fitMeshType,
       customCoverPath: customCoverPath ?? this.customCoverPath,
       customCoverAlignment: customCoverAlignment ?? this.customCoverAlignment,
-      customCoverLastModified: customCoverLastModified ?? this.customCoverLastModified,
+      customCoverLastModified:
+          customCoverLastModified ?? this.customCoverLastModified,
       customVersion: customVersion ?? this.customVersion,
       customFitMeshType: customFitMeshType ?? this.customFitMeshType,
       summary: summary ?? this.summary,
@@ -133,7 +137,6 @@ class ModInfo {
     );
   }
 
-
   static String? _extractVersionFromName(String name) {
     // Extracts a version number (e.g., 1.0.0) from a file/folder name (e.g., ModName v1.0.0)
     final regex = RegExp(r'\b[vV][\s-]?([0-9]+(\.[0-9a-zA-Z]+)*)');
@@ -144,7 +147,7 @@ class ModInfo {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   await windowManager.ensureInitialized();
 
   WindowOptions windowOptions = const WindowOptions(
@@ -169,8 +172,8 @@ class ModInstallerApp extends StatefulWidget {
   State<ModInstallerApp> createState() => _ModInstallerAppState();
 
   static void setLocale(BuildContext context, Locale newLocale) {
-    _ModInstallerAppState? state =
-        context.findAncestorStateOfType<_ModInstallerAppState>();
+    _ModInstallerAppState? state = context
+        .findAncestorStateOfType<_ModInstallerAppState>();
     state?.setLocale(newLocale);
   }
 }
@@ -258,7 +261,9 @@ class _PreparedUE4SS {
 }
 
 enum ModFilter { all, enabled, disabled, repaired }
+
 enum ModSort { name, date }
+
 enum ModListViewMode { grid, list }
 
 enum _AlternativeVersionAction { cancel, replace, installAsNew }
@@ -308,7 +313,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Map<String, String> _skippedVersions = {};
   Map<String, dynamic> _modDatabase = {};
-  
+
   bool _isExtracting = false;
   double _extractionProgress = 0.0;
   String _extractionStatus = '';
@@ -326,7 +331,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   // ++ THUMBNAIL SERVICE INSTANCE ++
   final ThumbnailService _thumbnailService = ThumbnailService();
 
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -338,9 +342,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   String _normalizeName(String name) {
     // Primero, elimina la extensión del archivo si existe (como .zip, .rar, etc.)
     final withoutExtension = p.basenameWithoutExtension(name);
-    return withoutExtension
-        .toLowerCase()
-        .replaceAll(RegExp(r'[_ -]'), ''); // Elimina guiones bajos, espacios y guiones
+    return withoutExtension.toLowerCase().replaceAll(
+      RegExp(r'[_ -]'),
+      '',
+    ); // Elimina guiones bajos, espacios y guiones
   }
 
   @override
@@ -388,63 +393,77 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   /// Verifica la existencia de manifiestos para determinar si UE4SS y CNS están instalados.
   Future<void> _checkCoreInstallations() async {
-  if (_gameRootPath == null) return;
-  final l10n = AppLocalizations.of(context)!;
+    if (_gameRootPath == null) return;
+    final l10n = AppLocalizations.of(context)!;
 
-  final win64Dir = Directory(p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64'));
-  final metadataDir = Directory(p.join(win64Dir.path, '_manager_metadata'));
+    final win64Dir = Directory(
+      p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64'),
+    );
+    final metadataDir = Directory(p.join(win64Dir.path, '_manager_metadata'));
 
-  final ue4ssManifest = File(p.join(metadataDir.path, 'ue4ss_manifest.json'));
-  final cnsManifest = File(p.join(metadataDir.path, 'cns_manifest.json'));
+    final ue4ssManifest = File(p.join(metadataDir.path, 'ue4ss_manifest.json'));
+    final cnsManifest = File(p.join(metadataDir.path, 'cns_manifest.json'));
 
-  // --- Lógica de Detección y Adopción ---
+    // --- Lógica de Detección y Adopción ---
 
-  // 1. Adoptar UE4SS si no tiene manifiesto pero sí la carpeta clave.
-  if (!await ue4ssManifest.exists()) {
-    final ue4ssTriggerDir = Directory(p.join(win64Dir.path, 'ue4ss', 'Mods', 'ConsoleCommandsMod'));
-    if (await ue4ssTriggerDir.exists()) {
-      print("Adopting existing UE4SS installation...");
-      if (!await metadataDir.exists()) await metadataDir.create(recursive: true);
-      await ue4ssManifest.writeAsString(_defaultUe4ssManifestContent);
-      if (mounted) {
-        NotificationService.instance.show(
+    // 1. Adoptar UE4SS si no tiene manifiesto pero sí la carpeta clave.
+    if (!await ue4ssManifest.exists()) {
+      final ue4ssTriggerDir = Directory(
+        p.join(win64Dir.path, 'ue4ss', 'Mods', 'ConsoleCommandsMod'),
+      );
+      if (await ue4ssTriggerDir.exists()) {
+        print("Adopting existing UE4SS installation...");
+        if (!await metadataDir.exists())
+          await metadataDir.create(recursive: true);
+        await ue4ssManifest.writeAsString(_defaultUe4ssManifestContent);
+        if (mounted) {
+          NotificationService.instance.show(
             context: context,
             type: NotificationType.info,
             title: l10n.ue4ssInstallationDetected,
-        );
+          );
+        }
       }
     }
-  }
 
-  // 2. Adoptar CNS si no tiene manifiesto pero sí la carpeta clave.
-  if (!await cnsManifest.exists()) {
-    final cnsTriggerDir = Directory(p.join(win64Dir.path, 'ue4ss', 'Mods', 'DekCNS'));
-    if (await cnsTriggerDir.exists()) {
-      print("Adopting existing CNS installation...");
-      if (!await metadataDir.exists()) await metadataDir.create(recursive: true);
-      await cnsManifest.writeAsString(_defaultCnsManifestContent);
-      if (mounted) {
-        NotificationService.instance.show(
+    // 2. Adoptar CNS si no tiene manifiesto pero sí la carpeta clave.
+    if (!await cnsManifest.exists()) {
+      final cnsTriggerDir = Directory(
+        p.join(win64Dir.path, 'ue4ss', 'Mods', 'DekCNS'),
+      );
+      if (await cnsTriggerDir.exists()) {
+        print("Adopting existing CNS installation...");
+        if (!await metadataDir.exists())
+          await metadataDir.create(recursive: true);
+        await cnsManifest.writeAsString(_defaultCnsManifestContent);
+        if (mounted) {
+          NotificationService.instance.show(
             context: context,
             type: NotificationType.info,
             title: l10n.cnsInstallationDetected,
-        );
+          );
+        }
       }
     }
+
+    // --- Lógica final para actualizar la UI ---
+    // Esto se ejecuta siempre, reflejando los manifiestos existentes o los que se acaban de crear.
+    setState(() {
+      _isUe4ssInstalled = ue4ssManifest.existsSync();
+      _isCnsCoreInstalled = cnsManifest.existsSync();
+    });
   }
 
-  // --- Lógica final para actualizar la UI ---
-  // Esto se ejecuta siempre, reflejando los manifiestos existentes o los que se acaban de crear.
-  setState(() {
-    _isUe4ssInstalled = ue4ssManifest.existsSync();
-    _isCnsCoreInstalled = cnsManifest.existsSync();
-  });
-}
-
   /// Recorre un directorio de forma recursiva y devuelve una lista de rutas relativas.
-  Future<List<String>> _generateInstallManifest(Directory sourceDir, String basePath) async {
+  Future<List<String>> _generateInstallManifest(
+    Directory sourceDir,
+    String basePath,
+  ) async {
     final List<String> paths = [];
-    await for (final entity in sourceDir.list(recursive: true, followLinks: false)) {
+    await for (final entity in sourceDir.list(
+      recursive: true,
+      followLinks: false,
+    )) {
       final relativePath = p.relative(entity.path, from: basePath);
       paths.add(relativePath.replaceAll(r'\', '/')); // Normalizar a slashes
     }
@@ -453,99 +472,128 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   /// Desinstala un componente principal (UE4SS o CNS) leyendo su manifiesto.
   Future<bool> _uninstallCoreComponent({required bool isUe4ss}) async {
-  final l10n = AppLocalizations.of(context)!;
-  final componentName = isUe4ss ? "UE4SS" : "CNS";
+    final l10n = AppLocalizations.of(context)!;
+    final componentName = isUe4ss ? "UE4SS" : "CNS";
 
-  // Si se intenta desinstalar UE4SS mientras CNS aún está instalado...
-  if (isUe4ss && _isCnsCoreInstalled) {
-    await showDialog(
+    // Si se intenta desinstalar UE4SS mientras CNS aún está instalado...
+    if (isUe4ss && _isCnsCoreInstalled) {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: const Color(0xFF2a2a2a),
+          title: Text(l10n.uninstallDependencyTitle),
+          content: Text(l10n.uninstallDependencyContent),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.dialogActionUnderstood),
+            ),
+          ],
+        ),
+      );
+      return false; // Detiene la desinstalación.
+    }
+
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.uninstallDependencyTitle),
-        content: Text(l10n.uninstallDependencyContent),
+        title: Text(l10n.dialogTitleUninstall(componentName)),
+        content: Text(l10n.dialogContentUninstall(componentName)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.dialogActionUnderstood),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.dialogActionCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: Text(l10n.dialogActionUninstall),
           ),
         ],
       ),
     );
-    return false; // Detiene la desinstalación.
-  }
-  
-  final confirm = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: const Color(0xFF2a2a2a),
-      title: Text(l10n.dialogTitleUninstall(componentName)),
-      content: Text(l10n.dialogContentUninstall(componentName)),
-      actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l10n.dialogActionCancel)),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-          child: Text(l10n.dialogActionUninstall),
+
+    if (confirm != true) return false;
+
+    setState(() {
+      _isLoading = true;
+      _statusMessage = l10n.statusUninstalling(componentName);
+    });
+
+    try {
+      if (_gameRootPath == null) throw Exception("Game path not found.");
+
+      final manifestName = isUe4ss
+          ? 'ue4ss_manifest.json'
+          : 'cns_manifest.json';
+      final manifestFile = File(
+        p.join(
+          _gameRootPath!,
+          'SB',
+          'Binaries',
+          'Win64',
+          '_manager_metadata',
+          manifestName,
         ),
-      ],
-    ),
-  );
+      );
 
-  if (confirm != true) return false;
-  
-  setState(() { _isLoading = true; _statusMessage = l10n.statusUninstalling(componentName); });
-
-  try {
-    if (_gameRootPath == null) throw Exception("Game path not found.");
-    
-    final manifestName = isUe4ss ? 'ue4ss_manifest.json' : 'cns_manifest.json';
-    final manifestFile = File(p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', '_manager_metadata', manifestName));
-    
-    if (!await manifestFile.exists()) {
-      throw Exception("Installation manifest not found. Cannot uninstall.");
-    }
-    
-    final content = await manifestFile.readAsString();
-    final List<String> relativePaths = List<String>.from(json.decode(content));
-    
-    final String baseDeletePath = isUe4ss
-      ? p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64')
-      : p.join(_gameRootPath!, 'SB');
-
-    for (final relativePath in relativePaths.reversed) {
-      final fullPath = p.join(baseDeletePath, relativePath);
-      try {
-        final entityType = await FileSystemEntity.type(fullPath, followLinks: false);
-        if (entityType == FileSystemEntityType.file) {
-          await File(fullPath).delete();
-        } else if (entityType == FileSystemEntityType.directory) {
-          await Directory(fullPath).delete();
-        }
-      } catch (e) {
-        print("Could not delete entity $fullPath: $e");
+      if (!await manifestFile.exists()) {
+        throw Exception("Installation manifest not found. Cannot uninstall.");
       }
+
+      final content = await manifestFile.readAsString();
+      final List<String> relativePaths = List<String>.from(
+        json.decode(content),
+      );
+
+      final String baseDeletePath = isUe4ss
+          ? p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64')
+          : p.join(_gameRootPath!, 'SB');
+
+      for (final relativePath in relativePaths.reversed) {
+        final fullPath = p.join(baseDeletePath, relativePath);
+        try {
+          final entityType = await FileSystemEntity.type(
+            fullPath,
+            followLinks: false,
+          );
+          if (entityType == FileSystemEntityType.file) {
+            await File(fullPath).delete();
+          } else if (entityType == FileSystemEntityType.directory) {
+            await Directory(fullPath).delete();
+          }
+        } catch (e) {
+          print("Could not delete entity $fullPath: $e");
+        }
+      }
+
+      await manifestFile.delete();
+
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.success,
+        title: l10n.snackBarUninstalled(componentName),
+      );
+
+      return true; // <-- INFORMA QUE LA OPERACIÓN FUE EXITOSA
+    } catch (e) {
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.error,
+        title: l10n.errorUninstalling(componentName),
+        description: e.toString(),
+      );
+      return false; // <-- INFORMA QUE LA OPERACIÓN FALLÓ
+    } finally {
+      await _checkCoreInstallations();
+      await _readCNSData();
+      setState(() {
+        _isLoading = false;
+        _statusMessage = "";
+      });
     }
-    
-    await manifestFile.delete();
-    
-    NotificationService.instance.show(
-      context: context, type: NotificationType.success, title: l10n.snackBarUninstalled(componentName),
-    );
-    
-    return true; // <-- INFORMA QUE LA OPERACIÓN FUE EXITOSA
-    
-  } catch (e) {
-    NotificationService.instance.show(
-      context: context, type: NotificationType.error, title: l10n.errorUninstalling(componentName), description: e.toString(),
-    );
-    return false; // <-- INFORMA QUE LA OPERACIÓN FALLÓ
-  } finally {
-    await _checkCoreInstallations();
-    await _readCNSData();
-    setState(() { _isLoading = false; _statusMessage = ""; });
   }
-}
 
   Future<List<File>> _findAllModFilesRecursive(Directory dir) async {
     final List<File> foundFiles = [];
@@ -576,10 +624,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         }
       }
     } catch (e) {
-      print('An error occurred during general cleanup of temporary folders: $e');
+      print(
+        'An error occurred during general cleanup of temporary folders: $e',
+      );
     }
   }
-  
+
   Future<void> _showRepairedModInfoDialog() async {
     final l10n = AppLocalizations.of(context)!;
     await showDialog(
@@ -611,7 +661,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       final List<Map<String, dynamic>> tasks = [];
       List<FileSystemEntity> entities;
       try {
-        entities = dir.listSync(); 
+        entities = dir.listSync();
       } catch (e) {
         print("Error listing directory $path: $e");
         return [];
@@ -619,8 +669,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       for (var entity in entities) {
         if (entity is Directory) {
-           if (p.basename(entity.path) == '__MOD_BACKUPS__') continue;
-          
+          if (p.basename(entity.path) == '__MOD_BACKUPS__') continue;
+
           final infoFile = File(p.join(entity.path, 'nexus_info.json'));
           if (await infoFile.exists()) {
             try {
@@ -628,7 +678,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               Map<String, dynamic> data = json.decode(content);
 
               if (data['customName'] == null && data['displayName'] != null) {
-                final String newFolderName = data['displayName'].replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
+                final String newFolderName = data['displayName'].replaceAll(
+                  RegExp(r'[\\/:*?"<>|]'),
+                  '-',
+                );
                 tasks.add({
                   'oldPath': entity.path,
                   'newPath': p.join(entity.parent.path, newFolderName),
@@ -649,10 +702,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       allTasks.addAll(await _scanForMigration(_finalModsPath!));
     }
     if (_gameRootPath != null) {
-      final backupDirPath = p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__');
+      final backupDirPath = p.join(
+        _gameRootPath!,
+        'SB',
+        'Content',
+        '__MOD_BACKUPS__',
+      );
       allTasks.addAll(await _scanForMigration(backupDirPath));
     }
-    
+
     if (allTasks.isNotEmpty) {
       print('Found ${allTasks.length} mods to migrate.');
       for (final task in allTasks) {
@@ -664,21 +722,22 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           Directory newDirHandle = Directory(newPath);
           if (oldPath != newPath) {
             if (await Directory(newPath).exists()) {
-              print('Migration conflict: Destination folder "$newPath" already exists. Skipping rename for "$oldPath".');
+              print(
+                'Migration conflict: Destination folder "$newPath" already exists. Skipping rename for "$oldPath".',
+              );
               newDirHandle = Directory(oldPath);
             } else {
-               await Directory(oldPath).rename(newPath);
-               print('Renamed: $oldPath -> $newPath');
+              await Directory(oldPath).rename(newPath);
+              print('Renamed: $oldPath -> $newPath');
             }
           }
-          
+
           final infoFile = File(p.join(newDirHandle.path, 'nexus_info.json'));
           jsonData['customName'] = jsonData['displayName'];
-          jsonData['managerVersion'] = _appVersion; 
-          
+          jsonData['managerVersion'] = _appVersion;
+
           final encoder = JsonEncoder.withIndent('  ');
           await infoFile.writeAsString(encoder.convert(jsonData));
-
         } catch (e) {
           print('Migration failed for ${task['oldPath']}: $e');
         }
@@ -716,29 +775,32 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       _apiKey = apiKey;
     });
   }
-  
+
   Future<void> _loadSkippedVersions() async {
     final prefs = await SharedPreferences.getInstance();
     final skippedList = prefs.getStringList(AppPrefs.skippedVersions) ?? [];
     setState(() {
       _skippedVersions = {
-        for (var e in skippedList) e.split(';')[0]: e.split(';')[1]
+        for (var e in skippedList) e.split(';')[0]: e.split(';')[1],
       };
     });
   }
 
   Future<void> _saveSkippedVersions() async {
     final prefs = await SharedPreferences.getInstance();
-    final skippedList =
-        _skippedVersions.entries.map((e) => '${e.key};${e.value}').toList();
+    final skippedList = _skippedVersions.entries
+        .map((e) => '${e.key};${e.value}')
+        .toList();
     await prefs.setStringList(AppPrefs.skippedVersions, skippedList);
   }
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    final filterIndex = prefs.getInt(AppPrefs.filterMode) ?? ModFilter.all.index;
+    final filterIndex =
+        prefs.getInt(AppPrefs.filterMode) ?? ModFilter.all.index;
     final sortIndex = prefs.getInt(AppPrefs.sortMode) ?? ModSort.date.index;
-    final viewModeIndex = prefs.getInt(AppPrefs.viewMode) ?? ModListViewMode.grid.index;
+    final viewModeIndex =
+        prefs.getInt(AppPrefs.viewMode) ?? ModListViewMode.grid.index;
 
     setState(() {
       _currentFilter = ModFilter.values[filterIndex];
@@ -758,7 +820,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         type: NotificationType.info,
         title: AppLocalizations.of(context)!.snackBarSkippedVersionRemoved,
       );
-      
     }
   }
 
@@ -769,10 +830,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     try {
       final response = await http.get(
         Uri.parse('https://api.nexusmods.com/v1/users/validate.json'),
-        headers: {
-          'apikey': apiKey,
-          'accept': 'application/json',
-        },
+        headers: {'apikey': apiKey, 'accept': 'application/json'},
       );
       return response.statusCode == 200;
     } catch (e) {
@@ -787,11 +845,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       _appVersion = packageInfo.version;
     });
   }
-  
+
   Future<void> _find7zipPath() async {
     final prefs = await SharedPreferences.getInstance();
     String? saved7zipPath = prefs.getString(AppPrefs.sevenZipPath);
-    
+
     if (saved7zipPath != null && await File(saved7zipPath).exists()) {
       setState(() => _7zipPath = saved7zipPath);
       return;
@@ -808,7 +866,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     }
   }
-  
+
   Future<String?> _select7zipPathManually() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -835,20 +893,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           _7zipPath = newPath;
         });
         if (mounted) {
-            NotificationService.instance.show(
-              context: context,
-              type: NotificationType.success,
-              title: AppLocalizations.of(context)!.snackBar7zipPathSaved,
-            );
+          NotificationService.instance.show(
+            context: context,
+            type: NotificationType.success,
+            title: AppLocalizations.of(context)!.snackBar7zipPathSaved,
+          );
         }
         return newPath;
       }
     } catch (e) {
-       setState(() => _statusMessage = 'Error selecting 7-Zip: $e');
+      setState(() => _statusMessage = 'Error selecting 7-Zip: $e');
     }
     return null;
   }
-
 
   Future<void> _findGamePath() async {
     setState(() {
@@ -873,7 +930,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       if (gamePath != null && await Directory(gamePath).exists()) {
         final modPath = p.join(
-            gamePath, 'SB', 'Content', 'Paks', '~mods', 'CustomNanosuitSystem');
+          gamePath,
+          'SB',
+          'Content',
+          'Paks',
+          '~mods',
+          'CustomNanosuitSystem',
+        );
         setState(() {
           _gameRootPath = gamePath;
           _finalModsPath = modPath;
@@ -885,7 +948,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         setState(() {
           _finalModsPath = null;
           if (mounted) {
-            _statusMessage = AppLocalizations.of(context)!.statusGamePathNotFound;
+            _statusMessage = AppLocalizations.of(
+              context,
+            )!.statusGamePathNotFound;
           }
           _statusColor = Colors.orangeAccent;
         });
@@ -894,7 +959,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       setState(() {
         _finalModsPath = null;
         if (mounted) {
-          _statusMessage = AppLocalizations.of(context)!.statusErrorFindingGame(e.toString());
+          _statusMessage = AppLocalizations.of(
+            context,
+          )!.statusErrorFindingGame(e.toString());
         }
         _statusColor = Colors.redAccent;
       });
@@ -906,16 +973,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<String?> _findSteamInstallation() async {
     if (!Platform.isWindows) return null;
     try {
-      final key = Registry.openPath(RegistryHive.currentUser,
-          path: r'Software\Valve\Steam');
+      final key = Registry.openPath(
+        RegistryHive.currentUser,
+        path: r'Software\Valve\Steam',
+      );
       final steamPath = key.getValueAsString('SteamPath');
       key.close();
 
       if (steamPath == null) return null;
 
       final List<String> libraryPaths = [steamPath];
-      final libraryFoldersVdf =
-          File(p.join(steamPath, 'steamapps', 'libraryfolders.vdf'));
+      final libraryFoldersVdf = File(
+        p.join(steamPath, 'steamapps', 'libraryfolders.vdf'),
+      );
 
       if (await libraryFoldersVdf.exists()) {
         final content = await libraryFoldersVdf.readAsString();
@@ -928,8 +998,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
 
       for (final libPath in libraryPaths.toSet()) {
-        final gamePath =
-            p.join(libPath, 'steamapps', 'common', 'StellarBlade');
+        final gamePath = p.join(libPath, 'steamapps', 'common', 'StellarBlade');
         if (await Directory(gamePath).exists()) {
           return gamePath;
         }
@@ -942,60 +1011,81 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<String?> _readCNSData() async {
-  if (_gameRootPath == null) {
+    if (_gameRootPath == null) {
+      setState(() {
+        _cnsVersion = null;
+        _cnsNexusId = null;
+      });
+      return null;
+    }
+
+    // Primero, reinicia la versión a null.
+    // Si no se encuentran los archivos, este será el valor final.
     setState(() {
       _cnsVersion = null;
       _cnsNexusId = null;
     });
-    return null;
-  }
 
-  // Primero, reinicia la versión a null.
-  // Si no se encuentran los archivos, este será el valor final.
-  setState(() {
-    _cnsVersion = null;
-    _cnsNexusId = null;
-  });
+    String? newVersion;
 
-  String? newVersion;
-
-  // Intenta leer desde nexus_info.json (fuente principal)
-  try {
-    final infoFile = File(p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss', 'nexus_info.json'));
-    if (await infoFile.exists()) {
-      final content = await infoFile.readAsString();
-      final data = json.decode(content);
-      setState(() {
-        _cnsNexusId = data['nexusId'];
-        _cnsVersion = data['installedVersion'];
-      });
-      newVersion = data['installedVersion'];
-      return newVersion; // Versión encontrada, terminamos aquí.
-    }
-  } catch (e) {
-    print('Error reading CNS nexus_info.json: $e');
-  }
-
-  // Si no se encontró arriba, intenta leer desde el archivo main.lua
-  try {
-    final luaFile = File(p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss', 'Mods', 'DekCNS', 'Scripts', 'main.lua'));
-    if (await luaFile.exists()) {
-      final content = await luaFile.readAsString();
-      final regex = RegExp(r'local CNS_Version = "(.+)"');
-      final match = regex.firstMatch(content);
-      if (match != null && match.group(1) != null) {
+    // Intenta leer desde nexus_info.json (fuente principal)
+    try {
+      final infoFile = File(
+        p.join(
+          _gameRootPath!,
+          'SB',
+          'Binaries',
+          'Win64',
+          'ue4ss',
+          'nexus_info.json',
+        ),
+      );
+      if (await infoFile.exists()) {
+        final content = await infoFile.readAsString();
+        final data = json.decode(content);
         setState(() {
-          _cnsVersion = match.group(1);
+          _cnsNexusId = data['nexusId'];
+          _cnsVersion = data['installedVersion'];
         });
-        newVersion = match.group(1);
+        newVersion = data['installedVersion'];
+        return newVersion; // Versión encontrada, terminamos aquí.
       }
+    } catch (e) {
+      print('Error reading CNS nexus_info.json: $e');
     }
-  } catch (e) {
-    print('Error reading CNS version from LUA: $e');
-  }
 
-  return newVersion;
-}
+    // Si no se encontró arriba, intenta leer desde el archivo main.lua
+    try {
+      final luaFile = File(
+        p.join(
+          _gameRootPath!,
+          'SB',
+          'Binaries',
+          'Win64',
+          'ue4ss',
+          'Mods',
+          'DekCNS',
+          'Scripts',
+          'main.lua',
+        ),
+      );
+      if (await luaFile.exists()) {
+        final content = await luaFile.readAsString();
+        final regex = RegExp(r'local CNS_Version = "(.+)"');
+        final match = regex.firstMatch(content);
+        if (match != null && match.group(1) != null) {
+          setState(() {
+            _cnsVersion = match.group(1);
+          });
+          newVersion = match.group(1);
+        }
+      }
+    } catch (e) {
+      print('Error reading CNS version from LUA: $e');
+    }
+
+    return newVersion;
+  }
 
   Future<String?> _selectGamePathManually() async {
     try {
@@ -1006,7 +1096,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         final validationPath = p.join(result, 'SB', 'Content', 'Paks');
         if (await Directory(validationPath).exists()) {
           final modPath = p.join(
-              result, 'SB', 'Content', 'Paks', '~mods', 'CustomNanosuitSystem');
+            result,
+            'SB',
+            'Content',
+            'Paks',
+            '~mods',
+            'CustomNanosuitSystem',
+          );
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(AppPrefs.gameRootPath, result);
           setState(() {
@@ -1023,7 +1119,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           await _initialize();
           return result;
         } else {
-          if(mounted) {
+          if (mounted) {
             NotificationService.instance.show(
               context: context,
               type: NotificationType.error,
@@ -1042,13 +1138,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
     return null;
   }
-  
+
   Future<String?> _getVersionFromModJsonDescription(Directory modDir) async {
     try {
       await for (final file in modDir.list()) {
         if (file is File && p.extension(file.path).toLowerCase() == '.json') {
           final jsonString = await file.readAsString();
-          final jsonDecoded = json.decode(jsonString.replaceAll(RegExp(r',\s*(?=[\}\]])'), ''));
+          final jsonDecoded = json.decode(
+            jsonString.replaceAll(RegExp(r',\s*(?=[\}\]])'), ''),
+          );
           if (jsonDecoded is List && jsonDecoded.isNotEmpty) {
             final modInfo = jsonDecoded[0] as Map<String, dynamic>;
             final description = modInfo['Description'] as String?;
@@ -1056,20 +1154,25 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               return ModInfo._extractVersionFromName(description);
             }
           }
-          break; 
+          break;
         }
       }
     } catch (e) {
-      print('Error reading version from JSON description for ${modDir.path}: $e');
+      print(
+        'Error reading version from JSON description for ${modDir.path}: $e',
+      );
     }
     return null;
   }
-  
+
   String _stripVersionFromFolderName(String name) {
-    final regex = RegExp(r'\s+[vV]?\d+(\.\d+)*(-[a-zA-Z0-9]+)?\s*$', caseSensitive: false);
+    final regex = RegExp(
+      r'\s+[vV]?\d+(\.\d+)*(-[a-zA-Z0-9]+)?\s*$',
+      caseSensitive: false,
+    );
     return name.replaceAll(regex, '').trim();
   }
-  
+
   Future<void> _loadAllMods({bool clearHighlight = true}) async {
     if (_finalModsPath == null) return;
     setState(() {
@@ -1080,7 +1183,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     });
 
     // Esta función interna procesa un directorio (mods activados o desactivados)
-    Future<List<ModInfo>> getModsFromDirectory(String path, bool isEnabled) async {
+    Future<List<ModInfo>> getModsFromDirectory(
+      String path,
+      bool isEnabled,
+    ) async {
       final dir = Directory(path);
       if (!await dir.exists()) return [];
 
@@ -1113,83 +1219,91 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String? customSourceUrl;
 
             final infoFile = File(p.join(entity.path, 'nexus_info.json'));
-            final fileStat = await entity.stat(); // <-- Move this up so it's always assigned
+            final fileStat = await entity
+                .stat(); // <-- Move this up so it's always assigned
             if (await infoFile.exists()) {
-                final content = await infoFile.readAsString();
-                Map<String, dynamic> data = json.decode(content);
+              final content = await infoFile.readAsString();
+              Map<String, dynamic> data = json.decode(content);
 
-                // --- INICIO DE LA LÓGICA DE ACTUALIZACIÓN AUTOMÁTICA ---
-                final String? modManagerVersion = data['managerVersion'];
-                final String? nexusIdForCheck = data['nexusId'];
-                
-                bool needsMetadataUpdate = modManagerVersion == null || (_compareVersions(_appVersion, modManagerVersion) > 0);
+              // --- INICIO DE LA LÓGICA DE ACTUALIZACIÓN AUTOMÁTICA ---
+              final String? modManagerVersion = data['managerVersion'];
+              final String? nexusIdForCheck = data['nexusId'];
 
-                if (needsMetadataUpdate && nexusIdForCheck != null) {
-                  print('Auto-updating metadata for mod: ${data['displayName']}');
-                  final nexusData = await _fetchNexusModData(nexusIdForCheck);
+              bool needsMetadataUpdate =
+                  modManagerVersion == null ||
+                  (_compareVersions(_appVersion, modManagerVersion) > 0);
 
-                  if (nexusData != null) {
-                    data['summary'] ??= nexusData['summary'];
-                    data['author'] ??= nexusData['author'];
-                    data['gallery'] ??= nexusData['gallery'];
-                    // ✅ LÍNEA AÑADIDA: Asegura que la URL de origen exista.
-                    data['sourceUrl'] ??= 'https://www.nexusmods.com/stellarblade/mods/$nexusIdForCheck';
-                    data['managerVersion'] = _appVersion; 
+              if (needsMetadataUpdate && nexusIdForCheck != null) {
+                print('Auto-updating metadata for mod: ${data['displayName']}');
+                final nexusData = await _fetchNexusModData(nexusIdForCheck);
 
-                    final encoder = JsonEncoder.withIndent('  ');
-                    await infoFile.writeAsString(encoder.convert(data));
-                    print('...metadata for ${data['displayName']} updated successfully.');
-                  }
-                }
-                // --- FIN DE LA LÓGICA DE ACTUALIZACIÓN ---
-                DateTime? installDate;
-            if (data['installDate'] != null) {
-              installDate = DateTime.tryParse(data['installDate']);
-            }
-            // Usa la fecha de instalación si existe, si no, usa la fecha de modificación de la carpeta
-            modLastModified = installDate ?? fileStat.modified;
-                // Leemos los datos del mapa 'data' (que ahora puede estar actualizado)
-                nexusId = data['nexusId'];
-                installedVersion = data['installedVersion'];
-                origin = data['origin'];
-                gallery = data['gallery'];
-                fitMeshType = data['fitMeshType'];
-                summary = data['summary'];
-                customSummary = data['customSummary'];
-                author = data['author'];
-                customAuthor = data['customAuthor'];
-                userNotes = data['userNotes'];
-                sourceUrl = data['sourceUrl'];
-                customSourceUrl = data['customSourceUrl'];
+                if (nexusData != null) {
+                  data['summary'] ??= nexusData['summary'];
+                  data['author'] ??= nexusData['author'];
+                  data['gallery'] ??= nexusData['gallery'];
+                  // ✅ LÍNEA AÑADIDA: Asegura que la URL de origen exista.
+                  data['sourceUrl'] ??=
+                      'https://www.nexusmods.com/stellarblade/mods/$nexusIdForCheck';
+                  data['managerVersion'] = _appVersion;
 
-                if (installedVersion != null && installedVersion.toLowerCase().startsWith('v')) {
-                  installedVersion = installedVersion.substring(1);
-                }
-                
-                customCoverPath = data['customCoverPath'];
-                if (customCoverPath != null) {
-                  final coverFile = File(p.join(entity.path, customCoverPath));
-                  if (await coverFile.exists()) {
-                    customCoverLastModified = await coverFile.lastModified();
-                  }
-                }
-                if (data['customCoverAlignmentX'] != null && data['customCoverAlignmentY'] != null) {
-                  customCoverAlignment = Alignment(
-                    data['customCoverAlignmentX'].toDouble(),
-                    data['customCoverAlignmentY'].toDouble(),
+                  final encoder = JsonEncoder.withIndent('  ');
+                  await infoFile.writeAsString(encoder.convert(data));
+                  print(
+                    '...metadata for ${data['displayName']} updated successfully.',
                   );
                 }
-                customVersion = data['customVersion'] as String?;
-                customFitMeshType = data['customFitMeshType'] as String?;
+              }
+              // --- FIN DE LA LÓGICA DE ACTUALIZACIÓN ---
+              DateTime? installDate;
+              if (data['installDate'] != null) {
+                installDate = DateTime.tryParse(data['installDate']);
+              }
+              // Usa la fecha de instalación si existe, si no, usa la fecha de modificación de la carpeta
+              modLastModified = installDate ?? fileStat.modified;
+              // Leemos los datos del mapa 'data' (que ahora puede estar actualizado)
+              nexusId = data['nexusId'];
+              installedVersion = data['installedVersion'];
+              origin = data['origin'];
+              gallery = data['gallery'];
+              fitMeshType = data['fitMeshType'];
+              summary = data['summary'];
+              customSummary = data['customSummary'];
+              author = data['author'];
+              customAuthor = data['customAuthor'];
+              userNotes = data['userNotes'];
+              sourceUrl = data['sourceUrl'];
+              customSourceUrl = data['customSourceUrl'];
 
-                if (data['displayName'] != null) {
-                  displayName = data['displayName'];
+              if (installedVersion != null &&
+                  installedVersion.toLowerCase().startsWith('v')) {
+                installedVersion = installedVersion.substring(1);
+              }
+
+              customCoverPath = data['customCoverPath'];
+              if (customCoverPath != null) {
+                final coverFile = File(p.join(entity.path, customCoverPath));
+                if (await coverFile.exists()) {
+                  customCoverLastModified = await coverFile.lastModified();
                 }
-                if (data['customName'] != null) {
-                  customName = data['customName'];
-                } else {
-                  customName = displayName;
-                }
+              }
+              if (data['customCoverAlignmentX'] != null &&
+                  data['customCoverAlignmentY'] != null) {
+                customCoverAlignment = Alignment(
+                  data['customCoverAlignmentX'].toDouble(),
+                  data['customCoverAlignmentY'].toDouble(),
+                );
+              }
+              customVersion = data['customVersion'] as String?;
+              customFitMeshType = data['customFitMeshType'] as String?;
+
+              if (data['displayName'] != null) {
+                displayName = data['displayName'];
+              }
+              if (data['customName'] != null) {
+                customName = data['customName'];
+              } else {
+                customName = displayName;
+              }
             }
 
             // Lógica de fallback si el nexus_info.json no existe o está incompleto
@@ -1203,7 +1317,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   final encoder = JsonEncoder.withIndent('  ');
                   await infoFile.writeAsString(encoder.convert(data));
                 } catch (e) {
-                  print("Could not update nexus_info.json with FitMeshType for ${entity.path}: $e");
+                  print(
+                    "Could not update nexus_info.json with FitMeshType for ${entity.path}: $e",
+                  );
                 }
               }
             }
@@ -1212,30 +1328,32 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             // final fileStat = await entity.stat(); <-- Already declared above
 
             // Añade el mod a la lista con toda la información cargada (y potencialmente actualizada)
-            mods.add(ModInfo(
-              directory: entity,
-              nexusId: nexusId,
-              localVersion: installedVersion,
-              lastModified: modLastModified,
-              isEnabled: isEnabled,
-              origin: origin,
-              displayName: displayName,
-              customName: customName,
-              gallery: gallery,
-              fitMeshType: fitMeshType,
-              customCoverPath: customCoverPath,
-              customCoverAlignment: customCoverAlignment,
-              customCoverLastModified: customCoverLastModified,
-              customVersion: customVersion,
-              customFitMeshType: customFitMeshType,
-              summary: summary,
-              customSummary: customSummary,
-              author: author,
-              customAuthor: customAuthor,
-              userNotes: userNotes,
-              sourceUrl: sourceUrl,
-              customSourceUrl: customSourceUrl,
-            ));
+            mods.add(
+              ModInfo(
+                directory: entity,
+                nexusId: nexusId,
+                localVersion: installedVersion,
+                lastModified: modLastModified,
+                isEnabled: isEnabled,
+                origin: origin,
+                displayName: displayName,
+                customName: customName,
+                gallery: gallery,
+                fitMeshType: fitMeshType,
+                customCoverPath: customCoverPath,
+                customCoverAlignment: customCoverAlignment,
+                customCoverLastModified: customCoverLastModified,
+                customVersion: customVersion,
+                customFitMeshType: customFitMeshType,
+                summary: summary,
+                customSummary: customSummary,
+                author: author,
+                customAuthor: customAuthor,
+                userNotes: userNotes,
+                sourceUrl: sourceUrl,
+                customSourceUrl: customSourceUrl,
+              ),
+            );
           } catch (e) {
             print("Error processing directory ${entity.path}: $e");
           }
@@ -1250,25 +1368,33 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (_gameRootPath == null) {
         final disabledMods = <ModInfo>[];
         setState(() {
-         _allMods = [...enabledMods, ...disabledMods];
+          _allMods = [...enabledMods, ...disabledMods];
         });
         return;
       }
-      final backupDirPath = p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__');
+      final backupDirPath = p.join(
+        _gameRootPath!,
+        'SB',
+        'Content',
+        '__MOD_BACKUPS__',
+      );
       final disabledMods = await getModsFromDirectory(backupDirPath, false);
 
       setState(() {
         _allMods = [...enabledMods, ...disabledMods];
         if (clearHighlight && mounted) {
-          _statusMessage = AppLocalizations.of(context)!
-              .statusModsFound(disabledMods.length, enabledMods.length);
+          _statusMessage = AppLocalizations.of(
+            context,
+          )!.statusModsFound(disabledMods.length, enabledMods.length);
           _statusColor = Colors.white;
         }
       });
     } catch (e) {
       setState(() {
         if (mounted) {
-          _statusMessage = AppLocalizations.of(context)!.statusErrorReadingMods(e.toString());
+          _statusMessage = AppLocalizations.of(
+            context,
+          )!.statusErrorReadingMods(e.toString());
         }
         _statusColor = Colors.redAccent;
       });
@@ -1306,10 +1432,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _runSelfHealing() async {
     final l10n = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(l10n.snackBarRepairStarted),
-      backgroundColor: Colors.blueGrey,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.snackBarRepairStarted),
+        backgroundColor: Colors.blueGrey,
+      ),
+    );
 
     setState(() => _isLoading = true);
 
@@ -1335,7 +1463,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           }
         } catch (e) {
           // Si el JSON está mal formado, también necesita reparación.
-          print('Found malformed nexus_info.json for ${mod.customName}, scheduling for repair. Error: $e');
+          print(
+            'Found malformed nexus_info.json for ${mod.customName}, scheduling for repair. Error: $e',
+          );
           needsRepair = true;
         }
       } else {
@@ -1350,13 +1480,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       // --- FIN DE LA LÓGICA MEJORADA ---
 
       final primaryDisplayName = await _getDisplayNameForMod(mod.directory);
-      if (primaryDisplayName != null && _modDatabase.containsKey(primaryDisplayName)) {
-        final dbEntry = _modDatabase[primaryDisplayName] as Map<String, dynamic>;
+      if (primaryDisplayName != null &&
+          _modDatabase.containsKey(primaryDisplayName)) {
+        final dbEntry =
+            _modDatabase[primaryDisplayName] as Map<String, dynamic>;
         final nexusId = dbEntry['nexusId'] as String?;
 
         if (nexusId == null) continue;
 
-        String? version = ModInfo._extractVersionFromName(p.basename(mod.directory.path));
+        String? version = ModInfo._extractVersionFromName(
+          p.basename(mod.directory.path),
+        );
         version ??= await _getVersionFromModJsonDescription(mod.directory);
 
         if (version == null) {
@@ -1368,12 +1502,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 title: l10n.errorApiRequiredForRepair,
               );
             }
-            break; 
+            break;
           }
           version = await _fetchLatestModVersion(nexusId);
         }
-        
-        final compositeDisplayName = await _getCompositeDisplayName(mod.directory) ?? primaryDisplayName;
+
+        final compositeDisplayName =
+            await _getCompositeDisplayName(mod.directory) ?? primaryDisplayName;
         final currentFolderName = p.basename(mod.directory.path);
 
         try {
@@ -1383,20 +1518,24 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             try {
               final content = await infoFile.readAsString();
               if (content.trim().isNotEmpty) {
-                 modData = json.decode(content);
+                modData = json.decode(content);
               }
             } catch (e) {
               // Si está mal formado, empezamos de cero pero lo registramos.
-              print('Could not parse existing nexus_info.json for ${mod.customName}. A new one will be created.');
+              print(
+                'Could not parse existing nexus_info.json for ${mod.customName}. A new one will be created.',
+              );
             }
           }
 
           // Actualiza o añade los campos necesarios.
           modData['nexusId'] = nexusId;
           modData['displayName'] = compositeDisplayName;
-          modData['customName'] ??= currentFolderName; // Si no tenía customName, usa el de la carpeta.
+          modData['customName'] ??=
+              currentFolderName; // Si no tenía customName, usa el de la carpeta.
           modData['installedVersion'] = version;
-          modData['installDate'] ??= DateTime.now().toIso8601String(); // Si no tenía fecha, la añade.
+          modData['installDate'] ??= DateTime.now()
+              .toIso8601String(); // Si no tenía fecha, la añade.
           modData['origin'] = 'repaired';
 
           final nexusData = await _fetchNexusModData(nexusId);
@@ -1408,7 +1547,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
           final encoder = JsonEncoder.withIndent('  ');
           await infoFile.writeAsString(encoder.convert(modData));
-          
+
           repairedCount++;
         } catch (e) {
           print('Could not self-repair mod "$primaryDisplayName": $e');
@@ -1431,7 +1570,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         );
       }
     }
-    
+
     await _loadAllMods();
     setState(() => _isLoading = false);
   }
@@ -1440,19 +1579,22 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     try {
       if (_apiKey == null || _apiKey!.isEmpty) return null;
       final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
-      final url = Uri.parse('https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId/files.json');
+      final url = Uri.parse(
+        'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId/files.json',
+      );
       final response = await http.get(url, headers: headers);
 
       if (response.statusCode != 200) return null;
 
       final jsonResponse = json.decode(response.body);
       final allFiles = jsonResponse['files'] as List;
-      
+
       dynamic highestVersionFile;
       String highestVersion = "0";
       for (final file in allFiles) {
         final currentVersion = file['version'] as String?;
-        if (currentVersion != null && _compareVersions(currentVersion, highestVersion) > 0) {
+        if (currentVersion != null &&
+            _compareVersions(currentVersion, highestVersion) > 0) {
           highestVersion = currentVersion;
           highestVersionFile = file;
         }
@@ -1476,18 +1618,25 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         await _processArchives(files);
       }
     } catch (e) {
-      setState(() =>
-          _statusMessage = AppLocalizations.of(context)!.statusError(e.toString()));
+      setState(
+        () => _statusMessage = AppLocalizations.of(
+          context,
+        )!.statusError(e.toString()),
+      );
     }
   }
 
   Future<Map<String, String>?> _extractNexusInfoFromName(String name) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Se necesita una API Key para identificar mods con nombres complejos.'),
-          backgroundColor: Colors.orangeAccent,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Se necesita una API Key para identificar mods con nombres complejos.',
+            ),
+            backgroundColor: Colors.orangeAccent,
+          ),
+        );
       }
       return null;
     }
@@ -1509,10 +1658,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           // Lo que queda del nombre después del ID válido.
           // ej: "v01-1757576128.zip"
           final remainingString = name.substring(match.end);
-          
+
           // Busca el último guion para separar la versión del ID de descarga.
           final lastHyphenIndex = remainingString.lastIndexOf('-');
-          
+
           if (lastHyphenIndex != -1) {
             // La versión es todo lo que está entre el ID del mod y el último guion.
             String version = remainingString.substring(0, lastHyphenIndex);
@@ -1526,7 +1675,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               version = version.substring(4);
             }
 
-            print('API Validation successful: Found mod ID $validId with version $version');
+            print(
+              'API Validation successful: Found mod ID $validId with version $version',
+            );
             return {'id': validId, 'version': version};
           }
         }
@@ -1534,7 +1685,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     } catch (e) {
       print('An error occurred during smart Nexus info extraction: $e');
     }
-    
+
     // Si la lógica de validación con API falla, no se encontró nada.
     print('Could not validate any potential mod ID from filename: $name');
     return null;
@@ -1548,15 +1699,18 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            String dialogMessage =
-                AppLocalizations.of(context)!.dialogContent7zip;
+            String dialogMessage = AppLocalizations.of(
+              context,
+            )!.dialogContent7zip;
             Color messageColor = Colors.white;
 
             return AlertDialog(
               backgroundColor: const Color(0xFF2a2a2a),
               title: Text(AppLocalizations.of(context)!.dialogTitle7zip),
-              content:
-                  Text(dialogMessage, style: TextStyle(color: messageColor)),
+              content: Text(
+                dialogMessage,
+                style: TextStyle(color: messageColor),
+              ),
               actions: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
@@ -1568,7 +1722,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     await launchUrl(url);
                   },
                   child: Text(
-                      AppLocalizations.of(context)!.dialogActionGoToDownload),
+                    AppLocalizations.of(context)!.dialogActionGoToDownload,
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: () async {
@@ -1578,17 +1733,22 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                       Navigator.of(context).pop();
                     } else {
                       setDialogState(() {
-                        dialogMessage = AppLocalizations.of(context)!
-                            .dialogContent7zipNotFound;
+                        dialogMessage = AppLocalizations.of(
+                          context,
+                        )!.dialogContent7zipNotFound;
                         messageColor = Colors.redAccent;
                       });
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.tealAccent,
-                      foregroundColor: Colors.black),
-                  child: Text(AppLocalizations.of(context)!
-                      .dialogActionConfirmInstallation),
+                    backgroundColor: Colors.tealAccent,
+                    foregroundColor: Colors.black,
+                  ),
+                  child: Text(
+                    AppLocalizations.of(
+                      context,
+                    )!.dialogActionConfirmInstallation,
+                  ),
                 ),
               ],
             );
@@ -1600,100 +1760,128 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<void> _promptAndInstallUE4SS(Directory sourceDir) async {
-  final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context)!;
 
-  if (_isUe4ssInstalled) {
-    final reinstall = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.dialogTitleUE4SSReinstall),
-        content: Text(l10n.dialogContentUE4SSReinstall),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l10n.dialogActionCancel)),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.orangeAccent),
-            child: Text(l10n.dialogActionReinstall),
-          ),
-        ],
-      ),
-    );
-    if (reinstall != true) return;
-  } else {
+    if (_isUe4ssInstalled) {
+      final reinstall = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: const Color(0xFF2a2a2a),
+          title: Text(l10n.dialogTitleUE4SSReinstall),
+          content: Text(l10n.dialogContentUE4SSReinstall),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l10n.dialogActionCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.orangeAccent),
+              child: Text(l10n.dialogActionReinstall),
+            ),
+          ],
+        ),
+      );
+      if (reinstall != true) return;
+    } else {
       final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.dialogTitleUE4SS),
-        content: Text(l10n.dialogContentUE4SS),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l10n.dialogActionCancel)),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
-            child: Text(l10n.dialogActionInstallTool),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) {
-      setState(() => _statusMessage = l10n.statusUE4SSInstallCancelled);
-      return;
-    }
-  }
-
-  setState(() { _isLoading = true; _statusMessage = l10n.statusInstallingUE4SS; });
-
-  try {
-    if (_gameRootPath == null) throw Exception(l10n.errorGamePathUndefined);
-    
-    final manifestDir = Directory(p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', '_manager_metadata'));
-    if (!await manifestDir.exists()) await manifestDir.create(recursive: true);
-    final manifestFile = File(p.join(manifestDir.path, 'ue4ss_manifest.json'));
-
-    // ++ INICIO DE LA NUEVA LÓGICA DE COMBINACIÓN ++
-    // 1. Generar la lista de archivos de la NUEVA instalación.
-    final newPaths = await _generateInstallManifest(sourceDir, sourceDir.path);
-    
-    // 2. Cargar la lista de archivos del manifiesto ANTIGUO, si existe.
-    Set<String> finalPaths = newPaths.toSet(); // Usamos un Set para evitar duplicados.
-    if (await manifestFile.exists()) {
-      try {
-        final oldContent = await manifestFile.readAsString();
-        final List<String> oldPaths = List<String>.from(json.decode(oldContent));
-        // 3. Añadir los archivos antiguos a la lista final.
-        finalPaths.addAll(oldPaths);
-      } catch (e) {
-        print("No se pudo leer el manifiesto antiguo de UE4SS, será reemplazado. Error: $e");
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: const Color(0xFF2a2a2a),
+          title: Text(l10n.dialogTitleUE4SS),
+          content: Text(l10n.dialogContentUE4SS),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l10n.dialogActionCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
+              child: Text(l10n.dialogActionInstallTool),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) {
+        setState(() => _statusMessage = l10n.statusUE4SSInstallCancelled);
+        return;
       }
     }
-    
-    // 4. Escribir la lista combinada y final en el manifiesto.
-    await manifestFile.writeAsString(json.encode(finalPaths.toList()));
-    // ++ FIN DE LA NUEVA LÓGICA DE COMBINACIÓN ++
 
-    final destinationDir = Directory(p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64'));
-    await _copyDirectory(sourceDir, destinationDir);
-
-    NotificationService.instance.show(
-      context: context, type: NotificationType.success, title: l10n.snackBarUE4SSInstalled,
-    );
-    
     setState(() {
-      _statusMessage = l10n.statusUE4SSInstallComplete;
-      _isUe4ssInstalled = true;
-      _clearSelection();
+      _isLoading = true;
+      _statusMessage = l10n.statusInstallingUE4SS;
     });
 
-  } catch (e) {
-    setState(() { _statusMessage = l10n.statusError(e.toString()); _statusColor = Colors.redAccent; });
-  } finally {
-    setState(() => _isLoading = false);
-  }
-}
+    try {
+      if (_gameRootPath == null) throw Exception(l10n.errorGamePathUndefined);
 
-    Future<void> _processArchives(List<File> archives) async {
+      final manifestDir = Directory(
+        p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', '_manager_metadata'),
+      );
+      if (!await manifestDir.exists())
+        await manifestDir.create(recursive: true);
+      final manifestFile = File(
+        p.join(manifestDir.path, 'ue4ss_manifest.json'),
+      );
+
+      // ++ INICIO DE LA NUEVA LÓGICA DE COMBINACIÓN ++
+      // 1. Generar la lista de archivos de la NUEVA instalación.
+      final newPaths = await _generateInstallManifest(
+        sourceDir,
+        sourceDir.path,
+      );
+
+      // 2. Cargar la lista de archivos del manifiesto ANTIGUO, si existe.
+      Set<String> finalPaths = newPaths
+          .toSet(); // Usamos un Set para evitar duplicados.
+      if (await manifestFile.exists()) {
+        try {
+          final oldContent = await manifestFile.readAsString();
+          final List<String> oldPaths = List<String>.from(
+            json.decode(oldContent),
+          );
+          // 3. Añadir los archivos antiguos a la lista final.
+          finalPaths.addAll(oldPaths);
+        } catch (e) {
+          print(
+            "No se pudo leer el manifiesto antiguo de UE4SS, será reemplazado. Error: $e",
+          );
+        }
+      }
+
+      // 4. Escribir la lista combinada y final en el manifiesto.
+      await manifestFile.writeAsString(json.encode(finalPaths.toList()));
+      // ++ FIN DE LA NUEVA LÓGICA DE COMBINACIÓN ++
+
+      final destinationDir = Directory(
+        p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64'),
+      );
+      await _copyDirectory(sourceDir, destinationDir);
+
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.success,
+        title: l10n.snackBarUE4SSInstalled,
+      );
+
+      setState(() {
+        _statusMessage = l10n.statusUE4SSInstallComplete;
+        _isUe4ssInstalled = true;
+        _clearSelection();
+      });
+    } catch (e) {
+      setState(() {
+        _statusMessage = l10n.statusError(e.toString());
+        _statusColor = Colors.redAccent;
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _processArchives(List<File> archives) async {
     final l10n = AppLocalizations.of(context)!;
     setState(() {
       _isExtracting = true;
@@ -1712,9 +1900,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       } catch (e) {
         print('Could not clean up previous temporary directory: $e');
       }
-      _tempExtractionDir =
-          Directory.systemTemp.createTempSync('mod_manager_');
-      
+      _tempExtractionDir = Directory.systemTemp.createTempSync('mod_manager_');
+
       _preparedMods.clear();
 
       for (int i = 0; i < archives.length; i++) {
@@ -1723,13 +1910,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
         setState(() {
           _extractionProgress = (i + 1) / archives.length;
-          _extractionStatus = l10n.statusExtractingMultipleFiles(i + 1, fileName, archives.length);
+          _extractionStatus = l10n.statusExtractingMultipleFiles(
+            i + 1,
+            fileName,
+            archives.length,
+          );
         });
 
         final nexusInfo = await _extractNexusInfoFromName(fileName);
-        final archiveTempDir = Directory(p.join(_tempExtractionDir!.path, i.toString()));
+        final archiveTempDir = Directory(
+          p.join(_tempExtractionDir!.path, i.toString()),
+        );
         await archiveTempDir.create();
-        
+
         final extension = p.extension(archiveFile.path).toLowerCase();
 
         if (['.zip', '.rar', '.7z'].contains(extension)) {
@@ -1739,12 +1932,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               throw Exception(l10n.error7zipRequired);
             }
           }
-          final result = await Process.run(
-            _7zipPath!,
-            ['x', archiveFile.path, '-o${archiveTempDir.path}', '-y'],
-          );
+          final result = await Process.run(_7zipPath!, [
+            'x',
+            archiveFile.path,
+            '-o${archiveTempDir.path}',
+            '-y',
+          ]);
           if (result.exitCode != 0) {
-            throw Exception(l10n.error7zipDecompression(result.stderr.toString()));
+            throw Exception(
+              l10n.error7zipDecompression(result.stderr.toString()),
+            );
           }
         } else {
           throw Exception(l10n.errorUnsupportedFormat(extension));
@@ -1754,7 +1951,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
         if (ue4ssRoot != null) {
           _preparedUE4SS = _PreparedUE4SS(sourceDir: ue4ssRoot);
-          continue; 
+          continue;
         }
 
         final sbDir = Directory(p.join(archiveTempDir.path, 'SB'));
@@ -1766,45 +1963,61 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         } else {
           final allModFiles = await _findAllModFilesRecursive(archiveTempDir);
 
-          final jsonFiles = allModFiles.where((f) => p.extension(f.path).toLowerCase() == '.json').toList();
-          final pakFiles = allModFiles.where((f) => ['.pak', '.ucas', '.utoc'].contains(p.extension(f.path).toLowerCase())).toList();
+          final jsonFiles = allModFiles
+              .where((f) => p.extension(f.path).toLowerCase() == '.json')
+              .toList();
+          final pakFiles = allModFiles
+              .where(
+                (f) => [
+                  '.pak',
+                  '.ucas',
+                  '.utoc',
+                ].contains(p.extension(f.path).toLowerCase()),
+              )
+              .toList();
 
           if (jsonFiles.isNotEmpty && pakFiles.isNotEmpty) {
-            
-            final consolidatedDir = await Directory(p.join(archiveTempDir.path, '_consolidated_')).create();
+            final consolidatedDir = await Directory(
+              p.join(archiveTempDir.path, '_consolidated_'),
+            ).create();
 
             for (final modFile in allModFiles) {
-              final newPath = p.join(consolidatedDir.path, p.basename(modFile.path));
+              final newPath = p.join(
+                consolidatedDir.path,
+                p.basename(modFile.path),
+              );
               await modFile.copy(newPath);
             }
-            
-            _preparedMods.add(_PreparedMod(
-              sourceDir: consolidatedDir,
-              nexusId: nexusInfo?['id'],
-              nexusVersion: nexusInfo?['version'],
-            ));
 
+            _preparedMods.add(
+              _PreparedMod(
+                sourceDir: consolidatedDir,
+                nexusId: nexusInfo?['id'],
+                nexusVersion: nexusInfo?['version'],
+              ),
+            );
           } else {
             final foundModDirs = await _findValidModDirectories(archiveTempDir);
             for (final modDir in foundModDirs) {
-              _preparedMods.add(_PreparedMod(
-                sourceDir: modDir,
-                nexusId: nexusInfo?['id'],
-                nexusVersion: nexusInfo?['version'],
-              ));
+              _preparedMods.add(
+                _PreparedMod(
+                  sourceDir: modDir,
+                  nexusId: nexusInfo?['id'],
+                  nexusVersion: nexusInfo?['version'],
+                ),
+              );
             }
           }
         }
       }
 
       if (_preparedUE4SS != null) {
-        _preparedMods.clear(); 
+        _preparedMods.clear();
         await _promptAndInstallUE4SS(_preparedUE4SS!.sourceDir);
       } else if (cnsUpdateInitiated && _preparedMods.isEmpty) {
       } else {
         await _prepareInstallationPreview();
       }
-
     } catch (e) {
       setState(() {
         _statusMessage = l10n.statusError(e.toString());
@@ -1817,7 +2030,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  
   Future<List<Directory>> _findValidModDirectories(Directory root) async {
     final List<Directory> found = [];
     bool isRootAMod = false;
@@ -1868,7 +2080,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _prepareInstallationPreview() async {
     if (_preparedMods.isEmpty) {
-      _clearSelection(message: AppLocalizations.of(context)!.errorNoCompatibleFilesInArchive);
+      _clearSelection(
+        message: AppLocalizations.of(context)!.errorNoCompatibleFilesInArchive,
+      );
       return;
     }
 
@@ -1881,203 +2095,250 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         if (preparedMod.nexusVersion != null) {
           finalFolderName = '$finalFolderName v${preparedMod.nexusVersion}';
         }
-        
-        final files = preparedMod.sourceDir.listSync().whereType<File>().map((f) => p.basename(f.path)).toList();
+
+        final files = preparedMod.sourceDir
+            .listSync()
+            .whereType<File>()
+            .map((f) => p.basename(f.path))
+            .toList();
         previewMap[finalFolderName] = files;
       }
     }
 
     setState(() {
       _modsToInstallPreviewMap = previewMap;
-      _statusMessage = AppLocalizations.of(context)!.statusFilesSelected(_modsToInstallPreviewMap.length);
+      _statusMessage = AppLocalizations.of(
+        context,
+      )!.statusFilesSelected(_modsToInstallPreviewMap.length);
       _statusColor = Colors.white;
     });
   }
 
-
   Future<void> _promptAndUpdateCNS(Directory sourceSBDir) async {
-  final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context)!;
 
-  if (!_isUe4ssInstalled) {
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.ue4ssRequiredTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.ue4ssRequiredContent),
-            const SizedBox(height: 20),
-            InkWell(
-              onTap: () => launchUrl(Uri.parse("https://github.com/Chrisr0/RE-UE4SS/releases")),
-              child: const Text(
-                "https://github.com/Chrisr0/RE-UE4SS/releases",
-                style: TextStyle(
-                  color: Colors.tealAccent,
-                  decoration: TextDecoration.underline,
+    if (!_isUe4ssInstalled) {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: const Color(0xFF2a2a2a),
+          title: Text(l10n.ue4ssRequiredTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l10n.ue4ssRequiredContent),
+              const SizedBox(height: 20),
+              InkWell(
+                onTap: () => launchUrl(
+                  Uri.parse("https://github.com/Chrisr0/RE-UE4SS/releases"),
+                ),
+                child: const Text(
+                  "https://github.com/Chrisr0/RE-UE4SS/releases",
+                  style: TextStyle(
+                    color: Colors.tealAccent,
+                    decoration: TextDecoration.underline,
+                  ),
                 ),
               ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.dialogActionClose),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.dialogActionClose),
-          ),
-        ],
-      ),
-    );
-    return; // Detiene la instalación si UE4SS no está presente.
-  }
-
-  final newVersion = await _getVersionFromCnsPackage(sourceSBDir);
-  
-  if (_isCnsCoreInstalled) {
-    // CASO: YA HAY UNA VERSIÓN INSTALADA (Actualizar, Reinstalar o Revertir)
-    final oldVersion = _cnsVersion ?? "N/A";
-    
-    // Comparamos la nueva versión con la antigua.
-    final comparison = (newVersion != null && _cnsVersion != null)
-        ? _compareVersions(newVersion, _cnsVersion!)
-        : 1; // Si no podemos comparar, asumimos que es una actualización.
-
-    String title, content, actionText;
-    Color actionColor = Colors.orangeAccent;
-
-    if (comparison > 0) {
-      // UPDATE (Actualización)
-      title = l10n.dialogTitleCNSUpdate;
-      content = l10n.dialogContentCNSUpdate(oldVersion, newVersion!);
-      actionText = l10n.dialogActionUpdate;
-      actionColor = Colors.tealAccent;
-    } else if (comparison < 0) {
-      // DOWNGRADE (Revertir)
-      title = l10n.dialogTitleCNSDowngrade;
-      content = l10n.dialogContentCNSDowngrade(oldVersion, newVersion!);
-      actionText = l10n.dialogActionDowngrade;
-      actionColor = Colors.redAccent;
-    } else {
-      // REINSTALL (Misma versión)
-      title = l10n.dialogTitleCNSReinstall;
-      content = l10n.dialogContentCNSReinstallVersion(newVersion ?? oldVersion);
-      actionText = l10n.dialogActionReinstall;
+      );
+      return; // Detiene la instalación si UE4SS no está presente.
     }
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(title),
-        content: Text(content),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l10n.dialogActionCancel)),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: actionColor),
-            child: Text(actionText),
-          ),
-        ],
-      )
-    );
-    if (confirm != true) return;
-  } else {
+    final newVersion = await _getVersionFromCnsPackage(sourceSBDir);
+
+    if (_isCnsCoreInstalled) {
+      // CASO: YA HAY UNA VERSIÓN INSTALADA (Actualizar, Reinstalar o Revertir)
+      final oldVersion = _cnsVersion ?? "N/A";
+
+      // Comparamos la nueva versión con la antigua.
+      final comparison = (newVersion != null && _cnsVersion != null)
+          ? _compareVersions(newVersion, _cnsVersion!)
+          : 1; // Si no podemos comparar, asumimos que es una actualización.
+
+      String title, content, actionText;
+      Color actionColor = Colors.orangeAccent;
+
+      if (comparison > 0) {
+        // UPDATE (Actualización)
+        title = l10n.dialogTitleCNSUpdate;
+        content = l10n.dialogContentCNSUpdate(oldVersion, newVersion!);
+        actionText = l10n.dialogActionUpdate;
+        actionColor = Colors.tealAccent;
+      } else if (comparison < 0) {
+        // DOWNGRADE (Revertir)
+        title = l10n.dialogTitleCNSDowngrade;
+        content = l10n.dialogContentCNSDowngrade(oldVersion, newVersion!);
+        actionText = l10n.dialogActionDowngrade;
+        actionColor = Colors.redAccent;
+      } else {
+        // REINSTALL (Misma versión)
+        title = l10n.dialogTitleCNSReinstall;
+        content = l10n.dialogContentCNSReinstallVersion(
+          newVersion ?? oldVersion,
+        );
+        actionText = l10n.dialogActionReinstall;
+      }
+
       final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.dialogTitleCNSInstall),
-        content: Text(l10n.dialogContentCNSInstall),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l10n.dialogActionCancel)),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
-            child: Text(l10n.dialogActionInstall),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) {
-      setState(() => _statusMessage = l10n.statusUpdateSystemCancelled);
-      return;
-    }
-  }
-
-  setState(() { _isLoading = true; _statusMessage = l10n.statusUpdatingCNS; });
-
-  try {
-    if (_gameRootPath == null) throw Exception(l10n.errorGamePathUndefined);
-    
-    final manifestDir = Directory(p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', '_manager_metadata'));
-    if (!await manifestDir.exists()) await manifestDir.create(recursive: true);
-    final manifestFile = File(p.join(manifestDir.path, 'cns_manifest.json'));
-
-    // ++ INICIO DE LA NUEVA LÓGICA DE COMBINACIÓN ++
-    // 1. Generar la lista de archivos de la NUEVA instalación.
-    final newPaths = await _generateInstallManifest(sourceSBDir, sourceSBDir.path);
-
-    // 2. Cargar la lista de archivos del manifiesto ANTIGUO, si existe.
-    Set<String> finalPaths = newPaths.toSet();
-    if (await manifestFile.exists()) {
-      try {
-        final oldContent = await manifestFile.readAsString();
-        final List<String> oldPaths = List<String>.from(json.decode(oldContent));
-        // 3. Añadir los archivos antiguos a la lista final.
-        finalPaths.addAll(oldPaths);
-      } catch (e) {
-        print("No se pudo leer el manifiesto antiguo de CNS, será reemplazado. Error: $e");
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: const Color(0xFF2a2a2a),
+          title: Text(title),
+          content: Text(content),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l10n.dialogActionCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: actionColor),
+              child: Text(actionText),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    } else {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: const Color(0xFF2a2a2a),
+          title: Text(l10n.dialogTitleCNSInstall),
+          content: Text(l10n.dialogContentCNSInstall),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l10n.dialogActionCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
+              child: Text(l10n.dialogActionInstall),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) {
+        setState(() => _statusMessage = l10n.statusUpdateSystemCancelled);
+        return;
       }
     }
 
-    // 4. Escribir la lista combinada y final en el manifiesto.
-    await manifestFile.writeAsString(json.encode(finalPaths.toList()));
-    // ++ FIN DE LA NUEVA LÓGICA DE COMBINACIÓN ++
+    setState(() {
+      _isLoading = true;
+      _statusMessage = l10n.statusUpdatingCNS;
+    });
 
-    final destinationSBDir = Directory(p.join(_gameRootPath!, 'SB'));
-    await _copyDirectory(sourceSBDir, destinationSBDir);
-    
-    String? versionFromLua;
-    // ... (el resto de la lógica de la función no cambia)
     try {
-      final luaFile = File(p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss', 'Mods', 'DekCNS', 'Scripts', 'main.lua'));
-      if (await luaFile.exists()) {
-        final content = await luaFile.readAsString();
-        final regex = RegExp(r'local CNS_Version = "(.+)"');
-        final match = regex.firstMatch(content);
-        if (match != null && match.group(1) != null) {
-          versionFromLua = match.group(1);
+      if (_gameRootPath == null) throw Exception(l10n.errorGamePathUndefined);
+
+      final manifestDir = Directory(
+        p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', '_manager_metadata'),
+      );
+      if (!await manifestDir.exists())
+        await manifestDir.create(recursive: true);
+      final manifestFile = File(p.join(manifestDir.path, 'cns_manifest.json'));
+
+      // ++ INICIO DE LA NUEVA LÓGICA DE COMBINACIÓN ++
+      // 1. Generar la lista de archivos de la NUEVA instalación.
+      final newPaths = await _generateInstallManifest(
+        sourceSBDir,
+        sourceSBDir.path,
+      );
+
+      // 2. Cargar la lista de archivos del manifiesto ANTIGUO, si existe.
+      Set<String> finalPaths = newPaths.toSet();
+      if (await manifestFile.exists()) {
+        try {
+          final oldContent = await manifestFile.readAsString();
+          final List<String> oldPaths = List<String>.from(
+            json.decode(oldContent),
+          );
+          // 3. Añadir los archivos antiguos a la lista final.
+          finalPaths.addAll(oldPaths);
+        } catch (e) {
+          print(
+            "No se pudo leer el manifiesto antiguo de CNS, será reemplazado. Error: $e",
+          );
         }
       }
-    } catch (e) { /* ... */ }
 
-    // ... (resto de la lógica para crear nexus_info.json sin cambios)
-    
-    NotificationService.instance.show(
-      context: context, type: NotificationType.success, title: l10n.snackBarCNSUpdated,
-    );
-    setState(() {
-      _statusMessage = l10n.statusUpdateComplete;
-      _isCnsCoreInstalled = true;
-      _clearSelection();
-    });
-    
-    await _readCNSData();
-    
-  } catch (e) {
-    setState(() { _statusMessage = l10n.statusError(e.toString()); _statusColor = Colors.redAccent; });
-  } finally {
-    setState(() => _isLoading = false);
+      // 4. Escribir la lista combinada y final en el manifiesto.
+      await manifestFile.writeAsString(json.encode(finalPaths.toList()));
+      // ++ FIN DE LA NUEVA LÓGICA DE COMBINACIÓN ++
+
+      final destinationSBDir = Directory(p.join(_gameRootPath!, 'SB'));
+      await _copyDirectory(sourceSBDir, destinationSBDir);
+
+      // ignore: unused_local_variable
+      String? versionFromLua;
+      try {
+        final luaFile = File(
+          p.join(
+            _gameRootPath!,
+            'SB',
+            'Binaries',
+            'Win64',
+            'ue4ss',
+            'Mods',
+            'DekCNS',
+            'Scripts',
+            'main.lua',
+          ),
+        );
+        if (await luaFile.exists()) {
+          final content = await luaFile.readAsString();
+          final regex = RegExp(r'local CNS_Version = "(.+)"');
+          final match = regex.firstMatch(content);
+          if (match != null && match.group(1) != null) {
+            versionFromLua = match.group(1);
+          }
+        }
+      } catch (e) {
+        /* ... */
+      }
+
+      // ... (resto de la lógica para crear nexus_info.json sin cambios)
+
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.success,
+        title: l10n.snackBarCNSUpdated,
+      );
+      setState(() {
+        _statusMessage = l10n.statusUpdateComplete;
+        _isCnsCoreInstalled = true;
+        _clearSelection();
+      });
+
+      await _readCNSData();
+    } catch (e) {
+      setState(() {
+        _statusMessage = l10n.statusError(e.toString());
+        _statusColor = Colors.redAccent;
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
-}
 
   Future<void> _copyDirectory(Directory source, Directory destination) async {
     await for (var entity in source.list(recursive: false)) {
       if (entity is Directory) {
-        var newDirectory =
-            Directory(p.join(destination.absolute.path, p.basename(entity.path)));
+        var newDirectory = Directory(
+          p.join(destination.absolute.path, p.basename(entity.path)),
+        );
         await newDirectory.create();
         await _copyDirectory(entity.absolute, newDirectory.absolute);
       } else if (entity is File) {
@@ -2087,109 +2348,115 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<void> _installMod() async {
-  final l10n = AppLocalizations.of(context)!;
-  if (_finalModsPath == null) {
+    final l10n = AppLocalizations.of(context)!;
+    if (_finalModsPath == null) {
+      setState(() {
+        _statusMessage = l10n.errorGamePathUndefined;
+        _statusColor = Colors.redAccent;
+      });
+      return;
+    }
+    if (_preparedMods.isEmpty) {
+      setState(() {
+        _statusMessage = l10n.errorInstallNoSelection;
+        _statusColor = Colors.redAccent;
+      });
+      return;
+    }
+
     setState(() {
-      _statusMessage = l10n.errorGamePathUndefined;
-      _statusColor = Colors.redAccent;
+      _isLoading = true;
+      _lastInstalledModNames.clear();
     });
-    return;
-  }
-  if (_preparedMods.isEmpty) {
-    setState(() {
-      _statusMessage = l10n.errorInstallNoSelection;
-      _statusColor = Colors.redAccent;
-    });
-    return;
-  }
 
-  setState(() {
-    _isLoading = true;
-    _lastInstalledModNames.clear();
-  });
+    List<String> installedNames = [];
+    String? errorMessage;
+    int successCount = 0;
+    int failCount = 0;
 
-  List<String> installedNames = [];
-  String? errorMessage;
-  int successCount = 0;
-  int failCount = 0;
-
-  try {
-    for (final preparedMod in _preparedMods) {
-      try {
-        final modName = await _installSingleModFromDirectory(
-          preparedMod.sourceDir,
-          nexusId: preparedMod.nexusId,
-          nexusVersion: preparedMod.nexusVersion,
-        );
-        if (modName != null) {
-          installedNames.add(modName);
-          successCount++;
-          // ++ CORRECTION: The individual notification that appeared inside this loop has been removed. ++
-        } else {
+    try {
+      for (final preparedMod in _preparedMods) {
+        try {
+          final modName = await _installSingleModFromDirectory(
+            preparedMod.sourceDir,
+            nexusId: preparedMod.nexusId,
+            nexusVersion: preparedMod.nexusVersion,
+          );
+          if (modName != null) {
+            installedNames.add(modName);
+            successCount++;
+            // ++ CORRECTION: The individual notification that appeared inside this loop has been removed. ++
+          } else {
+            failCount++;
+          }
+        } catch (e) {
+          print('Failed to install mod from ${preparedMod.sourceDir.path}: $e');
           failCount++;
         }
-      } catch (e) {
-        print('Failed to install mod from ${preparedMod.sourceDir.path}: $e');
-        failCount++;
       }
-    }
 
-    if (mounted) {
-      // This block now correctly handles showing the final summary.
-      if (_preparedMods.length > 1) {
-        NotificationService.instance.show(
-          context: context,
-          type: failCount > 0
-              ? (successCount > 0 ? NotificationType.info : NotificationType.error)
-              : NotificationType.success,
-          title: l10n.snackBarBatchInstallComplete(failCount, successCount),
-        );
-      } else if (successCount == 1) {
-        NotificationService.instance.show(
-          context: context,
-          type: NotificationType.success,
-          title: l10n.snackBarModInstalled(installedNames.first),
-        );
+      if (mounted) {
+        // This block now correctly handles showing the final summary.
+        if (_preparedMods.length > 1) {
+          NotificationService.instance.show(
+            context: context,
+            type: failCount > 0
+                ? (successCount > 0
+                      ? NotificationType.info
+                      : NotificationType.error)
+                : NotificationType.success,
+            title: l10n.snackBarBatchInstallComplete(failCount, successCount),
+          );
+        } else if (successCount == 1) {
+          NotificationService.instance.show(
+            context: context,
+            type: NotificationType.success,
+            title: l10n.snackBarModInstalled(installedNames.first),
+          );
+        }
       }
-    }
-  } catch (e) {
-    errorMessage = e.toString();
-    if (mounted) {
-      NotificationService.instance.show(
-        context: context,
-        type: NotificationType.error,
-        title: l10n.statusError(errorMessage),
-      );
-    }
-  } finally {
-    setState(() {
-      _lastInstalledModNames = installedNames;
-      if (errorMessage == null) {
-        _statusMessage = installedNames.isNotEmpty
-            ? l10n.statusInstallationComplete
-            : 'Installation produced no new mods.';
-      } else {
-        _statusMessage = l10n.statusError(errorMessage);
-        _statusColor = Colors.redAccent;
-      }
-      _clearSelection();
-      _isLoading = false;
-    });
-    await _loadAllMods(clearHighlight: false);
-    try {
-      if (_tempExtractionDir != null && await _tempExtractionDir!.exists()) {
-        await _tempExtractionDir!.delete(recursive: true);
-      }
-      _tempExtractionDir = null;
-      await _cleanUpOrphanedTempDirs();
     } catch (e) {
-      print('Failed to clean up temp directory: $e');
+      errorMessage = e.toString();
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: l10n.statusError(errorMessage),
+        );
+      }
+    } finally {
+      setState(() {
+        _lastInstalledModNames = installedNames;
+        if (errorMessage == null) {
+          _statusMessage = installedNames.isNotEmpty
+              ? l10n.statusInstallationComplete
+              : 'Installation produced no new mods.';
+        } else {
+          _statusMessage = l10n.statusError(errorMessage);
+          _statusColor = Colors.redAccent;
+        }
+        _clearSelection();
+        _isLoading = false;
+      });
+      await _loadAllMods(clearHighlight: false);
+      try {
+        if (_tempExtractionDir != null && await _tempExtractionDir!.exists()) {
+          await _tempExtractionDir!.delete(recursive: true);
+        }
+        _tempExtractionDir = null;
+        await _cleanUpOrphanedTempDirs();
+      } catch (e) {
+        print('Failed to clean up temp directory: $e');
+      }
     }
   }
-}
 
-  Future<String?> _installSingleModFromDirectory(Directory modDir,
-      {bool recursive = false, String? nexusId, String? nexusVersion}) async {
+  Future<String?> _installSingleModFromDirectory(
+    Directory modDir, {
+    bool recursive = false,
+    String? nexusId,
+    String? nexusVersion,
+  }) async {
     const validExtensions = ['.pak', '.ucas', '.utoc', '.json'];
     final List<File> files = [];
     await for (final entity in modDir.list(recursive: recursive)) {
@@ -2201,8 +2468,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     if (files.isEmpty) return null;
 
-    return await _installSingleModFromListOfFiles(files,
-        nexusId: nexusId, nexusVersion: nexusVersion);
+    return await _installSingleModFromListOfFiles(
+      files,
+      nexusId: nexusId,
+      nexusVersion: nexusVersion,
+    );
   }
 
   Future<String?> _getCompositeDisplayName(Directory modDir) async {
@@ -2227,8 +2497,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           final modInfo = jsonDecoded[0] as Map<String, dynamic>;
           final displayName = modInfo['DisplayName'] as String?;
           if (displayName != null && displayName.trim().isNotEmpty) {
-            final sanitizedDisplayName =
-                displayName.trim().replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
+            final sanitizedDisplayName = displayName.trim().replaceAll(
+              RegExp(r'[\\/:*?"<>|]'),
+              '-',
+            );
             displayNames.add(sanitizedDisplayName);
           }
         }
@@ -2247,7 +2519,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<String?> _getFitMeshTypeForMod(Directory modDir) async {
     try {
       await for (final entity in modDir.list()) {
-        if (entity is File && p.extension(entity.path).toLowerCase() == '.json') {
+        if (entity is File &&
+            p.extension(entity.path).toLowerCase() == '.json') {
           var jsonString = await entity.readAsString();
           jsonString = jsonString.replaceAll(RegExp(r',\s*(?=[\}\]])'), '');
           final jsonDecoded = json.decode(jsonString);
@@ -2279,7 +2552,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             final modInfo = jsonDecoded[0] as Map<String, dynamic>;
             final displayName = modInfo['DisplayName'] as String?;
             if (displayName != null && displayName.trim().isNotEmpty) {
-              return displayName.trim().replaceAll(RegExp(r'[\\/:*?"<>|]'), '-');
+              return displayName.trim().replaceAll(
+                RegExp(r'[\\/:*?"<>|]'),
+                '-',
+              );
             }
           }
           break;
@@ -2290,7 +2566,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
     return null;
   }
-  
+
   Future<String> _getComparableNameForMod(ModInfo mod) async {
     return mod.displayName;
   }
@@ -2303,22 +2579,29 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final l10n = AppLocalizations.of(context)!;
     final oldVersion = oldVersionMod.localVersion ?? 'N/A';
     final newVersionStr = newVersion ?? 'N/A';
-    final modName = oldVersionMod.customName; 
-    
+    final modName = oldVersionMod.customName;
+
     String title = l10n.dialogTitleAlternativeVersion;
     String content;
     String replaceActionText = l10n.dialogActionReplace;
 
     if (oldVersionMod.localVersion != null && newVersion != null) {
-      final comparison = _compareVersions(newVersion, oldVersionMod.localVersion!);
-      
+      final comparison = _compareVersions(
+        newVersion,
+        oldVersionMod.localVersion!,
+      );
+
       if (comparison > 0) {
         title = l10n.dialogTitleUpdate;
         content = l10n.dialogContentUpdate(modName, oldVersion, newVersionStr);
         replaceActionText = l10n.dialogActionUpdate;
       } else if (comparison < 0) {
         title = l10n.dialogTitleDowngrade;
-        content = l10n.dialogContentDowngrade(modName, oldVersion, newVersionStr);
+        content = l10n.dialogContentDowngrade(
+          modName,
+          oldVersion,
+          newVersionStr,
+        );
         replaceActionText = l10n.dialogActionDowngrade;
       } else {
         title = l10n.dialogTitleReinstall;
@@ -2326,7 +2609,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         replaceActionText = l10n.dialogActionReinstall;
       }
     } else {
-      content = l10n.dialogContentAlternativeVersion(modName, baseDisplayName, baseDisplayName);
+      content = l10n.dialogContentAlternativeVersion(
+        modName,
+        baseDisplayName,
+        baseDisplayName,
+      );
     }
 
     return showDialog<_AlternativeVersionAction>(
@@ -2356,8 +2643,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 
-  Future<String> _installSingleModFromListOfFiles(List<File> files,
-      {String? nexusId, String? nexusVersion}) async {
+  Future<String> _installSingleModFromListOfFiles(
+    List<File> files, {
+    String? nexusId,
+    String? nexusVersion,
+  }) async {
     final l10n = AppLocalizations.of(context)!;
     final tempModDir = files.first.parent;
     String? preservedCustomName;
@@ -2370,7 +2660,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
 
     String finalFolderName = baseDisplayName;
-    
+
     ModInfo? oldVersionMod;
     _AlternativeVersionAction? action;
 
@@ -2402,7 +2692,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           builder: (context) => AlertDialog(
             backgroundColor: const Color(0xFF2a2a2a),
             title: Text(l10n.dialogTitleAlternativeVersion),
-            content: Text(l10n.dialogContentAlternativeVersion(existingModExample, baseDisplayName, finalFolderName)),
+            content: Text(
+              l10n.dialogContentAlternativeVersion(
+                existingModExample,
+                baseDisplayName,
+                finalFolderName,
+              ),
+            ),
             actions: <Widget>[
               TextButton(
                 onPressed: () =>
@@ -2410,11 +2706,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 child: Text(l10n.dialogActionCancel),
               ),
               ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(_AlternativeVersionAction.installAsNew),
+                onPressed: () => Navigator.of(
+                  context,
+                ).pop(_AlternativeVersionAction.installAsNew),
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.tealAccent,
-                    foregroundColor: Colors.black),
+                  backgroundColor: Colors.tealAccent,
+                  foregroundColor: Colors.black,
+                ),
                 child: Text(l10n.dialogActionInstallAsNew),
               ),
             ],
@@ -2429,21 +2727,25 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         }
       }
       if (oldVersionMod != null) {
-          action = await _showSmartInstallDialog(
-            oldVersionMod: oldVersionMod,
-            baseDisplayName: baseDisplayName,
-            newVersion: nexusVersion,
-          );
+        action = await _showSmartInstallDialog(
+          oldVersionMod: oldVersionMod,
+          baseDisplayName: baseDisplayName,
+          newVersion: nexusVersion,
+        );
       }
     }
 
     if (action != null) {
       switch (action) {
         case _AlternativeVersionAction.replace:
-          if(oldVersionMod == null) {
-             throw Exception("Attempted to replace a mod but no old version was identified.");
+          if (oldVersionMod == null) {
+            throw Exception(
+              "Attempted to replace a mod but no old version was identified.",
+            );
           }
-          final oldInfoFile = File(p.join(oldVersionMod.directory.path, 'nexus_info.json'));
+          final oldInfoFile = File(
+            p.join(oldVersionMod.directory.path, 'nexus_info.json'),
+          );
           if (await oldInfoFile.exists()) {
             try {
               final oldData = json.decode(await oldInfoFile.readAsString());
@@ -2457,10 +2759,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           }
 
           final oldModName = oldVersionMod.customName;
-          final deleted = await _deleteDirectoryWithRetry(oldVersionMod.directory);
+          final deleted = await _deleteDirectoryWithRetry(
+            oldVersionMod.directory,
+          );
           if (!deleted) {
-            throw Exception(
-                'Could not delete old mod version ($oldModName).');
+            throw Exception('Could not delete old mod version ($oldModName).');
           }
           break;
         case _AlternativeVersionAction.installAsNew:
@@ -2471,7 +2774,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           throw Exception(l10n.statusInstallationCancelledByUser);
       }
     }
-    
+
     final newModPath = p.join(_finalModsPath!, finalFolderName);
 
     if (await Directory(newModPath).exists()) {
@@ -2483,8 +2786,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           content: Text(l10n.dialogContentModExists(finalFolderName)),
           actions: [
             TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(l10n.dialogActionCancel)),
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l10n.dialogActionCancel),
+            ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
@@ -2509,11 +2813,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             print('Could not read old custom name. Defaulting. Error: $e');
           }
         }
-        final deleted =
-            await _deleteDirectoryWithRetry(Directory(newModPath));
+        final deleted = await _deleteDirectoryWithRetry(Directory(newModPath));
         if (!deleted) {
           throw Exception(
-              'Could not delete existing mod ($finalFolderName) to reinstall after several attempts.');
+            'Could not delete existing mod ($finalFolderName) to reinstall after several attempts.',
+          );
         }
       }
     }
@@ -2570,7 +2874,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       final newDirectory = Directory(p.join(_finalModsPath!, modName));
 
       await _moveMod(modInfo.directory, _finalModsPath!);
-      
+
       /*if (mounted) {
         NotificationService.instance.show(
           context: context,
@@ -2580,12 +2884,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }*/
 
       // --- INICIO DE LA LÓGICA SIN PARPADEO ---
-      final modIndex = _allMods.indexWhere((m) => m.directory.path == modInfo.directory.path);
+      final modIndex = _allMods.indexWhere(
+        (m) => m.directory.path == modInfo.directory.path,
+      );
       if (modIndex != -1) {
         // Crea una copia del mod con el estado y la nueva ruta actualizados
         final updatedMod = ModInfo(
           directory: newDirectory, // <-- Actualiza la ruta
-          isEnabled: true,         // <-- Actualiza el estado
+          isEnabled: true, // <-- Actualiza el estado
           // Mantiene el resto de la información intacta
           nexusId: modInfo.nexusId,
           localVersion: modInfo.localVersion,
@@ -2606,10 +2912,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         await _loadAllMods(); // Fallback por si algo sale mal
       }
       // --- FIN DE LA LÓGICA SIN PARPADEO ---
-
     } catch (e) {
       setState(() {
-        _statusMessage = AppLocalizations.of(context)!.errorEnableMod(e.toString());
+        _statusMessage = AppLocalizations.of(
+          context,
+        )!.errorEnableMod(e.toString());
         _statusColor = Colors.redAccent;
       });
       await _loadAllMods(); // Si hay un error, recarga todo por seguridad
@@ -2621,13 +2928,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<void> _disableMod(ModInfo modInfo) async {
     if (_gameRootPath == null) return;
     setState(() => _isLoading = true);
-    
+
     try {
-      final backupDir = Directory(p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__'));
+      final backupDir = Directory(
+        p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__'),
+      );
       if (!await backupDir.exists()) {
         await backupDir.create(recursive: true);
       }
-      
+
       final modName = p.basename(modInfo.directory.path);
       final newDirectory = Directory(p.join(backupDir.path, modName));
 
@@ -2642,12 +2951,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }*/
 
       // --- INICIO DE LA LÓGICA SIN PARPADEO ---
-      final modIndex = _allMods.indexWhere((m) => m.directory.path == modInfo.directory.path);
+      final modIndex = _allMods.indexWhere(
+        (m) => m.directory.path == modInfo.directory.path,
+      );
       if (modIndex != -1) {
         // Crea una copia del mod con el estado y la nueva ruta actualizados
         final updatedMod = ModInfo(
           directory: newDirectory, // <-- Actualiza la ruta
-          isEnabled: false,        // <-- Actualiza el estado
+          isEnabled: false, // <-- Actualiza el estado
           // Mantiene el resto de la información intacta
           nexusId: modInfo.nexusId,
           localVersion: modInfo.localVersion,
@@ -2668,10 +2979,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         await _loadAllMods(); // Fallback por si algo sale mal
       }
       // --- FIN DE LA LÓGICA SIN PARPADEO ---
-      
     } catch (e) {
       setState(() {
-        _statusMessage = AppLocalizations.of(context)!.errorDisableMod(e.toString());
+        _statusMessage = AppLocalizations.of(
+          context,
+        )!.errorDisableMod(e.toString());
         _statusColor = Colors.redAccent;
       });
       await _loadAllMods(); // Si hay un error, recarga todo por seguridad
@@ -2691,8 +3003,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         content: Text(l10n.dialogContentDeleteMod(modName)),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(l10n.dialogActionCancel)),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.dialogActionCancel),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
@@ -2772,7 +3085,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (_finalModsPath == null) {
         throw Exception("Mods path is not defined.");
       }
-      
+
       // Guarda las rutas originales de los mods que vamos a mover
       final modsToUpdate = {for (var mod in disabledMods) mod.directory.path};
 
@@ -2788,11 +3101,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           final newDirectory = Directory(p.join(_finalModsPath!, modName));
           // Devuelve una copia actualizada del mod
           return ModInfo(
-            directory: newDirectory, isEnabled: true,
-            nexusId: originalMod.nexusId, localVersion: originalMod.localVersion,
-            lastModified: originalMod.lastModified, origin: originalMod.origin,
-            displayName: originalMod.displayName, customName: originalMod.customName,
-            gallery: originalMod.gallery, fitMeshType: originalMod.fitMeshType,
+            directory: newDirectory,
+            isEnabled: true,
+            nexusId: originalMod.nexusId,
+            localVersion: originalMod.localVersion,
+            lastModified: originalMod.lastModified,
+            origin: originalMod.origin,
+            displayName: originalMod.displayName,
+            customName: originalMod.customName,
+            gallery: originalMod.gallery,
+            fitMeshType: originalMod.fitMeshType,
             customCoverPath: originalMod.customCoverPath,
             customCoverAlignment: originalMod.customCoverAlignment,
             customCoverLastModified: originalMod.customCoverLastModified,
@@ -2816,7 +3134,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     } catch (e) {
       setState(() {
-        _statusMessage = AppLocalizations.of(context)!.errorEnableMod(e.toString());
+        _statusMessage = AppLocalizations.of(
+          context,
+        )!.errorEnableMod(e.toString());
         _statusColor = Colors.redAccent;
       });
       await _loadAllMods(); // Mantenemos la recarga total solo en caso de error
@@ -2830,14 +3150,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final enabledMods = _allMods.where((mod) => mod.isEnabled).toList();
 
     if (enabledMods.isEmpty) {
-        if (mounted) {
-          NotificationService.instance.show(
-            context: context,
-            type: NotificationType.info,
-            title: l10n.snackBarNoModsToDisable,
-          );
-        }
-        return;
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.info,
+          title: l10n.snackBarNoModsToDisable,
+        );
+      }
+      return;
     }
 
     final confirm = await showDialog<bool>(
@@ -2848,8 +3168,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         content: Text(l10n.dialogContentDisableAll(enabledMods.length)),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(l10n.dialogActionCancel)),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.dialogActionCancel),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.orangeAccent),
@@ -2866,7 +3187,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (_gameRootPath == null) {
         throw Exception("Game path is not defined.");
       }
-      final backupDir = Directory(p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__'));
+      final backupDir = Directory(
+        p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__'),
+      );
       if (!await backupDir.exists()) {
         await backupDir.create(recursive: true);
       }
@@ -2885,11 +3208,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           final newDirectory = Directory(p.join(backupDir.path, modName));
           // Devuelve una copia actualizada del mod
           return ModInfo(
-            directory: newDirectory, isEnabled: false,
-            nexusId: originalMod.nexusId, localVersion: originalMod.localVersion,
-            lastModified: originalMod.lastModified, origin: originalMod.origin,
-            displayName: originalMod.displayName, customName: originalMod.customName,
-            gallery: originalMod.gallery, fitMeshType: originalMod.fitMeshType,
+            directory: newDirectory,
+            isEnabled: false,
+            nexusId: originalMod.nexusId,
+            localVersion: originalMod.localVersion,
+            lastModified: originalMod.lastModified,
+            origin: originalMod.origin,
+            displayName: originalMod.displayName,
+            customName: originalMod.customName,
+            gallery: originalMod.gallery,
+            fitMeshType: originalMod.fitMeshType,
             customCoverPath: originalMod.customCoverPath,
             customCoverAlignment: originalMod.customCoverAlignment,
             customCoverLastModified: originalMod.customCoverLastModified,
@@ -2913,7 +3241,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     } catch (e) {
       setState(() {
-        _statusMessage = AppLocalizations.of(context)!.errorDisableMod(e.toString());
+        _statusMessage = AppLocalizations.of(
+          context,
+        )!.errorDisableMod(e.toString());
         _statusColor = Colors.redAccent;
       });
       await _loadAllMods(); // Mantenemos la recarga total solo en caso de error
@@ -2927,14 +3257,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final disabledMods = _allMods.where((mod) => !mod.isEnabled).toList();
 
     if (disabledMods.isEmpty) {
-        if (mounted) {
-          NotificationService.instance.show(
-            context: context,
-            type: NotificationType.info,
-            title: l10n.snackBarNoModsToDelete,
-          );
-        }
-        return;
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.info,
+          title: l10n.snackBarNoModsToDelete,
+        );
+      }
+      return;
     }
 
     final confirm = await showDialog<bool>(
@@ -2945,8 +3275,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         content: Text(l10n.dialogContentDeleteAll(disabledMods.length)),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(l10n.dialogActionCancel)),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.dialogActionCancel),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
@@ -2962,9 +3293,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     try {
       int deletedCount = 0;
       for (final mod in disabledMods) {
-          if (await _deleteDirectoryWithRetry(mod.directory)) {
-              deletedCount++;
-          }
+        if (await _deleteDirectoryWithRetry(mod.directory)) {
+          deletedCount++;
+        }
       }
 
       if (mounted) {
@@ -2976,7 +3307,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     } catch (e) {
       setState(() {
-        _statusMessage = AppLocalizations.of(context)!.errorDeleteMod(e.toString());
+        _statusMessage = AppLocalizations.of(
+          context,
+        )!.errorDeleteMod(e.toString());
         _statusColor = Colors.redAccent;
       });
     } finally {
@@ -2985,8 +3318,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  Future<bool> _deleteDirectoryWithRetry(Directory dir,
-      {int retries = 3}) async {
+  Future<bool> _deleteDirectoryWithRetry(
+    Directory dir, {
+    int retries = 3,
+  }) async {
     for (int i = 0; i < retries; i++) {
       try {
         if (await dir.exists()) {
@@ -2995,7 +3330,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         return true;
       } on PathAccessException {
         print(
-            'Access denied while deleting ${dir.path}. Retrying (${i + 1}/$retries)...');
+          'Access denied while deleting ${dir.path}. Retrying (${i + 1}/$retries)...',
+        );
         await Future.delayed(const Duration(milliseconds: 300));
       } catch (e) {
         rethrow;
@@ -3011,8 +3347,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       await launchUrl(uri);
     } else {
       setState(() {
-        _statusMessage =
-            AppLocalizations.of(context)!.errorOpenFolder(modDirectory.path);
+        _statusMessage = AppLocalizations.of(
+          context,
+        )!.errorOpenFolder(modDirectory.path);
         _statusColor = Colors.redAccent;
       });
     }
@@ -3023,7 +3360,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       _preparedMods.clear();
       _modsToInstallPreviewMap.clear();
       if (mounted) {
-        _statusMessage = message ?? AppLocalizations.of(context)!.statusSelectionCancelled;
+        _statusMessage =
+            message ?? AppLocalizations.of(context)!.statusSelectionCancelled;
       }
       _statusColor = message == null ? Colors.white : Colors.orangeAccent;
     });
@@ -3092,36 +3430,37 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             Text(l10n.aboutContent),
             const SizedBox(height: 12),
             StatefulBuilder(
-            builder: (BuildContext context, StateSetter setDialogState) {
-              return GestureDetector(
-                onTap: () {
-                  setDialogState(() {
-                    _versionTapCount++;
-                  });
-
-                  if (_versionTapCount >= 7) {
-                    setState(() {
-                      _developerModeEnabled = true;
+              builder: (BuildContext context, StateSetter setDialogState) {
+                return GestureDetector(
+                  onTap: () {
+                    setDialogState(() {
+                      _versionTapCount++;
                     });
-                    Navigator.of(context).pop(); // Cierra el diálogo
-                    NotificationService.instance.show(
-                      context: context,
-                      type: NotificationType.success,
-                      title: 'Developer Mode Enabled!',
-                    );
-                  }
-                },
-                child: Text(l10n.aboutVersion(_appVersion)),
-              );
-            },
-          ),
+
+                    if (_versionTapCount >= 7) {
+                      setState(() {
+                        _developerModeEnabled = true;
+                      });
+                      Navigator.of(context).pop(); // Cierra el diálogo
+                      NotificationService.instance.show(
+                        context: context,
+                        type: NotificationType.success,
+                        title: 'Developer Mode Enabled!',
+                      );
+                    }
+                  },
+                  child: Text(l10n.aboutVersion(_appVersion)),
+                );
+              },
+            ),
             const SizedBox(height: 20),
             InkWell(
               child: Text(
                 l10n.aboutLinkText,
                 style: const TextStyle(
-                    color: Colors.tealAccent,
-                    decoration: TextDecoration.underline),
+                  color: Colors.tealAccent,
+                  decoration: TextDecoration.underline,
+                ),
               ),
               onTap: () => launchUrl(Uri.parse(l10n.creatorProfileUrl)),
             ),
@@ -3136,7 +3475,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       ),
     );
   }
-  
+
   Future<String?> _showApiKeyDialog() async {
     final l10n = AppLocalizations.of(context)!;
     final apiKeyController = TextEditingController(text: _apiKey);
@@ -3173,9 +3512,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                       ),
                       onChanged: (_) {
                         if (errorMessage != null) {
-                           setDialogState(() {
-                             errorMessage = null;
-                           });
+                          setDialogState(() {
+                            errorMessage = null;
+                          });
                         }
                       },
                     ),
@@ -3190,7 +3529,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                             Text(l10n.validatingApiKey),
                           ],
                         ),
-                      )
+                      ),
                   ],
                 ),
               ),
@@ -3202,74 +3541,81 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   },
                 ),
                 ElevatedButton(
-                  onPressed: isChecking ? null : () async {
-                    final keyToValidate = apiKeyController.text;
-                    if (keyToValidate.isEmpty) {
-                      await _saveApiKey('');
-                       if (mounted) {
-                         NotificationService.instance.show(
-                           context: context,
-                           type: NotificationType.info,
-                           title: l10n.apiKeyRemoved,
-                         );
-                        Navigator.of(context).pop('');
-                      }
-                      return;
-                    }
+                  onPressed: isChecking
+                      ? null
+                      : () async {
+                          final keyToValidate = apiKeyController.text;
+                          if (keyToValidate.isEmpty) {
+                            await _saveApiKey('');
+                            if (mounted) {
+                              NotificationService.instance.show(
+                                context: context,
+                                type: NotificationType.info,
+                                title: l10n.apiKeyRemoved,
+                              );
+                              Navigator.of(context).pop('');
+                            }
+                            return;
+                          }
 
-                    setDialogState(() {
-                      isChecking = true;
-                      errorMessage = null;
-                    });
-                    
-                    final bool isValid = await _validateApiKey(keyToValidate);
-
-                    if (mounted) {
-                       if (isValid) {
-                          await _saveApiKey(keyToValidate);
-                          NotificationService.instance.show(
-                            context: context,
-                            type: NotificationType.success,
-                            title: l10n.snackBarApiKeySaved,
-                          );
-                          Navigator.of(context).pop(keyToValidate);
-                       } else {
                           setDialogState(() {
-                            isChecking = false;
-                            errorMessage = l10n.invalidApiKeyError;
+                            isChecking = true;
+                            errorMessage = null;
                           });
-                       }
-                    }
-                  },
+
+                          final bool isValid = await _validateApiKey(
+                            keyToValidate,
+                          );
+
+                          if (mounted) {
+                            if (isValid) {
+                              await _saveApiKey(keyToValidate);
+                              NotificationService.instance.show(
+                                context: context,
+                                type: NotificationType.success,
+                                title: l10n.snackBarApiKeySaved,
+                              );
+                              Navigator.of(context).pop(keyToValidate);
+                            } else {
+                              setDialogState(() {
+                                isChecking = false;
+                                errorMessage = l10n.invalidApiKeyError;
+                              });
+                            }
+                          }
+                        },
                   child: Text(l10n.dialogActionSave),
                 ),
               ],
             );
-          }
+          },
         );
       },
     );
   }
 
-  Future<ModInfo?> _updateModCustomName(ModInfo mod, String newCustomName) async {
+  Future<ModInfo?> _updateModCustomName(
+    ModInfo mod,
+    String newCustomName,
+  ) async {
     if (newCustomName.isEmpty || newCustomName == mod.customName) {
       return null; // No hay cambios, no hagas nada
     }
-    
+
     try {
       final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
       Map<String, dynamic> data = {};
       if (await infoFile.exists()) {
         final content = await infoFile.readAsString();
-        if(content.isNotEmpty) data = json.decode(content);
+        if (content.isNotEmpty) data = json.decode(content);
       }
-      
+
       if (newCustomName == mod.displayName) {
         data.remove('customName');
       } else {
         data['customName'] = newCustomName;
       }
-      
+
       final encoder = JsonEncoder.withIndent('  ');
       await infoFile.writeAsString(encoder.convert(data));
 
@@ -3301,15 +3647,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         customSourceUrl: mod.customSourceUrl,
       );
     } catch (e) {
-       setState(() {
+      setState(() {
         _statusMessage = "Error renaming mod: $e";
         _statusColor = Colors.redAccent;
       });
       return null;
     }
   }
-
-  // main.dart
 
   // main.dart
 
@@ -3320,7 +3664,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final newName = await showDialog<String>(
       context: context,
       builder: (BuildContext context) {
-        return StatefulBuilder( // Use StatefulBuilder to manage dialog state
+        return StatefulBuilder(
+          // Use StatefulBuilder to manage dialog state
           builder: (context, setDialogState) {
             return Dialog(
               backgroundColor: const Color(0xFF2a2a2a),
@@ -3356,12 +3701,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                         TextButton(
                           // The button is disabled if the name is already the default
                           onPressed: nameController.text == modInfo.displayName
-                            ? null
-                            : () {
-                                // ++ LÍNEA CORREGIDA ++
-                                // This now updates the text and rebuilds the dialog
-                                setDialogState(() => nameController.text = modInfo.displayName);
-                            },
+                              ? null
+                              : () {
+                                  // ++ LÍNEA CORREGIDA ++
+                                  // This now updates the text and rebuilds the dialog
+                                  setDialogState(
+                                    () => nameController.text =
+                                        modInfo.displayName,
+                                  );
+                                },
                           child: Text(l10n.dialogActionResetToDefault),
                         ),
                         Row(
@@ -3372,7 +3720,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                             ),
                             const SizedBox(width: 8),
                             ElevatedButton(
-                              onPressed: () => Navigator.of(context).pop(nameController.text),
+                              onPressed: () => Navigator.of(
+                                context,
+                              ).pop(nameController.text),
                               child: Text(l10n.dialogActionSave),
                             ),
                           ],
@@ -3391,7 +3741,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     if (newName != null && newName.trim().isNotEmpty) {
       return await _updateModCustomName(modInfo, newName.trim());
     }
-    
+
     return null;
   }
 
@@ -3403,7 +3753,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       List<String> parts1 = cleanV1.split('.');
       List<String> parts2 = cleanV2.split('.');
 
-      int length = parts1.length > parts2.length ? parts1.length : parts2.length;
+      int length = parts1.length > parts2.length
+          ? parts1.length
+          : parts2.length;
 
       for (int i = 0; i < length; i++) {
         String p1Str = i < parts1.length ? parts1[i] : '0';
@@ -3418,7 +3770,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           if (p1Num > p2Num) return 1;
           if (p1Num < p2Num) return -1;
         } else if (p1IsNum && !p2IsNum) {
-          return 1; 
+          return 1;
         } else if (!p1IsNum && p2IsNum) {
           return -1;
         } else {
@@ -3444,45 +3796,50 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     try {
       final modDetailsUrl = Uri.parse(
-          'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId.json');
+        'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId.json',
+      );
       var response = await http.get(modDetailsUrl, headers: headers);
 
       if (response.statusCode == 200) {
         final modDetails = json.decode(response.body);
-        
+
         // Extraemos la información que necesitamos
         final pictureUrl = modDetails['picture_url'] as String?;
         String? summary = modDetails['summary'] as String?;
-      if (summary != null) {
-        // Replaces the HTML line break tag with a real newline character.
-        summary = summary.replaceAll('<br />', '\n');
-      }
+        if (summary != null) {
+          // Replaces the HTML line break tag with a real newline character.
+          summary = summary.replaceAll('<br />', '\n');
+        }
         final author = modDetails['author'] as String?;
-        
+
         List<Map<String, dynamic>>? gallery;
         if (pictureUrl != null && pictureUrl.isNotEmpty) {
-          gallery = [{"image": pictureUrl, "thumbnail": pictureUrl}];
+          gallery = [
+            {"image": pictureUrl, "thumbnail": pictureUrl},
+          ];
         }
 
         // Devolvemos un mapa con todos los datos.
-        return {
-          'gallery': gallery,
-          'summary': summary,
-          'author': author,
-        };
+        return {'gallery': gallery, 'summary': summary, 'author': author};
       }
 
-      print("Failed to fetch Nexus data for mod $nexusId (code: ${response.statusCode}).");
+      print(
+        "Failed to fetch Nexus data for mod $nexusId (code: ${response.statusCode}).",
+      );
       return null;
     } catch (e) {
-      print("An exception occurred while fetching Nexus data for mod $nexusId: $e");
+      print(
+        "An exception occurred while fetching Nexus data for mod $nexusId: $e",
+      );
       return null;
     }
   }
 
-  Future<void> _updateNexusInfoFile(Directory modDirectory,
-      {Map<String, dynamic>? updateCheckData,
-      List<Map<String, dynamic>>? galleryData}) async {
+  Future<void> _updateNexusInfoFile(
+    Directory modDirectory, {
+    Map<String, dynamic>? updateCheckData,
+    List<Map<String, dynamic>>? galleryData,
+  }) async {
     final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
     Map<String, dynamic> modData = {};
     if (galleryData != null) {
@@ -3495,7 +3852,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     } catch (e) {
       print(
-          "Could not read existing nexus_info.json, creating a new one. Error: $e");
+        "Could not read existing nexus_info.json, creating a new one. Error: $e",
+      );
     }
 
     if (updateCheckData != null) {
@@ -3508,15 +3866,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _checkForUpdates() async {
     final l10n = AppLocalizations.of(context)!;
-    
+
     if (_apiKey == null || _apiKey!.isEmpty) {
       await _showApiKeyDialog();
       if (_apiKey == null || _apiKey!.isEmpty) {
-          setState(() {
-            _statusMessage = l10n.errorApiKeyMissing;
-            _statusColor = Colors.orangeAccent;
-          });
-          return;
+        setState(() {
+          _statusMessage = l10n.errorApiKeyMissing;
+          _statusColor = Colors.orangeAccent;
+        });
+        return;
       }
     }
 
@@ -3555,33 +3913,45 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     for (final job in jobs) {
       if (job.isCns) {
-        futures.add(_checkSingleModUpdate(
+        futures.add(
+          _checkSingleModUpdate(
             headers: headers,
             nexusId: _cnsNexusId!,
             localVersion: _cnsVersion ?? '0',
             hasLocalVersion: _cnsVersion != null,
             modName: "Custom Nanosuit System",
             modDirectory: Directory(
-                p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss')), displayName: ''));
+              p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss'),
+            ),
+            displayName: '',
+          ),
+        );
       } else if (job.mod != null) {
         // Determina qué versión usar para la comprobación de actualizaciones.
         // Prioriza la 'customVersion' definida por el usuario.
-        final String versionForCheck = job.mod!.customVersion != null && job.mod!.customVersion!.isNotEmpty
+        final String versionForCheck =
+            job.mod!.customVersion != null && job.mod!.customVersion!.isNotEmpty
             ? job.mod!.customVersion!
             : job.mod!.localVersion ?? '0';
 
         // Se considera que una versión existe si la versión personalizada o la local están presentes.
-        final bool hasVersionForCheck = (job.mod!.customVersion != null && job.mod!.customVersion!.isNotEmpty) ||
-                                         (job.mod!.localVersion != null && job.mod!.localVersion!.isNotEmpty);
+        final bool hasVersionForCheck =
+            (job.mod!.customVersion != null &&
+                job.mod!.customVersion!.isNotEmpty) ||
+            (job.mod!.localVersion != null &&
+                job.mod!.localVersion!.isNotEmpty);
 
-        futures.add(_checkSingleModUpdate(
+        futures.add(
+          _checkSingleModUpdate(
             headers: headers,
             nexusId: job.mod!.nexusId!,
-            localVersion: versionForCheck,       // Usar la versión determinada
+            localVersion: versionForCheck, // Usar la versión determinada
             hasLocalVersion: hasVersionForCheck, // Usar el nuevo booleano
             modName: job.mod!.customName,
             displayName: job.mod!.displayName,
-            modDirectory: job.mod!.directory));
+            modDirectory: job.mod!.directory,
+          ),
+        );
       }
     }
 
@@ -3633,7 +4003,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     required Directory modDirectory,
   }) async {
     final url = Uri.parse(
-        'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId/files.json');
+      'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId/files.json',
+    );
     final response = await http.get(url, headers: headers);
 
     try {
@@ -3641,35 +4012,45 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         'timestamp': DateTime.now().toIso8601String(),
         'statusCode': response.statusCode,
       };
-      await _updateNexusInfoFile(modDirectory, updateCheckData: updateCheckData);
+      await _updateNexusInfoFile(
+        modDirectory,
+        updateCheckData: updateCheckData,
+      );
     } catch (e) {
-      print(
-          'Could not update nexus_info.json file for $modName: $e');
+      print('Could not update nexus_info.json file for $modName: $e');
     }
 
     if (response.statusCode != 200) {
-      print('Error for mod $nexusId: ${response.statusCode} - ${response.body}');
+      print(
+        'Error for mod $nexusId: ${response.statusCode} - ${response.body}',
+      );
       return null;
     }
 
     final jsonResponse = json.decode(response.body);
     final allFiles = jsonResponse['files'] as List;
     final potentialFiles = allFiles
-        .where((file) =>
-            file['category_name'] == 'MAIN' ||
-            file['category_name'] == 'OPTIONAL')
+        .where(
+          (file) =>
+              file['category_name'] == 'MAIN' ||
+              file['category_name'] == 'OPTIONAL',
+        )
         .toList();
 
     final compatibleFiles = potentialFiles.where((file) {
       final fileName = (file['file_name'] as String).toLowerCase();
-      return !fileName.contains('not cns') && !fileName.contains('without cns') && !fileName.contains('non cns');
+      return !fileName.contains('not cns') &&
+          !fileName.contains('without cns') &&
+          !fileName.contains('non cns');
     }).toList();
 
     if (compatibleFiles.isNotEmpty) {
       List<dynamic> filesToConsider;
       final cnsFiles = compatibleFiles
-          .where((file) =>
-              (file['file_name'] as String).toLowerCase().contains('cns'))
+          .where(
+            (file) =>
+                (file['file_name'] as String).toLowerCase().contains('cns'),
+          )
           .toList();
 
       filesToConsider = cnsFiles.isNotEmpty ? cnsFiles : compatibleFiles;
@@ -3682,13 +4063,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       } else {
         // Si hay múltiples candidatos, usamos el sistema de puntuación para decidir.
         final normalizedDisplayName = _normalizeName(displayName);
-        final keywords = displayName.toLowerCase().split(RegExp(r'[_ -]')).where((s) => s.isNotEmpty).toList();
-        
+        final keywords = displayName
+            .toLowerCase()
+            .split(RegExp(r'[_ -]'))
+            .where((s) => s.isNotEmpty)
+            .toList();
+
         final fileScores = filesToConsider.map((file) {
           final rawFileName = file['file_name'] as String;
           final normalizedFileName = _normalizeName(rawFileName);
           int score = 0;
-          
+
           if (normalizedFileName.contains(normalizedDisplayName)) {
             score = 100;
           } else {
@@ -3702,7 +4087,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         }).toList();
 
         // Ordenamos la lista para que el archivo con la puntuación más alta quede primero.
-        fileScores.sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
+        fileScores.sort(
+          (a, b) => (b['score'] as int).compareTo(a['score'] as int),
+        );
 
         // Tomamos el mejor candidato, pero solo si su puntuación es mayor que cero.
         if (fileScores.isNotEmpty && fileScores.first['score'] as int > 0) {
@@ -3714,12 +4101,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       // Ahora, solo si hemos encontrado un candidato válido, procedemos a la comprobación de versión.
       if (bestMatchFile != null) {
         final latestVersion = bestMatchFile['version'] as String;
-        
+
         final skippedVersion = _skippedVersions[nexusId];
-        final isSkipped = skippedVersion != null && _compareVersions(latestVersion, skippedVersion) <= 0;
+        final isSkipped =
+            skippedVersion != null &&
+            _compareVersions(latestVersion, skippedVersion) <= 0;
 
         // Comparamos la versión del MEJOR CANDIDATO con la versión local.
-        if (hasLocalVersion && !isSkipped && _compareVersions(latestVersion, localVersion) > 0) {
+        if (hasLocalVersion &&
+            !isSkipped &&
+            _compareVersions(latestVersion, localVersion) > 0) {
           return {
             'version': latestVersion,
             'fileId': bestMatchFile['file_id'] as int,
@@ -3729,8 +4120,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
     return null;
   }
-
-  Future<void> _recheckSpecificMod(String nexusId, {String? newVersion}) async {
+//Funcion comentada por el momento, puede ser util en un futuro.
+  /*Future<void> _recheckSpecificMod(String nexusId, {String? newVersion}) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
       print("API Key not configured, cannot re-check mod.");
       return;
@@ -3747,18 +4138,20 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         hasLocalVersion: true,
         modName: "Custom Nanosuit System",
         modDirectory: Directory(
-            p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss')), displayName: '',
+          p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss'),
+        ),
+        displayName: '',
       );
       setState(() => _cnsUpdateInfo = updateInfo);
     } else {
       try {
-        final modToRecheck = _allMods
-            .firstWhere((m) => m.nexusId == nexusId);
+        final modToRecheck = _allMods.firstWhere((m) => m.nexusId == nexusId);
         // Prioriza la versión para la nueva comprobación en este orden:
         // 1. Una nueva versión pasada explícitamente a la función.
         // 2. La versión personalizada del mod si existe.
         // 3. La versión local (automática) del mod.
-        final versionToCheck = newVersion ??
+        final versionToCheck =
+            newVersion ??
             (modToRecheck.customVersion?.isNotEmpty == true
                 ? modToRecheck.customVersion
                 : modToRecheck.localVersion);
@@ -3766,13 +4159,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         if (versionToCheck != null) {
           final hasVersionForCheck = versionToCheck.isNotEmpty;
           final updateInfo = await _checkSingleModUpdate(
-              headers: headers,
-              nexusId: modToRecheck.nexusId!,
-              localVersion: versionToCheck,
-              hasLocalVersion: hasVersionForCheck,
-              modName: modToRecheck.customName,
-              modDirectory: modToRecheck.directory, 
-              displayName: modToRecheck.displayName); // Pasar el displayName
+            headers: headers,
+            nexusId: modToRecheck.nexusId!,
+            localVersion: versionToCheck,
+            hasLocalVersion: hasVersionForCheck,
+            modName: modToRecheck.customName,
+            modDirectory: modToRecheck.directory,
+            displayName: modToRecheck.displayName,
+          ); // Pasar el displayName
           setState(() {
             if (updateInfo == null) {
               _modUpdates.remove(modToRecheck.directory.path);
@@ -3785,81 +4179,88 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         print("Mod with nexusId $nexusId not found for re-check: $e");
       }
     }
-  }
+  }*/
 
-  void _showImageGalleryDialog(ModInfo modInfo, {int initialIndex = 0, String? initialImage}) {
-  final l10n = AppLocalizations.of(context)!;
-  final List<String> images = (modInfo.gallery ?? [])
-      .map((img) => img['image'] as String)
-      .toList();
+  void _showImageGalleryDialog(
+    ModInfo modInfo, {
+    int initialIndex = 0,
+    String? initialImage,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    final List<String> images = (modInfo.gallery ?? [])
+        .map((img) => img['image'] as String)
+        .toList();
 
-  if (modInfo.customCoverPath != null) {
-    final customCoverFullPath = p.join(modInfo.directory.path, modInfo.customCoverPath!);
-    if (!images.contains(customCoverFullPath)) {
-      images.insert(0, customCoverFullPath);
-    }
-  }
-
-  if (images.isEmpty) {
-    // No hacer nada si no hay imágenes
-    return;
-  }
-
-  // Determina el índice inicial si se pasó una imagen específica
-  int finalInitialIndex = initialIndex;
-  if (initialImage != null) {
-    int foundIndex = images.indexOf(initialImage);
-    if (foundIndex != -1) {
-      finalInitialIndex = foundIndex;
-    }
-  }
-
-  final pageController = PageController(initialPage: finalInitialIndex);
-
-  showDialog(
-    context: context,
-    builder: (context) {
-      return Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.zero,
-        child: Stack(
-          children: <Widget>[
-            PageView.builder(
-              controller: pageController,
-              itemCount: images.length,
-              itemBuilder: (context, index) {
-                final imageUrl = images[index];
-                final isLocal = !imageUrl.startsWith('http');
-                return InteractiveViewer(
-                  panEnabled: true,
-                  minScale: 1.0,
-                  maxScale: 4.0,
-                  child: Center(
-                    child: isLocal
-                      ? Image.file(File(imageUrl))
-                      : Image.network(imageUrl),
-                  ),
-                );
-              },
-            ),
-            Positioned(
-              top: 15,
-              right: 15,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.black.withOpacity(0.5),
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-                tooltip: l10n.dialogActionClose,
-              ),
-            ),
-          ],
-        ),
+    if (modInfo.customCoverPath != null) {
+      final customCoverFullPath = p.join(
+        modInfo.directory.path,
+        modInfo.customCoverPath!,
       );
-    },
-  );
-}
+      if (!images.contains(customCoverFullPath)) {
+        images.insert(0, customCoverFullPath);
+      }
+    }
+
+    if (images.isEmpty) {
+      // No hacer nada si no hay imágenes
+      return;
+    }
+
+    // Determina el índice inicial si se pasó una imagen específica
+    int finalInitialIndex = initialIndex;
+    if (initialImage != null) {
+      int foundIndex = images.indexOf(initialImage);
+      if (foundIndex != -1) {
+        finalInitialIndex = foundIndex;
+      }
+    }
+
+    final pageController = PageController(initialPage: finalInitialIndex);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
+          child: Stack(
+            children: <Widget>[
+              PageView.builder(
+                controller: pageController,
+                itemCount: images.length,
+                itemBuilder: (context, index) {
+                  final imageUrl = images[index];
+                  final isLocal = !imageUrl.startsWith('http');
+                  return InteractiveViewer(
+                    panEnabled: true,
+                    minScale: 1.0,
+                    maxScale: 4.0,
+                    child: Center(
+                      child: isLocal
+                          ? Image.file(File(imageUrl))
+                          : Image.network(imageUrl),
+                    ),
+                  );
+                },
+              ),
+              Positioned(
+                top: 15,
+                right: 15,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withOpacity(0.5),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                  tooltip: l10n.dialogActionClose,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Future<void> _showUpdateOptionsDialog({
     required String newVersion,
@@ -3891,12 +4292,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           TextButton(
             onPressed: () async {
               setState(() {
-                 _skippedVersions[nexusId] = newVersion;
+                _skippedVersions[nexusId] = newVersion;
                 if (nexusId == _cnsNexusId) {
                   _cnsUpdateInfo = null;
                 } else {
-                  _modUpdates.removeWhere((key, value) =>
-                      _allMods.firstWhere((mod) => mod.directory.path == key).nexusId == nexusId);
+                  _modUpdates.removeWhere(
+                    (key, value) =>
+                        _allMods
+                            .firstWhere((mod) => mod.directory.path == key)
+                            .nexusId ==
+                        nexusId,
+                  );
                 }
               });
               await _saveSkippedVersions();
@@ -3907,7 +4313,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           ElevatedButton(
             onPressed: () async {
               final url = Uri.parse(
-                  'https://www.nexusmods.com/stellarblade/mods/$nexusId?tab=files&file_id=$fileId');
+                'https://www.nexusmods.com/stellarblade/mods/$nexusId?tab=files&file_id=$fileId',
+              );
               if (await canLaunchUrl(url)) {
                 await launchUrl(url);
               }
@@ -3923,14 +4330,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       ),
     );
   }
-  
+
   Future<void> _manageSkippedVersions() async {
     final l10n = AppLocalizations.of(context)!;
-    
+
     await showDialog(
-        context: context,
-        builder: (context) {
-          return StatefulBuilder(builder: (context, setDialogState) {
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
             final skippedEntries = _skippedVersions.entries.toList();
 
             return AlertDialog(
@@ -3946,25 +4354,31 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                         itemBuilder: (context, index) {
                           final entry = skippedEntries[index];
                           final mod = _allMods.firstWhere(
-                              (m) => m.nexusId == entry.key,
-                              orElse: () => ModInfo(
-                                  directory: Directory(''),
-                                  lastModified: DateTime.now(),
-                                  isEnabled: false,
-                                  displayName: 'ID: ${entry.key}',
-                                  customName: 'ID: ${entry.key}',
-                                  gallery: null,
-                                  origin: null));
+                            (m) => m.nexusId == entry.key,
+                            orElse: () => ModInfo(
+                              directory: Directory(''),
+                              lastModified: DateTime.now(),
+                              isEnabled: false,
+                              displayName: 'ID: ${entry.key}',
+                              customName: 'ID: ${entry.key}',
+                              gallery: null,
+                              origin: null,
+                            ),
+                          );
                           final modName = mod.directory.path.isNotEmpty
                               ? mod.customName
                               : 'ID: ${entry.key}';
 
                           return ListTile(
                             title: Text(modName),
-                            subtitle: Text('${l10n.dialogSkippedVersions}: ${entry.value}'),
+                            subtitle: Text(
+                              '${l10n.dialogSkippedVersions}: ${entry.value}',
+                            ),
                             trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline,
-                                  color: Colors.redAccent),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.redAccent,
+                              ),
                               onPressed: () async {
                                 await _removeSkippedVersion(entry.key);
                                 setDialogState(() {});
@@ -3978,13 +4392,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text(l10n.dialogActionClose),
-                )
+                ),
               ],
             );
-          });
-        });
+          },
+        );
+      },
+    );
   }
-
 
   List<ModInfo> _getFilteredAndSortedMods(AppLocalizations l10n) {
     List<ModInfo> mods = List.from(_allMods);
@@ -4003,13 +4418,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       default:
         break;
     }
-    
+
     if (_searchQuery.isNotEmpty) {
       mods.retainWhere((mod) {
         // Obtenemos la etiqueta visible, igual que en la UI.
-        final displayTag = mod.customFitMeshType ?? mod.fitMeshType ?? l10n.modCategoryOther;
+        final displayTag =
+            mod.customFitMeshType ?? mod.fitMeshType ?? l10n.modCategoryOther;
         final query = _searchQuery.toLowerCase();
-        
+
         // Comprobamos si el nombre del mod coincide.
         final nameMatch = mod.customName.toLowerCase().contains(query);
         // Comprobamos si la etiqueta coincide.
@@ -4022,7 +4438,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     switch (_currentSort) {
       case ModSort.name:
-        mods.sort((a, b) => a.customName.toLowerCase().compareTo(b.customName.toLowerCase()));
+        mods.sort(
+          (a, b) =>
+              a.customName.toLowerCase().compareTo(b.customName.toLowerCase()),
+        );
         break;
       case ModSort.date:
       default:
@@ -4030,15 +4449,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         mods.sort((a, b) {
           // 1. Criterio principal: Ordenar por fecha (descendente)
           final dateCompare = b.lastModified.compareTo(a.lastModified);
-          
+
           // 2. Si las fechas son diferentes, usamos ese resultado
           if (dateCompare != 0) {
             return dateCompare;
           }
-          
+
           // 3. Criterio de desempate: Si las fechas son iguales, ordenar por nombre (ascendente)
           //    para garantizar un orden estable y predecible.
-          return a.customName.toLowerCase().compareTo(b.customName.toLowerCase());
+          return a.customName.toLowerCase().compareTo(
+            b.customName.toLowerCase(),
+          );
         });
         // ✅ FIN DE LA SOLUCIÓN
         break;
@@ -4047,14 +4468,24 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     return mods;
   }
 
-   Future<Map<String, dynamic>?> _showGeneralEditDialog(
-      ModInfo modInfo, BuildContext context) async {
+  Future<Map<String, dynamic>?> _showGeneralEditDialog(
+    ModInfo modInfo,
+    BuildContext context,
+  ) async {
     final l10n = AppLocalizations.of(context)!;
-    
+
     final nameController = TextEditingController(text: modInfo.customName);
-    final authorController = TextEditingController(text: modInfo.customAuthor ?? modInfo.author ?? '');
-    final String defaultUrl = modInfo.sourceUrl ?? (modInfo.nexusId != null ? 'https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}' : '');
-    final urlController = TextEditingController(text: modInfo.customSourceUrl ?? defaultUrl);
+    final authorController = TextEditingController(
+      text: modInfo.customAuthor ?? modInfo.author ?? '',
+    );
+    final String defaultUrl =
+        modInfo.sourceUrl ??
+        (modInfo.nexusId != null
+            ? 'https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}'
+            : '');
+    final urlController = TextEditingController(
+      text: modInfo.customSourceUrl ?? defaultUrl,
+    );
 
     File? newCoverFile;
     Alignment? newCoverAlignment;
@@ -4063,94 +4494,173 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return StatefulBuilder(builder: (context, setDialogState) {
-          final bool canResetName = nameController.text != modInfo.displayName;
-          final bool canResetAuthor = authorController.text != (modInfo.author ?? '');
-          final bool canResetUrl = urlController.text != (modInfo.sourceUrl ?? '');
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final bool canResetName =
+                nameController.text != modInfo.displayName;
+            final bool canResetAuthor =
+                authorController.text != (modInfo.author ?? '');
+            final bool canResetUrl =
+                urlController.text != (modInfo.sourceUrl ?? '');
 
-          return AlertDialog(
-            title: Text(l10n.editModTitle),
-            content: SizedBox(
-              width: 500,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(children: [
-                      Expanded(child: TextField(controller: nameController, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: l10n.modNameLabel))),
-                      TextButton(onPressed: !canResetName ? null : () => setDialogState(() => nameController.text = modInfo.displayName), child: Text(l10n.dialogActionResetToDefault)),
-                    ]),
-                    const SizedBox(height: 16),
-                    Row(children: [
-                      Expanded(child: TextField(controller: authorController, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: l10n.authorLabel))),
-                      TextButton(onPressed: !canResetAuthor ? null : () => setDialogState(() => authorController.text = modInfo.author ?? ''), child: Text(l10n.dialogActionResetToDefault)),
-                    ]),
-                    const SizedBox(height: 16),
-                    Row(children: [
-                      Expanded(child: TextField(controller: urlController, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: l10n.urlLabel))),
-                      TextButton(onPressed: !canResetUrl ? null : () => setDialogState(() => urlController.text = defaultUrl), child: Text(l10n.dialogActionResetToDefault)),
-                    ]),
-                    const SizedBox(height: 24),
-                    if (newCoverFile != null)
-                      Image.file(newCoverFile!, height: 100),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.image_search),
-                      label: Text(l10n.changeCoverButton),
-                      onPressed: () async {
-                        FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'pwebp', 'tiff']);
-                        if (result != null && result.files.single.path != null) {
-                          final pickedFile = File(result.files.single.path!);
-                          final alignment = await _showCoverAlignmentDialog(pickedFile);
-                          if (alignment != null) {
-                            setDialogState(() {
-                              newCoverFile = pickedFile;
-                              newCoverAlignment = alignment;
-                            });
+            return AlertDialog(
+              title: Text(l10n.editModTitle),
+              content: SizedBox(
+                width: 500,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: nameController,
+                              onChanged: (v) => setDialogState(() {}),
+                              decoration: InputDecoration(
+                                labelText: l10n.modNameLabel,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: !canResetName
+                                ? null
+                                : () => setDialogState(
+                                    () => nameController.text =
+                                        modInfo.displayName,
+                                  ),
+                            child: Text(l10n.dialogActionResetToDefault),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: authorController,
+                              onChanged: (v) => setDialogState(() {}),
+                              decoration: InputDecoration(
+                                labelText: l10n.authorLabel,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: !canResetAuthor
+                                ? null
+                                : () => setDialogState(
+                                    () => authorController.text =
+                                        modInfo.author ?? '',
+                                  ),
+                            child: Text(l10n.dialogActionResetToDefault),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: urlController,
+                              onChanged: (v) => setDialogState(() {}),
+                              decoration: InputDecoration(
+                                labelText: l10n.urlLabel,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: !canResetUrl
+                                ? null
+                                : () => setDialogState(
+                                    () => urlController.text = defaultUrl,
+                                  ),
+                            child: Text(l10n.dialogActionResetToDefault),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      if (newCoverFile != null)
+                        Image.file(newCoverFile!, height: 100),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.image_search),
+                        label: Text(l10n.changeCoverButton),
+                        onPressed: () async {
+                          FilePickerResult? result = await FilePicker.platform
+                              .pickFiles(
+                                type: FileType.custom,
+                                allowedExtensions: [
+                                  'png',
+                                  'jpg',
+                                  'jpeg',
+                                  'webp',
+                                  'bmp',
+                                  'pwebp',
+                                  'tiff',
+                                ],
+                              );
+                          if (result != null &&
+                              result.files.single.path != null) {
+                            final pickedFile = File(result.files.single.path!);
+                            final alignment = await _showCoverAlignmentDialog(
+                              pickedFile,
+                            );
+                            if (alignment != null) {
+                              setDialogState(() {
+                                newCoverFile = pickedFile;
+                                newCoverAlignment = alignment;
+                              });
+                            }
                           }
-                        }
-                      },
-                    ),
-                  ],
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.dialogActionCancel)),
-              ElevatedButton(
-                onPressed: () {
-                  final Map<String, dynamic> dataToSave = {
-                    'customName': nameController.text,
-                    'author': authorController.text,
-                    'customSourceUrl': urlController.text,
-                  };
-                  if (newCoverFile != null) {
-                    dataToSave['newCoverFile'] = newCoverFile;
-                    dataToSave['newCoverAlignment'] = newCoverAlignment;
-                  }
-                  Navigator.of(context).pop(dataToSave);
-                },
-                child: Text(l10n.dialogActionSave),
-              ),
-            ],
-          );
-        });
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(l10n.dialogActionCancel),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final Map<String, dynamic> dataToSave = {
+                      'customName': nameController.text,
+                      'author': authorController.text,
+                      'customSourceUrl': urlController.text,
+                    };
+                    if (newCoverFile != null) {
+                      dataToSave['newCoverFile'] = newCoverFile;
+                      dataToSave['newCoverAlignment'] = newCoverAlignment;
+                    }
+                    Navigator.of(context).pop(dataToSave);
+                  },
+                  child: Text(l10n.dialogActionSave),
+                ),
+              ],
+            );
+          },
+        );
       },
     );
 
     nameController.dispose();
     authorController.dispose();
     urlController.dispose();
-    
+
     return updatedData;
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final canInstall = _preparedMods.isNotEmpty && !_isLoading && !_isExtracting;
+    final canInstall =
+        _preparedMods.isNotEmpty && !_isLoading && !_isExtracting;
     final filteredAndSortedMods = _getFilteredAndSortedMods(l10n);
 
-    final cnsUpdateIdentifier = _cnsUpdateInfo != null ? 'CNS_' + _cnsUpdateInfo!['version'] : '';
+    final cnsUpdateIdentifier = _cnsUpdateInfo != null
+        ? 'CNS_' + _cnsUpdateInfo!['version']
+        : '';
     final cnsIsIgnored = _ignoredUpdates.contains(cnsUpdateIdentifier);
     final hasEnabledMods = _allMods.any((mod) => mod.isEnabled);
     final hasDisabledMods = _allMods.any((mod) => !mod.isEnabled);
@@ -4159,26 +4669,31 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       appBar: AppBar(
         title: Row(
           children: [
-            Text(_cnsVersion != null
-            ? l10n.appTitleWithVersion(_cnsVersion!)
-            : l10n.appTitleNoCns), // Usará el nuevo texto cuando no haya versión
+            Text(
+              _cnsVersion != null
+                  ? l10n.appTitleWithVersion(_cnsVersion!)
+                  : l10n.appTitleNoCns,
+            ), // Usará el nuevo texto cuando no haya versión
             if (_cnsUpdateInfo != null && !cnsIsIgnored)
               Padding(
                 padding: const EdgeInsets.only(left: 8.0),
                 child: IconButton(
-                    icon: const Icon(Icons.notification_important,
-                        color: Colors.yellowAccent),
-                    tooltip: l10n.updateAvailable(_cnsUpdateInfo!['version']),
-                    onPressed: () {
-                      if (_cnsNexusId != null) {
-                        _showUpdateOptionsDialog(
-                          newVersion: _cnsUpdateInfo!['version'],
-                          nexusId: _cnsNexusId!,
-                          fileId: _cnsUpdateInfo!['fileId'],
-                          uniqueIdentifier: cnsUpdateIdentifier,
-                        );
-                      }
-                    }),
+                  icon: const Icon(
+                    Icons.notification_important,
+                    color: Colors.yellowAccent,
+                  ),
+                  tooltip: l10n.updateAvailable(_cnsUpdateInfo!['version']),
+                  onPressed: () {
+                    if (_cnsNexusId != null) {
+                      _showUpdateOptionsDialog(
+                        newVersion: _cnsUpdateInfo!['version'],
+                        nexusId: _cnsNexusId!,
+                        fileId: _cnsUpdateInfo!['fileId'],
+                        uniqueIdentifier: cnsUpdateIdentifier,
+                      );
+                    }
+                  },
+                ),
               ),
           ],
         ),
@@ -4187,7 +4702,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           IconButton(
             icon: const Icon(Icons.cloud_sync_outlined),
             tooltip: l10n.checkForUpdates,
-            onPressed: _isLoading || _isCheckingForUpdates ? null : _checkForUpdates,
+            onPressed: _isLoading || _isCheckingForUpdates
+                ? null
+                : _checkForUpdates,
           ),
           IconButton(
             icon: const Icon(Icons.settings),
@@ -4204,8 +4721,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     // Pasar los nuevos estados y funciones a la página de configuración
                     isUe4ssInstalled: _isUe4ssInstalled,
                     isCnsCoreInstalled: _isCnsCoreInstalled,
-                    onUninstallUE4SS: () => _uninstallCoreComponent(isUe4ss: true),
-                    onUninstallCNS: () => _uninstallCoreComponent(isUe4ss: false),
+                    onUninstallUE4SS: () =>
+                        _uninstallCoreComponent(isUe4ss: true),
+                    onUninstallCNS: () =>
+                        _uninstallCoreComponent(isUe4ss: false),
                     // Resto de callbacks
                     onSelectGamePath: _selectGamePathManually,
                     onSelect7zipPath: _select7zipPathManually,
@@ -4228,8 +4747,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         onDragDone: (details) async {
           final paths = details.files.map((file) => file.path).toList();
           if (paths.isNotEmpty) {
-             final files = paths.map((path) => File(path)).toList();
-             await _processArchives(files);
+            final files = paths.map((path) => File(path)).toList();
+            await _processArchives(files);
           }
         },
         onDragEntered: (details) => setState(() => _isDragging = true),
@@ -4248,14 +4767,22 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           _buildSelectionPreviewSection(l10n),
                         const Divider(height: 30, thickness: 1),
                         Expanded(
-                          child: _buildModsListSection(l10n.installedMods, filteredAndSortedMods, l10n, hasEnabledMods, hasDisabledMods),
+                          child: _buildModsListSection(
+                            l10n.installedMods,
+                            filteredAndSortedMods,
+                            l10n,
+                            hasEnabledMods,
+                            hasDisabledMods,
+                          ),
                         ),
                         const SizedBox(height: 20),
                         if (_isExtracting)
                           Column(
                             children: [
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8.0,
+                                ),
                                 child: Text(
                                   _extractionStatus,
                                   textAlign: TextAlign.center,
@@ -4267,7 +4794,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                               LinearProgressIndicator(
                                 value: _extractionProgress,
                                 backgroundColor: Colors.grey[800],
-                                valueColor: const AlwaysStoppedAnimation<Color>(Colors.tealAccent),
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                  Colors.tealAccent,
+                                ),
                               ),
                             ],
                           )
@@ -4275,7 +4804,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           Column(
                             children: [
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8.0,
+                                ),
                                 child: Text(
                                   l10n.statusCheckingUpdates,
                                   textAlign: TextAlign.center,
@@ -4287,47 +4818,64 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                               LinearProgressIndicator(
                                 value: null,
                                 backgroundColor: Colors.grey[800],
-                                valueColor: const AlwaysStoppedAnimation<Color>(Colors.tealAccent),
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                  Colors.tealAccent,
+                                ),
                               ),
                             ],
                           )
                         else if (_isLoading)
                           Center(
-                              child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),)))
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                          )
                         else
-                          Text(_statusMessage,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  color: _statusColor,
-                                  fontWeight: FontWeight.w500)),
+                          Text(
+                            _statusMessage,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: _statusColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                       ],
                     ),
             ),
             if (_isDragging)
               Container(
                 decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    border: Border.all(
-                        color: Colors.tealAccent,
-                        width: 3,
-                        style: BorderStyle.solid),
-                    borderRadius: BorderRadius.circular(12)),
+                  color: Colors.black.withOpacity(0.7),
+                  border: Border.all(
+                    color: Colors.tealAccent,
+                    width: 3,
+                    style: BorderStyle.solid,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.download_for_offline,
-                          size: 80, color: Colors.tealAccent),
+                      const Icon(
+                        Icons.download_for_offline,
+                        size: 80,
+                        color: Colors.tealAccent,
+                      ),
                       const SizedBox(height: 20),
                       Text(
                         l10n.dropTargetOverlay,
                         style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold),
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -4344,8 +4892,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline,
-              color: Colors.orangeAccent, size: 64),
+          const Icon(Icons.error_outline, color: Colors.orangeAccent, size: 64),
           const SizedBox(height: 24),
           Text(
             l10n.pathSelectionTitle,
@@ -4372,7 +4919,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           TextButton(
             onPressed: _findGamePath,
             child: Text(l10n.pathSelectionButtonRetry),
-          )
+          ),
         ],
       ),
     );
@@ -4384,7 +4931,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         Expanded(
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12), // Padding vertical reducido
+              padding: const EdgeInsets.symmetric(
+                vertical: 12,
+              ), // Padding vertical reducido
             ),
             icon: const Icon(Icons.archive),
             label: Text(l10n.selectModArchive),
@@ -4398,8 +4947,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             label: Text(l10n.installSelectedMod),
             onPressed: canInstall ? _installMod : null,
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12), // Padding vertical reducido
-              backgroundColor: canInstall ? Colors.tealAccent : Colors.grey[700],
+              padding: const EdgeInsets.symmetric(
+                vertical: 12,
+              ), // Padding vertical reducido
+              backgroundColor: canInstall
+                  ? Colors.tealAccent
+                  : Colors.grey[700],
               foregroundColor: Colors.black87,
             ),
           ),
@@ -4426,8 +4979,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               onPressed: () => _clearSelection(),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.redAccent,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
               ),
             ),
           ],
@@ -4437,9 +4992,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           height: 120,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[700]!)),
+            color: Colors.black.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[700]!),
+          ),
           child: ListView.builder(
             itemCount: _modsToInstallPreviewMap.keys.length,
             itemBuilder: (context, index) {
@@ -4450,24 +5006,53 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2.0),
-                    child: Row(children: [
-                      const Icon(Icons.folder_zip_outlined,
-                          size: 16, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Expanded(
-                          child: Text(folderName,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                    ]),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.folder_zip_outlined,
+                          size: 16,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            folderName,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  ...files.map((file) => Padding(
-                    padding: const EdgeInsets.only(left: 24.0, top: 2.0, bottom: 2.0),
-                    child: Row(children: [
-                      const Icon(Icons.insert_drive_file_outlined, size: 14, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(file, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)))
-                    ]),
-                  ))
+                  ...files.map(
+                    (file) => Padding(
+                      padding: const EdgeInsets.only(
+                        left: 24.0,
+                        top: 2.0,
+                        bottom: 2.0,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.insert_drive_file_outlined,
+                            size: 14,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              file,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               );
             },
@@ -4478,29 +5063,38 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Widget _buildModGridCard(ModInfo modInfo, AppLocalizations l10n) {
-    final thumbnailUrl = (modInfo.gallery != null && modInfo.gallery!.isNotEmpty)
+    final thumbnailUrl =
+        (modInfo.gallery != null && modInfo.gallery!.isNotEmpty)
         ? modInfo.gallery!.first['thumbnail'] as String?
         : null;
 
     final updateInfo = _modUpdates[modInfo.directory.path];
     final hasUpdate = updateInfo != null;
-    final updateIdentifier =
-        hasUpdate ? modInfo.directory.path + updateInfo['version'] : '';
+    final updateIdentifier = hasUpdate
+        ? modInfo.directory.path + updateInfo['version']
+        : '';
     final isIgnored = _ignoredUpdates.contains(updateIdentifier);
-    final isHighlighted =
-        _lastInstalledModNames.contains(p.basename(modInfo.directory.path));
-    final hasCustomCover = modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty;
+    final isHighlighted = _lastInstalledModNames.contains(
+      p.basename(modInfo.directory.path),
+    );
+    final hasCustomCover =
+        modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty;
     File? customCoverFile;
     if (hasCustomCover) {
       final path = p.join(modInfo.directory.path, modInfo.customCoverPath!);
       customCoverFile = File(path);
     }
     final displayVersion = modInfo.customVersion ?? modInfo.localVersion;
-    final displayTag = modInfo.customFitMeshType ?? modInfo.fitMeshType ?? l10n.modCategoryOther;
+    final displayTag =
+        modInfo.customFitMeshType ??
+        modInfo.fitMeshType ??
+        l10n.modCategoryOther;
 
     void _performSurgicalUpdate(ModInfo? updatedMod) {
       if (updatedMod == null) return;
-      final modIndex = _allMods.indexWhere((m) => m.directory.path == updatedMod.directory.path);
+      final modIndex = _allMods.indexWhere(
+        (m) => m.directory.path == updatedMod.directory.path,
+      );
       if (modIndex != -1) {
         setState(() {
           _allMods[modIndex] = updatedMod;
@@ -4533,22 +5127,24 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   Container(
                     color: Colors.black.withOpacity(0.5),
                     child: customCoverFile != null
-                      ? Image.file(
-                          customCoverFile,
-                          key: ValueKey(modInfo.customCoverLastModified),
-                          fit: BoxFit.cover,
-                          alignment: modInfo.customCoverAlignment ?? Alignment.center,
-                          errorBuilder: (context, error, stackTrace) {
-                            return ModThumbnailImage(
-                              imageUrl: thumbnailUrl,
-                              thumbnailService: _thumbnailService,
-                            );
-                          },
-                        )
-                      : ModThumbnailImage(
-                          imageUrl: thumbnailUrl,
-                          thumbnailService: _thumbnailService,
-                        ),
+                        ? Image.file(
+                            customCoverFile,
+                            key: ValueKey(modInfo.customCoverLastModified),
+                            fit: BoxFit.cover,
+                            alignment:
+                                modInfo.customCoverAlignment ??
+                                Alignment.center,
+                            errorBuilder: (context, error, stackTrace) {
+                              return ModThumbnailImage(
+                                imageUrl: thumbnailUrl,
+                                thumbnailService: _thumbnailService,
+                              );
+                            },
+                          )
+                        : ModThumbnailImage(
+                            imageUrl: thumbnailUrl,
+                            thumbnailService: _thumbnailService,
+                          ),
                   ),
                   if (!modInfo.isEnabled)
                     Positioned(
@@ -4556,7 +5152,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                       right: 8,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.orangeAccent.withOpacity(0.9),
                           borderRadius: BorderRadius.circular(8),
@@ -4564,9 +5162,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                         child: Text(
                           l10n.modDisabledBadge,
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold),
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -4575,11 +5174,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                       top: 8,
                       left: 8,
                       child: IconButton(
-                        icon: const Icon(Icons.notification_important_rounded, color: Colors.yellowAccent),
+                        icon: const Icon(
+                          Icons.notification_important_rounded,
+                          color: Colors.yellowAccent,
+                        ),
                         tooltip: l10n.updateAvailable(
-                          (updateInfo['version'] as String).toLowerCase().startsWith('v')
-                            ? (updateInfo['version'] as String).substring(1)
-                            : updateInfo['version']
+                          (updateInfo['version'] as String)
+                                  .toLowerCase()
+                                  .startsWith('v')
+                              ? (updateInfo['version'] as String).substring(1)
+                              : updateInfo['version'],
                         ),
                         onPressed: () {
                           if (modInfo.nexusId != null) {
@@ -4607,37 +5211,45 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     child: Text(
                       modInfo.customName,
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 13),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
                 if (displayVersion != null)
-                   InkWell(
-                     onTap: () async {
-                       final updatedMod = await _showEditDialog(
+                  InkWell(
+                    onTap: () async {
+                      final updatedMod = await _showEditDialog(
                         context: context,
                         title: l10n.editVersionText,
                         label: l10n.customVersionText,
                         initialValue: displayVersion,
                         defaultValue: modInfo.localVersion ?? '',
-                        onSave: (newValue) => _updateModCustomProperty(modInfo, newVersion: newValue),
-                     );
-                     _performSurgicalUpdate(updatedMod);
-                     },
-                     borderRadius: BorderRadius.circular(4),
-                     child: Padding(
-                       padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-                       child: Text(
-                          'v$displayVersion',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
+                        onSave: (newValue) => _updateModCustomProperty(
+                          modInfo,
+                          newVersion: newValue,
                         ),
-                     ),
-                   ),
+                      );
+                      _performSurgicalUpdate(updatedMod);
+                    },
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4.0,
+                        vertical: 2.0,
+                      ),
+                      child: Text(
+                        'v$displayVersion',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -4650,26 +5262,33 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   child: InkWell(
                     onTap: () async {
                       final updatedMod = await _showEditDialog(
-                      context: context,
-                      title: l10n.editTagText,
-                      label: l10n.customTagText,
-                      initialValue: displayTag,
-                      defaultValue: modInfo.fitMeshType ?? l10n.modCategoryOther,
-                      onSave: (newValue) => _updateModCustomProperty(modInfo, newTag: newValue),
-                    );
-                    _performSurgicalUpdate(updatedMod);
+                        context: context,
+                        title: l10n.editTagText,
+                        label: l10n.customTagText,
+                        initialValue: displayTag,
+                        defaultValue:
+                            modInfo.fitMeshType ?? l10n.modCategoryOther,
+                        onSave: (newValue) =>
+                            _updateModCustomProperty(modInfo, newTag: newValue),
+                      );
+                      _performSurgicalUpdate(updatedMod);
                     },
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.grey.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         displayTag,
-                        style: const TextStyle(fontSize: 10, color: Colors.white70),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white70,
+                        ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
@@ -4697,39 +5316,43 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                       icon: const Icon(Icons.more_vert, size: 20),
                       onSelected: (value) async {
                         if (value == 'edit') {
-                          final updatedMod = await _showEditModNameDialog(modInfo);
+                          final updatedMod = await _showEditModNameDialog(
+                            modInfo,
+                          );
                           // ++ LÓGICA DE ACTUALIZACIÓN AQUÍ ++
                           _performSurgicalUpdate(updatedMod);
                         } else {
-                        switch (value) {
-                          case 'edit':
-                            _showEditModNameDialog(modInfo);
-                            break;
-                          case 'set_cover':
-                            _setCustomCover(modInfo);
-                            break;
-                          case 'revert_cover':
-                            _revertToDefaultCover(modInfo);
-                            break;
-                          case 'folder':
-                            _showInExplorer(modInfo.directory);
-                            break;
-                          case 'gallery':
-                            _showImageGalleryDialog(modInfo);
-                            break;
-                          case 'nexus':
-                             if (modInfo.nexusId != null) {
-                                final url = Uri.parse('https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}');
+                          switch (value) {
+                            case 'edit':
+                              _showEditModNameDialog(modInfo);
+                              break;
+                            case 'set_cover':
+                              _setCustomCover(modInfo);
+                              break;
+                            case 'revert_cover':
+                              _revertToDefaultCover(modInfo);
+                              break;
+                            case 'folder':
+                              _showInExplorer(modInfo.directory);
+                              break;
+                            case 'gallery':
+                              _showImageGalleryDialog(modInfo);
+                              break;
+                            case 'nexus':
+                              if (modInfo.nexusId != null) {
+                                final url = Uri.parse(
+                                  'https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}',
+                                );
                                 if (await canLaunchUrl(url)) {
                                   await launchUrl(url);
                                 }
                               }
-                            break;
-                          case 'delete':
-                            _deleteModPermanently(modInfo);
-                            break;
+                              break;
+                            case 'delete':
+                              _deleteModPermanently(modInfo);
+                              break;
+                          }
                         }
-                      }
                       },
                       // ++ INICIO DE LA CORRECCIÓN ++
                       itemBuilder: (context) => [
@@ -4747,20 +5370,29 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           value: 'set_cover',
                           child: Row(
                             children: [
-                              const Icon(Icons.add_photo_alternate_outlined, size: 20),
+                              const Icon(
+                                Icons.add_photo_alternate_outlined,
+                                size: 20,
+                              ),
                               const SizedBox(width: 12),
                               Flexible(child: Text(l10n.setCoverTooltip)),
                             ],
                           ),
                         ),
-                        if (modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty)
+                        if (modInfo.customCoverPath != null &&
+                            modInfo.customCoverPath!.isNotEmpty)
                           PopupMenuItem(
                             value: 'revert_cover',
                             child: Row(
                               children: [
-                                const Icon(Icons.photo_filter_outlined, size: 20),
+                                const Icon(
+                                  Icons.photo_filter_outlined,
+                                  size: 20,
+                                ),
                                 const SizedBox(width: 12),
-                                Flexible(child: Text(l10n.restoreOriginalCoverText)),
+                                Flexible(
+                                  child: Text(l10n.restoreOriginalCoverText),
+                                ),
                               ],
                             ),
                           ),
@@ -4779,7 +5411,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                             value: 'gallery',
                             child: Row(
                               children: [
-                                const Icon(Icons.photo_library_outlined, size: 20),
+                                const Icon(
+                                  Icons.photo_library_outlined,
+                                  size: 20,
+                                ),
                                 const SizedBox(width: 12),
                                 Flexible(child: Text(l10n.viewImageGallery)),
                               ],
@@ -4790,23 +5425,34 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                             value: 'nexus',
                             child: Row(
                               children: [
-                                const Icon(Icons.open_in_browser_outlined, size: 20),
+                                const Icon(
+                                  Icons.open_in_browser_outlined,
+                                  size: 20,
+                                ),
                                 const SizedBox(width: 12),
                                 Flexible(child: Text(l10n.openInNexusMods)),
                               ],
                             ),
                           ),
-                        if (!modInfo.isEnabled)
-                          const PopupMenuDivider(),
+                        if (!modInfo.isEnabled) const PopupMenuDivider(),
                         if (!modInfo.isEnabled)
                           PopupMenuItem(
                             value: 'delete',
                             child: Row(
                               children: [
-                                const Icon(Icons.delete_forever_outlined, size: 20, color: Colors.redAccent),
+                                const Icon(
+                                  Icons.delete_forever_outlined,
+                                  size: 20,
+                                  color: Colors.redAccent,
+                                ),
                                 const SizedBox(width: 12),
                                 Flexible(
-                                  child: Text(l10n.deletePermanently, style: const TextStyle(color: Colors.redAccent)),
+                                  child: Text(
+                                    l10n.deletePermanently,
+                                    style: const TextStyle(
+                                      color: Colors.redAccent,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -4818,19 +5464,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
-   Widget _buildModListTile(ModInfo modInfo, AppLocalizations l10n) {
-    final isHighlighted =
-        _lastInstalledModNames.contains(p.basename(modInfo.directory.path));
+  Widget _buildModListTile(ModInfo modInfo, AppLocalizations l10n) {
+    final isHighlighted = _lastInstalledModNames.contains(
+      p.basename(modInfo.directory.path),
+    );
     final updateInfo = _modUpdates[modInfo.directory.path];
     final hasUpdate = updateInfo != null;
-    final updateIdentifier =
-        hasUpdate ? modInfo.directory.path + updateInfo['version'] : '';
+    final updateIdentifier = hasUpdate
+        ? modInfo.directory.path + updateInfo['version']
+        : '';
     final isIgnored = _ignoredUpdates.contains(updateIdentifier);
 
     return Card(
@@ -4839,20 +5487,24 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       color: isHighlighted
           ? Colors.teal.withOpacity(0.3)
           : (modInfo.isEnabled
-              ? Colors.grey[850]
-              : Colors.orange[900]?.withOpacity(0.2)),
+                ? Colors.grey[850]
+                : Colors.orange[900]?.withOpacity(0.2)),
       shape: RoundedRectangleBorder(
-          side: BorderSide(
-              color: hasUpdate && !isIgnored
-                  ? Colors.yellowAccent
-                  : (isHighlighted ? Colors.tealAccent : Colors.transparent),
-              width: hasUpdate && !isIgnored ? 2.0 : 1.5),
-          borderRadius: BorderRadius.circular(8)),
+        side: BorderSide(
+          color: hasUpdate && !isIgnored
+              ? Colors.yellowAccent
+              : (isHighlighted ? Colors.tealAccent : Colors.transparent),
+          width: hasUpdate && !isIgnored ? 2.0 : 1.5,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: ListTile(
         dense: true,
         visualDensity: VisualDensity.compact,
-        leading:
-            Icon(Icons.extension, color: modInfo.isEnabled ? Colors.tealAccent : Colors.grey),
+        leading: Icon(
+          Icons.extension,
+          color: modInfo.isEnabled ? Colors.tealAccent : Colors.grey,
+        ),
         title: Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
@@ -4886,8 +5538,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             if (isHighlighted)
               Padding(
                 padding: const EdgeInsets.only(right: 8.0),
-                child:
-                    Icon(Icons.new_releases, color: Colors.yellow[700], size: 18),
+                child: Icon(
+                  Icons.new_releases,
+                  color: Colors.yellow[700],
+                  size: 18,
+                ),
               ),
             if (modInfo.origin == 'repaired')
               IconButton(
@@ -4906,18 +5561,23 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             if (!modInfo.isEnabled)
               IconButton(
                 icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
-                onPressed:
-                    _isLoading ? null : () => _deleteModPermanently(modInfo),
+                onPressed: _isLoading
+                    ? null
+                    : () => _deleteModPermanently(modInfo),
                 tooltip: l10n.deletePermanently,
               ),
             if (hasUpdate && !isIgnored)
               IconButton(
-                icon: const Icon(Icons.notification_important,
-                    color: Colors.yellowAccent),
+                icon: const Icon(
+                  Icons.notification_important,
+                  color: Colors.yellowAccent,
+                ),
                 tooltip: l10n.updateAvailable(
-                  (updateInfo['version'] as String).toLowerCase().startsWith('v')
-                    ? (updateInfo['version'] as String).substring(1)
-                    : updateInfo['version']
+                  (updateInfo['version'] as String).toLowerCase().startsWith(
+                        'v',
+                      )
+                      ? (updateInfo['version'] as String).substring(1)
+                      : updateInfo['version'],
                 ),
                 onPressed: () {
                   if (modInfo.nexusId != null) {
@@ -4932,19 +5592,24 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               ),
             IconButton(
               icon: const Icon(Icons.edit, color: Colors.white70),
-              onPressed: _isLoading ? null : () => _showEditModNameDialog(modInfo),
+              onPressed: _isLoading
+                  ? null
+                  : () => _showEditModNameDialog(modInfo),
               tooltip: l10n.editModNameTooltip,
             ),
             IconButton(
               icon: const Icon(Icons.folder_open, color: Colors.white70),
-              onPressed:
-                  _isLoading ? null : () => _showInExplorer(modInfo.directory),
+              onPressed: _isLoading
+                  ? null
+                  : () => _showInExplorer(modInfo.directory),
               tooltip: l10n.showInFolder,
             ),
             if (modInfo.nexusId != null)
               IconButton(
-                icon: const Icon(Icons.photo_library_outlined,
-                    color: Colors.purpleAccent),
+                icon: const Icon(
+                  Icons.photo_library_outlined,
+                  color: Colors.purpleAccent,
+                ),
                 onPressed: () => _showImageGalleryDialog(modInfo),
                 tooltip: l10n.viewImageGallery,
               ),
@@ -4953,7 +5618,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 icon: const Icon(Icons.link, color: Colors.lightBlueAccent),
                 onPressed: () async {
                   final url = Uri.parse(
-                      'https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}');
+                    'https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}',
+                  );
                   if (await canLaunchUrl(url)) {
                     await launchUrl(url);
                   }
@@ -4962,15 +5628,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               ),
             if (modInfo.isEnabled)
               IconButton(
-                icon: const Icon(Icons.power_settings_new,
-                    color: Colors.orangeAccent),
+                icon: const Icon(
+                  Icons.power_settings_new,
+                  color: Colors.orangeAccent,
+                ),
                 onPressed: _isLoading ? null : () => _disableMod(modInfo),
                 tooltip: l10n.disableMod,
               )
             else
               IconButton(
-                icon: const Icon(Icons.power_settings_new,
-                    color: Colors.greenAccent),
+                icon: const Icon(
+                  Icons.power_settings_new,
+                  color: Colors.greenAccent,
+                ),
                 onPressed: _isLoading ? null : () => _enableMod(modInfo),
                 tooltip: l10n.enableMod,
               ),
@@ -4981,18 +5651,26 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Widget _buildModsListSection(
-      String title, List<ModInfo> mods, AppLocalizations l10n, bool hasEnabledMods, bool hasDisabledMods) {
+    String title,
+    List<ModInfo> mods,
+    AppLocalizations l10n,
+    bool hasEnabledMods,
+    bool hasDisabledMods,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(title,
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.tealAccent)),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.tealAccent,
+              ),
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Padding(
@@ -5004,10 +5682,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     decoration: InputDecoration(
                       hintText: l10n.searchMods,
                       hintStyle: TextStyle(color: Colors.grey[400]),
-                      prefixIcon: const Icon(Icons.search, color: Colors.grey, size: 20),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Colors.grey,
+                        size: 20,
+                      ),
                       filled: true,
                       fillColor: Colors.black.withOpacity(0.3),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 0,
+                        horizontal: 16,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: Colors.grey[700]!),
@@ -5035,19 +5720,33 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             ),
             Row(
               children: [
-                 ToggleButtons(
-                  isSelected: [_viewMode == ModListViewMode.grid, _viewMode == ModListViewMode.list],
+                ToggleButtons(
+                  isSelected: [
+                    _viewMode == ModListViewMode.grid,
+                    _viewMode == ModListViewMode.list,
+                  ],
                   onPressed: (index) async {
-                    final newMode = index == 0 ? ModListViewMode.grid : ModListViewMode.list;
+                    final newMode = index == 0
+                        ? ModListViewMode.grid
+                        : ModListViewMode.list;
                     final prefs = await SharedPreferences.getInstance();
                     await prefs.setInt(AppPrefs.viewMode, newMode.index);
                     setState(() => _viewMode = newMode);
                   },
                   borderRadius: BorderRadius.circular(8),
-                  constraints: const BoxConstraints(minHeight: 36, minWidth: 36),
+                  constraints: const BoxConstraints(
+                    minHeight: 36,
+                    minWidth: 36,
+                  ),
                   children: [
-                    Tooltip(message: l10n.viewTypeGrid, child: Icon(Icons.grid_view_outlined, size: 20)),
-                    Tooltip(message: l10n.viewTypeList, child: Icon(Icons.view_list_outlined, size: 20)),
+                    Tooltip(
+                      message: l10n.viewTypeGrid,
+                      child: Icon(Icons.grid_view_outlined, size: 20),
+                    ),
+                    Tooltip(
+                      message: l10n.viewTypeList,
+                      child: Icon(Icons.view_list_outlined, size: 20),
+                    ),
                   ],
                 ),
                 PopupMenuButton<ModFilter>(
@@ -5064,8 +5763,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     final filterOptions = [
                       {'value': ModFilter.all, 'text': l10n.filterAll},
                       {'value': ModFilter.enabled, 'text': l10n.filterEnabled},
-                      {'value': ModFilter.disabled, 'text': l10n.filterDisabled},
-                      {'value': ModFilter.repaired, 'text': l10n.filterRepaired},
+                      {
+                        'value': ModFilter.disabled,
+                        'text': l10n.filterDisabled,
+                      },
+                      {
+                        'value': ModFilter.repaired,
+                        'text': l10n.filterRepaired,
+                      },
                     ];
                     return filterOptions.map((option) {
                       return PopupMenuItem<ModFilter>(
@@ -5086,14 +5791,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   icon: const Icon(Icons.sort),
                   tooltip: l10n.sortBy,
                   onSelected: (ModSort result) async {
-                     final prefs = await SharedPreferences.getInstance();
+                    final prefs = await SharedPreferences.getInstance();
                     await prefs.setInt(AppPrefs.sortMode, result.index);
                     setState(() {
                       _currentSort = result;
                     });
                   },
                   itemBuilder: (BuildContext context) {
-                     final sortOptions = [
+                    final sortOptions = [
                       {'value': ModSort.date, 'text': l10n.sortByDate},
                       {'value': ModSort.name, 'text': l10n.sortByName},
                     ];
@@ -5113,54 +5818,65 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   },
                 ),
                 IconButton(
-                    icon: const Icon(Icons.folder_special_outlined),
-                    onPressed: _isLoading
-                        ? null
-                        : () {
-                            if(_finalModsPath != null) {
-                              _showInExplorer(Directory(_finalModsPath!));
-                            }
-                          },
-                    tooltip: l10n.openModsFolder),
-                IconButton(
-                    icon: Icon(Icons.power_outlined, 
-                      // ++ START: COLOR CHANGE ++
-                      color: (_isLoading || !hasDisabledMods) 
-                             ? Colors.greenAccent.withOpacity(0.4) 
-                             : Colors.greenAccent
-                      // ++ END: COLOR CHANGE ++
-                    ),
-                    onPressed: _isLoading || !hasDisabledMods ? null : _enableAllMods,
-                    tooltip: l10n.enableAllModsTooltip
+                  icon: const Icon(Icons.folder_special_outlined),
+                  onPressed: _isLoading
+                      ? null
+                      : () {
+                          if (_finalModsPath != null) {
+                            _showInExplorer(Directory(_finalModsPath!));
+                          }
+                        },
+                  tooltip: l10n.openModsFolder,
                 ),
                 IconButton(
-                    icon: Icon(Icons.power_off_outlined, 
-                      // ++ START: COLOR CHANGE ++
-                      color: (_isLoading || !hasEnabledMods) 
-                             ? Colors.orangeAccent.withOpacity(0.4) 
-                             : Colors.orangeAccent
-                      // ++ END: COLOR CHANGE ++
-                    ),
-                    onPressed: _isLoading || !hasEnabledMods ? null : _disableAllMods,
-                    tooltip: l10n.disableAllModsTooltip
+                  icon: Icon(
+                    Icons.power_outlined,
+                    // ++ START: COLOR CHANGE ++
+                    color: (_isLoading || !hasDisabledMods)
+                        ? Colors.greenAccent.withOpacity(0.4)
+                        : Colors.greenAccent,
+                    // ++ END: COLOR CHANGE ++
+                  ),
+                  onPressed: _isLoading || !hasDisabledMods
+                      ? null
+                      : _enableAllMods,
+                  tooltip: l10n.enableAllModsTooltip,
                 ),
                 IconButton(
-                    icon: Icon(Icons.delete_sweep_outlined, 
-                      // ++ START: COLOR CHANGE ++
-                      color: (_isLoading || !hasDisabledMods) 
-                             ? Colors.redAccent.withOpacity(0.4) 
-                             : Colors.redAccent
-                      // ++ END: COLOR CHANGE ++
-                    ),
-                    onPressed: _isLoading || !hasDisabledMods ? null : _deleteDisabledMods,
-                    tooltip: l10n.deleteAllModsTooltip
+                  icon: Icon(
+                    Icons.power_off_outlined,
+                    // ++ START: COLOR CHANGE ++
+                    color: (_isLoading || !hasEnabledMods)
+                        ? Colors.orangeAccent.withOpacity(0.4)
+                        : Colors.orangeAccent,
+                    // ++ END: COLOR CHANGE ++
+                  ),
+                  onPressed: _isLoading || !hasEnabledMods
+                      ? null
+                      : _disableAllMods,
+                  tooltip: l10n.disableAllModsTooltip,
                 ),
                 IconButton(
-                    icon: const Icon(Icons.refresh),
-                    onPressed: _isLoading
-                        ? null
-                        : () => _loadAllMods(clearHighlight: true),
-                    tooltip: l10n.refreshList),
+                  icon: Icon(
+                    Icons.delete_sweep_outlined,
+                    // ++ START: COLOR CHANGE ++
+                    color: (_isLoading || !hasDisabledMods)
+                        ? Colors.redAccent.withOpacity(0.4)
+                        : Colors.redAccent,
+                    // ++ END: COLOR CHANGE ++
+                  ),
+                  onPressed: _isLoading || !hasDisabledMods
+                      ? null
+                      : _deleteDisabledMods,
+                  tooltip: l10n.deleteAllModsTooltip,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _isLoading
+                      ? null
+                      : () => _loadAllMods(clearHighlight: true),
+                  tooltip: l10n.refreshList,
+                ),
               ],
             ),
           ],
@@ -5169,91 +5885,94 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         Expanded(
           child: mods.isEmpty
               ? Center(
-                  child: Text(l10n.noModsFound,
-                      style: const TextStyle(color: Colors.grey)))
+                  child: Text(
+                    l10n.noModsFound,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                )
               : AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: _viewMode == ModListViewMode.grid
-                  ? GridView.builder(
-                      key: const ValueKey('grid'),
-                      padding: const EdgeInsets.all(4),
-                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 220,
-                        childAspectRatio: 3 / 4.5,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                      ),
-                      itemCount: mods.length,
-                      itemBuilder: (context, index) {
-                        return _buildModGridCard(mods[index], l10n);
-                      },
-                    )
-                  : ListView.builder(
-                    key: const ValueKey('list'),
-                    itemCount: mods.length,
-                    itemBuilder: (context, index) {
-                      return _buildModListTile(mods[index], l10n);
-                    },
-                  )
-              )
+                  duration: const Duration(milliseconds: 300),
+                  child: _viewMode == ModListViewMode.grid
+                      ? GridView.builder(
+                          key: const ValueKey('grid'),
+                          padding: const EdgeInsets.all(4),
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 220,
+                                childAspectRatio: 3 / 4.5,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                              ),
+                          itemCount: mods.length,
+                          itemBuilder: (context, index) {
+                            return _buildModGridCard(mods[index], l10n);
+                          },
+                        )
+                      : ListView.builder(
+                          key: const ValueKey('list'),
+                          itemCount: mods.length,
+                          itemBuilder: (context, index) {
+                            return _buildModListTile(mods[index], l10n);
+                          },
+                        ),
+                ),
         ),
       ],
     );
   }
 
   Future<void> _setCustomCover(ModInfo mod) async {
-  FilePickerResult? result = await FilePicker.platform.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'pwebp', 'tiff'],
-    dialogTitle: 'Selecciona una portada para el mod',
-  );
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'pwebp', 'tiff'],
+      dialogTitle: 'Selecciona una portada para el mod',
+    );
 
-  if (result != null && result.files.single.path != null) {
-    final imageFile = File(result.files.single.path!);
-    final Alignment? alignment = await _showCoverAlignmentDialog(imageFile);
+    if (result != null && result.files.single.path != null) {
+      final imageFile = File(result.files.single.path!);
+      final Alignment? alignment = await _showCoverAlignmentDialog(imageFile);
 
-    if (alignment == null) return;
+      if (alignment == null) return;
 
-    setState(() => _isLoading = true);
-    try {
-      // ===== INICIO DE LA CORRECCIÓN =====
-      // 1. Guarda los cambios en el archivo nexus_info.json
-      final extension = p.extension(imageFile.path);
-      final newFileName = '_custom_cover$extension';
-      final destinationPath = p.join(mod.directory.path, newFileName);
-      await imageFile.copy(destinationPath);
+      setState(() => _isLoading = true);
+      try {
+        // ===== INICIO DE LA CORRECCIÓN =====
+        // 1. Guarda los cambios en el archivo nexus_info.json
+        final extension = p.extension(imageFile.path);
+        final newFileName = '_custom_cover$extension';
+        final destinationPath = p.join(mod.directory.path, newFileName);
+        await imageFile.copy(destinationPath);
 
-      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
-      Map<String, dynamic> data = {};
-      if (await infoFile.exists()) {
-        final content = await infoFile.readAsString();
-        if (content.isNotEmpty) data = json.decode(content);
+        final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+        Map<String, dynamic> data = {};
+        if (await infoFile.exists()) {
+          final content = await infoFile.readAsString();
+          if (content.isNotEmpty) data = json.decode(content);
+        }
+        data['customCoverPath'] = newFileName;
+        data['customCoverAlignmentX'] = alignment.x;
+        data['customCoverAlignmentY'] = alignment.y;
+        final encoder = JsonEncoder.withIndent('  ');
+        await infoFile.writeAsString(encoder.convert(data));
+
+        // 2. Llama a _loadAllMods() para recargar discretamente toda la lista
+        // con la información 100% correcta desde los archivos.
+        await _loadAllMods(clearHighlight: false);
+        // ===== FIN DE LA CORRECCIÓN =====
+      } catch (e) {
+        if (mounted) {
+          final l10n = AppLocalizations.of(context)!;
+          NotificationService.instance.show(
+            context: context,
+            type: NotificationType.error,
+            title: l10n.errorRestoringCoverText(e.toString()),
+          );
+        }
+      } finally {
+        setState(() => _isLoading = false);
       }
-      data['customCoverPath'] = newFileName;
-      data['customCoverAlignmentX'] = alignment.x;
-      data['customCoverAlignmentY'] = alignment.y;
-      final encoder = JsonEncoder.withIndent('  ');
-      await infoFile.writeAsString(encoder.convert(data));
-      
-      // 2. Llama a _loadAllMods() para recargar discretamente toda la lista
-      // con la información 100% correcta desde los archivos.
-      await _loadAllMods(clearHighlight: false);
-      // ===== FIN DE LA CORRECCIÓN =====
-
-    } catch (e) {
-      if (mounted) {
-        final l10n = AppLocalizations.of(context)!;
-        NotificationService.instance.show(
-          context: context,
-          type: NotificationType.error,
-          title: l10n.errorRestoringCoverText(e.toString()),
-        );
-      }
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
-}
 
   Future<Alignment?> _showCoverAlignmentDialog(File imageFile) async {
     final image = await decodeImageFromList(imageFile.readAsBytesSync());
@@ -5284,15 +6003,24 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 height: 600,
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    containerSize = Size(constraints.maxWidth, constraints.maxHeight);
-                    
-                    final fittedSizes = applyBoxFit(BoxFit.contain, imageSize, containerSize!);
+                    containerSize = Size(
+                      constraints.maxWidth,
+                      constraints.maxHeight,
+                    );
+
+                    final fittedSizes = applyBoxFit(
+                      BoxFit.contain,
+                      imageSize,
+                      containerSize!,
+                    );
                     scaledImageSize = fittedSizes.destination;
-                    
-                    const cardAspectRatio = 3 / 4.2; // La proporción que ajustaste
-                    
+
+                    const cardAspectRatio =
+                        3 / 4.2; // La proporción que ajustaste
+
                     // ✅ SOLUCIÓN: Asignamos valores a las variables superiores (sin 'double' al inicio).
-                    if ((scaledImageSize!.width / scaledImageSize!.height) > cardAspectRatio) {
+                    if ((scaledImageSize!.width / scaledImageSize!.height) >
+                        cardAspectRatio) {
                       cropHeight = scaledImageSize!.height;
                       cropWidth = cropHeight! * cardAspectRatio;
                     } else {
@@ -5308,20 +6036,35 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
                     initialImageRect = Alignment.center.inscribe(
                       scaledImageSize!,
-                      Rect.fromLTWH(0, 0, containerSize!.width, containerSize!.height),
+                      Rect.fromLTWH(
+                        0,
+                        0,
+                        containerSize!.width,
+                        containerSize!.height,
+                      ),
                     );
-                    
-                    final minDx = cropRect.right - (initialImageRect!.left + scaledImageSize!.width);
+
+                    final minDx =
+                        cropRect.right -
+                        (initialImageRect!.left + scaledImageSize!.width);
                     final maxDx = cropRect.left - initialImageRect!.left;
-                    final minDy = cropRect.bottom - (initialImageRect!.top + scaledImageSize!.height);
+                    final minDy =
+                        cropRect.bottom -
+                        (initialImageRect!.top + scaledImageSize!.height);
                     final maxDy = cropRect.top - initialImageRect!.top;
-                    
+
                     return GestureDetector(
                       onPanUpdate: (details) {
                         setDialogState(() {
                           offset = Offset(
-                            (offset.dx + details.delta.dx).clamp(min(minDx, maxDx), max(minDx, maxDx)),
-                            (offset.dy + details.delta.dy).clamp(min(minDy, maxDy), max(minDy, maxDy)),
+                            (offset.dx + details.delta.dx).clamp(
+                              min(minDx, maxDx),
+                              max(minDx, maxDx),
+                            ),
+                            (offset.dy + details.delta.dy).clamp(
+                              min(minDy, maxDy),
+                              max(minDy, maxDy),
+                            ),
                           );
                         });
                       },
@@ -5355,21 +6098,29 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 ElevatedButton(
                   onPressed: () {
                     // ✅ SOLUCIÓN: Las variables ahora son accesibles y seguras de usar.
-                    if (scaledImageSize == null || initialImageRect == null || cropWidth == null || cropHeight == null) return;
-                    
+                    if (scaledImageSize == null ||
+                        initialImageRect == null ||
+                        cropWidth == null ||
+                        cropHeight == null)
+                      return;
+
                     final extraWidth = scaledImageSize!.width - cropWidth!;
                     final extraHeight = scaledImageSize!.height - cropHeight!;
 
                     final centerOffset = offset;
-                    
-                    final alignmentX = extraWidth > 0 ? (centerOffset.dx / (extraWidth / 2)) * -1 : 0.0;
-                    final alignmentY = extraHeight > 0 ? (centerOffset.dy / (extraHeight / 2)) * -1 : 0.0;
+
+                    final alignmentX = extraWidth > 0
+                        ? (centerOffset.dx / (extraWidth / 2)) * -1
+                        : 0.0;
+                    final alignmentY = extraHeight > 0
+                        ? (centerOffset.dy / (extraHeight / 2)) * -1
+                        : 0.0;
 
                     final finalAlignment = Alignment(
                       alignmentX.clamp(-1.0, 1.0),
                       alignmentY.clamp(-1.0, 1.0),
                     );
-                    
+
                     Navigator.of(context).pop(finalAlignment);
                   },
                   child: Text(l10n.dialogActionSave),
@@ -5383,49 +6134,48 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<void> _revertToDefaultCover(ModInfo mod) async {
-  if (mod.customCoverPath == null) return;
+    if (mod.customCoverPath == null) return;
 
-  setState(() => _isLoading = true);
-  try {
-    // 1. Borra el archivo de la imagen personalizada.
-    final coverFile = File(p.join(mod.directory.path, mod.customCoverPath!));
-    if (await coverFile.exists()) {
-      await coverFile.delete();
+    setState(() => _isLoading = true);
+    try {
+      // 1. Borra el archivo de la imagen personalizada.
+      final coverFile = File(p.join(mod.directory.path, mod.customCoverPath!));
+      if (await coverFile.exists()) {
+        await coverFile.delete();
+      }
+
+      // 2. Actualiza el archivo nexus_info.json para eliminar las referencias.
+      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+      if (await infoFile.exists()) {
+        final content = await infoFile.readAsString();
+        Map<String, dynamic> data = json.decode(content);
+
+        data.remove('customCoverPath');
+        data.remove('customCoverAlignmentX');
+        data.remove('customCoverAlignmentY');
+
+        final encoder = JsonEncoder.withIndent('  ');
+        await infoFile.writeAsString(encoder.convert(data));
+      }
+
+      // ===== CORRECCIÓN AQUÍ =====
+      // 3. Llama a _loadAllMods() para recargar la lista con la información
+      // 100% correcta desde los archivos, igual que en la función anterior.
+      await _loadAllMods(clearHighlight: false);
+      // ===========================
+    } catch (e) {
+      if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: l10n.errorRestoringCoverText(e.toString()),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
     }
-
-    // 2. Actualiza el archivo nexus_info.json para eliminar las referencias.
-    final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
-    if (await infoFile.exists()) {
-      final content = await infoFile.readAsString();
-      Map<String, dynamic> data = json.decode(content);
-      
-      data.remove('customCoverPath');
-      data.remove('customCoverAlignmentX');
-      data.remove('customCoverAlignmentY');
-      
-      final encoder = JsonEncoder.withIndent('  ');
-      await infoFile.writeAsString(encoder.convert(data));
-    }
-
-    // ===== CORRECCIÓN AQUÍ =====
-    // 3. Llama a _loadAllMods() para recargar la lista con la información
-    // 100% correcta desde los archivos, igual que en la función anterior.
-    await _loadAllMods(clearHighlight: false);
-    // ===========================
-
-  } catch (e) {
-    if (mounted) {
-      final l10n = AppLocalizations.of(context)!;
-      NotificationService.instance.show(
-        context: context,
-        type: NotificationType.error,
-        title: l10n.errorRestoringCoverText(e.toString()),
-      );
-    }
-  } finally {
-    setState(() => _isLoading = false);
   }
-}
 
   /// Consulta la API de Nexus para verificar si un ID de mod es válido para Stellar Blade.
   Future<bool> _isValidNexusId(String modId) async {
@@ -5433,7 +6183,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       return false; // No se puede validar sin una API key.
     }
     try {
-      final uri = Uri.parse('https://api.nexusmods.com/v1/games/stellarblade/mods/$modId.json');
+      final uri = Uri.parse(
+        'https://api.nexusmods.com/v1/games/stellarblade/mods/$modId.json',
+      );
       final response = await http.get(
         uri,
         headers: {'apikey': _apiKey!, 'accept': 'application/json'},
@@ -5453,10 +6205,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         // Usamos addPostFrameCallback para posponer la actualización hasta que el árbol de widgets
         // esté desbloqueado (después de que el panel se haya cerrado por completo).
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return; // Buena práctica: verificar si el widget aún existe.
-          
+          if (!mounted)
+            return; // Buena práctica: verificar si el widget aún existe.
+
           final modIndex = _allMods.indexWhere(
-              (mod) => mod.directory.path == updatedModInfo.directory.path);
+            (mod) => mod.directory.path == updatedModInfo.directory.path,
+          );
 
           if (modIndex != -1) {
             setState(() {
@@ -5484,69 +6238,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 
-  Future<void> _updateUserNotes(ModInfo mod, String newNotes, dynamic l10n) async {
-    try {
-      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
-      Map<String, dynamic> data = {};
-      if (await infoFile.exists()) {
-        final content = await infoFile.readAsString();
-        if (content.isNotEmpty) data = json.decode(content);
-      }
-
-      data['userNotes'] = newNotes;
-
-      final encoder = JsonEncoder.withIndent('  ');
-      await infoFile.writeAsString(encoder.convert(data));
-
-      // Actualiza el estado en memoria para un refresco instantáneo
-      final modIndex = _allMods.indexWhere((m) => m.directory.path == mod.directory.path);
-      if (modIndex != -1) {
-        setState(() {
-          _allMods[modIndex].userNotes = newNotes;
-        });
-      }
-    } catch (e) {
-      print('Error saving user notes: $e');
-      if (mounted) {
-        NotificationService.instance.show(
-          context: context,
-          type: NotificationType.error,
-          title: l10n.errorSavingNotes,
-          description: e.toString(),
-        );
-      }
-    }
-  }
-
-  /// Fetches gallery images for a mod from Nexus Mods API.
-  Future<List<Map<String, dynamic>>?> _fetchModImages(String nexusId) async {
-    if (_apiKey == null || _apiKey!.isEmpty) {
-      print("API Key not configured, not fetching mod images.");
-      return null;
-    }
-    final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
-    try {
-      final modDetailsUrl = Uri.parse(
-          'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId.json');
-      var response = await http.get(modDetailsUrl, headers: headers);
-
-      if (response.statusCode == 200) {
-        final modDetails = json.decode(response.body);
-        final pictureUrl = modDetails['picture_url'] as String?;
-        if (pictureUrl != null && pictureUrl.isNotEmpty) {
-          return [
-            {"image": pictureUrl, "thumbnail": pictureUrl}
-          ];
-        }
-      }
-      print("Failed to fetch mod images for mod $nexusId (code: ${response.statusCode}).");
-      return null;
-    } catch (e) {
-      print("An exception occurred while fetching mod images for mod $nexusId: $e");
-      return null;
-    }
-  }
-
   /// Muestra un diálogo para editar un valor de texto personalizado (versión o etiqueta).
   Future<ModInfo?> _showEditDialog({
     required BuildContext context,
@@ -5570,7 +6261,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               content: TextField(
                 controller: controller,
                 autofocus: true,
-                onChanged: (value) => setDialogState(() {}), // Rebuild on text change
+                onChanged: (value) =>
+                    setDialogState(() {}), // Rebuild on text change
                 decoration: InputDecoration(labelText: label),
               ),
               actions: [
@@ -5609,17 +6301,22 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     if (newValue != null) {
       return await onSave(newValue);
     }
-    
+
     return null;
   }
+
   /// Guarda una propiedad personalizada (versión o etiqueta) en el JSON y actualiza el estado.
-  Future<ModInfo?> _updateModCustomProperty(ModInfo mod, {String? newVersion, String? newTag}) async {
+  Future<ModInfo?> _updateModCustomProperty(
+    ModInfo mod, {
+    String? newVersion,
+    String? newTag,
+  }) async {
     try {
       final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
       Map<String, dynamic> data = {};
       if (await infoFile.exists()) {
         final content = await infoFile.readAsString();
-        if(content.isNotEmpty) data = json.decode(content);
+        if (content.isNotEmpty) data = json.decode(content);
       }
 
       if (newVersion != null) {
@@ -5640,7 +6337,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       final encoder = JsonEncoder.withIndent('  ');
       await infoFile.writeAsString(encoder.convert(data));
-      
+
       // Reconstruye manualmente el objeto para asegurar que los nulos se apliquen
       return ModInfo(
         directory: mod.directory,
@@ -5668,71 +6365,26 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         sourceUrl: mod.sourceUrl,
         customSourceUrl: mod.customSourceUrl,
       );
-
     } catch (e) {
       print('Error updating custom property: $e');
       return null;
     }
   }
-  // Este método se encargará de guardar la URL personalizada en el archivo JSON del mod.
-  Future<void> _updateModCustomSourceUrl(ModInfo mod, String newUrl, dynamic l10n) async {
-    try {
-      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
-      Map<String, dynamic> data = {};
-      if (await infoFile.exists()) {
-        final content = await infoFile.readAsString();
-        if (content.isNotEmpty) data = json.decode(content);
-      }
-
-      if (newUrl.isEmpty) {
-        data.remove('customSourceUrl');
-      } else {
-        data['customSourceUrl'] = newUrl;
-      }
-
-      final encoder = JsonEncoder.withIndent('  ');
-      await infoFile.writeAsString(encoder.convert(data));
-
-      // Actualiza el estado en memoria para un refresco instantáneo sin recargar todo
-      final modIndex = _allMods.indexWhere((m) => m.directory.path == mod.directory.path);
-      if (modIndex != -1) {
-         final updatedMod = ModInfo(
-          directory: mod.directory, isEnabled: mod.isEnabled, nexusId: mod.nexusId,
-          localVersion: mod.localVersion, lastModified: mod.lastModified,
-          origin: mod.origin, displayName: mod.displayName, customName: mod.customName,
-          gallery: mod.gallery, fitMeshType: mod.fitMeshType,
-          customCoverPath: mod.customCoverPath, customCoverAlignment: mod.customCoverAlignment,
-          customCoverLastModified: mod.customCoverLastModified,
-          customVersion: mod.customVersion, customFitMeshType: mod.customFitMeshType,
-          summary: mod.summary, author: mod.author, userNotes: mod.userNotes,
-          customSourceUrl: newUrl.isEmpty ? null : newUrl, // Aplica el valor actualizado
-        );
-        setState(() { _allMods[modIndex] = updatedMod; });
-      }
-    } catch (e) {
-      print('Error saving custom source URL: $e');
-      if (mounted) {
-        NotificationService.instance.show(
-          context: context,
-          type: NotificationType.error,
-          title: l10n.errorSavingUrl,
-          description: e.toString(),
-        );
-      }
-    }
-  }
-
-  Future<ModInfo?> _updateModDetails(ModInfo mod, Map<String, dynamic> newData) async {
+  /// Actualiza múltiples detalles del mod en el archivo JSON y devuelve un ModInfo actualizado.
+  Future<ModInfo?> _updateModDetails(
+    ModInfo mod,
+    Map<String, dynamic> newData,
+  ) async {
     try {
       Directory modDirectory = mod.directory;
-  
+
       final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
       Map<String, dynamic> data = {};
       if (await infoFile.exists()) {
         final content = await infoFile.readAsString();
         if (content.isNotEmpty) data = json.decode(content);
       }
-      
+
       if (newData.containsKey('newCoverFile')) {
         final imageFile = newData['newCoverFile'] as File;
         final alignment = newData['newCoverAlignment'] as Alignment?;
@@ -5746,18 +6398,22 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           data['customCoverAlignmentY'] = alignment.y;
         }
       }
-      
+
       if (newData.containsKey('customName')) {
         final value = newData['customName'] as String;
-        if (value.isEmpty || value == mod.displayName) data.remove('customName');
-        else data['customName'] = value;
+        if (value.isEmpty || value == mod.displayName)
+          data.remove('customName');
+        else
+          data['customName'] = value;
       }
       if (newData.containsKey('author')) {
         final value = newData['author'] as String;
-        if (value.isEmpty || value == mod.author) data.remove('customAuthor');
-        else data['customAuthor'] = value;
+        if (value.isEmpty || value == mod.author)
+          data.remove('customAuthor');
+        else
+          data['customAuthor'] = value;
       }
-      
+
       if (newData.containsKey('summary')) {
         final newCustomSummary = newData['summary'] as String;
         if (newCustomSummary.isEmpty || newCustomSummary == mod.summary) {
@@ -5766,13 +6422,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           data['customSummary'] = newCustomSummary;
         }
       }
-  
-      if (newData.containsKey('userNotes')) data['userNotes'] = newData['userNotes'];
-      
+
+      if (newData.containsKey('userNotes'))
+        data['userNotes'] = newData['userNotes'];
+
       if (newData.containsKey('customSourceUrl')) {
         final value = newData['customSourceUrl'] as String;
-        if (value.isEmpty || value == mod.sourceUrl) data.remove('customSourceUrl');
-        else data['customSourceUrl'] = value;
+        if (value.isEmpty || value == mod.sourceUrl)
+          data.remove('customSourceUrl');
+        else
+          data['customSourceUrl'] = value;
       }
 
       // Añade la lógica para manejar la versión y la etiqueta personalizadas.
@@ -5793,13 +6452,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           data['customFitMeshType'] = value;
         }
       }
-      
+
       final encoder = JsonEncoder.withIndent('  ');
       await infoFile.writeAsString(encoder.convert(data));
-  
+
       // --- LÍNEA ELIMINADA ---
       // await _loadAllMods(clearHighlight: false);  <-- ESTO CAUSABA EL PARPADEO
-  
+
       // Ahora, construimos y devolvemos un nuevo objeto ModInfo con los datos actualizados
       // para que el panel pueda refrescar su propia UI sin afectar el fondo.
       return ModInfo(
@@ -5808,7 +6467,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         lastModified: mod.lastModified,
         installDate: mod.installDate,
         displayName: data['displayName'] ?? mod.displayName,
-        customName: data['customName'] ?? data['displayName'] ?? mod.displayName,
+        customName:
+            data['customName'] ?? data['displayName'] ?? mod.displayName,
         nexusId: data['nexusId'] ?? mod.nexusId,
         localVersion: data['installedVersion'] ?? mod.localVersion,
         customVersion: data['customVersion'],
@@ -5817,8 +6477,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         fitMeshType: data['fitMeshType'] ?? mod.fitMeshType,
         customFitMeshType: data['customFitMeshType'],
         customCoverPath: data['customCoverPath'],
-        customCoverAlignment: data.containsKey('customCoverAlignmentX') ? Alignment(data['customCoverAlignmentX'], data['customCoverAlignmentY']) : null,
-        customCoverLastModified: data.containsKey('customCoverPath') ? await File(p.join(modDirectory.path, data['customCoverPath'])).lastModified() : null,
+        customCoverAlignment: data.containsKey('customCoverAlignmentX')
+            ? Alignment(
+                data['customCoverAlignmentX'],
+                data['customCoverAlignmentY'],
+              )
+            : null,
+        customCoverLastModified: data.containsKey('customCoverPath')
+            ? await File(
+                p.join(modDirectory.path, data['customCoverPath']),
+              ).lastModified()
+            : null,
         summary: data['summary'] ?? mod.summary,
         customSummary: data['customSummary'],
         author: data['author'] ?? mod.author,
@@ -5827,14 +6496,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         sourceUrl: data['sourceUrl'] ?? mod.sourceUrl,
         customSourceUrl: data['customSourceUrl'],
       );
-
     } catch (e) {
       print('Error updating mod details: $e');
       final l10n = AppLocalizations.of(context)!;
       if (mounted) {
         NotificationService.instance.show(
-          context: context, type: NotificationType.error,
-          title: l10n.errorSavingChanges, description: e.toString(),
+          context: context,
+          type: NotificationType.error,
+          title: l10n.errorSavingChanges,
+          description: e.toString(),
         );
       }
       return null;
@@ -5842,23 +6512,34 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<String?> _getVersionFromCnsPackage(Directory sourceSBDir) async {
-  try {
-    final luaFile = File(p.join(sourceSBDir.path, 'Binaries', 'Win64', 'ue4ss', 'Mods', 'DekCNS', 'Scripts', 'main.lua'));
-    if (await luaFile.exists()) {
-      final content = await luaFile.readAsString();
-      final regex = RegExp(r'local CNS_Version = "(.+)"');
-      final match = regex.firstMatch(content);
-      if (match != null && match.group(1) != null) {
-        return match.group(1);
+    try {
+      final luaFile = File(
+        p.join(
+          sourceSBDir.path,
+          'Binaries',
+          'Win64',
+          'ue4ss',
+          'Mods',
+          'DekCNS',
+          'Scripts',
+          'main.lua',
+        ),
+      );
+      if (await luaFile.exists()) {
+        final content = await luaFile.readAsString();
+        final regex = RegExp(r'local CNS_Version = "(.+)"');
+        final match = regex.firstMatch(content);
+        if (match != null && match.group(1) != null) {
+          return match.group(1);
+        }
       }
+    } catch (e) {
+      print("No se pudo leer la versión del paquete CNS: $e");
     }
-  } catch (e) {
-    print("No se pudo leer la versión del paquete CNS: $e");
+    return null;
   }
-  return null;
-}
 
-/// Displays a confirmation dialog and then proceeds to delete all nexus_info.json files.
+  /// Displays a confirmation dialog and then proceeds to delete all nexus_info.json files.
   Future<void> _deleteAllNexusInfoFiles() async {
     final l10n = AppLocalizations.of(context)!;
     final confirm = await showDialog<bool>(
@@ -5897,7 +6578,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           }
         }
       }
-      
+
       if (mounted) {
         NotificationService.instance.show(
           context: context,
@@ -5924,7 +6605,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   /// Extracts mod identifiers to a JSON file on the user's desktop.
   Future<void> _extractModIdentifiers() async {
     final l10n = AppLocalizations.of(context)!;
-     final confirm = await showDialog<bool>(
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2a2a2a),
@@ -5945,7 +6626,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
 
     if (confirm != true) return;
-    
+
     setState(() => _isLoading = true);
     try {
       final Map<String, dynamic> extractedData = {};
@@ -5958,11 +6639,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             final displayName = data['displayName'] as String?;
             final nexusId = data['nexusId'] as String?;
 
-            if (displayName != null && nexusId != null && displayName.isNotEmpty && nexusId.isNotEmpty) {
+            if (displayName != null &&
+                nexusId != null &&
+                displayName.isNotEmpty &&
+                nexusId.isNotEmpty) {
               extractedData[displayName] = {'nexusId': nexusId};
             }
           } catch (e) {
-            print('Could not parse nexus_info.json for ${mod.customName}, skipping.');
+            print(
+              'Could not parse nexus_info.json for ${mod.customName}, skipping.',
+            );
           }
         }
       }
@@ -5977,7 +6663,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         }
         return;
       }
-      
+
       String? homePath;
       if (Platform.isWindows) {
         homePath = Platform.environment['USERPROFILE'];
@@ -5986,26 +6672,28 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
 
       if (homePath == null) {
-        throw Exception('Could not find the home directory environment variable.');
+        throw Exception(
+          'Could not find the home directory environment variable.',
+        );
       }
-      
+
       final desktopDir = Directory(p.join(homePath, 'Desktop'));
       if (!await desktopDir.exists()) {
-         if (mounted) {
-           NotificationService.instance.show(
+        if (mounted) {
+          NotificationService.instance.show(
             context: context,
             type: NotificationType.error,
             title: l10n.devExtractDesktopNotFound,
           );
-         }
-         return;
+        }
+        return;
       }
-      
+
       final outputFile = File(p.join(desktopDir.path, 'ID Mods.json'));
 
       final encoder = JsonEncoder.withIndent('  ');
       await outputFile.writeAsString(encoder.convert(extractedData));
-      
+
       if (mounted) {
         NotificationService.instance.show(
           context: context,
@@ -6027,31 +6715,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       setState(() => _isLoading = false);
     }
   }
-
-  Widget _buildDetailRow(String title, String value, {bool isLink = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$title: ',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[400]),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                color: isLink ? Colors.tealAccent : Colors.white,
-                decoration: isLink ? TextDecoration.underline : TextDecoration.none,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
 
 }
 
@@ -6097,814 +6760,6 @@ class ModImage extends StatelessWidget {
       },
       errorBuilder: (context, error, stackTrace) =>
           const Icon(Icons.broken_image, size: 50, color: Colors.grey),
-    );
-  }
-}
-
-// main.dart (Modificación en el estilo del botón en ModDetailsPage)
-
-class ModDetailsPage extends StatefulWidget {
-  final ModInfo modInfo;
-  final ThumbnailService thumbnailService;
-  // Cambia Future<void> por Future<ModInfo?>
-  final Future<ModInfo?> Function(Map<String, dynamic> newData) onSaveDetails;
-
-  const ModDetailsPage({
-    super.key,
-    required this.modInfo,
-    required this.thumbnailService,
-    required this.onSaveDetails,
-  });
-
-  @override
-  State<ModDetailsPage> createState() => _ModDetailsPageState();
-}
-
-class _ModDetailsPageState extends State<ModDetailsPage> {
-  late ModInfo currentModInfo;
-  ImageProvider? _imageProvider;
-  bool _isImageLoading = true;
-  bool _isTranslating = false;
-  bool _showTranslateButton = false;
-  bool _isDependenciesInitialized = false;
-
-  @override
-void initState() {
-  super.initState();
-  // --- CORRECCIÓN: Asegúrate de que esta línea esté presente ---
-  currentModInfo = widget.modInfo;
-  // -----------------------------------------------------------
-  _loadImageProvider();
-}
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Este método se ejecuta después de initState y tiene un context válido.
-    // Usamos un flag para que solo se ejecute la primera vez.
-    if (!_isDependenciesInitialized) {
-      _checkIfTranslationIsPossible();
-      _isDependenciesInitialized = true;
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant ModDetailsPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.modInfo != oldWidget.modInfo) {
-      setState(() {
-        currentModInfo = widget.modInfo;
-        _showTranslateButton = false;
-      });
-      _loadImageProvider();
-      _checkIfTranslationIsPossible();
-    }
-  }
-
-  void _checkIfTranslationIsPossible() async {
-  final summary = currentModInfo.summary;
-  if (summary == null ||
-      summary.trim().isEmpty ||
-      (currentModInfo.customSummary?.isNotEmpty ?? false)) {
-    if (mounted) setState(() => _showTranslateButton = false);
-    return;
-  }
-  
-  if (!mounted) return;
-  final String currentLocale = Localizations.localeOf(context).languageCode;
-
-  try {
-    final translator = GoogleTranslator();
-    final snippet = summary.length > 150 ? summary.substring(0, 150) : summary;
-
-    // --- SOLUCIÓN DEFINITIVA: USAR UN IDIOMA PIVOTE ---
-    // Traducimos la muestra a un tercer idioma neutral (alemán) para forzar
-    // una detección de origen fiable, sin importar el idioma de la app.
-    const String pivotLocale = 'de';
-    final translation = await translator.translate(snippet, to: pivotLocale);
-    final detectedLanguageCode = translation.sourceLanguage.code.toLowerCase();
-    // --- FIN DE LA SOLUCIÓN DEFINITIVA ---
-
-    print('Idioma detectado: $detectedLanguageCode, Idioma de la App: $currentLocale');
-
-    if (mounted && detectedLanguageCode != currentLocale && detectedLanguageCode != 'auto') {
-      setState(() => _showTranslateButton = true);
-    } else {
-      setState(() => _showTranslateButton = false);
-    }
-  } catch (e) {
-    print("Error detectando el idioma: $e");
-    if (mounted) setState(() => _showTranslateButton = false);
-  }
-}
-
-  Future<void> _translateSummary() async {
-    final l10n = AppLocalizations.of(context)!;
-    if (currentModInfo.summary == null || currentModInfo.summary!.trim().isEmpty) return;
-
-    setState(() => _isTranslating = true);
-
-    try {
-      final translator = GoogleTranslator();
-      final currentLocale = Localizations.localeOf(context).languageCode;
-      
-      final translation = await translator.translate(
-        currentModInfo.summary!,
-        from: 'auto', // Detecta el idioma automáticamente
-        to: currentLocale,
-      );
-
-      final updatedMod = await widget.onSaveDetails({'summary': translation.text});
-      
-      // Actualiza la UI con la nueva información.
-      if (updatedMod != null && mounted) {
-        setState(() {
-          currentModInfo = updatedMod;
-          _showTranslateButton = false; // Oculta el botón después de traducir.
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        NotificationService.instance.show(
-          context: context,
-          type: NotificationType.error,
-          title: l10n.errorTranslation,
-          description: e.toString(),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isTranslating = false);
-      }
-    }
-  }
-
-  Future<void> _loadImageProvider() async {
-    if (currentModInfo.customCoverPath != null && currentModInfo.customCoverPath!.isNotEmpty) {
-      final path = p.join(currentModInfo.directory.path, currentModInfo.customCoverPath!);
-      final file = File(path);
-      if (file.existsSync()) {
-        _imageProvider = FileImage(file)..evict();
-        if (mounted) setState(() => _isImageLoading = false);
-        return;
-      }
-    }
-
-    final imageUrl = (currentModInfo.gallery != null && currentModInfo.gallery!.isNotEmpty)
-        ? currentModInfo.gallery!.first['image'] as String? : null;
-
-    if (imageUrl != null) {
-      final file = await widget.thumbnailService.getThumbnail(imageUrl);
-      if (mounted && file != null) {
-        _imageProvider = FileImage(file);
-        setState(() => _isImageLoading = false);
-      }
-    } else {
-       if (mounted) setState(() => _isImageLoading = false);
-    }
-  }
-
-  // --- DIÁLOGO GENERAL SIMPLIFICADO ---
-  // Ahora solo edita nombre, autor, URL y portada.
-  Future<void> _showGeneralEditDialog() async {
-    final l10n = AppLocalizations.of(context)!;
-    
-    final nameController = TextEditingController(text: currentModInfo.customName);
-    final authorController = TextEditingController(text: currentModInfo.customAuthor ?? currentModInfo.author ?? '');
-    final String defaultUrl = currentModInfo.sourceUrl ??
-        (currentModInfo.nexusId != null
-            ? 'https://www.nexusmods.com/stellarblade/mods/${currentModInfo.nexusId}'
-            : '');
-    
-    // El controlador se inicializa con la URL personalizada, o con la predeterminada (ahora siempre correcta).
-    final urlController = TextEditingController(text: currentModInfo.customSourceUrl ?? defaultUrl);
-
-    File? newCoverFile;
-    Alignment? newCoverAlignment;
-
-    final updatedData = await showDialog<Map<String, dynamic>>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return StatefulBuilder(builder: (context, setDialogState) {
-          final bool canResetName = nameController.text != currentModInfo.displayName;
-          final bool canResetAuthor = authorController.text != (currentModInfo.author ?? '');
-          final bool canResetUrl = urlController.text != (currentModInfo.sourceUrl ?? '');
-
-          Widget buildEditableRow(TextEditingController controller, String label, String defaultValue, bool canReset) {
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(child: TextField(controller: controller, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: label, isDense: true))),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: !canReset ? null : () => setDialogState(() => controller.text = defaultValue),
-                  child: Text(l10n.dialogActionResetToDefault, style: const TextStyle(fontSize: 12)),
-                  style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4)),
-                ),
-              ],
-            );
-          }
-
-          return AlertDialog(
-            title: Text(l10n.editModTitle),
-            content: SizedBox(
-              width: 500,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(children: [
-                      Expanded(child: TextField(controller: nameController, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: l10n.modNameLabel))),
-                      TextButton(onPressed: !canResetName ? null : () => setDialogState(() => nameController.text = currentModInfo.displayName), child: Text(l10n.dialogActionResetToDefault)),
-                    ]),
-                    const SizedBox(height: 16),
-                    // --- CAMPO DE AUTOR ---
-                    Row(children: [
-                      Expanded(child: TextField(controller: authorController, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: l10n.authorLabel))),
-                      TextButton(onPressed: !canResetAuthor ? null : () => setDialogState(() => authorController.text = currentModInfo.author ?? ''), child: Text(l10n.dialogActionResetToDefault)),
-                    ]),
-                    const SizedBox(height: 16),
-                    // --- CAMPO DE URL ---
-                    Row(children: [
-                      Expanded(child: TextField(controller: urlController, onChanged: (v) => setDialogState((){}), decoration: InputDecoration(labelText: l10n.urlLabel))),
-                      TextButton(onPressed: !canResetUrl ? null : () => setDialogState(() => urlController.text = defaultUrl), child: Text(l10n.dialogActionResetToDefault)),
-                    ]),
-                    const SizedBox(height: 24),
-                    if (newCoverFile != null)
-                      Image.file(newCoverFile!, height: 100),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.image_search),
-                      label: Text(l10n.changeCoverButton),
-                      onPressed: () async {
-                        FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'pwebp', 'tiff']);
-                        if (result != null && result.files.single.path != null) {
-                          final pickedFile = File(result.files.single.path!);
-                          final alignment = await _showCoverAlignmentDialog(pickedFile);
-                          setDialogState(() {
-                            newCoverFile = pickedFile;
-                            newCoverAlignment = alignment;
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.dialogActionCancel)),
-              ElevatedButton(
-                onPressed: () {
-                  final Map<String, dynamic> dataToSave = {
-                    'customName': nameController.text,
-                    'author': authorController.text,
-                    'customSourceUrl': urlController.text,
-                  };
-                  if (newCoverFile != null) {
-                    dataToSave['newCoverFile'] = newCoverFile;
-                    dataToSave['newCoverAlignment'] = newCoverAlignment;
-                  }
-                  Navigator.of(context).pop(dataToSave);
-                },
-                child: Text(l10n.dialogActionSave),
-              ),
-            ],
-          );
-        });
-      },
-    );
-
-    nameController.dispose();
-    authorController.dispose();
-    urlController.dispose();
-
-   if (updatedData != null) {
-      // 1. Llama a la función de guardado y espera el resultado.
-      final updatedModInfo = await widget.onSaveDetails(updatedData);
-      
-      // 2. Si el guardado fue exitoso, actualiza el estado con la información correcta.
-      if (updatedModInfo != null && mounted) {
-        setState(() {
-          // 'updatedModInfo' contiene la ruta a la carpeta real y sin cambios.
-          currentModInfo = updatedModInfo;
-          _loadImageProvider();
-        });
-      }
-    }
-  }
-  
-  // --- NUEVO DIÁLOGO GENÉRICO ---
-  // Para editar un solo campo de texto a la vez (descripción, notas, etc.).
-  Future<String?> _showSingleFieldEditDialog({
-    required String title,
-    required String label,
-    required String initialValue,
-    String? defaultValue,
-  }) async {
-    final controller = TextEditingController(text: initialValue);
-    final l10n = AppLocalizations.of(context)!;
-
-    return await showDialog<String>(
-      context: context,
-      builder: (context) {
-        // --- INICIO DE LA MODIFICACIÓN ---
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            // Comprueba si el texto actual es igual al valor predeterminado.
-            final bool isCurrentlyDefault = controller.text == (defaultValue ?? '');
-
-            return AlertDialog(
-              title: Text(title),
-              content: TextField(
-                controller: controller,
-                autofocus: true,
-                decoration: InputDecoration(labelText: label),
-                maxLines: null, // Permite múltiples líneas
-                onChanged: (value) => setDialogState(() {}), // Actualiza el estado al escribir
-              ),
-              actions: [
-                // Solo muestra el botón si se proporciona un valor predeterminado
-                if (defaultValue != null)
-                  TextButton(
-                    onPressed: isCurrentlyDefault ? null : () {
-                      setDialogState(() {
-                        controller.text = defaultValue;
-                        // Mueve el cursor al final del texto
-                        controller.selection = TextSelection.fromPosition(
-                          TextPosition(offset: controller.text.length),
-                        );
-                      });
-                    },
-                    child: Text(l10n.dialogActionResetToDefault),
-                  ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.dialogActionCancel),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(controller.text),
-                  child: Text(l10n.dialogActionSave),
-                ),
-              ],
-            );
-          },
-        );
-        // --- FIN DE LA MODIFICACIÓN ---
-      },
-    );
-  }
-
-  Future<Alignment?> _showCoverAlignmentDialog(File imageFile) async {
-    final image = await decodeImageFromList(imageFile.readAsBytesSync());
-    final imageSize = Size(image.width.toDouble(), image.height.toDouble());
-    final l10n = AppLocalizations.of(context)!;
-    Offset offset = Offset.zero;
-
-    return showDialog<Alignment>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            Size? containerSize; Size? scaledImageSize; Rect? initialImageRect;
-            double? cropWidth; double? cropHeight;
-            return AlertDialog(
-              title: Text(l10n.setCoverText), contentPadding: EdgeInsets.zero,
-              backgroundColor: const Color(0xFF2d2d2d),
-              content: SizedBox(width: 500, height: 600,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    containerSize = Size(constraints.maxWidth, constraints.maxHeight);
-                    final fittedSizes = applyBoxFit(BoxFit.contain, imageSize, containerSize!);
-                    scaledImageSize = fittedSizes.destination;
-                    const cardAspectRatio = 3 / 4.2;
-                    if ((scaledImageSize!.width / scaledImageSize!.height) > cardAspectRatio) {
-                      cropHeight = scaledImageSize!.height;
-                      cropWidth = cropHeight! * cardAspectRatio;
-                    } else {
-                      cropWidth = scaledImageSize!.width;
-                      cropHeight = cropWidth! / cardAspectRatio;
-                    }
-                    final cropRect = Rect.fromCenter(center: containerSize!.center(Offset.zero), width: cropWidth!, height: cropHeight!);
-                    initialImageRect = Alignment.center.inscribe(scaledImageSize!, Rect.fromLTWH(0, 0, containerSize!.width, containerSize!.height));
-                    final minDx = cropRect.right - (initialImageRect!.left + scaledImageSize!.width);
-                    final maxDx = cropRect.left - initialImageRect!.left;
-                    final minDy = cropRect.bottom - (initialImageRect!.top + scaledImageSize!.height);
-                    final maxDy = cropRect.top - initialImageRect!.top;
-                    return GestureDetector(
-                      onPanUpdate: (details) {
-                        setDialogState(() {
-                          offset = Offset(
-                            (offset.dx + details.delta.dx).clamp(min(minDx, maxDx), max(minDx, maxDx)),
-                            (offset.dy + details.delta.dy).clamp(min(minDy, maxDy), max(minDy, maxDy)),
-                          );
-                        });
-                      },
-                      child: ClipRect(
-                        child: Stack(alignment: Alignment.center,
-                          children: [
-                            Positioned(
-                              left: initialImageRect!.left + offset.dx, top: initialImageRect!.top + offset.dy,
-                              width: scaledImageSize!.width, height: scaledImageSize!.height,
-                              child: Image.file(imageFile, fit: BoxFit.fill),
-                            ),
-                            CustomPaint(size: containerSize!, painter: CropOverlayPainter(cropRect: cropRect)),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.dialogActionCancel)),
-                ElevatedButton(
-                  onPressed: () {
-                    if (scaledImageSize == null || initialImageRect == null || cropWidth == null || cropHeight == null) return;
-                    final extraWidth = scaledImageSize!.width - cropWidth!;
-                    final extraHeight = scaledImageSize!.height - cropHeight!;
-                    final centerOffset = offset;
-                    final alignmentX = extraWidth > 0 ? (centerOffset.dx / (extraWidth / 2)) * -1 : 0.0;
-                    final alignmentY = extraHeight > 0 ? (centerOffset.dy / (extraHeight / 2)) * -1 : 0.0;
-                    final finalAlignment = Alignment(alignmentX.clamp(-1.0, 1.0), alignmentY.clamp(-1.0, 1.0));
-                    Navigator.of(context).pop(finalAlignment);
-                  },
-                  child: Text(l10n.dialogActionSave),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _onLinkButtonPressed() async {
-    final urlString = currentModInfo.customSourceUrl ?? currentModInfo.sourceUrl;
-    if (urlString != null && urlString.isNotEmpty) {
-      final url = Uri.parse(urlString);
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url);
-      }
-    } else {
-      _showGeneralEditDialog();
-    }
-  }
-
-
-  Future<void> _showInExplorer() async {
-    final uri = Uri.file(currentModInfo.directory.path);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      if (mounted) {
-        final l10n = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.errorOpenFolder(currentModInfo.directory.path)),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final bool hasLink = (currentModInfo.customSourceUrl ?? currentModInfo.sourceUrl)?.isNotEmpty ?? false;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFF1e1e1e),
-      appBar: AppBar(
-        title: Text(currentModInfo.customName, overflow: TextOverflow.ellipsis),
-        backgroundColor: const Color(0xFF2a2a2a),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_note_rounded),
-            tooltip: l10n.editButtonTooltip,
-            onPressed: _showGeneralEditDialog,
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 300, 
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AspectRatio(
-                    aspectRatio: 3 / 4,
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.black26,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.5),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                        image: _imageProvider != null
-                            ? DecorationImage(
-                                image: _imageProvider!,
-                                fit: BoxFit.cover,
-                                alignment: currentModInfo.customCoverAlignment ?? Alignment.center,
-                              )
-                            : null,
-                      ),
-                      child: _isImageLoading
-                          ? const Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.tealAccent)))
-                          : (_imageProvider == null
-                              ? Center(
-                                  child: Text(
-                                    currentModInfo.customName,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white70),
-                                  ),
-                                )
-                              : null),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  Tooltip(
-                    message: hasLink ? l10n.openLinkButtonText : l10n.addLinkTooltip,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: hasLink
-                            ? LinearGradient(
-                                colors: [
-                                  Theme.of(context).colorScheme.secondary,
-                                  const Color(0xFF00695C),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              )
-                            : null,
-                        color: hasLink ? null : Colors.grey.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: hasLink ? [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ] : [],
-                        border: hasLink ? null : Border.all(color: Colors.grey.withOpacity(0.4)),
-                      ),
-                      child: ElevatedButton.icon(
-                        icon: Icon(
-                          hasLink ? Icons.open_in_browser_outlined : Icons.add_link_rounded,
-                          size: 20,
-                          color: hasLink ? Colors.white : Colors.grey[400],
-                        ),
-                        label: Text(
-                          hasLink ? l10n.openLinkButtonText : l10n.addLinkButtonText,
-                          style: TextStyle(
-                            color: hasLink ? Colors.white : Colors.grey[400],
-                            fontSize: 16,
-                          ),
-                        ),
-                        onPressed: _onLinkButtonPressed,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-                          textStyle: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Tooltip(
-                    message: l10n.showInFolder,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.folder_open, size: 20),
-                      label: Text(l10n.showInFolder),
-                      onPressed: _showInExplorer,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF424242), // Color gris oscuro
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(width: 30),
-
-            Expanded(
-              flex: 2,
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      currentModInfo.customName,
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    if ((currentModInfo.customVersion ?? currentModInfo.localVersion) != null &&
-                        (currentModInfo.customVersion ?? currentModInfo.localVersion)!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4.0),
-                        child: Text(
-                          '${l10n.modVersion}: ${currentModInfo.customVersion ?? currentModInfo.localVersion}',
-                          style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.7)),
-                        ),
-                      ),
-                    const SizedBox(height: 15),
-                    if ((currentModInfo.customAuthor ?? currentModInfo.author)?.isNotEmpty ?? false) ...[
-                      Text(l10n.modAuthor, style: const TextStyle(color: Colors.tealAccent, fontSize: 14)),
-                      const SizedBox(height: 4),
-                      // Muestra el autor personalizado o el original
-                      Text(currentModInfo.customAuthor ?? currentModInfo.author!, style: const TextStyle(fontSize: 18, color: Colors.white)),
-                      const SizedBox(height: 20),
-                    ],
-                    // --- SECCIÓN DE DESCRIPCIÓN EDITABLE ---
-                    _buildInfoSection(
-                      context,
-                      l10n.modDescription,
-                      // Muestra la descripción personalizada, si no, la original.
-                      currentModInfo.customSummary ?? currentModInfo.summary?.trim() ?? l10n.noDescriptionAvailable,
-                      icon: Icons.description_outlined,
-                      isEditable: true,
-                      onEdit: () async {
-                        final newSummary = await _showSingleFieldEditDialog(
-                          title: l10n.modDescription,
-                          label: l10n.summaryLabel,
-                          // El valor inicial para editar es el personalizado o el original.
-                          initialValue: currentModInfo.customSummary ?? currentModInfo.summary ?? '',
-                          // El valor para restablecer es SIEMPRE el original.
-                          defaultValue: currentModInfo.summary ?? '',
-                        );
-                        if (newSummary != null) {
-                          final updatedMod = await widget.onSaveDetails({'summary': newSummary});
-                          if (updatedMod != null && mounted) {
-                            setState(() {
-                               currentModInfo = updatedMod;
-                            });
-                          }
-                        }
-                      },
-                      translateButton: (_showTranslateButton)
-        ? (_isTranslating
-            ? const Padding(
-                padding: EdgeInsets.all(4.0),
-                child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2)))
-            : IconButton(
-                icon: const Icon(Icons.g_translate_outlined,
-                    color: Colors.white70, size: 20),
-                onPressed: _translateSummary,
-                tooltip: l10n.translateDescription,
-                splashRadius: 20,
-                constraints: const BoxConstraints(),
-                padding: EdgeInsets.zero,
-              ))
-        : null,
-                    ),
-                    const SizedBox(height: 20),
-                    // --- SECCIÓN DE NOTAS EDITABLE ---
-                    _buildInfoSection(
-                      context,
-                      l10n.personalNotes,
-                      currentModInfo.userNotes?.isNotEmpty ?? false ? currentModInfo.userNotes! : l10n.noNotesAvailable,
-                      icon: Icons.edit_note_outlined,
-                      isEditable: true,
-                      onEdit: () async {
-                        final newNotes = await _showSingleFieldEditDialog(
-                          title: l10n.personalNotes,
-                          label: l10n.notesLabel,
-                          initialValue: currentModInfo.userNotes ?? '',
-                        );
-                        if (newNotes != null) {
-                           await widget.onSaveDetails({'userNotes': newNotes});
-                           setState(() {
-                             currentModInfo.userNotes = newNotes;
-                           });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    if ((currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType) != null &&
-                      (currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType)!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10.0),
-                      child: Text(
-                        '${l10n.modCategory}: ${currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType}',
-                        style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.6)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- WIDGET AUXILIAR MODIFICADO ---
-  // Ahora incluye un botón de editar opcional.
-  Widget _buildInfoSection(BuildContext context, String title, String content,
-      {IconData? icon,
-      bool isEditable = false,
-      VoidCallback? onEdit,
-      Widget? translateButton}) { // El parámetro ahora está definido aquí
-    final l10n = AppLocalizations.of(context)!;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  if (icon != null) ...[
-                    Icon(icon, color: Colors.tealAccent.withOpacity(0.8), size: 20),
-                    const SizedBox(width: 8),
-                  ],
-                  Text(
-                    title,
-                    style: const TextStyle(color: Colors.tealAccent, fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  if (isEditable)
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
-                      onPressed: onEdit,
-                      tooltip: l10n.editButtonTooltip,
-                      splashRadius: 20,
-                      constraints: const BoxConstraints(),
-                      padding: EdgeInsets.zero,
-                    ),
-                  // --- CORRECCIÓN 3: Uso del parámetro ---
-                  if (translateButton != null) ...[ // Se usa la variable del parámetro
-                    const SizedBox(width: 8),
-                    translateButton, // Se usa la variable del parámetro
-                  ],
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            content,
-            style: TextStyle(
-              color: content == l10n.noDescriptionAvailable || content == l10n.noNotesAvailable
-                  ? Colors.white.withOpacity(0.5)
-                  : Colors.white.withOpacity(0.9),
-              fontStyle: content == l10n.noDescriptionAvailable || content == l10n.noNotesAvailable
-                  ? FontStyle.italic
-                  : FontStyle.normal,
-              height: 1.5,
-              fontSize: 15,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -7006,7 +6861,6 @@ class CropOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final backgroundPaint = Paint()..color = Colors.black.withOpacity(0.6);
-    final cropPaint = Paint()..color = Colors.transparent;
     final borderPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
@@ -7034,10 +6888,12 @@ class _ModDetailsPanel extends StatefulWidget {
   final ModInfo initialModInfo;
   final ThumbnailService thumbnailService;
   // Funciones que necesita del widget principal
-  final Future<ModInfo?> Function(ModInfo, Map<String, dynamic>) onUpdateDetails;
+  final Future<ModInfo?> Function(ModInfo, Map<String, dynamic>)
+  onUpdateDetails;
   final Future<void> Function(Directory) onShowInExplorer;
   final void Function(ModInfo) onShowImageGallery;
-  final Future<Map<String, dynamic>?> Function(ModInfo, BuildContext) onShowGeneralEditDialog;
+  final Future<Map<String, dynamic>?> Function(ModInfo, BuildContext)
+  onShowGeneralEditDialog;
   final Function(ModInfo?) onPanelClosed;
 
   const _ModDetailsPanel({
@@ -7078,6 +6934,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
     widget.onPanelClosed(_needsReloadOnClose ? currentModInfo : null);
     super.dispose();
   }
+
   Future<void> _checkIfTranslationIsPossible() async {
     final summary = currentModInfo.customSummary ?? currentModInfo.summary;
     if (summary == null || summary.trim().isEmpty) {
@@ -7089,13 +6946,18 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
     final String currentLocale = Localizations.localeOf(context).languageCode;
     try {
       final translator = GoogleTranslator();
-      final snippet = summary.length > 150 ? summary.substring(0, 150) : summary;
+      final snippet = summary.length > 150
+          ? summary.substring(0, 150)
+          : summary;
       const String pivotLocale = 'de';
       final translation = await translator.translate(snippet, to: pivotLocale);
-      final detectedLanguageCode = translation.sourceLanguage.code.toLowerCase();
-      
-      final bool needsTranslation = detectedLanguageCode != currentLocale && detectedLanguageCode != 'auto';
-      
+      final detectedLanguageCode = translation.sourceLanguage.code
+          .toLowerCase();
+
+      final bool needsTranslation =
+          detectedLanguageCode != currentLocale &&
+          detectedLanguageCode != 'auto';
+
       if (!mounted) return; // Comprobación de seguridad para evitar el error
       setState(() => _showTranslateButton = needsTranslation);
     } catch (e) {
@@ -7108,17 +6970,25 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
   // Traduce el resumen
   Future<void> _translateSummary() async {
     final l10n = AppLocalizations.of(context)!;
-    if (currentModInfo.summary == null || currentModInfo.summary!.trim().isEmpty) return;
+    if (currentModInfo.summary == null ||
+        currentModInfo.summary!.trim().isEmpty)
+      return;
 
     setState(() => _isTranslating = true);
-    
+
     try {
       final translator = GoogleTranslator();
       final currentLocale = Localizations.localeOf(context).languageCode;
-      final translation = await translator.translate(currentModInfo.summary!, from: 'auto', to: currentLocale);
-      
-      final updatedMod = await widget.onUpdateDetails(currentModInfo, {'summary': translation.text});
-      
+      final translation = await translator.translate(
+        currentModInfo.summary!,
+        from: 'auto',
+        to: currentLocale,
+      );
+
+      final updatedMod = await widget.onUpdateDetails(currentModInfo, {
+        'summary': translation.text,
+      });
+
       if (updatedMod != null) {
         if (!mounted) return;
         setState(() {
@@ -7128,7 +6998,12 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
         });
       }
     } catch (e) {
-      NotificationService.instance.show(context: context, type: NotificationType.error, title: l10n.errorTranslation, description: e.toString());
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.error,
+        title: l10n.errorTranslation,
+        description: e.toString(),
+      );
     } finally {
       if (!mounted) return;
       setState(() => _isTranslating = false);
@@ -7136,59 +7011,153 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
   }
 
   // Muestra diálogo para editar un solo campo (notas, descripción)
-  Future<String?> _showSingleFieldEditDialog({required String title, required String label, required String initialValue, String? defaultValue}) async {
+  Future<String?> _showSingleFieldEditDialog({
+    required String title,
+    required String label,
+    required String initialValue,
+    String? defaultValue,
+  }) async {
     final controller = TextEditingController(text: initialValue);
     final l10n = AppLocalizations.of(context)!;
     return await showDialog<String>(
       context: context,
       builder: (context) {
-        return StatefulBuilder(builder: (context, setDialogState) {
-          final bool isCurrentlyDefault = controller.text == (defaultValue ?? '');
-          return AlertDialog(
-            title: Text(title),
-            content: TextField(controller: controller, autofocus: true, decoration: InputDecoration(labelText: label), maxLines: null, onChanged: (v) => setDialogState(() {})),
-            actions: [
-              if (defaultValue != null) TextButton(onPressed: isCurrentlyDefault ? null : () => setDialogState(() => controller.text = defaultValue), child: Text(l10n.dialogActionResetToDefault)),
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.dialogActionCancel)),
-              ElevatedButton(onPressed: () => Navigator.of(context).pop(controller.text), child: Text(l10n.dialogActionSave)),
-            ],
-          );
-        });
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final bool isCurrentlyDefault =
+                controller.text == (defaultValue ?? '');
+            return AlertDialog(
+              title: Text(title),
+              content: TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(labelText: label),
+                maxLines: null,
+                onChanged: (v) => setDialogState(() {}),
+              ),
+              actions: [
+                if (defaultValue != null)
+                  TextButton(
+                    onPressed: isCurrentlyDefault
+                        ? null
+                        : () => setDialogState(
+                            () => controller.text = defaultValue,
+                          ),
+                    child: Text(l10n.dialogActionResetToDefault),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(l10n.dialogActionCancel),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(controller.text),
+                  child: Text(l10n.dialogActionSave),
+                ),
+              ],
+            );
+          },
+        );
       },
     );
   }
 
   // Construye las secciones de texto
-  Widget _buildInfoSection({required String title, required String content, required IconData icon, VoidCallback? onEdit}) {
+  Widget _buildInfoSection({
+    required String title,
+    required String content,
+    required IconData icon,
+    VoidCallback? onEdit,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white12)),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white12),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(children: [
-                Icon(icon, color: Colors.tealAccent.withOpacity(0.8), size: 20),
-                const SizedBox(width: 8),
-                Text(title, style: const TextStyle(color: Colors.tealAccent, fontSize: 15, fontWeight: FontWeight.bold)),
-              ]),
-              Row(children: [
-                if (title == l10n.modDescription) // Solo muestra el botón de traducir en la descripción
-                  _showTranslateButton
-                      ? (_isTranslating
-                          ? const Padding(padding: EdgeInsets.all(4.0), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
-                          : IconButton(icon: const Icon(Icons.translate, color: Colors.white70, size: 20), onPressed: _translateSummary, tooltip: l10n.translateDescription))
-                      : const SizedBox(),
-                if (onEdit != null) IconButton(icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20), onPressed: onEdit, tooltip: l10n.editButtonTooltip, splashRadius: 20, constraints: const BoxConstraints(), padding: EdgeInsets.zero),
-              ]),
+              Row(
+                children: [
+                  Icon(
+                    icon,
+                    color: Colors.tealAccent.withOpacity(0.8),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.tealAccent,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  if (title ==
+                      l10n.modDescription) // Solo muestra el botón de traducir en la descripción
+                    _showTranslateButton
+                        ? (_isTranslating
+                              ? const Padding(
+                                  padding: EdgeInsets.all(4.0),
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              : IconButton(
+                                  icon: const Icon(
+                                    Icons.translate,
+                                    color: Colors.white70,
+                                    size: 20,
+                                  ),
+                                  onPressed: _translateSummary,
+                                  tooltip: l10n.translateDescription,
+                                ))
+                        : const SizedBox(),
+                  if (onEdit != null)
+                    IconButton(
+                      icon: const Icon(
+                        Icons.edit_outlined,
+                        color: Colors.white70,
+                        size: 20,
+                      ),
+                      onPressed: onEdit,
+                      tooltip: l10n.editButtonTooltip,
+                      splashRadius: 20,
+                      constraints: const BoxConstraints(),
+                      padding: EdgeInsets.zero,
+                    ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(content, style: TextStyle(color: content.startsWith('No') ? Colors.white.withOpacity(0.5) : Colors.white.withOpacity(0.9), fontStyle: content.startsWith('No') ? FontStyle.italic : FontStyle.normal, height: 1.5, fontSize: 15)),
+          Text(
+            content,
+            style: TextStyle(
+              color: content.startsWith('No')
+                  ? Colors.white.withOpacity(0.5)
+                  : Colors.white.withOpacity(0.9),
+              fontStyle: content.startsWith('No')
+                  ? FontStyle.italic
+                  : FontStyle.normal,
+              height: 1.5,
+              fontSize: 15,
+            ),
+          ),
         ],
       ),
     );
@@ -7197,15 +7166,24 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final bool hasLink = (currentModInfo.customSourceUrl ?? currentModInfo.sourceUrl)?.isNotEmpty ?? false;
+    final bool hasLink =
+        (currentModInfo.customSourceUrl ?? currentModInfo.sourceUrl)
+            ?.isNotEmpty ??
+        false;
     String? mainImagePath;
-    if (currentModInfo.customCoverPath != null && currentModInfo.customCoverPath!.isNotEmpty) {
-      mainImagePath = p.join(currentModInfo.directory.path, currentModInfo.customCoverPath!);
-    } else if (currentModInfo.gallery != null && currentModInfo.gallery!.isNotEmpty) {
+    if (currentModInfo.customCoverPath != null &&
+        currentModInfo.customCoverPath!.isNotEmpty) {
+      mainImagePath = p.join(
+        currentModInfo.directory.path,
+        currentModInfo.customCoverPath!,
+      );
+    } else if (currentModInfo.gallery != null &&
+        currentModInfo.gallery!.isNotEmpty) {
       mainImagePath = currentModInfo.gallery!.first['image'];
     }
 
-    final displayVersion = currentModInfo.customVersion ?? currentModInfo.localVersion;
+    final displayVersion =
+        currentModInfo.customVersion ?? currentModInfo.localVersion;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.9,
@@ -7215,7 +7193,10 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
       builder: (_, scrollController) {
         return Container(
           clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(color: const Color(0xFF1e1e1e), borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1e1e1e),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
@@ -7223,22 +7204,39 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
               elevation: 0,
               automaticallyImplyLeading: false,
               centerTitle: true,
-              title: Container(height: 5, width: 40, decoration: BoxDecoration(color: Colors.grey[700], borderRadius: BorderRadius.circular(5))),
+              title: Container(
+                height: 5,
+                width: 40,
+                decoration: BoxDecoration(
+                  color: Colors.grey[700],
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
               actions: [
-                IconButton(icon: const Icon(Icons.edit_note_rounded), tooltip: l10n.editButtonTooltip, onPressed: () async {
-                  final updatedData = await widget.onShowGeneralEditDialog(currentModInfo, context);
-                  if (updatedData != null) {
-                    final updatedMod = await widget.onUpdateDetails(currentModInfo, updatedData);
-                    if (updatedMod != null) {
-                      setState(() => currentModInfo = updatedMod);
-                      _needsReloadOnClose = true;
-                    }
-                  }
-                }),
                 IconButton(
-                    icon: const Icon(Icons.close), 
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
+                  icon: const Icon(Icons.edit_note_rounded),
+                  tooltip: l10n.editButtonTooltip,
+                  onPressed: () async {
+                    final updatedData = await widget.onShowGeneralEditDialog(
+                      currentModInfo,
+                      context,
+                    );
+                    if (updatedData != null) {
+                      final updatedMod = await widget.onUpdateDetails(
+                        currentModInfo,
+                        updatedData,
+                      );
+                      if (updatedMod != null) {
+                        setState(() => currentModInfo = updatedMod);
+                        _needsReloadOnClose = true;
+                      }
+                    }
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
               ],
             ),
             body: SingleChildScrollView(
@@ -7247,28 +7245,71 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  AspectRatio(aspectRatio: 16 / 9, child: Card(clipBehavior: Clip.antiAlias, margin: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    child: Stack(fit: StackFit.expand, children: [
-                      if (mainImagePath != null) ModImage(imageUrl: mainImagePath, isLocal: !mainImagePath.startsWith('http'), lastModified: currentModInfo.customCoverLastModified)
-                      else const Center(child: Icon(Icons.extension, size: 80, color: Colors.white24)),
-                      Positioned(top: 8, right: 8, child: IconButton(style: IconButton.styleFrom(backgroundColor: Colors.black.withOpacity(0.4)), icon: const Icon(Icons.fullscreen_outlined, color: Colors.white), onPressed: () => widget.onShowImageGallery(currentModInfo))),
-                    ]),
-                  )),
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Card(
+                      clipBehavior: Clip.antiAlias,
+                      margin: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (mainImagePath != null)
+                            ModImage(
+                              imageUrl: mainImagePath,
+                              isLocal: !mainImagePath.startsWith('http'),
+                              lastModified:
+                                  currentModInfo.customCoverLastModified,
+                            )
+                          else
+                            const Center(
+                              child: Icon(
+                                Icons.extension,
+                                size: 80,
+                                color: Colors.white24,
+                              ),
+                            ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: IconButton(
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.black.withOpacity(0.4),
+                              ),
+                              icon: const Icon(
+                                Icons.fullscreen_outlined,
+                                color: Colors.white,
+                              ),
+                              onPressed: () =>
+                                  widget.onShowImageGallery(currentModInfo),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 20),
                   Text(
                     currentModInfo.customName,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                    ),
                     maxLines: 2, // Límite de dos líneas
-                    overflow: TextOverflow.ellipsis, // Muestra "..." si el texto es muy largo
+                    overflow: TextOverflow
+                        .ellipsis, // Muestra "..." si el texto es muy largo
                   ),
                   // ++ INICIO DE LA MODIFICACIÓN: AUTOR COMO SUBTÍTULO ++
                   const SizedBox(height: 4),
                   Text(
                     // Muestra "by [Autor]" o nada si no hay autor
-                    (currentModInfo.customAuthor ?? currentModInfo.author ?? '').isNotEmpty
-                      ? "by ${currentModInfo.customAuthor ?? currentModInfo.author!}"
-                      : "",
+                    (currentModInfo.customAuthor ?? currentModInfo.author ?? '')
+                            .isNotEmpty
+                        ? "by ${currentModInfo.customAuthor ?? currentModInfo.author!}"
+                        : "",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -7278,46 +7319,123 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                   ),
                   const SizedBox(height: 20),
                   // ++ FIN DE LA MODIFICACIÓN ++
-                  Row(children: [
-                    Expanded(child: ElevatedButton.icon(icon: const Icon(Icons.folder_open), label: Text(l10n.showInFolder), onPressed: () => widget.onShowInExplorer(currentModInfo.directory))),
-                    const SizedBox(width: 12),
-                    Expanded(child: ElevatedButton.icon(icon: Icon(hasLink ? Icons.link_rounded : Icons.add_link_rounded), label: Text(hasLink ? l10n.openLinkButtonText : l10n.addLinkButtonText), onPressed: () async {
-                      final urlString = currentModInfo.customSourceUrl ?? currentModInfo.sourceUrl;
-                      if (urlString != null && urlString.isNotEmpty) {
-                        final url = Uri.parse(urlString);
-                        if (await canLaunchUrl(url)) await launchUrl(url);
-                      } else {
-                        final updatedData = await widget.onShowGeneralEditDialog(currentModInfo, context);
-                        if (updatedData != null) {
-                          final updatedMod = await widget.onUpdateDetails(currentModInfo, updatedData);
-                          if (updatedMod != null) {
-                            setState(() => currentModInfo = updatedMod);
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.folder_open),
+                          label: Text(l10n.showInFolder),
+                          onPressed: () =>
+                              widget.onShowInExplorer(currentModInfo.directory),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: Icon(
+                            hasLink
+                                ? Icons.link_rounded
+                                : Icons.add_link_rounded,
+                          ),
+                          label: Text(
+                            hasLink
+                                ? l10n.openLinkButtonText
+                                : l10n.addLinkButtonText,
+                          ),
+                          onPressed: () async {
+                            final urlString =
+                                currentModInfo.customSourceUrl ??
+                                currentModInfo.sourceUrl;
+                            if (urlString != null && urlString.isNotEmpty) {
+                              final url = Uri.parse(urlString);
+                              if (await canLaunchUrl(url)) await launchUrl(url);
+                            } else {
+                              final updatedData = await widget
+                                  .onShowGeneralEditDialog(
+                                    currentModInfo,
+                                    context,
+                                  );
+                              if (updatedData != null) {
+                                final updatedMod = await widget.onUpdateDetails(
+                                  currentModInfo,
+                                  updatedData,
+                                );
+                                if (updatedMod != null) {
+                                  setState(() => currentModInfo = updatedMod);
+                                  _needsReloadOnClose = true;
+                                }
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: hasLink
+                                ? Theme.of(context).colorScheme.secondary
+                                : Colors.grey.withOpacity(0.2),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  _buildInfoSection(
+                    title: l10n.modDescription,
+                    content:
+                        currentModInfo.customSummary ??
+                        currentModInfo.summary ??
+                        l10n.noDescriptionAvailable,
+                    icon: Icons.description_outlined,
+                    onEdit: () async {
+                      final newSummary = await _showSingleFieldEditDialog(
+                        title: l10n.modDescription,
+                        label: l10n.summaryLabel,
+                        initialValue:
+                            currentModInfo.customSummary ??
+                            currentModInfo.summary ??
+                            '',
+                        defaultValue: currentModInfo.summary ?? '',
+                      );
+                      if (newSummary != null) {
+                        final updatedMod = await widget.onUpdateDetails(
+                          currentModInfo,
+                          {'summary': newSummary},
+                        );
+                        if (updatedMod != null) {
+                          setState(() {
+                            currentModInfo = updatedMod;
                             _needsReloadOnClose = true;
-                          }
+                          });
                         }
                       }
-                    }, style: ElevatedButton.styleFrom(backgroundColor: hasLink ? Theme.of(context).colorScheme.secondary : Colors.grey.withOpacity(0.2), foregroundColor: Colors.white))),
-                  ]),
-                  const SizedBox(height: 30),
-                  _buildInfoSection(title: l10n.modDescription, content: currentModInfo.customSummary ?? currentModInfo.summary ?? l10n.noDescriptionAvailable, icon: Icons.description_outlined, onEdit: () async {
-                    final newSummary = await _showSingleFieldEditDialog(title: l10n.modDescription, label: l10n.summaryLabel, initialValue: currentModInfo.customSummary ?? currentModInfo.summary ?? '', defaultValue: currentModInfo.summary ?? '');
-                    if (newSummary != null) {
-                      final updatedMod = await widget.onUpdateDetails(currentModInfo, {'summary': newSummary});
-                      if (updatedMod != null) {
-                        setState(() { currentModInfo = updatedMod; _needsReloadOnClose = true; });
-                      }
-                    }
-                  }),
+                    },
+                  ),
                   const SizedBox(height: 20),
-                  _buildInfoSection(title: l10n.personalNotes, content: currentModInfo.userNotes?.isNotEmpty ?? false ? currentModInfo.userNotes! : l10n.noNotesAvailable, icon: Icons.edit_note_outlined, onEdit: () async {
-                    final newNotes = await _showSingleFieldEditDialog(title: l10n.personalNotes, label: l10n.notesLabel, initialValue: currentModInfo.userNotes ?? '');
-                    if (newNotes != null) {
-                      final updatedMod = await widget.onUpdateDetails(currentModInfo, {'userNotes': newNotes});
-                      if (updatedMod != null) {
-                        setState(() { currentModInfo = updatedMod; _needsReloadOnClose = true; });
+                  _buildInfoSection(
+                    title: l10n.personalNotes,
+                    content: currentModInfo.userNotes?.isNotEmpty ?? false
+                        ? currentModInfo.userNotes!
+                        : l10n.noNotesAvailable,
+                    icon: Icons.edit_note_outlined,
+                    onEdit: () async {
+                      final newNotes = await _showSingleFieldEditDialog(
+                        title: l10n.personalNotes,
+                        label: l10n.notesLabel,
+                        initialValue: currentModInfo.userNotes ?? '',
+                      );
+                      if (newNotes != null) {
+                        final updatedMod = await widget.onUpdateDetails(
+                          currentModInfo,
+                          {'userNotes': newNotes},
+                        );
+                        if (updatedMod != null) {
+                          setState(() {
+                            currentModInfo = updatedMod;
+                            _needsReloadOnClose = true;
+                          });
+                        }
                       }
-                    }
-                  }),
+                    },
+                  ),
                   // ++ INICIO DE LA MODIFICACIÓN: TAG COMO PIE DE PÁGINA ++
                   const SizedBox(height: 20),
                   Row(
@@ -7334,9 +7452,15 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                               defaultValue: currentModInfo.localVersion ?? '',
                             );
                             if (newVersion != null) {
-                              final updatedMod = await widget.onUpdateDetails(currentModInfo, {'customVersion': newVersion});
+                              final updatedMod = await widget.onUpdateDetails(
+                                currentModInfo,
+                                {'customVersion': newVersion},
+                              );
                               if (updatedMod != null) {
-                                setState(() { currentModInfo = updatedMod; _needsReloadOnClose = true; });
+                                setState(() {
+                                  currentModInfo = updatedMod;
+                                  _needsReloadOnClose = true;
+                                });
                               }
                             }
                           },
@@ -7355,25 +7479,42 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                           final newTag = await _showSingleFieldEditDialog(
                             title: l10n.editTagText,
                             label: l10n.customTagText,
-                            initialValue: currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType ?? l10n.modCategoryOther,
+                            initialValue:
+                                currentModInfo.customFitMeshType ??
+                                currentModInfo.fitMeshType ??
+                                l10n.modCategoryOther,
                             defaultValue: currentModInfo.fitMeshType ?? '',
                           );
                           if (newTag != null) {
-                            final updatedMod = await widget.onUpdateDetails(currentModInfo, {'customFitMeshType': newTag});
+                            final updatedMod = await widget.onUpdateDetails(
+                              currentModInfo,
+                              {'customFitMeshType': newTag},
+                            );
                             if (updatedMod != null) {
-                              setState(() { currentModInfo = updatedMod; _needsReloadOnClose = true; });
+                              setState(() {
+                                currentModInfo = updatedMod;
+                                _needsReloadOnClose = true;
+                              });
                             }
                           }
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.grey.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType ?? l10n.modCategoryOther,
-                            style: const TextStyle(fontSize: 12, color: Colors.white70),
+                            currentModInfo.customFitMeshType ??
+                                currentModInfo.fitMeshType ??
+                                l10n.modCategoryOther,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white70,
+                            ),
                           ),
                         ),
                       ),
@@ -7386,6 +7527,6 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
           ),
         );
       },
-      );
+    );
   }
 }

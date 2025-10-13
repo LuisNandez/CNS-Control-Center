@@ -978,11 +978,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ue4ssInstallationDetected =>
-      'Instalación de UE4SS existente detectada y adoptada';
+      'Existing UE4SS installation detected and adopted';
 
   @override
   String get cnsInstallationDetected =>
-      'Instalación de CNS Principal existente detectada y adoptada';
+      'Existing Main CNS installation detected and adopted';
 
   @override
   String get ue4ssRequiredTitle => 'UE4SS Required';

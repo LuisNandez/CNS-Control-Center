@@ -1741,13 +1741,13 @@ abstract class AppLocalizations {
   /// No description provided for @ue4ssInstallationDetected.
   ///
   /// In en, this message translates to:
-  /// **'Instalación de UE4SS existente detectada y adoptada'**
+  /// **'Existing UE4SS installation detected and adopted'**
   String get ue4ssInstallationDetected;
 
   /// No description provided for @cnsInstallationDetected.
   ///
   /// In en, this message translates to:
-  /// **'Instalación de CNS Principal existente detectada y adoptada'**
+  /// **'Existing Main CNS installation detected and adopted'**
   String get cnsInstallationDetected;
 
   /// No description provided for @ue4ssRequiredTitle.
