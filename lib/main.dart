@@ -654,8 +654,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                 ),
                               ],
                             )
-                        else
-                            Text( // El mensaje de estado general
+                        else if (_preparedMods.isNotEmpty || _statusColor != Colors.white)
+                            Text(
                               _statusMessage,
                               textAlign: TextAlign.center,
                               style: TextStyle(fontSize: 14, color: _statusColor),
@@ -3625,16 +3625,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<void> _clearSelection({String? message, StateSetter? panelStateSetter}) async {
     final updateState = panelStateSetter ?? setState;
 
-    // Primero, ejecuta la lógica de limpieza de datos y archivos.
     await _cancelAndCleanInstallation();
 
-    // Después, actualiza la UI para mostrar el resultado.
     updateState(() {
       if (mounted) {
         _statusMessage =
-            message ?? AppLocalizations.of(context)!.statusSelectionCancelled;
+            //message ?? AppLocalizations.of(context)!.statusSelectionCancelled;
+            _statusMessage = '';
+            _statusColor = Colors.white;
       }
-      _statusColor = message == null ? Colors.white : Colors.orangeAccent;
+      // ++ CAMBIO: Usa un color distintivo para que el mensaje sea visible. ++
+      _statusColor = message == null ? Colors.orangeAccent : Colors.orangeAccent;
     });
   }
 
@@ -5230,106 +5231,141 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 
-  Widget _buildSelectionPreviewSection(AppLocalizations l10n, {
-    required StateSetter panelStateSetter, // <-- AÑADE ESTE PARÁMETRO
+  // main.dart
+
+  Widget _buildSelectionPreviewSection(
+    AppLocalizations l10n, {
+    required StateSetter panelStateSetter,
   }) {
-    
+    final modEntries = _modsToInstallPreviewMap.entries.toList();
+    final _scrollController = ScrollController();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
+        // --- CABECERA DE LA SECCIÓN ---
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
               l10n.previewInstallTitle,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
             TextButton.icon(
-              icon: const Icon(Icons.cancel, size: 18),
+              icon: const Icon(Icons.cancel_outlined, size: 20),
               label: Text(l10n.cancelSelection),
               onPressed: () => _clearSelection(panelStateSetter: panelStateSetter),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.redAccent,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const Divider(height: 20, color: Colors.white24),
+
+        // ++ INICIO DE LA MODIFICACIÓN ++
+        // Contenedor que limita la altura máxima de la lista y le da un estilo.
         Container(
-          height: 120,
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey[700]!),
+          constraints: const BoxConstraints(
+            maxHeight: 280, // Altura máxima antes de que aparezca el scroll
           ),
-          child: ListView.builder(
-            itemCount: _modsToInstallPreviewMap.keys.length,
-            itemBuilder: (context, index) {
-              final folderName = _modsToInstallPreviewMap.keys.elementAt(index);
-              final files = _modsToInstallPreviewMap[folderName]!;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2.0),
-                    child: Row(
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Scrollbar( // Añade una barra de scroll visible
+          controller: _scrollController,
+          thumbVisibility: true,
+            child: SingleChildScrollView( // Hace que el contenido sea desplazable
+            controller: _scrollController,
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                children: List.generate(modEntries.length, (index) {
+                  final entry = modEntries[index];
+                  final folderName = entry.key;
+                  final files = entry.value;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.folder_zip_outlined,
-                          size: 16,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            folderName,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                        // -- Nombre del Mod --
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.folder_zip_outlined,
+                              size: 20,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                folderName,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+
+                        // -- Lista de Archivos Anidada --
+                        Padding(
+                          padding: const EdgeInsets.only(left: 30.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: files.map((file) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 3.0),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.insert_drive_file_outlined,
+                                      size: 14,
+                                      color: Colors.grey[400],
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        file,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.grey[300],
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
                           ),
                         ),
+                        
+                        // -- Separador (ajustado para no tener padding extra al final) --
+                        if (index < modEntries.length - 1)
+                          const Divider(height: 24, color: Colors.white10),
                       ],
                     ),
-                  ),
-                  ...files.map(
-                    (file) => Padding(
-                      padding: const EdgeInsets.only(
-                        left: 24.0,
-                        top: 2.0,
-                        bottom: 2.0,
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.insert_drive_file_outlined,
-                            size: 14,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              file,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
+                  );
+                }),
+              ),
+            ),
           ),
         ),
+        // ++ FIN DE LA MODIFICACIÓN ++
       ],
     );
   }
