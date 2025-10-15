@@ -851,6 +851,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get modAuthor => 'Autore';
 
   @override
+  String get modSummary => 'Summary';
+
+  @override
   String get modDescription => 'Descrizione';
 
   @override
@@ -924,6 +927,9 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get errorTranslation => 'Impossibile tradurre la descrizione';
+
+  @override
+  String get translateSummary => 'Translate summary';
 
   @override
   String get translateDescription => 'Traduci descrizione';

@@ -822,6 +822,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get modAuthor => '제작자';
 
   @override
+  String get modSummary => 'Summary';
+
+  @override
   String get modDescription => '설명';
 
   @override
@@ -895,6 +898,9 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get errorTranslation => '설명을 번역할 수 없습니다';
+
+  @override
+  String get translateSummary => 'Translate summary';
 
   @override
   String get translateDescription => '설명 번역';

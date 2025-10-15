@@ -1492,6 +1492,12 @@ abstract class AppLocalizations {
   /// **'Author'**
   String get modAuthor;
 
+  /// No description provided for @modSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary'**
+  String get modSummary;
+
   /// No description provided for @modDescription.
   ///
   /// In en, this message translates to:
@@ -1641,6 +1647,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not translate description'**
   String get errorTranslation;
+
+  /// No description provided for @translateSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate summary'**
+  String get translateSummary;
 
   /// No description provided for @translateDescription.
   ///

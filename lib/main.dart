@@ -51,7 +51,9 @@ class ModInfo {
   final String? customVersion;
   final String? customFitMeshType;
   String? summary; // Descripción/resumen del mod.
+  String? description; // Nueva propiedad para la descripción detallada de Nexus.
   final String? customSummary;
+  final String? customDescription; // El usuario puede sobreescribir la descripción.
   final String? author; // Autor del mod.
   final String? customAuthor;
   String? userNotes; // Notas personales del usuario.
@@ -77,6 +79,8 @@ class ModInfo {
     this.customFitMeshType,
     this.summary,
     this.customSummary,
+    this.description,
+    this.customDescription,
     this.author,
     this.customAuthor,
     this.userNotes,
@@ -103,6 +107,8 @@ class ModInfo {
     String? customFitMeshType,
     String? summary,
     String? customSummary,
+    String? description,
+    String? customDescription,
     String? author,
     String? customAuthor,
     String? userNotes,
@@ -124,11 +130,13 @@ class ModInfo {
       customCoverPath: customCoverPath ?? this.customCoverPath,
       customCoverAlignment: customCoverAlignment ?? this.customCoverAlignment,
       customCoverLastModified:
-          customCoverLastModified ?? this.customCoverLastModified,
+      customCoverLastModified ?? this.customCoverLastModified,
       customVersion: customVersion ?? this.customVersion,
       customFitMeshType: customFitMeshType ?? this.customFitMeshType,
       summary: summary ?? this.summary,
       customSummary: customSummary ?? this.customSummary,
+      description: description ?? this.description,
+      customDescription: customDescription ?? this.customDescription,
       author: author ?? this.author,
       customAuthor: customAuthor ?? this.customAuthor,
       userNotes: userNotes ?? this.userNotes,
@@ -1507,6 +1515,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String? customFitMeshType;
             String? summary;
             String? customSummary;
+            String? description;
+            String? customDescription;
             String? author;
             String? customAuthor;
             String? userNotes;
@@ -1536,7 +1546,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   data['summary'] ??= nexusData['summary'];
                   data['author'] ??= nexusData['author'];
                   data['gallery'] ??= nexusData['gallery'];
-                  // ✅ LÍNEA AÑADIDA: Asegura que la URL de origen exista.
+                  data['description'] ??= nexusData['description'];
                   data['sourceUrl'] ??=
                       'https://www.nexusmods.com/stellarblade/mods/$nexusIdForCheck';
                   data['managerVersion'] = _appVersion;
@@ -1564,6 +1574,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               fitMeshType = data['fitMeshType'];
               summary = data['summary'];
               customSummary = data['customSummary'];
+              description = data['description'];
+              customDescription = data['customDescription'];
               author = data['author'];
               customAuthor = data['customAuthor'];
               userNotes = data['userNotes'];
@@ -1643,6 +1655,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 customFitMeshType: customFitMeshType,
                 summary: summary,
                 customSummary: customSummary,
+                description: description,
+                customDescription: customDescription,
                 author: author,
                 customAuthor: customAuthor,
                 userNotes: userNotes,
@@ -1839,6 +1853,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             modData['gallery'] = nexusData['gallery'];
             modData['summary'] = nexusData['summary'];
             modData['author'] = nexusData['author'];
+            modData['description'] = nexusData['description'];
           }
 
           final encoder = JsonEncoder.withIndent('  ');
@@ -3162,6 +3177,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         modData['gallery'] = nexusData['gallery'];
         modData['summary'] = nexusData['summary'];
         modData['author'] = nexusData['author'];
+        modData['description'] = nexusData['description'];
       }
 
       final encoder = JsonEncoder.withIndent('  ');
@@ -3885,6 +3901,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         customFitMeshType: mod.customFitMeshType,
         summary: mod.summary,
         customSummary: mod.customSummary,
+        description: mod.description,
+        customDescription: mod.customDescription,
         author: mod.author,
         customAuthor: mod.customAuthor,
         userNotes: mod.userNotes,
@@ -4048,14 +4066,22 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (response.statusCode == 200) {
         final modDetails = json.decode(response.body);
 
-        // Extraemos la información que necesitamos
+        // --- INICIO DE LA CORRECCIÓN ---
+        // Extraemos la información que necesitamos SIN modificarla.
+        // Se guarda el HTML/BBCode original para que la UI lo procese correctamente.
         final pictureUrl = modDetails['picture_url'] as String?;
-        String? summary = modDetails['summary'] as String?;
+        String? summary = modDetails['summary'] as String?; // <-- SIN .replaceAll()
         if (summary != null) {
           // Replaces the HTML line break tag with a real newline character.
           summary = summary.replaceAll('<br />', '\n');
         }
+        String? description = modDetails['description'] as String?; // <-- SIN .replaceAll()
+        if (description != null) {
+          // Replaces the HTML line break tag with a real newline character.
+          description = description.replaceAll('<br />', '\n');
+        }
         final author = modDetails['author'] as String?;
+        // --- FIN DE LA CORRECCIÓN ---
 
         List<Map<String, dynamic>>? gallery;
         if (pictureUrl != null && pictureUrl.isNotEmpty) {
@@ -4064,8 +4090,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           ];
         }
 
-        // Devolvemos un mapa con todos los datos.
-        return {'gallery': gallery, 'summary': summary, 'author': author};
+        // Devolvemos un mapa con todos los datos en crudo.
+        return {
+          'gallery': gallery,
+          'summary': summary,
+          'author': author,
+          'description': description
+        };
       }
 
       print(
@@ -6706,6 +6737,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         customFitMeshType: data['customFitMeshType'],
         summary: mod.summary,
         customSummary: mod.customSummary,
+        description: mod.description,
+        customDescription: data['customDescription'],
         author: mod.author,
         customAuthor: mod.customAuthor,
         userNotes: mod.userNotes,
@@ -6767,6 +6800,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           data.remove('customSummary');
         } else {
           data['customSummary'] = newCustomSummary;
+        }
+      }
+
+      if (newData.containsKey('customDescription')) {
+        final newCustomDescription = newData['customDescription'] as String;
+        // Si la nueva descripción es igual a la original (sin HTML), la eliminamos para no guardar datos redundantes.
+        final originalDescriptionStripped =
+            _ModDetailsPanelState()._stripHtml(mod.description);
+        if (newCustomDescription.isEmpty ||
+            newCustomDescription == originalDescriptionStripped) {
+          data.remove('customDescription');
+        } else {
+          data['customDescription'] = newCustomDescription;
         }
       }
 
@@ -6837,6 +6883,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             : null,
         summary: data['summary'] ?? mod.summary,
         customSummary: data['customSummary'],
+        description: data['description'] ?? mod.description,
+        customDescription: data['customDescription'],
         author: data['author'] ?? mod.author,
         customAuthor: data['customAuthor'],
         userNotes: data['userNotes'],
@@ -7276,6 +7324,10 @@ class _ModDetailsPanel extends StatefulWidget {
 class _ModDetailsPanelState extends State<_ModDetailsPanel> {
   late ModInfo currentModInfo;
   bool _isTranslating = false;
+  bool _isSummaryTranslated = false;
+  bool _isDescriptionTranslated = false;
+  bool _showTranslateSummaryButton = false;
+  bool _showTranslateDescriptionButton = false;
   bool _showTranslateButton = false;
   bool _needsReloadOnClose = false;
   late bool _isIgnored;
@@ -7287,8 +7339,36 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
     _isIgnored = widget.isIgnored;
     // Comprueba si se puede traducir tan pronto como el widget se renderiza por primera vez.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _checkIfTranslationIsPossible();
+      if (mounted) _updateTranslationButtonVisibility();
     });
+  }
+  /// Limpia una cadena de texto de las etiquetas HTML más comunes.
+  String _stripHtml(String? htmlString) {
+    if (htmlString == null) return '';
+    // Reemplaza saltos de línea y párrafos por fines de línea.
+    final withLineBreaks = htmlString
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'</li>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'</p>', caseSensitive: false), '\n');
+    // Reemplaza los elementos de lista por un guion.
+    final withListItems = withLineBreaks.replaceAll(
+        RegExp(r'<li>', caseSensitive: false), '- ');
+    // Elimina todas las demás etiquetas.
+    final withoutTags = withListItems.replaceAll(RegExp(r'<[^>]*>'), '');
+    // Decodifica las entidades HTML más comunes.
+    final decoded = withoutTags
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&nbsp;', ' ');
+        
+    // ++ LÍNEA AÑADIDA ++
+    // Colapsa tres o más saltos de línea en solo dos, eliminando renglones vacíos excesivos.
+    final cleanedNewlines = decoded.replaceAll(RegExp(r'(\n\s*){3,}'), '\n\n');
+
+    return cleanedNewlines.trim();
   }
 
   /// El método dispose() se llama AUTOMÁTICAMENTE cuando el widget se va a destruir.
@@ -7300,44 +7380,63 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
     super.dispose();
   }
 
-  Future<void> _checkIfTranslationIsPossible() async {
-    final summary = currentModInfo.customSummary ?? currentModInfo.summary;
-    if (summary == null || summary.trim().isEmpty) {
-      if (!mounted) return;
-      setState(() => _showTranslateButton = false);
-      return;
+  Future<bool> _checkIfTextNeedsTranslation(String? text) async {
+    if (text == null || text.trim().isEmpty) {
+      return false;
     }
 
     final String currentLocale = Localizations.localeOf(context).languageCode;
     try {
       final translator = GoogleTranslator();
-      final snippet = summary.length > 150
-          ? summary.substring(0, 150)
-          : summary;
-      const String pivotLocale = 'de';
+      // Usamos un fragmento para no enviar textos enormes a la API de detección
+      final snippet = text.length > 150 ? text.substring(0, 150) : text;
+      const String pivotLocale = 'de'; // Idioma pivote para forzar la detección
       final translation = await translator.translate(snippet, to: pivotLocale);
-      final detectedLanguageCode = translation.sourceLanguage.code
-          .toLowerCase();
+      final detectedLanguageCode = translation.sourceLanguage.code.toLowerCase();
 
-      final bool needsTranslation =
-          detectedLanguageCode != currentLocale &&
-          detectedLanguageCode != 'auto';
-
-      if (!mounted) return; // Comprobación de seguridad para evitar el error
-      setState(() => _showTranslateButton = needsTranslation);
+      // Necesita traducción si el idioma detectado no es el de la app y no es "auto"
+      return detectedLanguageCode != currentLocale && detectedLanguageCode != 'auto';
     } catch (e) {
       print("Error detectando el idioma: $e");
-      if (!mounted) return;
-      setState(() => _showTranslateButton = false);
+      return false;
+    }
+  }
+
+  /// Comprueba ambos campos (resumen y descripción) y actualiza la visibilidad de sus botones.
+  Future<void> _updateTranslationButtonVisibility() async {
+    // --- Lógica para el botón del RESUMEN ---
+    // Solo mostramos el botón si estamos viendo el resumen original (no uno personalizado).
+    final isShowingOriginalSummary = currentModInfo.customSummary == null || currentModInfo.customSummary!.isEmpty;
+    if (isShowingOriginalSummary) {
+      final needsTranslation = await _checkIfTextNeedsTranslation(currentModInfo.summary);
+      if (mounted) {
+        setState(() => _showTranslateSummaryButton = needsTranslation);
+      }
+    } else {
+       if (mounted) {
+        setState(() => _showTranslateSummaryButton = false);
+      }
+    }
+
+    // --- Lógica para el botón de la DESCRIPCIÓN ---
+    // Solo mostramos el botón si estamos viendo la descripción original.
+    final isShowingOriginalDescription = currentModInfo.customDescription == null || currentModInfo.customDescription!.isEmpty;
+     if (isShowingOriginalDescription) {
+      final needsTranslation = await _checkIfTextNeedsTranslation(currentModInfo.description);
+      if (mounted) {
+        setState(() => _showTranslateDescriptionButton = needsTranslation);
+      }
+    } else {
+       if (mounted) {
+        setState(() => _showTranslateDescriptionButton = false);
+      }
     }
   }
 
   // Traduce el resumen
   Future<void> _translateSummary() async {
     final l10n = AppLocalizations.of(context)!;
-    if (currentModInfo.summary == null ||
-        currentModInfo.summary!.trim().isEmpty)
-      return;
+    if (currentModInfo.summary == null || currentModInfo.summary!.trim().isEmpty) return;
 
     setState(() => _isTranslating = true);
 
@@ -7345,20 +7444,21 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
       final translator = GoogleTranslator();
       final currentLocale = Localizations.localeOf(context).languageCode;
       final translation = await translator.translate(
-        currentModInfo.summary!,
+        _stripHtml(currentModInfo.summary!), // Limpiamos el HTML antes de traducir
         from: 'auto',
         to: currentLocale,
       );
 
+      // Guardamos la traducción en el campo personalizado 'summary' (que en la función onUpdateDetails se mapea a 'customSummary')
       final updatedMod = await widget.onUpdateDetails(currentModInfo, {
         'summary': translation.text,
       });
 
-      if (updatedMod != null) {
-        if (!mounted) return;
+      if (updatedMod != null && mounted) {
         setState(() {
           currentModInfo = updatedMod;
-          _showTranslateButton = false; // Oculta el botón después de traducir
+          // ++ CAMBIO 3: Ocultar solo el botón del resumen ++
+          _showTranslateSummaryButton = false; 
           _needsReloadOnClose = true;
         });
       }
@@ -7370,8 +7470,47 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
         description: e.toString(),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _isTranslating = false);
+      if (mounted) setState(() => _isTranslating = false);
+    }
+  }
+
+  // Traduce la descripción
+  Future<void> _translateDescription() async {
+    final l10n = AppLocalizations.of(context)!;
+    if (currentModInfo.description == null || currentModInfo.description!.trim().isEmpty) return;
+
+    setState(() => _isTranslating = true);
+
+    try {
+      final translator = GoogleTranslator();
+      final currentLocale = Localizations.localeOf(context).languageCode;
+      final translation = await translator.translate(
+        _stripHtml(currentModInfo.description!), // Limpiamos el HTML
+        from: 'auto',
+        to: currentLocale,
+      );
+
+      final updatedMod = await widget.onUpdateDetails(currentModInfo, {
+        'customDescription': translation.text,
+      });
+
+      if (updatedMod != null && mounted) {
+        setState(() {
+          currentModInfo = updatedMod;
+          // ++ CAMBIO 4: Ocultar solo el botón de la descripción ++
+          _showTranslateDescriptionButton = false;
+          _needsReloadOnClose = true;
+        });
+      }
+    } catch (e) {
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.error,
+        title: l10n.errorTranslation,
+        description: e.toString(),
+      );
+    } finally {
+      if (mounted) setState(() => _isTranslating = false);
     }
   }
 
@@ -7468,30 +7607,48 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
               ),
               Row(
                 children: [
-                  if (title ==
-                      l10n.modDescription) // Solo muestra el botón de traducir en la descripción
-                    _showTranslateButton
-                        ? (_isTranslating
-                              ? const Padding(
-                                  padding: EdgeInsets.all(4.0),
-                                  child: SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                )
-                              : IconButton(
-                                  icon: const Icon(
-                                    Icons.translate,
-                                    color: Colors.white70,
-                                    size: 20,
-                                  ),
-                                  onPressed: _translateSummary,
-                                  tooltip: l10n.translateDescription,
-                                ))
-                        : const SizedBox(),
+                  // Botón para traducir el RESUMEN
+                  if (title == l10n.modSummary && _showTranslateSummaryButton)
+                    _isTranslating
+                        ? const Padding(
+                            padding: EdgeInsets.all(4.0),
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : IconButton(
+                            icon: const Icon(
+                              Icons.translate,
+                              color: Colors.white70,
+                              size: 20,
+                            ),
+                            onPressed: _translateSummary,
+                            tooltip: l10n.translateSummary,
+                          ),
+                  
+                  // Botón para traducir la DESCRIPCIÓN
+                  if (title == l10n.modDescription && _showTranslateDescriptionButton)
+                     _isTranslating
+                        ? const Padding(
+                            padding: EdgeInsets.all(4.0),
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : IconButton(
+                            icon: const Icon(
+                              Icons.translate,
+                              color: Colors.white70,
+                              size: 20,
+                            ),
+                            onPressed: _translateDescription,
+                            tooltip: l10n.translateDescription,
+                          ),
+
                   if (onEdit != null)
                     IconButton(
                       icon: const Icon(
@@ -7511,7 +7668,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
           ),
           const SizedBox(height: 10),
           Text(
-            content,
+            _stripHtml(content), // Limpiamos el HTML siempre antes de mostrar
             style: TextStyle(
               color: content.startsWith('No')
                   ? Colors.white.withOpacity(0.5)
@@ -7781,7 +7938,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                   ),
                   const SizedBox(height: 30),
                   _buildInfoSection(
-                    title: l10n.modDescription,
+                    title: l10n.modSummary,
                     content:
                         currentModInfo.customSummary ??
                         currentModInfo.summary ??
@@ -7789,7 +7946,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                     icon: Icons.description_outlined,
                     onEdit: () async {
                       final newSummary = await _showSingleFieldEditDialog(
-                        title: l10n.modDescription,
+                        title: l10n.modSummary,
                         label: l10n.summaryLabel,
                         initialValue:
                             currentModInfo.customSummary ??
@@ -7838,6 +7995,39 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                       }
                     },
                   ),
+                  const SizedBox(height: 20),
+                  _buildInfoSection(
+                    title: l10n.modDescription,
+                    content:
+                        currentModInfo.customDescription ??
+                        currentModInfo.description ??
+                        l10n.noDescriptionAvailable,
+                    icon: Icons.description_outlined,
+                    onEdit: () async {
+                      final newDescription = await _showSingleFieldEditDialog(
+                        title: l10n.modDescription,
+                        label: l10n.summaryLabel,
+                        initialValue:
+                            currentModInfo.customDescription ??
+                            currentModInfo.description ??
+                            '',
+                        defaultValue: currentModInfo.description ?? '',
+                      );
+                      if (newDescription != null) {
+                        final updatedMod = await widget.onUpdateDetails(
+                          currentModInfo,
+                          {'customDescription': newDescription},
+                        );
+                        if (updatedMod != null) {
+                          setState(() {
+                            currentModInfo = updatedMod;
+                            _needsReloadOnClose = true;
+                          });
+                        }
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 20),
                   // ++ INICIO DE LA MODIFICACIÓN: TAG COMO PIE DE PÁGINA ++
                   const SizedBox(height: 20),
                   Row(

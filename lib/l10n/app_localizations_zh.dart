@@ -814,6 +814,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modAuthor => '作者';
 
   @override
+  String get modSummary => 'Summary';
+
+  @override
   String get modDescription => '描述';
 
   @override
@@ -887,6 +890,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get errorTranslation => '无法翻译描述';
+
+  @override
+  String get translateSummary => 'Translate summary';
 
   @override
   String get translateDescription => '翻译描述';

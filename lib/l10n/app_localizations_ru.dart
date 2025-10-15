@@ -840,6 +840,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get modAuthor => 'Автор';
 
   @override
+  String get modSummary => 'Summary';
+
+  @override
   String get modDescription => 'Описание';
 
   @override
@@ -913,6 +916,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get errorTranslation => 'Не удалось перевести описание';
+
+  @override
+  String get translateSummary => 'Translate summary';
 
   @override
   String get translateDescription => 'Перевести описание';

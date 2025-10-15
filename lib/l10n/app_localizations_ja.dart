@@ -825,6 +825,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get modAuthor => '作者';
 
   @override
+  String get modSummary => 'Summary';
+
+  @override
   String get modDescription => '説明';
 
   @override
@@ -898,6 +901,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get errorTranslation => '説明を翻訳できませんでした';
+
+  @override
+  String get translateSummary => 'Translate summary';
 
   @override
   String get translateDescription => '説明を翻訳';
