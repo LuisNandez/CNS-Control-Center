@@ -19,6 +19,8 @@ import 'settings_page.dart';
 import 'thumbnail_service.dart';
 import 'notification_service.dart';
 import 'package:translator/translator.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/gestures.dart';
 
 class AppPrefs {
   static const String languageCode = 'languageCode';
@@ -7324,8 +7326,6 @@ class _ModDetailsPanel extends StatefulWidget {
 class _ModDetailsPanelState extends State<_ModDetailsPanel> {
   late ModInfo currentModInfo;
   bool _isTranslating = false;
-  bool _isSummaryTranslated = false;
-  bool _isDescriptionTranslated = false;
   bool _showTranslateSummaryButton = false;
   bool _showTranslateDescriptionButton = false;
   bool _showTranslateButton = false;
@@ -7381,6 +7381,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
   }
 
   Future<bool> _checkIfTextNeedsTranslation(String? text) async {
+    if (!mounted) return false;
     if (text == null || text.trim().isEmpty) {
       return false;
     }
@@ -7996,36 +7997,110 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                     },
                   ),
                   const SizedBox(height: 20),
-                  _buildInfoSection(
-                    title: l10n.modDescription,
-                    content:
-                        currentModInfo.customDescription ??
-                        currentModInfo.description ??
-                        l10n.noDescriptionAvailable,
-                    icon: Icons.description_outlined,
-                    onEdit: () async {
-                      final newDescription = await _showSingleFieldEditDialog(
-                        title: l10n.modDescription,
-                        label: l10n.summaryLabel,
-                        initialValue:
-                            currentModInfo.customDescription ??
-                            currentModInfo.description ??
-                            '',
-                        defaultValue: currentModInfo.description ?? '',
-                      );
-                      if (newDescription != null) {
-                        final updatedMod = await widget.onUpdateDetails(
-                          currentModInfo,
-                          {'customDescription': newDescription},
-                        );
-                        if (updatedMod != null) {
-                          setState(() {
-                            currentModInfo = updatedMod;
-                            _needsReloadOnClose = true;
-                          });
-                        }
-                      }
-                    },
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.description_outlined,
+                                  color: Colors.tealAccent.withOpacity(0.8),
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  l10n.modDescription,
+                                  style: const TextStyle(
+                                    color: Colors.tealAccent,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                if (_showTranslateDescriptionButton)
+                                  _isTranslating
+                                      ? const Padding(
+                                          padding: EdgeInsets.all(4.0),
+                                          child: SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                          ),
+                                        )
+                                      : IconButton(
+                                          icon: const Icon(
+                                            Icons.translate,
+                                            color: Colors.white70,
+                                            size: 20,
+                                          ),
+                                          onPressed: _translateDescription,
+                                          tooltip: l10n.translateDescription,
+                                        ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit_outlined,
+                                    color: Colors.white70,
+                                    size: 20,
+                                  ),
+                                  onPressed: () async {
+                                    final newDescription = await _showSingleFieldEditDialog(
+                                      title: l10n.modDescription,
+                                      label: l10n.summaryLabel,
+                                      initialValue: currentModInfo.customDescription ??
+                                          _stripHtml(currentModInfo.description) ??
+                                          '',
+                                      defaultValue: _stripHtml(currentModInfo.description) ?? '',
+                                    );
+                                    if (newDescription != null) {
+                                      final updatedMod = await widget.onUpdateDetails(
+                                        currentModInfo,
+                                        {'customDescription': newDescription},
+                                      );
+                                      if (updatedMod != null) {
+                                        setState(() {
+                                          currentModInfo = updatedMod;
+                                          _needsReloadOnClose = true;
+                                        });
+                                      }
+                                    }
+                                  },
+                                  tooltip: l10n.editButtonTooltip,
+                                  splashRadius: 20,
+                                  constraints: const BoxConstraints(),
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        // Aquí usamos el nuevo Widget
+                        BBCodeRenderer(
+                          data: currentModInfo.customDescription ??
+                              currentModInfo.description ??
+                              l10n.noDescriptionAvailable,
+                          defaultStyle: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            height: 1.5,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
                   // ++ INICIO DE LA MODIFICACIÓN: TAG COMO PIE DE PÁGINA ++
@@ -8119,5 +8194,295 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
         );
       },
     );
+  }
+}
+
+class BBCodeRenderer extends StatelessWidget {
+  final String data;
+  final TextStyle? defaultStyle;
+
+  const BBCodeRenderer({super.key, required this.data, this.defaultStyle});
+
+  @override
+  Widget build(BuildContext context) {
+    final defaultTextStyle = defaultStyle ?? Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
+    final decodedData = data
+      .replaceAll('&#92;', r'\')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&amp;', '&');
+      
+    final widgets = _parseBBCode(context, decodedData);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets.map((widget) {
+        if (widget is RichText) {
+          return DefaultTextStyle(
+            style: defaultTextStyle,
+            child: widget,
+          );
+        }
+        return widget;
+      }).toList(),
+    );
+  }
+
+  /// Analizador principal que separa los elementos de bloque (imágenes, listas, etc).
+  List<Widget> _parseBBCode(BuildContext context, String text) {
+    final List<Widget> widgets = [];
+    final regex = RegExp(
+      r'(\[center\][\s\S]*?\[/center\]|\[left\][\s\S]*?\[/left\]|\[list(?:=1)?\][\s\S]*?\[/list\]|\[img\][\s\S]*?\[/img\])',
+      caseSensitive: false,
+    );
+
+    text.splitMapJoin(
+      regex,
+      onMatch: (Match match) {
+        final String matchText = match.group(0)!;
+        final String lowerCaseMatch = matchText.toLowerCase();
+
+        if (lowerCaseMatch.startsWith('[center]')) {
+          final content = matchText.substring(8, matchText.length - 9);
+          widgets.add(Center(child: Column(children: _parseBBCode(context, content))));
+        } 
+        else if (lowerCaseMatch.startsWith('[left]')) {
+          final content = matchText.substring(6, matchText.length - 7);
+          widgets.add(Align(
+            alignment: Alignment.centerLeft,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: _parseBBCode(context, content)),
+          ));
+        } 
+        else if (lowerCaseMatch.startsWith('[list')) {
+          final bool isOrdered = lowerCaseMatch.startsWith('[list=1]');
+          final int startIndex = matchText.indexOf(']') + 1;
+          final content = matchText.substring(startIndex, matchText.length - 7);
+          widgets.add(_buildList(context, content, isOrdered: isOrdered));
+        } 
+        else if (lowerCaseMatch.startsWith('[img]')) {
+          final url = matchText.substring(5, matchText.length - 6).trim();
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Image.network(
+                url,
+                errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.broken_image_outlined, color: Colors.grey),
+              ),
+            ),
+          );
+        }
+        return '';
+      },
+      // ++ INICIO DE LA MODIFICACIÓN: MANEJAR [*] INDEPENDIENTES ++
+      onNonMatch: (String text) {
+        if (text.trim().isEmpty) return '';
+
+        // Ahora, dividimos el texto sobrante por la etiqueta [*]
+        final itemParts = text.split(RegExp(r'\[\*\]', caseSensitive: false));
+        
+        // El primer fragmento es texto normal antes de la primera viñeta
+        if (itemParts.first.trim().isNotEmpty) {
+          widgets.add(_buildRichText(context, itemParts.first));
+        }
+
+        // El resto de los fragmentos son viñetas independientes
+        if (itemParts.length > 1) {
+          for (final itemText in itemParts.skip(1)) {
+            if (itemText.trim().isNotEmpty) {
+              widgets.add(_buildStandaloneListItem(context, itemText.trim()));
+            }
+          }
+        }
+        return '';
+      },
+      // ++ FIN DE LA MODIFICACIÓN ++
+    );
+
+    return widgets;
+  }
+  
+  /// Widget para construir listas.
+  Widget _buildList(BuildContext context, String content, {bool isOrdered = false}) {
+    final items = content.split(RegExp(r'\[\*\]', caseSensitive: false));
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    final validItems = items.where((item) => item.trim().isNotEmpty).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: validItems.asMap().entries.map((entry) {
+        final index = entry.key;
+        final itemText = entry.value;
+        final String bullet = isOrdered ? "${index + 1}." : "•";
+
+        return Padding(
+          padding: const EdgeInsets.only(left: 16.0, top: 2.0, bottom: 2.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0, top: 2.0),
+                child: Text(bullet, style: const TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _parseBBCode(context, itemText.trim()),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // ++ NUEVO: Widget para construir un elemento de lista INDEPENDIENTE ++
+  Widget _buildStandaloneListItem(BuildContext context, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 16.0, top: 2.0, bottom: 2.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(right: 8.0, top: 2.0),
+            child: Text("•", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          // El contenido del item puede tener más estilos, así que lo pasamos a RichText
+          Expanded(child: _buildRichText(context, text)),
+        ],
+      ),
+    );
+  }
+
+
+  /// Construye el RichText para estilos en línea (negrita, color, fuente, etc.).
+  Widget _buildRichText(BuildContext context, String text) {
+    final List<TextSpan> spans = [];
+    final List<TextStyle> styleStack = [const TextStyle()];
+    final List<GestureRecognizer?> recognizerStack = [null];
+    
+    final regex = RegExp(
+        r'\[\/?(b|u|i|s|color|size|url|font)(?:=([^\]]*))?\]',
+        caseSensitive: false,
+    );
+
+    text.splitMapJoin(
+      regex,
+      onMatch: (Match match) {
+        final tagName = match.group(1)?.toLowerCase();
+        final tagValue = match.group(2);
+        final isClosingTag = match.group(0)!.startsWith('[/');
+
+        if (isClosingTag) {
+          if (styleStack.length > 1) styleStack.removeLast();
+          if (recognizerStack.length > 1) recognizerStack.removeLast();
+        } else {
+          TextStyle currentStyle = styleStack.last;
+          GestureRecognizer? currentRecognizer = recognizerStack.last;
+
+          switch (tagName) {
+            case 'b':
+              currentStyle = currentStyle.copyWith(fontWeight: FontWeight.bold);
+              break;
+            case 'u':
+              currentStyle = currentStyle.copyWith(decoration: TextDecoration.underline);
+              break;
+            case 'i':
+              currentStyle = currentStyle.copyWith(fontStyle: FontStyle.italic);
+              break;
+            case 's':
+              currentStyle = currentStyle.copyWith(decoration: TextDecoration.lineThrough);
+              break;
+            case 'color':
+              final color = _hexToColor(tagValue);
+              if (color != null) {
+                currentStyle = currentStyle.copyWith(color: color);
+              }
+              break;
+            case 'size':
+              final fontSize = _sizeToFontSize(tagValue);
+              if (fontSize != null) {
+                currentStyle = currentStyle.copyWith(fontSize: fontSize);
+              }
+              break;
+            case 'url':
+              if (tagValue != null) {
+                currentRecognizer = TapGestureRecognizer()
+                  ..onTap = () async {
+                    try {
+                      final url = Uri.parse(tagValue);
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url);
+                      }
+                    } catch (e) {
+                      print('Could not launch URL $tagValue: $e');
+                    }
+                  };
+                  currentStyle = currentStyle.copyWith(
+                    color: Colors.lightBlueAccent,
+                    decoration: TextDecoration.underline,
+                  );
+              }
+              break;
+            case 'font':
+              if (tagValue != null) {
+                currentStyle = currentStyle.copyWith(fontFamily: tagValue.replaceAll("'", "").replaceAll('"', ""));
+              }
+              break;
+          }
+          styleStack.add(currentStyle);
+          recognizerStack.add(currentRecognizer);
+        }
+        return '';
+      },
+      onNonMatch: (String text) {
+        if (text.isNotEmpty) {
+          spans.add(
+            TextSpan(
+              text: text,
+              style: styleStack.last,
+              recognizer: recognizerStack.last,
+            ),
+          );
+        }
+        return '';
+      },
+    );
+    
+    return RichText(
+      text: TextSpan(
+        children: spans,
+        style: defaultStyle ?? Theme.of(context).textTheme.bodyMedium,
+      ),
+    );
+  }
+
+  // --- Funciones de Ayuda ---
+
+  Color? _hexToColor(String? hex) {
+    if (hex == null) return null;
+    final hexString = hex.startsWith('#') ? hex.substring(1) : hex;
+    if (hexString.length == 6) {
+      return Color(int.parse('FF$hexString', radix: 16));
+    }
+    return null;
+  }
+
+  double? _sizeToFontSize(String? size) {
+    if (size == null) return null;
+    final sizeNum = int.tryParse(size);
+    if (sizeNum == null) return null;
+    switch (sizeNum) {
+      case 1: return 10.0;
+      case 2: return 12.0;
+      case 3: return 14.0;
+      case 4: return 16.0;
+      case 5: return 20.0;
+      case 6: return 24.0;
+      case 7: return 32.0;
+      default: return 14.0;
+    }
   }
 }
