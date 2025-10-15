@@ -1108,4 +1108,14 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get filterUpdatesAvailable => '사용 가능한 업데이트';
+
+  @override
+  String snackBarUpdateIgnored(String modName) {
+    return 'Update for \'$modName\' ignored for this session.';
+  }
+
+  @override
+  String snackBarVersionSkipped(String modName, String version) {
+    return 'Version \'$version\' of \'$modName\' will be skipped in future checks.';
+  }
 }

@@ -2001,6 +2001,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Updates Available'**
   String get filterUpdatesAvailable;
+
+  /// Notification text shown when a user ignores an update for a specific mod.
+  ///
+  /// In en, this message translates to:
+  /// **'Update for \'{modName}\' ignored for this session.'**
+  String snackBarUpdateIgnored(String modName);
+
+  /// Notification text shown when a user decides to permanently skip a specific version of a mod.
+  ///
+  /// In en, this message translates to:
+  /// **'Version \'{version}\' of \'{modName}\' will be skipped in future checks.'**
+  String snackBarVersionSkipped(String modName, String version);
 }
 
 class _AppLocalizationsDelegate

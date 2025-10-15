@@ -4507,7 +4507,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 
-  Future<void> _showUpdateOptionsDialog({
+  Future<bool> _showUpdateOptionsDialog({
     required String newVersion,
     required String nexusId,
     required int fileId,
@@ -4518,7 +4518,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         ? newVersion.substring(1)
         : newVersion;
 
-    await showDialog(
+    // Busca el nombre del mod para mostrarlo en la notificación.
+    // Incluye un respaldo para el CNS, que no está en la lista general de mods.
+    final modName = _allMods
+        .firstWhere((m) => m.nexusId == nexusId,
+            orElse: () =>
+                ModInfo(directory: Directory(''), customName: l10n.cnsCoreSystem, displayName: '', isEnabled: false, lastModified: DateTime.now()))
+        .customName;
+
+    // El diálogo ahora devuelve un booleano: 'true' si la notificación se ocultó.
+    final bool? result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2a2a2a),
@@ -4530,7 +4539,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               setState(() {
                 _ignoredUpdates.add(uniqueIdentifier);
               });
-              Navigator.of(context).pop();
+              NotificationService.instance.show(
+                context: context,
+                type: NotificationType.info,
+                title: l10n.snackBarUpdateIgnored(modName),
+              );
+              Navigator.of(context).pop(true); // Devuelve 'true'
             },
             child: Text(l10n.dialogActionIgnoreVersion),
           ),
@@ -4551,7 +4565,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 }
               });
               await _saveSkippedVersions();
-              Navigator.of(context).pop();
+              NotificationService.instance.show(
+                context: context,
+                type: NotificationType.info,
+                title: l10n.snackBarVersionSkipped(modName, newVersion),
+              );
+              Navigator.of(context).pop(true); // Devuelve 'true'
             },
             child: Text(l10n.dialogActionSkipVersion),
           ),
@@ -4563,7 +4582,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               if (await canLaunchUrl(url)) {
                 await launchUrl(url);
               }
-              Navigator.of(context).pop();
+              Navigator.of(context).pop(false); // Devuelve 'false'
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.tealAccent,
@@ -4574,6 +4593,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         ],
       ),
     );
+    // Si el diálogo se cierra sin seleccionar, devuelve 'false'.
+    return result ?? false;
   }
 
   Future<void> _manageSkippedVersions() async {
@@ -5900,7 +5921,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               ),
             if (modInfo.nexusId != null)
               IconButton(
-                icon: const Icon(Icons.link, color: Colors.lightBlueAccent),
+                icon: const Icon(Icons.open_in_browser_outlined, color: Colors.lightBlueAccent),
                 onPressed: () async {
                   final url = Uri.parse(
                     'https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}',
@@ -6514,7 +6535,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<void> _showDetailsPage(ModInfo modInfo) async {
     void onPanelClosed(ModInfo? updatedModInfo) {
       if (updatedModInfo != null) {
-        // ++ INICIO DE LA CORRECCIÓN ++
         // Usamos addPostFrameCallback para posponer la actualización hasta que el árbol de widgets
         // esté desbloqueado (después de que el panel se haya cerrado por completo).
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -6531,9 +6551,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             });
           }
         });
-        // ++ FIN DE LA CORRECCIÓN ++
       }
     }
+
+    // ++ INICIO DE LA MODIFICACIÓN ++
+    // Obtenemos la información de actualización y el estado "ignorado" para este mod específico.
+    final updateInfo = _modUpdates[modInfo.directory.path];
+    final hasUpdate = updateInfo != null;
+    final updateIdentifier = hasUpdate ? modInfo.directory.path + (updateInfo['version'] as String) : '';
+    final isIgnored = _ignoredUpdates.contains(updateIdentifier);
+    // ++ FIN DE LA MODIFICACIÓN ++
 
     showModalBottomSheet<void>(
       context: context,
@@ -6547,6 +6574,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         onShowImageGallery: _showImageGalleryDialog,
         onShowGeneralEditDialog: _showGeneralEditDialog,
         onPanelClosed: onPanelClosed,
+
+        // ++ INICIO DE LA MODIFICACIÓN ++
+        // Pasamos la información de la actualización y la función del diálogo al panel.
+        updateInfo: updateInfo,
+        isIgnored: isIgnored,
+        onShowUpdateDialog: _showUpdateOptionsDialog,
+        // ++ FIN DE LA MODIFICACIÓN ++
       ),
     );
   }
@@ -7211,6 +7245,15 @@ class _ModDetailsPanel extends StatefulWidget {
   final Future<Map<String, dynamic>?> Function(ModInfo, BuildContext)
   onShowGeneralEditDialog;
   final Function(ModInfo?) onPanelClosed;
+  // Nuevas propiedades para gestionar la información de la actualización.
+  final Map<String, dynamic>? updateInfo;
+  final bool isIgnored;
+  final Future<bool> Function({
+    required String newVersion,
+    required String nexusId,
+    required int fileId,
+    required String uniqueIdentifier,
+  }) onShowUpdateDialog;
 
   const _ModDetailsPanel({
     required this.initialModInfo,
@@ -7220,6 +7263,10 @@ class _ModDetailsPanel extends StatefulWidget {
     required this.onShowImageGallery,
     required this.onShowGeneralEditDialog,
     required this.onPanelClosed,
+    // Añadimos los nuevos parámetros al constructor.
+    this.updateInfo,
+    required this.isIgnored,
+    required this.onShowUpdateDialog,
   });
 
   @override
@@ -7231,11 +7278,13 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
   bool _isTranslating = false;
   bool _showTranslateButton = false;
   bool _needsReloadOnClose = false;
+  late bool _isIgnored;
 
   @override
   void initState() {
     super.initState();
     currentModInfo = widget.initialModInfo;
+    _isIgnored = widget.isIgnored;
     // Comprueba si se puede traducir tan pronto como el widget se renderiza por primera vez.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _checkIfTranslationIsPossible();
@@ -7534,6 +7583,37 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                 ),
               ),
               actions: [
+                // Si hay una actualización que no está ignorada, muestra el botón.
+                // Ahora la visibilidad depende del estado local '_isIgnored'.
+                if (widget.updateInfo != null && !_isIgnored)
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notification_important_rounded,
+                      color: Colors.yellowAccent,
+                    ),
+                    tooltip: l10n.updateAvailable(widget.updateInfo!['version']),
+                    onPressed: () async {
+                      if (currentModInfo.nexusId != null) {
+                        final updateIdentifier =
+                            currentModInfo.directory.path + (widget.updateInfo!['version'] as String);
+                        
+                        // 1. Llamamos a la función y esperamos su resultado (true/false).
+                        final bool wasHidden = await widget.onShowUpdateDialog(
+                          newVersion: widget.updateInfo!['version'],
+                          nexusId: currentModInfo.nexusId!,
+                          fileId: widget.updateInfo!['fileId'],
+                          uniqueIdentifier: updateIdentifier,
+                        );
+
+                        // 2. Si el resultado es 'true', actualizamos el estado local para ocultar la campana.
+                        if (wasHidden && mounted) {
+                          setState(() {
+                            _isIgnored = true;
+                          });
+                        }
+                      }
+                    },
+                  ),
                 IconButton(
                   icon: const Icon(Icons.edit_note_rounded),
                   tooltip: l10n.editButtonTooltip,
@@ -7656,7 +7736,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                         child: ElevatedButton.icon(
                           icon: Icon(
                             hasLink
-                                ? Icons.link_rounded
+                                ? Icons.open_in_browser_outlined
                                 : Icons.add_link_rounded,
                           ),
                           label: Text(

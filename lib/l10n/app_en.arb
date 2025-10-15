@@ -404,6 +404,31 @@
         }
     },
     "byText": "by {author}",
-    "filterUpdatesAvailable": "Updates Available"
+    "filterUpdatesAvailable": "Updates Available",
+    "snackBarUpdateIgnored": "Update for '{modName}' ignored for this session.",
+  "@snackBarUpdateIgnored": {
+    "description": "Notification text shown when a user ignores an update for a specific mod.",
+    "placeholders": {
+      "modName": {
+        "type": "String",
+        "example": "Cool Armor Set"
+      }
+    }
+  },
+
+  "snackBarVersionSkipped": "Version '{version}' of '{modName}' will be skipped in future checks.",
+  "@snackBarVersionSkipped": {
+    "description": "Notification text shown when a user decides to permanently skip a specific version of a mod.",
+    "placeholders": {
+      "modName": {
+        "type": "String",
+        "example": "Cool Armor Set"
+      },
+      "version": {
+        "type": "String",
+        "example": "1.2.1"
+      }
+    }
+  }
 }
 

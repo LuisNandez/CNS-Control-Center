@@ -1144,4 +1144,14 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get filterUpdatesAvailable => 'Mises à jour disponibles';
+
+  @override
+  String snackBarUpdateIgnored(String modName) {
+    return 'Update for \'$modName\' ignored for this session.';
+  }
+
+  @override
+  String snackBarVersionSkipped(String modName, String version) {
+    return 'Version \'$version\' of \'$modName\' will be skipped in future checks.';
+  }
 }
