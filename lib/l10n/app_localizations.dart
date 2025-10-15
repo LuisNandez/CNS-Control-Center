@@ -1989,6 +1989,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Installing {index}/{total}: {modName}'**
   String statusInstallingMod(int index, int total, String modName);
+
+  /// No description provided for @byText.
+  ///
+  /// In en, this message translates to:
+  /// **'by {author}'**
+  String byText(Object author);
+
+  /// No description provided for @filterUpdatesAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates Available'**
+  String get filterUpdatesAvailable;
 }
 
 class _AppLocalizationsDelegate

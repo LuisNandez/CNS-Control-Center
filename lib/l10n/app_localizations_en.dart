@@ -1124,4 +1124,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String statusInstallingMod(int index, int total, String modName) {
     return 'Installing $index/$total: $modName';
   }
+
+  @override
+  String byText(Object author) {
+    return 'by $author';
+  }
+
+  @override
+  String get filterUpdatesAvailable => 'Updates Available';
 }

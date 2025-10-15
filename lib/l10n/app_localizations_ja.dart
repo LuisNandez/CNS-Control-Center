@@ -20,13 +20,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings => '設定';
 
   @override
-  String get settingsGeneral => '全般';
+  String get settingsGeneral => '一般';
 
   @override
   String get settingsLanguage => '言語';
 
   @override
-  String get settingsLanguageDesc => 'アプリケーションの言語を選択します';
+  String get settingsLanguageDesc => 'アプリケーションの言語を選択してください';
 
   @override
   String get settingsAbout => '概要';
@@ -41,23 +41,23 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsGameFolder => 'ゲームフォルダ';
 
   @override
-  String get settingsGameFolderDesc => 'Stellar Bladeのインストール先のルートフォルダ。';
+  String get settingsGameFolderDesc => 'Stellar Bladeがインストールされているルートフォルダです。';
 
   @override
   String get settings7zipPath => '7-Zipのパス';
 
   @override
-  String get settings7zipPathDesc => 'MODを解凍するための7z.exeファイルの場所。';
+  String get settings7zipPathDesc => 'MODを解凍するための7z.exeファイルの場所です。';
 
   @override
   String get settings7zipPathAuto => '自動検索';
 
   @override
-  String get settingsRepairMods => 'レガシーMODの修復';
+  String get settingsRepairMods => 'レガシーMODを修復';
 
   @override
   String get settingsRepairModsDesc =>
-      'ローカルデータベースを使用して古いMODの情報ファイルをスキャンおよび作成します。APIキーが必要です。';
+      'ローカルデータベースを使用して古いMODをスキャンし、情報ファイルを作成します。APIキーが必要です。';
 
   @override
   String get settingsConnectivity => '接続とアップデート';
@@ -75,14 +75,14 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsApiKeyNotSet => '未設定';
 
   @override
-  String get settingsSkippedVersions => 'スキップされたバージョンを管理';
+  String get settingsSkippedVersions => 'スキップしたバージョンを管理';
 
   @override
   String get settingsSkippedVersionsDesc => 'スキップすることを選択したMODのバージョンを管理します。';
 
   @override
   String settingsSkippedVersionsCount(Object count) {
-    return '$countバージョンがスキップされました';
+    return '$count個のバージョンがスキップされました';
   }
 
   @override
@@ -99,7 +99,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dialogContentRepairMods =>
-      '警告：この機能は開発中であり、完全ではない可能性があります。\n\n\'nexus_info.json\'ファイルがないMODをスキャンし、ローカルデータベースで見つかった場合、そのファイルを作成します。また、見つかったバージョンを含むようにMODのフォルダ名を変更しようとします（例：「マイMOD」→「マイMOD v1.2」）。\n\nバージョンの優先順位：\n1. フォルダ名から。\n2. MODの説明欄から。\n3. Nexus Modsの最新バージョンから（APIが必要）。\n\n続行しますか？';
+      '警告：この機能は開発中であり、完全ではない可能性があります。\n\n\'nexus_info.json\'ファイルのないMODをスキャンし、ローカルデータベースで見つかった場合はそれらのファイルを作成します。また、見つかったバージョンを含むようにMODのフォルダ名を変更しようとします（例：\'My Mod\' -> \'My Mod v1.2\'）。\n\nバージョン優先度：\n1. フォルダ名から\n2. MODの説明フィールドから\n3. Nexus Modsの最新バージョンから（APIが必要）\n\n続行しますか？';
 
   @override
   String get dialogActionRunRepair => '修復を実行';
@@ -126,7 +126,7 @@ class AppLocalizationsJa extends AppLocalizations {
       'ローカルバージョンがないMODの最新バージョンを見つけるにはAPIキーが必要です。';
 
   @override
-  String get installNewMod => '新しいMODをインストール';
+  String get installNewMod => 'MODをインストール';
 
   @override
   String get selectFiles => 'ファイルを選択';
@@ -195,7 +195,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String statusModsFound(Object disabledCount, Object enabledCount) {
-    return '有効なMOD $enabledCount個、無効なMOD $disabledCount個。';
+    return '$enabledCount個のMODが有効、$disabledCount個が無効です。';
   }
 
   @override
@@ -205,12 +205,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String statusFilesSelected(Object count) {
-    return '$count個のファイルが選択されました。インストール準備完了。';
+    return '$count個のファイルが選択されました。インストール準備完了です。';
   }
 
   @override
   String statusFolderSelected(Object folderName) {
-    return 'フォルダ「$folderName」が選択されました。インストール準備完了。';
+    return 'フォルダ「$folderName」が選択されました。インストール準備完了です。';
   }
 
   @override
@@ -220,7 +220,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get statusSelectionCancelled =>
-      '選択がキャンセルされました。新しいMODを選択してインストールしてください。';
+      '選択がキャンセルされました。インストールする新しいMODを選択してください。';
 
   @override
   String get statusUpdateComplete => 'アップデートが完了しました。';
@@ -242,14 +242,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dialogContent7zipNotFound =>
-      '7-Zipがまだ検出されていません。デフォルトパスにインストールされていることを確認して、もう一度お試しください。';
+      '7-Zipがまだ検出されていません。デフォルトのパスにインストールされていることを確認してから、もう一度お試しください。';
 
   @override
   String get dialogTitleMultipleJsons => '複数の.jsonファイルが検出されました';
 
   @override
   String dialogContentMultipleJsons(Object count) {
-    return '$count個の.jsonファイルが検出されました。これは複数のコンポーネントを持つMODである可能性があります。\n\nすべてのファイルを1つのMODフォルダにまとめてインストールしますか？';
+    return '$count個の.jsonファイルが検出されました。これは複数のコンポーネントを持つMODである可能性があります。\n\nそれらをすべて1つのMODフォルダにまとめてインストールしますか？';
   }
 
   @override
@@ -257,12 +257,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String dialogContentModExists(Object modName) {
-    return '「$modName」という名前のMODはすでにインストールされています。\n\n更新しますか？古いファイルは新しいファイルをインストールする前に削除されます。';
+    return '「$modName」という名前のMODはすでにインストールされています。\n\n更新しますか？新しいファイルをインストールする前に、古いファイルは削除されます。';
   }
 
   @override
   String dialogContentModUpdate(Object newModName, Object oldModName) {
-    return '古いバージョン「$oldModName」が見つかりました。\n\n削除して「$newModName」に更新しますか？';
+    return '古いバージョン「$oldModName」が見つかりました。\n\nそれを削除して「$newModName」に更新しますか？';
   }
 
   @override
@@ -277,7 +277,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dialogActionCancel => 'キャンセル';
 
   @override
-  String get dialogActionGoToDownload => 'ダウンロードページへ移動';
+  String get dialogActionGoToDownload => 'ダウンロードページへ';
 
   @override
   String get dialogActionConfirmInstallation => 'インストールを確認';
@@ -286,7 +286,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dialogActionUpdateSystem => 'システムを更新';
 
   @override
-  String get dialogActionInstallAnyway => 'そのままインストール';
+  String get dialogActionInstallAnyway => 'とにかくインストール';
 
   @override
   String get dialogActionDelete => '削除';
@@ -401,12 +401,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String errorNoDisplayName(Object fileName) {
-    return 'ファイル$fileNameはカスタムナノスーツシステムのMODではないようです（\"DisplayName\"がありません）。';
+    return 'ファイル$fileNameはカスタムナノスーツシステムのMODではないようです（「DisplayName」がありません）。';
   }
 
   @override
   String get errorNoValidDisplayName =>
-      '.jsonファイルに有効な\"DisplayName\"が見つかりませんでした。';
+      '.jsonファイルに有効な「DisplayName」が見つかりませんでした。';
 
   @override
   String errorEnableMod(Object error) {
@@ -436,11 +436,11 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String statusExtractingFile(Object fileName) {
-    return '$fileNameを展開中...';
+    return '$fileNameを解凍中...';
   }
 
   @override
-  String get statusInstallationCancelledByUser => 'インストールはユーザーによってキャンセルされました。';
+  String get statusInstallationCancelledByUser => 'ユーザーによってインストールがキャンセルされました。';
 
   @override
   String get errorNoCompatibleFilesInFolder =>
@@ -458,10 +458,10 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get aboutContent =>
-      'このアプリケーションは、カスタムナノスーツシステム（CNS）と連携するように設計されたStellar Blade用のMODマネージャーです。\n\n要件：.rarおよび.7zファイルで全機能を利用するには、システムに7-Zipがインストールされている必要があります。';
+      'このアプリケーションはStellar Blade用のMODマネージャーで、カスタムナノスーツシステム（CNS）と連携するように設計されています。\n\n要件：.rarおよび.7zファイルで完全に機能させるには、システムに7-Zipがインストールされている必要があります。';
 
   @override
-  String get aboutLinkText => '私のクリエイタープロフィールを見る';
+  String get aboutLinkText => 'クリエイタープロフィールを見る';
 
   @override
   String get creatorProfileUrl =>
@@ -483,7 +483,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String updateAvailable(Object version) {
-    return 'アップデート利用可能：v$version';
+    return 'アップデートが利用可能です：v$version';
   }
 
   @override
@@ -491,7 +491,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dialogContentApiKey =>
-      'MODのアップデートを確認するには、Nexus Modsの個人用APIキーが必要です。';
+      'MODのアップデートを確認するには、Nexus Modsの個人APIキーが必要です。';
 
   @override
   String get dialogContentApiKeyInstructions =>
@@ -501,7 +501,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get apiKey => 'APIキー';
 
   @override
-  String get apiKeyHintText => 'ここにAPIキーを貼り付けてください';
+  String get apiKeyHintText => 'APIキーをここに貼り付けてください';
 
   @override
   String get dialogActionSave => '保存';
@@ -534,7 +534,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get selectModArchive => 'MODアーカイブを選択';
 
   @override
-  String get viewImageGallery => '画像を見る';
+  String get viewImageGallery => '画像ギャラリーを表示';
 
   @override
   String get imageGallery => '画像ギャラリー';
@@ -570,16 +570,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get dialogActionSkipVersion => 'バージョンをスキップ';
 
   @override
-  String get dialogActionGoToDownloadPage => 'ダウンロードへ移動';
+  String get dialogActionGoToDownloadPage => 'ダウンロードへ';
 
   @override
   String get installedMods => 'インストール済みMOD';
 
   @override
-  String get filterBy => 'フィルター：';
+  String get filterBy => 'フィルター:';
 
   @override
-  String get sortBy => '並べ替え：';
+  String get sortBy => '並べ替え:';
 
   @override
   String get filterAll => 'すべて';
@@ -614,7 +614,7 @@ class AppLocalizationsJa extends AppLocalizations {
     Object fileName,
     Object total,
   ) {
-    return '$total個中$count個を展開中：$fileName';
+    return '$total個中$count個を解凍中：$fileName';
   }
 
   @override
@@ -625,7 +625,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dialogContentUE4SS =>
-      'UE4SSツールが検出されました。「StellarBlade\\SB\\Binaries\\Win64」にインストールしますか？\n\nこれは多くのMODが機能するために必要です。';
+      'UE4SSツールが検出されました。\'StellarBlade\\SB\\Binaries\\Win64\'にインストールしますか？\n\nこれは多くのMODが機能するために必要です。';
 
   @override
   String get dialogActionInstallTool => 'ツールをインストール';
@@ -641,7 +641,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String error7zipDecompression(Object error) {
-    return '展開中の7-Zipエラー：$error';
+    return '解凍中の7-Zipエラー：$error';
   }
 
   @override
@@ -656,17 +656,17 @@ class AppLocalizationsJa extends AppLocalizations {
     String baseModName,
     String newModName,
   ) {
-    return 'このMODの別のバージョンがすでにインストールされています：\'$oldModName\'。\n\n\'$newModName\'という名前の別のバージョンをインストールしようとしています。';
+    return 'このMODの代替バージョンがすでにインストールされています：\'$oldModName\'。\n\n\'$newModName\'という名前の別の代替バージョンをインストールしようとしています。';
   }
 
   @override
-  String get dialogActionReplace => '置換';
+  String get dialogActionReplace => '置き換える';
 
   @override
   String get dialogActionInstallAsNew => '新規としてインストール';
 
   @override
-  String get dialogTitleUpdate => 'アップデート利用可能';
+  String get dialogTitleUpdate => 'アップデートが利用可能です';
 
   @override
   String dialogContentUpdate(
@@ -749,27 +749,27 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get dialogTitleRepairedModWarning => '修復済みMODの警告';
+  String get dialogTitleRepairedModWarning => '修復されたMODの警告';
 
   @override
   String get dialogContentRepairedModWarning =>
-      'このMODは正しいバージョン情報を持っていない可能性があります。互換性を確保するために、最新バージョンを再インストールすることをお勧めします。';
+      'このMODには正しいバージョン情報がない可能性があります。互換性を確保するために最新バージョンを再インストールすることをお勧めします。';
 
   @override
-  String get repairedModTooltip => '修復済みMODに関する情報';
+  String get repairedModTooltip => '修復されたMODに関する情報';
 
   @override
   String get disableAllModsTooltip => 'すべてのMODを無効化';
 
   @override
-  String get deleteAllModsTooltip => 'すべての無効なMODを削除';
+  String get deleteAllModsTooltip => '無効なMODをすべて削除';
 
   @override
   String get dialogTitleDisableAll => 'すべてのMODを無効にしますか？';
 
   @override
   String dialogContentDisableAll(int count) {
-    return '$count個の有効なMODをすべて無効にしてもよろしいですか？バックアップフォルダに移動されます。';
+    return '有効な$count個のMODをすべて無効にしてもよろしいですか？それらはバックアップフォルダに移動されます。';
   }
 
   @override
@@ -777,17 +777,17 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String dialogContentDeleteAll(int count) {
-    return '$count個の無効なMODをすべて完全に削除しようとしています。この操作は元に戻せません。\n\nよろしいですか？';
+    return '無効な$count個のMODをすべて完全に削除しようとしています。この操作は元に戻せません。\n\nよろしいですか？';
   }
 
   @override
   String snackBarAllModsDisabled(int count) {
-    return '$count個の有効なMODがすべて無効になりました。';
+    return '有効な$count個のMODがすべて無効になりました。';
   }
 
   @override
   String snackBarAllModsDeleted(int count) {
-    return '$count個の無効なMODがすべて完全に削除されました。';
+    return '無効な$count個のMODがすべて完全に削除されました。';
   }
 
   @override
@@ -797,29 +797,29 @@ class AppLocalizationsJa extends AppLocalizations {
   String get snackBarNoModsToDelete => '削除する無効なMODはありません。';
 
   @override
-  String get enableAllModsTooltip => 'すべてのMODを有効にする';
+  String get enableAllModsTooltip => 'すべてのMODを有効化';
 
   @override
   String get dialogTitleEnableAll => 'すべてのMODを有効にしますか？';
 
   @override
   String dialogContentEnableAll(int count) {
-    return '$count個の無効なMODをすべて有効にしてもよろしいですか？メインのMODフォルダに移動されます。';
+    return '無効な$count個のMODをすべて有効にしてもよろしいですか？それらはメインのMODフォルダに移動されます。';
   }
 
   @override
   String snackBarAllModsEnabled(int count) {
-    return '$count個の無効なMODがすべて有効になりました。';
+    return '無効な$count個のMODがすべて有効になりました。';
   }
 
   @override
   String get snackBarNoModsToEnable => '有効にする無効なMODはありません。';
 
   @override
-  String get editNotes => 'ノートを編集';
+  String get editNotes => 'メモを編集';
 
   @override
-  String get notesHintText => 'ここに個人的なノートを追加...';
+  String get notesHintText => 'ここに個人的なメモを追加してください...';
 
   @override
   String get modAuthor => '作者';
@@ -831,25 +831,25 @@ class AppLocalizationsJa extends AppLocalizations {
   String get noDescriptionAvailable => '説明はありません。';
 
   @override
-  String get personalNotes => '個人的なノート';
+  String get personalNotes => '個人メモ';
 
   @override
-  String get noNotesAvailable => 'まだノートは追加されていません。';
+  String get noNotesAvailable => 'まだメモは追加されていません。';
 
   @override
-  String get modDetailsTitle => 'MOD詳細';
+  String get modDetailsTitle => 'MODの詳細';
 
   @override
   String get modVersion => 'バージョン';
 
   @override
-  String get modCategory => 'カテゴリー';
+  String get modCategory => 'カテゴリ';
 
   @override
   String get dialogTitleAddUrl => 'MODリンクを追加';
 
   @override
-  String get dialogLabelUrl => 'MOD URL';
+  String get dialogLabelUrl => 'MODのURL';
 
   @override
   String get errorInvalidUrl => '有効なURLを入力してください。';
@@ -864,7 +864,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get openLinkButtonText => 'リンクを開く';
 
   @override
-  String get editModTitle => 'MOD詳細を編集';
+  String get editModTitle => 'MODの詳細を編集';
 
   @override
   String get modNameLabel => 'MOD名';
@@ -876,7 +876,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get summaryLabel => '説明/概要';
 
   @override
-  String get notesLabel => '個人的なノート';
+  String get notesLabel => '個人メモ';
 
   @override
   String get urlLabel => 'ダウンロードURL';
@@ -888,13 +888,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editButtonTooltip => 'MODを編集';
 
   @override
-  String get errorSavingNotes => 'ノートの保存中にエラーが発生しました';
+  String get errorSavingNotes => 'メモの保存中にエラー';
 
   @override
-  String get errorSavingUrl => 'URLの保存中にエラーが発生しました';
+  String get errorSavingUrl => 'URLの保存中にエラー';
 
   @override
-  String get errorSavingChanges => '変更の保存中にエラーが発生しました';
+  String get errorSavingChanges => '変更の保存中にエラー';
 
   @override
   String get errorTranslation => '説明を翻訳できませんでした';
@@ -907,7 +907,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dialogContentUE4SSReinstall =>
-      'UE4SSはすでにインストールされているようです。既存のインストールを上書きしますか？ファイルが破損している疑いがある場合に便利です。';
+      'UE4SSはすでにインストールされているようです。既存のインストールを上書きしますか？ファイルが破損している疑いがある場合に役立ちます。';
 
   @override
   String get dialogTitleCNSReinstall => 'CNSシステムを再インストール';
@@ -923,7 +923,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String dialogContentUninstall(Object componentName) {
-    return '$componentNameをアンインストールしてもよろしいですか？この操作により、コンポーネントのコアファイルは削除されますが、インストール済みのMODには影響しません。';
+    return '$componentNameをアンインストールしてもよろしいですか？この操作によりコアコンポーネントファイルは削除されますが、インストール済みのMODには影響しません。';
   }
 
   @override
@@ -941,7 +941,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String errorUninstalling(Object componentName) {
-    return '$componentNameのアンインストール中にエラーが発生しました';
+    return '$componentNameのアンインストール中にエラー';
   }
 
   @override
@@ -951,7 +951,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get installedStatus => 'インストール済み';
 
   @override
-  String get notInstalledStatus => '検出されません';
+  String get notInstalledStatus => '未検出';
 
   @override
   String get uninstallButton => 'アンインストール';
@@ -977,10 +977,10 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get uninstallDependencyContent =>
-      'CNSはUE4SSに依存しているため、UE4SSをアンインストールする前にメインCNSシステムをアンインストールする必要があります。';
+      'UE4SSをアンインストールする前に、CNSが依存しているため、メインCNSシステムをアンインストールする必要があります。';
 
   @override
-  String get dialogActionUnderstood => '了解しました';
+  String get dialogActionUnderstood => '了解';
 
   @override
   String get appTitleNoCns => 'カスタムナノスーツシステム（未インストール）';
@@ -994,7 +994,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get dialogTitleCNSDowngrade => 'CNSバージョンをダウングレード';
+  String get dialogTitleCNSDowngrade => 'CNSのバージョンをダウングレード';
 
   @override
   String dialogContentCNSDowngrade(Object oldVersion, Object newVersion) {
@@ -1003,7 +1003,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String dialogContentCNSReinstallVersion(Object version) {
-    return 'すでにCNSのバージョン$versionがインストールされています。ファイルを再インストールしますか？';
+    return 'CNSのバージョン$versionはすでにインストールされています。それでもファイルを再インストールしますか？';
   }
 
   @override
@@ -1017,7 +1017,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get dialogContentCNSInstall =>
-      'ベースとなるカスタムナノスーツシステム（CNS）をインストールしようとしています。これはCNS MODが機能するために必要です。続行しますか？';
+      'ベースのカスタムナノスーツシステム（CNS）をインストールしようとしています。これはCNS MODが機能するために必要です。続行しますか？';
 
   @override
   String get dialogActionInstall => 'インストール';
@@ -1030,7 +1030,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get devDeleteNexusInfoDesc =>
-      'すべてのMODからマネージャーのメタデータファイルを削除します。完全な修復を強制する場合に便利です。';
+      'すべてのMODからマネージャーのメタデータファイルをすべて削除します。これは完全な修復を強制する場合に役立ちます。';
 
   @override
   String get devExtractIdsTitle => '識別子を抽出';
@@ -1047,11 +1047,11 @@ class AppLocalizationsJa extends AppLocalizations {
       'すべてのnexus_info.jsonファイルを完全に削除してもよろしいですか？これにより、すべてのカスタム名、カバー、メタデータが削除されます。この操作は元に戻せません。';
 
   @override
-  String get devDeleteSuccessTitle => '削除完了';
+  String get devDeleteSuccessTitle => '削除が完了しました';
 
   @override
   String devDeleteSuccessDesc(Object count) {
-    return '$count個のnexus_info.jsonファイルを正常に削除しました。';
+    return '$count個のnexus_info.jsonファイルが正常に削除されました。';
   }
 
   @override
@@ -1059,7 +1059,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get devConfirmExtractDesc =>
-      'これにより、すべてのMODがスキャンされ、デスクトップに「ID Mods.json」が作成されます。同名の既存ファイルは上書きされます。続行しますか？';
+      'これにより、すべてのMODがスキャンされ、デスクトップに「ID Mods.json」が作成されます。これにより、同じ名前の既存のファイルが上書きされます。続行しますか？';
 
   @override
   String get devExtractAction => '抽出';
@@ -1071,36 +1071,44 @@ class AppLocalizationsJa extends AppLocalizations {
   String get devExtractDesktopNotFound => 'エラー：デスクトップディレクトリが見つかりませんでした。';
 
   @override
-  String get devExtractSuccessTitle => '抽出完了';
+  String get devExtractSuccessTitle => '抽出が完了しました';
 
   @override
   String devExtractSuccessDesc(Object path) {
-    return 'ファイルが正常に作成されました：$path';
+    return 'ファイルは正常に作成されました：$path';
   }
 
   @override
   String get errorDialogTitle => 'エラーが発生しました';
 
   @override
-  String get modDetailsCategory => 'Category';
+  String get modDetailsCategory => 'カテゴリ';
 
   @override
-  String get modDetailsAuthor => 'Author';
+  String get modDetailsAuthor => '作者';
 
   @override
   String get modDetailsNexusId => 'Nexus ID';
 
   @override
-  String get modDetailsInstalledOn => 'Installed on';
+  String get modDetailsInstalledOn => 'インストール日';
 
   @override
-  String get unknownAuthor => 'Unknown';
+  String get unknownAuthor => '不明';
 
   @override
-  String get statusInstalling => 'Installing...';
+  String get statusInstalling => 'インストール中...';
 
   @override
   String statusInstallingMod(int index, int total, String modName) {
-    return 'Installing $index/$total: $modName';
+    return '$total個中$index個をインストール中：$modName';
   }
+
+  @override
+  String byText(Object author) {
+    return '作成者：$author';
+  }
+
+  @override
+  String get filterUpdatesAvailable => '利用可能なアップデート';
 }

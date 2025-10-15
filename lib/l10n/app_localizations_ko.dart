@@ -26,13 +26,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsLanguage => '언어';
 
   @override
-  String get settingsLanguageDesc => '응용 프로그램 언어 선택';
+  String get settingsLanguageDesc => '애플리케이션 언어 선택';
 
   @override
   String get settingsAbout => '정보';
 
   @override
-  String get settingsAboutDesc => '응용 프로그램에 대한 정보';
+  String get settingsAboutDesc => '애플리케이션에 대한 정보';
 
   @override
   String get settingsPathsAndTools => '경로 및 도구';
@@ -57,7 +57,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get settingsRepairModsDesc =>
-      '로컬 데이터베이스를 사용하여 이전 모드에 대한 정보 파일을 스캔하고 생성합니다. API 키가 필요합니다.';
+      '로컬 데이터베이스를 사용하여 오래된 모드를 스캔하고 정보 파일을 생성합니다. API 키가 필요합니다.';
 
   @override
   String get settingsConnectivity => '연결 및 업데이트';
@@ -66,7 +66,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsApiKey => 'Nexus Mods API 키';
 
   @override
-  String get settingsApiKeyDesc => '모드 업데이트를 확인하는 데 필요합니다.';
+  String get settingsApiKeyDesc => '모드 업데이트 확인에 필요합니다.';
 
   @override
   String get settingsApiKeySet => '설정됨';
@@ -99,13 +99,13 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dialogContentRepairMods =>
-      '경고: 이 기능은 개발 중이며 완벽하지 않을 수 있습니다.\n\n\'nexus_info.json\' 파일이 없는 모드를 스캔하고 로컬 데이터베이스에서 발견되면 해당 파일을 생성합니다. 또한 발견된 버전을 포함하도록 모드 폴더의 이름을 변경하려고 시도합니다(예: \'내 모드\' -> \'내 모드 v1.2\').\n\n버전 우선순위:\n1. 폴더 이름 기준.\n2. 모드의 설명 필드 기준.\n3. Nexus Mods의 최신 버전 기준 (API 필요).\n\n계속하시겠습니까?';
+      '경고: 이 기능은 개발 중이며 완벽하지 않을 수 있습니다.\n\n\'nexus_info.json\' 파일이 없는 모드를 스캔하고 로컬 데이터베이스에서 찾으면 해당 파일을 생성합니다. 또한 찾은 버전을 포함하도록 모드 폴더의 이름을 바꾸려고 시도합니다 (예: \'My Mod\' -> \'My Mod v1.2\').\n\n버전 우선순위:\n1. 폴더 이름에서\n2. 모드 설명 필드에서\n3. Nexus Mods의 최신 버전에서 (API 필요)\n\n계속하시겠습니까?';
 
   @override
   String get dialogActionRunRepair => '복구 실행';
 
   @override
-  String get snackBarGamePathInvalid => '선택한 폴더는 유효한 게임 폴더가 아닌 것 같습니다.';
+  String get snackBarGamePathInvalid => '선택한 폴더가 유효한 게임 폴더가 아닌 것 같습니다.';
 
   @override
   String get snackBar7zipPathInvalid => '선택한 파일의 이름은 7z.exe여야 합니다.';
@@ -115,18 +115,18 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String snackBarRepairComplete(Object count) {
-    return '복구가 완료되었습니다. $count개의 모드가 업데이트되었습니다.';
+    return '복구 완료. $count개의 모드가 업데이트되었습니다.';
   }
 
   @override
-  String get snackBarRepairNoMods => '복구가 필요한 레거시 모드를 찾을 수 없었습니다.';
+  String get snackBarRepairNoMods => '복구가 필요한 레거시 모드를 찾을 수 없습니다.';
 
   @override
   String get errorApiRequiredForRepair =>
       '로컬 버전이 없는 모드의 최신 버전을 찾으려면 API 키가 필요합니다.';
 
   @override
-  String get installNewMod => '새 모드 설치';
+  String get installNewMod => '모드 설치';
 
   @override
   String get selectFiles => '파일 선택';
@@ -171,7 +171,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get enableMod => '모드 활성화';
 
   @override
-  String get deletePermanently => '영구적으로 삭제';
+  String get deletePermanently => '영구 삭제';
 
   @override
   String get language => '언어';
@@ -180,7 +180,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get selectLanguage => '언어 선택';
 
   @override
-  String get statusSearchingGame => 'Stellar Blade 설치를 검색 중...';
+  String get statusSearchingGame => 'Stellar Blade 설치를 검색하는 중...';
 
   @override
   String get statusGamePathFound => '게임 경로를 찾았습니다!';
@@ -190,17 +190,17 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String statusErrorFindingGame(Object error) {
-    return '게임을 검색하는 동안 오류가 발생했습니다: $error';
+    return '게임 검색 중 오류 발생: $error';
   }
 
   @override
   String statusModsFound(Object disabledCount, Object enabledCount) {
-    return '활성화된 모드 $enabledCount개, 비활성화된 모드 $disabledCount개.';
+    return '$enabledCount개의 모드 활성화됨, $disabledCount개 비활성화됨.';
   }
 
   @override
   String statusErrorReadingMods(Object error) {
-    return '설치된 모드를 읽는 중 오류 발생: $error';
+    return '설치된 모드 읽기 오류: $error';
   }
 
   @override
@@ -215,7 +215,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String statusArchiveLoaded(Object count, Object fileName) {
-    return '\"$fileName\" 파일이 로드되었습니다. $count개의 파일을 설치할 준비가 되었습니다.';
+    return '\"$fileName\" 파일이 로드되었습니다. $count개의 파일 설치 준비 완료.';
   }
 
   @override
@@ -233,22 +233,22 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get dialogTitle7zip => '7-Zip이 필요합니다';
+  String get dialogTitle7zip => '7-Zip 필요';
 
   @override
   String get dialogContent7zip =>
-      '이 파일의 압축을 해제하려면 응용 프로그램에 7-Zip이 필요합니다.\n\n공식 페이지에서 설치한 후 \"확인\"을 누르세요.';
+      '이 파일의 압축을 풀려면 애플리케이션에 7-Zip이 필요합니다.\n\n공식 페이지에서 설치한 다음 \"확인\"을 누르세요.';
 
   @override
   String get dialogContent7zipNotFound =>
       '7-Zip이 아직 감지되지 않았습니다. 기본 경로에 설치되었는지 확인하고 다시 시도하세요.';
 
   @override
-  String get dialogTitleMultipleJsons => '여러 .json 파일 감지됨';
+  String get dialogTitleMultipleJsons => '여러 개의 .json 파일 감지됨';
 
   @override
   String dialogContentMultipleJsons(Object count) {
-    return '$count개의 .json 파일이 감지되었습니다. 여러 구성 요소가 있는 모드일 수 있습니다.\n\n모든 파일을 단일 모드 폴더에 함께 설치하시겠습니까?';
+    return '$count개의 .json 파일이 감지되었습니다. 여러 구성 요소가 있는 모드일 수 있습니다.\n\n모두 단일 모드 폴더에 함께 설치하시겠습니까?';
   }
 
   @override
@@ -256,7 +256,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String dialogContentModExists(Object modName) {
-    return '\"$modName\"이라는 이름의 모드가 이미 설치되어 있습니다.\n\n업데이트하시겠습니까? 이전 파일은 새 파일을 설치하기 전에 삭제됩니다.';
+    return '\"$modName\"이라는 이름의 모드가 이미 설치되어 있습니다.\n\n업데이트하시겠습니까? 새 파일을 설치하기 전에 이전 파일이 삭제됩니다.';
   }
 
   @override
@@ -269,7 +269,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String dialogContentDeleteMod(Object modName) {
-    return '\"$modName\" 모드를 영구적으로 삭제하려고 합니다. 이 작업은 되돌릴 수 없습니다.\n\n확실합니까?';
+    return '\"$modName\" 모드를 영구적으로 삭제하려고 합니다. 이 작업은 취소할 수 없습니다.\n\n확실합니까?';
   }
 
   @override
@@ -285,7 +285,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get dialogActionUpdateSystem => '시스템 업데이트';
 
   @override
-  String get dialogActionInstallAnyway => '그냥 설치';
+  String get dialogActionInstallAnyway => '그래도 설치';
 
   @override
   String get dialogActionDelete => '삭제';
@@ -319,7 +319,7 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get snackBarCNSUpdated => '사용자 지정 나노슈트 시스템이 성공적으로 업데이트되었습니다.';
+  String get snackBarCNSUpdated => '커스텀 나노슈트 시스템이 성공적으로 업데이트되었습니다.';
 
   @override
   String get snackBarApiKeySaved => 'API 키가 성공적으로 저장되었습니다.';
@@ -334,13 +334,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get snackBarSkippedVersionRemoved => '건너뛴 버전이 제거되었습니다.';
 
   @override
-  String get dropTargetOverlay => '여기에 모드를 드롭하세요';
+  String get dropTargetOverlay => '여기에 모드 드롭';
 
   @override
   String get pathSelectionTitle => 'Stellar Blade 경로를 찾을 수 없음';
 
   @override
-  String get pathSelectionButtonManual => '게임 폴더 수동 선택';
+  String get pathSelectionButtonManual => '수동으로 게임 폴더 선택';
 
   @override
   String get pathSelectionButtonRetry => '다시 시도';
@@ -391,7 +391,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get errorInstallModExists => '설치가 취소되었습니다: 모드가 이미 존재합니다.';
 
   @override
-  String get errorNoJsonFound => '각 모드는 최소 하나 이상의 .json 파일을 포함해야 합니다.';
+  String get errorNoJsonFound => '각 모드에는 최소한 하나의 .json 파일이 포함되어야 합니다.';
 
   @override
   String errorInvalidJsonFormat(Object fileName) {
@@ -400,7 +400,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String errorNoDisplayName(Object fileName) {
-    return '파일 $fileName은(는) Custom Nanosuit System 모드가 아닌 것 같습니다 (\"DisplayName\"이 누락되었습니다).';
+    return '$fileName 파일은 커스텀 나노슈트 시스템 모드가 아닌 것 같습니다(\"DisplayName\" 누락).';
   }
 
   @override
@@ -431,11 +431,11 @@ class AppLocalizationsKo extends AppLocalizations {
   String get statusUpdateSystemCancelled => '시스템 업데이트가 취소되었습니다.';
 
   @override
-  String get statusUpdatingCNS => '사용자 지정 나노슈트 시스템 업데이트 중...';
+  String get statusUpdatingCNS => '커스텀 나노슈트 시스템 업데이트 중...';
 
   @override
   String statusExtractingFile(Object fileName) {
-    return '$fileName 압축 해제 중...';
+    return '$fileName 추출 중...';
   }
 
   @override
@@ -455,10 +455,10 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get aboutContent =>
-      '이 응용 프로그램은 사용자 지정 나노슈트 시스템(CNS)과 함께 작동하도록 설계된 Stellar Blade용 모드 관리자입니다.\n\n요구 사항: .rar 및 .7z 파일의 전체 기능을 사용하려면 시스템에 7-Zip이 설치되어 있어야 합니다.';
+      '이 애플리케이션은 커스텀 나노슈트 시스템(CNS)과 함께 작동하도록 설계된 Stellar Blade용 모드 관리자입니다.\n\n요구 사항: .rar 및 .7z 파일의 모든 기능을 사용하려면 시스템에 7-Zip이 설치되어 있어야 합니다.';
 
   @override
-  String get aboutLinkText => '제작자 프로필 방문하기';
+  String get aboutLinkText => '내 제작자 프로필 방문';
 
   @override
   String get creatorProfileUrl =>
@@ -480,7 +480,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String updateAvailable(Object version) {
-    return '업데이트 가능: v$version';
+    return '사용 가능한 업데이트: v$version';
   }
 
   @override
@@ -492,13 +492,13 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dialogContentApiKeyInstructions =>
-      '1. Nexus Mods로 이동하여 로그인합니다.\n2. 아바타를 클릭하고 \'사이트 환경설정\'으로 이동합니다.\n3. \'API\' 탭으로 이동합니다.\n4. \'새 API 키 생성\'을 클릭합니다.\n5. 키를 복사하여 여기에 붙여넣습니다.';
+      '1. Nexus Mods로 이동하여 로그인합니다.\n2. 아바타를 클릭하고 \'사이트 기본 설정\'으로 이동합니다.\n3. \'API\' 탭으로 이동합니다.\n4. \'새 API 키 생성\'을 클릭합니다.\n5. 키를 복사하여 여기에 붙여넣습니다.';
 
   @override
   String get apiKey => 'API 키';
 
   @override
-  String get apiKeyHintText => '여기에 API 키를 붙여넣으세요';
+  String get apiKeyHintText => '여기에 API 키 붙여넣기';
 
   @override
   String get dialogActionSave => '저장';
@@ -514,7 +514,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get errorApiKeyMissing =>
-      'Nexus Mods API 키가 구성되지 않았습니다. 상단 바의 키 아이콘을 통해 추가하세요.';
+      'Nexus Mods API 키가 구성되지 않았습니다. 상단 바의 키 아이콘을 통해 추가하십시오.';
 
   @override
   String get statusCheckingUpdates => '모드 업데이트 확인 중...';
@@ -531,18 +531,18 @@ class AppLocalizationsKo extends AppLocalizations {
   String get selectModArchive => '모드 아카이브 선택';
 
   @override
-  String get viewImageGallery => '이미지 보기';
+  String get viewImageGallery => '이미지 갤러리 보기';
 
   @override
   String get imageGallery => '이미지 갤러리';
 
   @override
   String get noImagesFound =>
-      '이 모드에 대한 이미지를 찾을 수 없거나 API 키가 입력되지 않았습니다. API 키를 입력한 후 업데이트를 확인하세요.';
+      '이 모드의 이미지를 찾을 수 없거나 API 키가 입력되지 않았습니다. API 키를 입력한 후 업데이트를 확인하십시오.';
 
   @override
   String errorFetchingImages(Object error) {
-    return '이미지를 가져오는 중 오류 발생: $error';
+    return '이미지 가져오기 오류: $error';
   }
 
   @override
@@ -555,7 +555,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get modDisabledBadge => '비활성화됨';
 
   @override
-  String get modCategoryOther => '미지정';
+  String get modCategoryOther => '지정되지 않음';
 
   @override
   String get dialogContentUpdateOptions => '무엇을 하시겠습니까?';
@@ -576,7 +576,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get filterBy => '필터:';
 
   @override
-  String get sortBy => '정렬:';
+  String get sortBy => '정렬 기준:';
 
   @override
   String get filterAll => '모두';
@@ -611,7 +611,7 @@ class AppLocalizationsKo extends AppLocalizations {
     Object fileName,
     Object total,
   ) {
-    return '$total개 중 $count개 압축 해제 중: $fileName';
+    return '$total개 중 $count개 추출 중: $fileName';
   }
 
   @override
@@ -642,7 +642,7 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get statusUE4SSInstallComplete => 'UE4SS 설치가 완료되었습니다.';
+  String get statusUE4SSInstallComplete => 'UE4SS 설치 완료.';
 
   @override
   String get dialogTitleAlternativeVersion => '대체 버전 감지됨';
@@ -653,7 +653,7 @@ class AppLocalizationsKo extends AppLocalizations {
     String baseModName,
     String newModName,
   ) {
-    return '이 모드의 다른 버전이 이미 설치되어 있습니다: \'$oldModName\'.\n\n\'$newModName\'라는 이름의 다른 버전을 설치하려고 합니다.';
+    return '이 모드의 대체 버전이 이미 설치되어 있습니다: \'$oldModName\'.\n\n\'$newModName\'이라는 다른 대체 버전을 설치하려고 합니다.';
   }
 
   @override
@@ -691,7 +691,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String dialogContentReinstall(Object modName, Object version) {
-    return '\'$modName\' 모드의 \'$version\' 버전을 재설치하려고 합니다.';
+    return '\'$modName\' 모드의 \'$version\' 버전을 다시 설치하려고 합니다.';
   }
 
   @override
@@ -701,22 +701,22 @@ class AppLocalizationsKo extends AppLocalizations {
   String get editModNameTooltip => '모드 이름 편집';
 
   @override
-  String get setCoverTooltip => '사용자 지정 커버 이미지 설정';
+  String get setCoverTooltip => '사용자 지정 표지 이미지 설정';
 
   @override
-  String get setCoverText => '커버 설정';
+  String get setCoverText => '표지 설정';
 
   @override
-  String get restoreOriginalCoverText => '원래 커버 복원';
+  String get restoreOriginalCoverText => '원래 표지 복원';
 
   @override
   String errorSavingCoverText(Object error) {
-    return '커버 이미지 저장 오류: $error';
+    return '표지 이미지 저장 오류: $error';
   }
 
   @override
   String errorRestoringCoverText(Object error) {
-    return '원래 커버 이미지 복원 오류: $error';
+    return '원래 표지 이미지 복원 오류: $error';
   }
 
   @override
@@ -750,7 +750,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dialogContentRepairedModWarning =>
-      '이 모드는 정확한 버전 정보가 없을 수 있습니다. 호환성을 위해 최신 버전을 다시 설치하는 것이 좋습니다.';
+      '이 모드에 올바른 버전 정보가 없을 수 있습니다. 호환성을 보장하기 위해 최신 버전을 다시 설치하는 것이 좋습니다.';
 
   @override
   String get repairedModTooltip => '복구된 모드에 대한 정보';
@@ -774,7 +774,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String dialogContentDeleteAll(int count) {
-    return '비활성화된 $count개의 모든 모드를 영구적으로 삭제하려고 합니다. 이 작업은 되돌릴 수 없습니다.\n\n확실합니까?';
+    return '비활성화된 $count개의 모든 모드를 영구적으로 삭제하려고 합니다. 이 작업은 취소할 수 없습니다.\n\n확실합니까?';
   }
 
   @override
@@ -816,7 +816,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get editNotes => '메모 편집';
 
   @override
-  String get notesHintText => '여기에 개인 메모를 추가하세요...';
+  String get notesHintText => '여기에 개인 메모 추가...';
 
   @override
   String get modAuthor => '제작자';
@@ -825,13 +825,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get modDescription => '설명';
 
   @override
-  String get noDescriptionAvailable => '설명이 없습니다.';
+  String get noDescriptionAvailable => '설명 없음.';
 
   @override
   String get personalNotes => '개인 메모';
 
   @override
-  String get noNotesAvailable => '아직 추가된 메모가 없습니다.';
+  String get noNotesAvailable => '아직 추가된 메모 없음.';
 
   @override
   String get modDetailsTitle => '모드 세부 정보';
@@ -849,7 +849,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get dialogLabelUrl => '모드 URL';
 
   @override
-  String get errorInvalidUrl => '유효한 URL을 입력하세요.';
+  String get errorInvalidUrl => '유효한 URL을 입력하십시오.';
 
   @override
   String get addLinkTooltip => '이 모드의 다운로드 링크 추가';
@@ -879,7 +879,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get urlLabel => '다운로드 URL';
 
   @override
-  String get changeCoverButton => '커버 이미지 변경';
+  String get changeCoverButton => '표지 이미지 변경';
 
   @override
   String get editButtonTooltip => '모드 편집';
@@ -904,14 +904,14 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dialogContentUE4SSReinstall =>
-      'UE4SS가 이미 설치된 것 같습니다. 기존 설치를 덮어쓰시겠습니까? 손상된 파일이 의심될 때 유용할 수 있습니다.';
+      'UE4SS가 이미 설치된 것 같습니다. 기존 설치를 덮어쓰시겠습니까? 파일이 손상되었다고 의심되는 경우 유용할 수 있습니다.';
 
   @override
   String get dialogTitleCNSReinstall => 'CNS 시스템 재설치';
 
   @override
   String get dialogContentCNSReinstall =>
-      '주 CNS 시스템이 이미 설치된 것 같습니다. 재설치하시겠습니까? 기존 모드에는 영향을 미치지 않습니다.';
+      '주 CNS 시스템이 이미 설치된 것 같습니다. 다시 설치하시겠습니까? 기존 모드에는 영향을 미치지 않습니다.';
 
   @override
   String dialogTitleUninstall(Object componentName) {
@@ -920,7 +920,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String dialogContentUninstall(Object componentName) {
-    return '$componentName을(를) 제거하시겠습니까? 이 작업은 핵심 구성 요소 파일을 제거하지만 설치된 모드에는 영향을 주지 않습니다.';
+    return '$componentName을(를) 제거하시겠습니까? 이 작업은 핵심 구성 요소 파일을 제거하지만 설치된 모드에는 영향을 미치지 않습니다.';
   }
 
   @override
@@ -938,7 +938,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String errorUninstalling(Object componentName) {
-    return '$componentName 제거 중 오류 발생';
+    return '$componentName 제거 오류';
   }
 
   @override
@@ -974,7 +974,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get uninstallDependencyContent =>
-      'CNS는 UE4SS에 의존하므로 UE4SS를 제거하기 전에 주 CNS 시스템을 먼저 제거해야 합니다.';
+      'CNS가 UE4SS에 의존하므로 UE4SS를 제거하기 전에 주 CNS 시스템을 제거해야 합니다.';
 
   @override
   String get dialogActionUnderstood => '이해했습니다';
@@ -987,7 +987,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String dialogContentCNSUpdate(Object oldVersion, Object newVersion) {
-    return 'CNS를 버전 $oldVersion에서 새 버전 $newVersion(으)로 업데이트하려고 합니다. 계속하시겠습니까?';
+    return '$oldVersion 버전에서 새 버전 $newVersion(으)로 CNS를 업데이트하려고 합니다. 계속하시겠습니까?';
   }
 
   @override
@@ -1000,7 +1000,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String dialogContentCNSReinstallVersion(Object version) {
-    return '이미 CNS 버전 $version이(가) 설치되어 있습니다. 파일을 다시 설치하시겠습니까?';
+    return '이미 CNS 버전 $version이(가) 설치되어 있습니다. 그래도 파일을 다시 설치하시겠습니까?';
   }
 
   @override
@@ -1014,7 +1014,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dialogContentCNSInstall =>
-      '기본 커스텀 나노슈트 시스템(CNS)을 설치하려고 합니다. CNS 모드가 작동하려면 이 시스템이 필요합니다. 계속하시겠습니까?';
+      '기본 커스텀 나노슈트 시스템(CNS)을 설치하려고 합니다. CNS 모드가 작동하려면 이것이 필요합니다. 계속하시겠습니까?';
 
   @override
   String get dialogActionInstall => '설치';
@@ -1027,21 +1027,21 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get devDeleteNexusInfoDesc =>
-      '모든 모드에서 관리자 메타데이터 파일을 제거합니다. 전체 복구를 강제할 때 유용합니다.';
+      '모든 모드에서 모든 관리자 메타데이터 파일을 제거합니다. 전체 복구를 강제하는 데 유용합니다.';
 
   @override
   String get devExtractIdsTitle => '식별자 추출';
 
   @override
   String get devExtractIdsDesc =>
-      '바탕화면에 각 모드의 displayName과 nexusId를 포함하는 \'ID Mods.json\' 파일을 생성합니다.';
+      '각 모드의 displayName 및 nexusId를 포함하는 \'ID Mods.json\'이라는 이름의 파일을 바탕 화면에 만듭니다.';
 
   @override
   String get devConfirmDeleteTitle => '삭제 확인';
 
   @override
   String get devConfirmDeleteDesc =>
-      '모든 nexus_info.json 파일을 영구적으로 삭제하시겠습니까? 이렇게 하면 모든 사용자 지정 이름, 커버 및 메타데이터가 제거됩니다. 이 작업은 되돌릴 수 없습니다.';
+      '모든 nexus_info.json 파일을 영구적으로 삭제하시겠습니까? 그러면 모든 사용자 지정 이름, 표지 및 메타데이터가 제거됩니다. 이 작업은 취소할 수 없습니다.';
 
   @override
   String get devDeleteSuccessTitle => '삭제 완료';
@@ -1056,7 +1056,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get devConfirmExtractDesc =>
-      '모든 모드를 스캔하여 바탕화면에 \'ID Mods.json\'을 생성합니다. 같은 이름의 기존 파일은 덮어쓰여집니다. 계속하시겠습니까?';
+      '모든 모드를 스캔하고 바탕 화면에 \'ID Mods.json\'을 만듭니다. 같은 이름의 기존 파일을 덮어씁니다. 계속하시겠습니까?';
 
   @override
   String get devExtractAction => '추출';
@@ -1065,7 +1065,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get devExtractNoData => '추출할 유효한 식별자가 있는 모드를 찾을 수 없습니다.';
 
   @override
-  String get devExtractDesktopNotFound => '오류: 바탕화면 디렉토리를 찾을 수 없습니다.';
+  String get devExtractDesktopNotFound => '오류: 바탕 화면 디렉터리를 찾을 수 없습니다.';
 
   @override
   String get devExtractSuccessTitle => '추출 완료';
@@ -1076,28 +1076,36 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get errorDialogTitle => '오류가 발생했습니다';
+  String get errorDialogTitle => '오류 발생';
 
   @override
-  String get modDetailsCategory => 'Category';
+  String get modDetailsCategory => '카테고리';
 
   @override
-  String get modDetailsAuthor => 'Author';
+  String get modDetailsAuthor => '제작자';
 
   @override
   String get modDetailsNexusId => 'Nexus ID';
 
   @override
-  String get modDetailsInstalledOn => 'Installed on';
+  String get modDetailsInstalledOn => '설치 날짜';
 
   @override
-  String get unknownAuthor => 'Unknown';
+  String get unknownAuthor => '알 수 없음';
 
   @override
-  String get statusInstalling => 'Installing...';
+  String get statusInstalling => '설치 중...';
 
   @override
   String statusInstallingMod(int index, int total, String modName) {
-    return 'Installing $index/$total: $modName';
+    return '$total개 중 $index개 설치 중: $modName';
   }
+
+  @override
+  String byText(Object author) {
+    return '제작자: $author';
+  }
+
+  @override
+  String get filterUpdatesAvailable => '사용 가능한 업데이트';
 }

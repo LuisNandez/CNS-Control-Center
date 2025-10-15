@@ -20,7 +20,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings => '设置';
 
   @override
-  String get settingsGeneral => '常规';
+  String get settingsGeneral => '通用';
 
   @override
   String get settingsLanguage => '语言';
@@ -35,19 +35,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAboutDesc => '有关应用程序的信息';
 
   @override
-  String get settingsPathsAndTools => '路径和工具';
+  String get settingsPathsAndTools => '路径与工具';
 
   @override
   String get settingsGameFolder => '游戏文件夹';
 
   @override
-  String get settingsGameFolderDesc => '您的 Stellar Blade 安装的根文件夹。';
+  String get settingsGameFolderDesc => '您的《星刃》安装根文件夹。';
 
   @override
   String get settings7zipPath => '7-Zip 路径';
 
   @override
-  String get settings7zipPathDesc => '用于提取模组的 7z.exe 文件的位置。';
+  String get settings7zipPathDesc => '用于提取模组的 7z.exe 文件位置。';
 
   @override
   String get settings7zipPathAuto => '自动搜索';
@@ -59,13 +59,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsRepairModsDesc => '使用本地数据库扫描并为旧模组创建信息文件。需要 API 密钥。';
 
   @override
-  String get settingsConnectivity => '连接和更新';
+  String get settingsConnectivity => '连接与更新';
 
   @override
   String get settingsApiKey => 'Nexus Mods API 密钥';
 
   @override
-  String get settingsApiKeyDesc => '检查模组更新所必需。';
+  String get settingsApiKeyDesc => '检查模组更新时需要。';
 
   @override
   String get settingsApiKeySet => '已设置';
@@ -74,31 +74,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsApiKeyNotSet => '未设置';
 
   @override
-  String get settingsSkippedVersions => '管理跳过的版本';
+  String get settingsSkippedVersions => '管理已跳过的版本';
 
   @override
   String get settingsSkippedVersionsDesc => '管理您选择跳过的模组版本。';
 
   @override
   String settingsSkippedVersionsCount(Object count) {
-    return '已跳过 $count 个版本';
+    return '$count 个版本已跳过';
   }
 
   @override
-  String get dialogTitleSkippedVersions => '跳过的模组版本';
+  String get dialogTitleSkippedVersions => '已跳过的模组版本';
 
   @override
   String get dialogNoSkippedVersions => '您没有跳过任何模组版本。';
 
   @override
-  String get dialogSkippedVersions => '跳过的版本';
+  String get dialogSkippedVersions => '已跳过的版本';
 
   @override
   String get dialogTitleRepairMods => '运行旧版模组修复？';
 
   @override
   String get dialogContentRepairMods =>
-      '警告：此功能正在开发中，可能不完美。\n\n它将扫描没有 \'nexus_info.json\' 文件的模组，如果在您的本地数据库中找到，将为它们创建一个。它还会尝试重命名模组的文件夹以包含找到的版本（例如，“我的模组” -> “我的模组 v1.2”）。\n\n版本优先级：\n1. 根据文件夹名称。\n2. 根据模组的描述字段。\n3. 根据 Nexus Mods 上的最新版本（需要 API）。\n\n您想继续吗？';
+      '警告：此功能正在开发中，可能不完美。\n\n它将扫描没有 \'nexus_info.json\' 文件的模组，如果在您的本地数据库中找到，将为它们创建一个。它还将尝试重命名模组的文件夹以包含找到的版本（例如，\'My Mod\' -> \'My Mod v1.2\'）。\n\n版本优先级：\n1. 从文件夹名称。\n2. 从模组的描述字段。\n3. 从 Nexus Mods 上的最新版本（需要 API）。\n\n您想继续吗？';
 
   @override
   String get dialogActionRunRepair => '运行修复';
@@ -121,10 +121,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get snackBarRepairNoMods => '未找到需要修复的旧版模组。';
 
   @override
-  String get errorApiRequiredForRepair => '需要 API 密钥才能为没有本地版本的模组查找最新版本。';
+  String get errorApiRequiredForRepair => '需要 API 密钥才能为没有本地版本的模组找到最新版本。';
 
   @override
-  String get installNewMod => '安装新模组';
+  String get installNewMod => '安装模组';
 
   @override
   String get selectFiles => '选择文件';
@@ -178,17 +178,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get selectLanguage => '选择一种语言';
 
   @override
-  String get statusSearchingGame => '正在搜索 Stellar Blade 安装...';
+  String get statusSearchingGame => '正在搜索《星刃》安装...';
 
   @override
-  String get statusGamePathFound => '游戏路径已找到！';
+  String get statusGamePathFound => '找到游戏路径！';
 
   @override
   String get statusGamePathNotFound => '无法自动找到游戏路径。';
 
   @override
   String statusErrorFindingGame(Object error) {
-    return '搜索游戏时出错：$error';
+    return '搜索游戏时发生错误：$error';
   }
 
   @override
@@ -198,7 +198,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String statusErrorReadingMods(Object error) {
-    return '读取已安装的模组时出错：$error';
+    return '读取已安装模组时出错：$error';
   }
 
   @override
@@ -208,16 +208,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String statusFolderSelected(Object folderName) {
-    return '已选择文件夹“$folderName”。准备安装。';
+    return '已选择文件夹 “$folderName”。准备安装。';
   }
 
   @override
   String statusArchiveLoaded(Object count, Object fileName) {
-    return '文件“$fileName”已加载。$count 个文件准备安装。';
+    return '已加载文件 “$fileName”。$count 个文件准备安装。';
   }
 
   @override
-  String get statusSelectionCancelled => '选择已取消。请选择一个新模组进行安装。';
+  String get statusSelectionCancelled => '选择已取消。请选择要安装的新模组。';
 
   @override
   String get statusUpdateComplete => '更新完成。';
@@ -244,7 +244,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String dialogContentMultipleJsons(Object count) {
-    return '检测到 $count 个 .json 文件。这可能是一个包含多个组件的模组。\n\n您想将它们全部安装在一个模组文件夹中吗？';
+    return '已检测到 $count 个 .json 文件。这可能是一个包含多个组件的模组。\n\n您想将它们全部安装到一个模组文件夹中吗？';
   }
 
   @override
@@ -252,12 +252,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String dialogContentModExists(Object modName) {
-    return '名为“$modName”的模组已安装。\n\n您想更新它吗？旧文件将在安装新文件之前被删除。';
+    return '名为 “$modName” 的模组已安装。\n\n您想更新它吗？旧文件将在安装新文件之前被删除。';
   }
 
   @override
   String dialogContentModUpdate(Object newModName, Object oldModName) {
-    return '找到了一个旧版本“$oldModName”。\n\n您想移除它并更新到“$newModName”吗？';
+    return '找到了一个旧版本 \'$oldModName\'。\n\n您想删除它并更新到 \'$newModName\' 吗？';
   }
 
   @override
@@ -265,7 +265,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String dialogContentDeleteMod(Object modName) {
-    return '您将永久删除模组“$modName”。此操作无法撤销。\n\n您确定吗？';
+    return '您即将永久删除模组 “$modName”。此操作无法撤销。\n\n您确定吗？';
   }
 
   @override
@@ -296,22 +296,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String snackBarModInstalled(Object modName) {
-    return '模组“$modName”安装成功。';
+    return '模组 “$modName” 安装成功。';
   }
 
   @override
   String snackBarModEnabled(Object modName) {
-    return '模组“$modName”已启用。';
+    return '模组 “$modName” 已启用。';
   }
 
   @override
   String snackBarModDisabled(Object modName) {
-    return '模组“$modName”已禁用。';
+    return '模组 “$modName” 已禁用。';
   }
 
   @override
   String snackBarModDeleted(Object modName) {
-    return '模组“$modName”已永久删除。';
+    return '模组 “$modName” 已永久删除。';
   }
 
   @override
@@ -327,13 +327,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get snackBar7zipPathSaved => '7-Zip 路径保存成功。';
 
   @override
-  String get snackBarSkippedVersionRemoved => '已跳过的版本已移除。';
+  String get snackBarSkippedVersionRemoved => '已跳过的版本已删除。';
 
   @override
   String get dropTargetOverlay => '将模组拖放到此处';
 
   @override
-  String get pathSelectionTitle => '未找到 Stellar Blade 路径';
+  String get pathSelectionTitle => '未找到《星刃》路径';
 
   @override
   String get pathSelectionButtonManual => '手动选择游戏文件夹';
@@ -370,7 +370,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get error7zipRequired => '操作已取消：需要 7-Zip。';
 
   @override
-  String get errorGamePathUndefined => '未定义游戏路径。';
+  String get errorGamePathUndefined => '游戏路径未定义。';
 
   @override
   String get errorDestinationNotFound => '游戏的目标文件夹不存在。';
@@ -434,7 +434,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get statusInstallationCancelledByUser => '用户已取消安装。';
+  String get statusInstallationCancelledByUser => '用户取消了安装。';
 
   @override
   String get errorNoCompatibleFilesInFolder => '所选文件夹不包含兼容的模组文件。';
@@ -450,7 +450,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aboutContent =>
-      '此应用程序是 Stellar Blade 的模组管理器，旨在与自定义纳米服系统（CNS）配合使用。\n\n要求：要完全使用 .rar 和 .7z 文件的功能，您的系统必须安装 7-Zip。';
+      '此应用程序是《星刃》的模组管理器，旨在与自定义纳米服系统（CNS）配合使用。\n\n要求：要获得对 .rar 和 .7z 文件的完整功能，您的系统上必须安装 7-Zip。';
 
   @override
   String get aboutLinkText => '访问我的创作者个人资料';
@@ -486,7 +486,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dialogContentApiKeyInstructions =>
-      '1. 前往 Nexus Mods 并登录。\n2. 单击您的头像并转到“网站偏好设置”。\n3. 转到“API”选项卡。\n4. 单击“生成新的 API 密钥”。\n5. 复制密钥并将其粘贴到此处。';
+      '1. 转到 Nexus Mods 并登录。\n2. 单击您的头像并转到“网站偏好设置”。\n3. 转到“API”选项卡。\n4. 单击“生成新的 API 密钥”。\n5. 复制密钥并将其粘贴到此处。';
 
   @override
   String get apiKey => 'API 密钥';
@@ -498,10 +498,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dialogActionSave => '保存';
 
   @override
-  String get apiKeyRemoved => 'API 密钥已移除。';
+  String get apiKeyRemoved => 'API 密钥已删除。';
 
   @override
-  String get invalidApiKeyError => '无效的 API 密钥。';
+  String get invalidApiKeyError => 'API 密钥无效。';
 
   @override
   String get validatingApiKey => '正在验证...';
@@ -524,13 +524,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get selectModArchive => '选择模组存档';
 
   @override
-  String get viewImageGallery => '查看图片';
+  String get viewImageGallery => '查看图片库';
 
   @override
   String get imageGallery => '图片库';
 
   @override
-  String get noImagesFound => '未找到此模组的图片，或者未输入 API 密钥。请输入 API 密钥，然后再检查更新。';
+  String get noImagesFound => '未找到此模组的图片，或者未输入 API 密钥。请输入 API 密钥，然后检查更新。';
 
   @override
   String errorFetchingImages(Object error) {
@@ -565,7 +565,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get installedMods => '已安装的模组';
 
   @override
-  String get filterBy => '筛选：';
+  String get filterBy => '筛选方式：';
 
   @override
   String get sortBy => '排序方式：';
@@ -603,7 +603,7 @@ class AppLocalizationsZh extends AppLocalizations {
     Object fileName,
     Object total,
   ) {
-    return '正在提取 $total 个中的第 $count 个：$fileName';
+    return '正在提取 $count/$total：$fileName';
   }
 
   @override
@@ -614,7 +614,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dialogContentUE4SS =>
-      '已检测到 UE4SS 工具。您想将其安装到“StellarBlade\\SB\\Binaries\\Win64”吗？\n\n许多模组需要此工具才能正常工作。';
+      '已检测到 UE4SS 工具。您想将其安装到 \'StellarBlade\\SB\\Binaries\\Win64\' 吗？\n\n许多模组都需要它才能工作。';
 
   @override
   String get dialogActionInstallTool => '安装工具';
@@ -630,14 +630,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String error7zipDecompression(Object error) {
-    return '解压缩期间出现 7-Zip 错误：$error';
+    return '解压期间出现 7-Zip 错误：$error';
   }
 
   @override
   String get statusUE4SSInstallComplete => 'UE4SS 安装完成。';
 
   @override
-  String get dialogTitleAlternativeVersion => '检测到备用版本';
+  String get dialogTitleAlternativeVersion => '检测到替代版本';
 
   @override
   String dialogContentAlternativeVersion(
@@ -645,7 +645,7 @@ class AppLocalizationsZh extends AppLocalizations {
     String baseModName,
     String newModName,
   ) {
-    return '此模组的备用版本已安装：\'$oldModName\'。\n\n您即将安装名为 \'$newModName\' 的不同备用版本。';
+    return '此模组的替代版本已安装：\'$oldModName\'。\n\n您即将安装一个名为 \'$newModName\' 的不同替代版本。';
   }
 
   @override
@@ -663,7 +663,7 @@ class AppLocalizationsZh extends AppLocalizations {
     String oldVersion,
     String newVersion,
   ) {
-    return '您即将更新模组“$modName”。\n\n已安装版本：$oldVersion\n新版本：$newVersion';
+    return '您即将更新模组 \'$modName\'。\n\n已安装版本：$oldVersion\n新版本：$newVersion';
   }
 
   @override
@@ -675,7 +675,7 @@ class AppLocalizationsZh extends AppLocalizations {
     String oldVersion,
     String newVersion,
   ) {
-    return '警告：您即将安装模组“$modName”的旧版本。\n\n已安装版本：$oldVersion\n要安装的版本：$newVersion';
+    return '警告：您即将安装模组 \'$modName\' 的旧版本。\n\n已安装版本：$oldVersion\n要安装的版本：$newVersion';
   }
 
   @override
@@ -683,7 +683,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String dialogContentReinstall(Object modName, Object version) {
-    return '您即将重新安装模组“$modName”的版本“$version”。';
+    return '您即将重新安装模组 \'$modName\' 的版本 \'$version\'。';
   }
 
   @override
@@ -734,7 +734,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String errorModNameExists(Object modName) {
-    return '名为“$modName”的模组已存在。';
+    return '名为 “$modName” 的模组已存在。';
   }
 
   @override
@@ -766,24 +766,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String dialogContentDeleteAll(int count) {
-    return '您将永久删除所有 $count 个已禁用的模组。此操作无法撤销。\n\n您确定吗？';
+    return '您即将永久删除所有 $count 个已禁用的模组。此操作无法撤销。\n\n您确定吗？';
   }
 
   @override
   String snackBarAllModsDisabled(int count) {
-    return '所有 $count 个已启用的模组都已被禁用。';
+    return '所有 $count 个已启用的模组都已禁用。';
   }
 
   @override
   String snackBarAllModsDeleted(int count) {
-    return '所有 $count 个已禁用的模组都已被永久删除。';
+    return '所有 $count 个已禁用的模组都已永久删除。';
   }
 
   @override
-  String get snackBarNoModsToDisable => '没有要禁用的已启用模组。';
+  String get snackBarNoModsToDisable => '没有已启用的模组可以禁用。';
 
   @override
-  String get snackBarNoModsToDelete => '没有要删除的禁用模组。';
+  String get snackBarNoModsToDelete => '没有已禁用的模组可以删除。';
 
   @override
   String get enableAllModsTooltip => '启用所有模组';
@@ -798,11 +798,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String snackBarAllModsEnabled(int count) {
-    return '所有 $count 个已禁用的模组都已被启用。';
+    return '所有 $count 个已禁用的模组都已启用。';
   }
 
   @override
-  String get snackBarNoModsToEnable => '没有要启用的禁用模组。';
+  String get snackBarNoModsToEnable => '没有已禁用的模组可以启用。';
 
   @override
   String get editNotes => '编辑笔记';
@@ -896,7 +896,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dialogContentUE4SSReinstall =>
-      'UE4SS 似乎已安装。您想覆盖现有安装吗？如果您怀疑文件损坏，这可能很有用。';
+      'UE4SS 似乎已安装。您想覆盖现有安装吗？如果您怀疑文件已损坏，这可能会很有用。';
 
   @override
   String get dialogTitleCNSReinstall => '重新安装 CNS 系统';
@@ -916,7 +916,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get dialogActionUninstall => '是的，卸载';
+  String get dialogActionUninstall => '是，卸载';
 
   @override
   String statusUninstalling(Object componentName) {
@@ -958,27 +958,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ue4ssRequiredTitle => '需要 UE4SS';
 
   @override
-  String get ue4ssRequiredContent => '要安装主 CNS 系统，您必须首先安装 UE4SS。您可以从以下链接下载：';
+  String get ue4ssRequiredContent => '要安装主 CNS 系统，您必须首先安装 UE4SS。您可以从以下链接下载它：';
 
   @override
-  String get uninstallDependencyTitle => '检测到依赖项';
+  String get uninstallDependencyTitle => '检测到依赖关系';
 
   @override
   String get uninstallDependencyContent =>
-      '您必须先卸载主 CNS 系统，然后才能卸载 UE4SS，因为 CNS 依赖于它。';
+      '在卸载 UE4SS 之前，您必须先卸载主 CNS 系统，因为 CNS 依赖于它。';
 
   @override
-  String get dialogActionUnderstood => '好的';
+  String get dialogActionUnderstood => '已理解';
 
   @override
-  String get appTitleNoCns => '自定义纳米服系统 (未安装)';
+  String get appTitleNoCns => '自定义纳米服系统（未安装）';
 
   @override
   String get dialogTitleCNSUpdate => '更新主 CNS 系统';
 
   @override
   String dialogContentCNSUpdate(Object oldVersion, Object newVersion) {
-    return '您即将将 CNS 从版本 $oldVersion 更新到新版本 $newVersion。您希望继续吗？';
+    return '您即将将 CNS 从版本 $oldVersion 更新到新版本 $newVersion。您想继续吗？';
   }
 
   @override
@@ -991,7 +991,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String dialogContentCNSReinstallVersion(Object version) {
-    return '您已经安装了 CNS 版本 $version。您还想重新安装文件吗？';
+    return '您已安装 CNS 版本 $version。您仍要重新安装文件吗？';
   }
 
   @override
@@ -1005,7 +1005,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dialogContentCNSInstall =>
-      '您即将安装基础的自定义纳米服系统 (CNS)。这是 CNS 模组正常工作所必需的。您希望继续吗？';
+      '您即将安装基础自定义纳米服系统（CNS）。这是 CNS 模组工作所必需的。您想继续吗？';
 
   @override
   String get dialogActionInstall => '安装';
@@ -1024,7 +1024,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get devExtractIdsDesc =>
-      '在您的桌面上创建一个名为“ID Mods.json”的文件，其中包含每个模组的 displayName 和 nexusId。';
+      '在您的桌面上创建一个名为 \'ID Mods.json\' 的文件，其中包含每个模组的 displayName 和 nexusId。';
 
   @override
   String get devConfirmDeleteTitle => '确认删除';
@@ -1046,7 +1046,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get devConfirmExtractDesc =>
-      '这将扫描您的所有模组并在您的桌面上创建“ID Mods.json”。这将覆盖任何同名的现有文件。您想继续吗？';
+      '这将扫描您的所有模组并在您的桌面上创建 \'ID Mods.json\'。这将覆盖任何同名的现有文件。您想继续吗？';
 
   @override
   String get devExtractAction => '提取';
@@ -1062,32 +1062,40 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String devExtractSuccessDesc(Object path) {
-    return '文件已成功创建于：$path';
+    return '文件成功创建于：$path';
   }
 
   @override
   String get errorDialogTitle => '发生错误';
 
   @override
-  String get modDetailsCategory => 'Category';
+  String get modDetailsCategory => '类别';
 
   @override
-  String get modDetailsAuthor => 'Author';
+  String get modDetailsAuthor => '作者';
 
   @override
   String get modDetailsNexusId => 'Nexus ID';
 
   @override
-  String get modDetailsInstalledOn => 'Installed on';
+  String get modDetailsInstalledOn => '安装于';
 
   @override
-  String get unknownAuthor => 'Unknown';
+  String get unknownAuthor => '未知';
 
   @override
-  String get statusInstalling => 'Installing...';
+  String get statusInstalling => '正在安装...';
 
   @override
   String statusInstallingMod(int index, int total, String modName) {
-    return 'Installing $index/$total: $modName';
+    return '正在安装 $index/$total: $modName';
   }
+
+  @override
+  String byText(Object author) {
+    return '作者：$author';
+  }
+
+  @override
+  String get filterUpdatesAvailable => '可用更新';
 }

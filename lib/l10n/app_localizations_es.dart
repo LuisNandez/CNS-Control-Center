@@ -69,7 +69,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsApiKeyDesc =>
-      'Requerida para comprobar las actualizaciones de los mods.';
+      'Necesaria para comprobar las actualizaciones de los mods.';
 
   @override
   String get settingsApiKeySet => 'Establecida';
@@ -90,7 +90,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get dialogTitleSkippedVersions => 'Versiones de Mods Omitidas';
+  String get dialogTitleSkippedVersions => 'Versiones de Mod Omitidas';
 
   @override
   String get dialogNoSkippedVersions =>
@@ -104,7 +104,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get dialogContentRepairMods =>
-      'Advertencia: Esta función está en desarrollo y puede no ser perfecta.\n\nEscaneará los mods sin un archivo \'nexus_info.json\' y, si se encuentra en tu base de datos local, creará uno para ellos. También intentará renombrar la carpeta del mod para incluir la versión encontrada (ej: \'Mi Mod\' -> \'Mi Mod v1.2\').\n\nPrioridad de Versión:\n1. Del nombre de la carpeta.\n2. Del campo de descripción del mod.\n3. De la última versión en Nexus Mods (requiere API).\n\n¿Deseas continuar?';
+      'Advertencia: Esta función está en desarrollo y puede no ser perfecta.\n\nEscaneará los mods sin un archivo \'nexus_info.json\' y, si se encuentra en tu base de datos local, creará uno para ellos. También intentará renombrar la carpeta del mod para incluir la versión encontrada (ej., \'Mi Mod\' -> \'Mi Mod v1.2\').\n\nPrioridad de Versión:\n1. Del nombre de la carpeta.\n2. Del campo de descripción del mod.\n3. De la última versión en Nexus Mods (requiere API).\n\n¿Deseas continuar?';
 
   @override
   String get dialogActionRunRepair => 'Ejecutar Reparación';
@@ -132,10 +132,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get errorApiRequiredForRepair =>
-      'Se requiere la Clave de API para encontrar la última versión de los mods sin una versión local.';
+      'Se requiere una clave de API para encontrar la última versión de los mods sin una versión local.';
 
   @override
-  String get installNewMod => 'Instalar Nuevo Mod';
+  String get installNewMod => 'Instalar Mod';
 
   @override
   String get selectFiles => 'Seleccionar Archivos';
@@ -253,7 +253,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get dialogContent7zipNotFound =>
-      'Aún no se ha detectado 7-Zip. Asegúrate de que esté instalado en la ruta predeterminada e inténtalo de nuevo.';
+      'Aún no se ha detectado 7-Zip. Por favor, asegúrate de que esté instalado en la ruta predeterminada e inténtalo de nuevo.';
 
   @override
   String get dialogTitleMultipleJsons => 'Múltiples Archivos .json Detectados';
@@ -268,12 +268,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String dialogContentModExists(Object modName) {
-    return 'Un mod llamado \"$modName\" ya está instalado.\n\n¿Quieres actualizarlo? Los archivos antiguos se eliminarán antes de instalar los nuevos.';
+    return 'Ya hay un mod llamado \"$modName\" instalado.\n\n¿Quieres actualizarlo? Los archivos antiguos se eliminarán antes de instalar los nuevos.';
   }
 
   @override
   String dialogContentModUpdate(Object newModName, Object oldModName) {
-    return 'Se encontró una versión más antigua \'$oldModName\'.\n\n¿Quieres eliminarla y actualizar a \'$newModName\'?';
+    return 'Se encontró una versión anterior \'$oldModName\'.\n\n¿Quieres eliminarla y actualizar a \'$newModName\'?';
   }
 
   @override
@@ -312,7 +312,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String snackBarModInstalled(Object modName) {
-    return 'Mod \"$modName\" instalado correctamente.';
+    return 'Mod \"$modName\" instalado con éxito.';
   }
 
   @override
@@ -332,16 +332,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get snackBarCNSUpdated =>
-      'Sistema de Nanotraje Personalizado actualizado correctamente.';
+      'Custom Nanosuit System actualizado con éxito.';
 
   @override
-  String get snackBarApiKeySaved => 'Clave de API guardada correctamente.';
+  String get snackBarApiKeySaved => 'Clave de API guardada con éxito.';
 
   @override
-  String get snackBarGamePathSaved => 'Ruta del juego guardada correctamente.';
+  String get snackBarGamePathSaved => 'Ruta del juego guardada con éxito.';
 
   @override
-  String get snackBar7zipPathSaved => 'Ruta de 7-Zip guardada correctamente.';
+  String get snackBar7zipPathSaved => 'Ruta de 7-Zip guardada con éxito.';
 
   @override
   String get snackBarSkippedVersionRemoved => 'Versión omitida eliminada.';
@@ -350,7 +350,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get dropTargetOverlay => 'Arrastra los mods aquí';
 
   @override
-  String get pathSelectionTitle => 'Ruta de Stellar Blade No Encontrada';
+  String get pathSelectionTitle => 'Ruta de Stellar Blade no Encontrada';
 
   @override
   String get pathSelectionButtonManual =>
@@ -418,7 +418,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String errorNoDisplayName(Object fileName) {
-    return 'El archivo $fileName no parece ser un mod del Sistema de Nanotraje Personalizado (falta \"DisplayName\").';
+    return 'El archivo $fileName no parece ser un mod de Custom Nanosuit System (falta \"DisplayName\").';
   }
 
   @override
@@ -450,8 +450,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Actualización del sistema cancelada.';
 
   @override
-  String get statusUpdatingCNS =>
-      'Actualizando el Sistema de Nanotraje Personalizado...';
+  String get statusUpdatingCNS => 'Actualizando Custom Nanosuit System...';
 
   @override
   String statusExtractingFile(Object fileName) {
@@ -475,11 +474,11 @@ class AppLocalizationsEs extends AppLocalizations {
       'La selección no contiene un archivo .json de mod válido.';
 
   @override
-  String get aboutTitle => 'Acerca del Centro de Control CNS';
+  String get aboutTitle => 'Acerca de CNS Control Center';
 
   @override
   String get aboutContent =>
-      'Esta aplicación es un gestor de mods para Stellar Blade, diseñado para funcionar con el Sistema de Nanotraje Personalizado (CNS).\n\nRequisito: Para una funcionalidad completa con archivos .rar y .7z, 7-Zip debe estar instalado en tu sistema.';
+      'Esta aplicación es un gestor de mods para Stellar Blade, diseñado para funcionar con el Custom Nanosuit System (CNS).\n\nRequisito: Para una funcionalidad completa con archivos .rar y .7z, 7-Zip debe estar instalado en tu sistema.';
 
   @override
   String get aboutLinkText => 'Visita mi perfil de creador';
@@ -538,7 +537,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get errorApiKeyMissing =>
-      'La Clave de API de Nexus Mods no está configurada. Por favor, añádela mediante el icono de la llave en la barra superior.';
+      'La clave de API de Nexus Mods no está configurada. Por favor, añádela a través del icono de la llave en la barra superior.';
 
   @override
   String get statusCheckingUpdates => 'Buscando actualizaciones de mods...';
@@ -555,14 +554,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get selectModArchive => 'Seleccionar Archivo de Mod';
 
   @override
-  String get viewImageGallery => 'Ver Imagen';
+  String get viewImageGallery => 'Ver Galería de Imágenes';
 
   @override
   String get imageGallery => 'Galería de Imágenes';
 
   @override
   String get noImagesFound =>
-      'No se encontraron imágenes para este mod, o la clave de API no ha sido introducida. Por favor, introduce la clave de API y busca actualizaciones después.';
+      'No se encontraron imágenes para este mod, o la clave de API no ha sido ingresada. Por favor, ingresa la clave de API y busca actualizaciones después.';
 
   @override
   String errorFetchingImages(Object error) {
@@ -639,14 +638,14 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get previewInstallTitle => 'Mods a ser Instalados:';
+  String get previewInstallTitle => 'Mods a Instalar:';
 
   @override
   String get dialogTitleUE4SS => 'Instalación de UE4SS Detectada';
 
   @override
   String get dialogContentUE4SS =>
-      'Se ha detectado la herramienta UE4SS. ¿Quieres instalarla en \'StellarBlade\\SB\\Binaries\\Win64\'?\n\nEs necesaria para que muchos mods funcionen.';
+      'Se ha detectado la herramienta UE4SS. ¿Deseas instalarla en \'StellarBlade\\SB\\Binaries\\Win64\'?\n\nEsto es necesario para que muchos mods funcionen.';
 
   @override
   String get dialogActionInstallTool => 'Instalar Herramienta';
@@ -658,7 +657,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get statusInstallingUE4SS => 'Instalando UE4SS...';
 
   @override
-  String get snackBarUE4SSInstalled => 'UE4SS instalado correctamente.';
+  String get snackBarUE4SSInstalled => 'UE4SS instalado con éxito.';
 
   @override
   String error7zipDecompression(Object error) {
@@ -677,7 +676,7 @@ class AppLocalizationsEs extends AppLocalizations {
     String baseModName,
     String newModName,
   ) {
-    return 'Ya está instalada una versión alternativa de este mod: \'$oldModName\'.\n\nEstás a punto de instalar una alternativa diferente llamada \'$newModName\'.';
+    return 'Ya hay instalada una versión alternativa de este mod: \'$oldModName\'.\n\nEstás a punto de instalar una alternativa diferente llamada \'$newModName\'.';
   }
 
   @override
@@ -766,7 +765,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String errorModNameExists(Object modName) {
-    return 'Ya existe un mod llamado \"$modName\".';
+    return 'Ya existe un mod con el nombre \"$modName\".';
   }
 
   @override
@@ -790,7 +789,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String dialogContentDisableAll(int count) {
-    return '¿Estás seguro de que quieres desactivar todos los $count mods activados? Se moverán a la carpeta de respaldo.';
+    return '¿Estás seguro de que quieres desactivar los $count mods activados? Se moverán a la carpeta de respaldo.';
   }
 
   @override
@@ -798,17 +797,17 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String dialogContentDeleteAll(int count) {
-    return 'Estás a punto de eliminar permanentemente todos los $count mods desactivados. Esta acción no se puede deshacer.\n\n¿Estás seguro?';
+    return 'Estás a punto de eliminar permanentemente los $count mods desactivados. Esta acción no se puede deshacer.\n\n¿Estás seguro?';
   }
 
   @override
   String snackBarAllModsDisabled(int count) {
-    return 'Todos los $count mods activados han sido desactivados.';
+    return 'Se han desactivado los $count mods activados.';
   }
 
   @override
   String snackBarAllModsDeleted(int count) {
-    return 'Todos los $count mods desactivados han sido eliminados permanentemente.';
+    return 'Se han eliminado permanentemente los $count mods desactivados.';
   }
 
   @override
@@ -827,12 +826,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String dialogContentEnableAll(int count) {
-    return '¿Estás seguro de que quieres activar todos los $count mods desactivados? Se moverán a la carpeta principal de mods.';
+    return '¿Estás seguro de que quieres activar los $count mods desactivados? Se moverán a la carpeta principal de mods.';
   }
 
   @override
   String snackBarAllModsEnabled(int count) {
-    return 'Todos los $count mods desactivados han sido activados.';
+    return 'Se han activado los $count mods desactivados.';
   }
 
   @override
@@ -937,7 +936,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get dialogContentCNSReinstall =>
-      'El sistema CNS principal ya parece estar instalado. ¿Quieres reinstalarlo? Tus mods existentes no se verán afectados.';
+      'El sistema principal de CNS ya parece estar instalado. ¿Quieres reinstalarlo? Tus mods existentes no se verán afectados.';
 
   @override
   String dialogTitleUninstall(Object componentName) {
@@ -946,7 +945,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String dialogContentUninstall(Object componentName) {
-    return '¿Estás seguro de que quieres desinstalar $componentName? Esta acción eliminará los archivos principales del componente pero no afectará a tus mods instalados.';
+    return '¿Estás seguro de que quieres desinstalar $componentName? Esta acción eliminará los archivos del componente principal pero no afectará a tus mods instalados.';
   }
 
   @override
@@ -959,7 +958,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String snackBarUninstalled(Object componentName) {
-    return '$componentName desinstalado correctamente';
+    return '$componentName desinstalado con éxito';
   }
 
   @override
@@ -984,34 +983,34 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get ue4ssInstallationDetected =>
-      'Instalación de UE4SS existente detectada y adoptada';
+      'Instalación existente de UE4SS detectada y adoptada';
 
   @override
   String get cnsInstallationDetected =>
-      'Instalación de CNS Principal existente detectada y adoptada';
+      'Instalación principal de CNS existente detectada y adoptada';
 
   @override
   String get ue4ssRequiredTitle => 'Se Requiere UE4SS';
 
   @override
   String get ue4ssRequiredContent =>
-      'Para instalar el Sistema CNS Principal, primero debes instalar UE4SS. Puedes descargarlo desde el siguiente enlace:';
+      'Para instalar el Sistema Principal de CNS, primero debes instalar UE4SS. Puedes descargarlo desde el siguiente enlace:';
 
   @override
   String get uninstallDependencyTitle => 'Dependencia Detectada';
 
   @override
   String get uninstallDependencyContent =>
-      'Debes desinstalar el Sistema CNS Principal antes de poder desinstalar UE4SS, ya que CNS depende de él.';
+      'Debes desinstalar el Sistema Principal de CNS antes de poder desinstalar UE4SS, ya que CNS depende de él.';
 
   @override
   String get dialogActionUnderstood => 'Entendido';
 
   @override
-  String get appTitleNoCns => 'Custom Nanosuit System (No instalado)';
+  String get appTitleNoCns => 'Custom Nanosuit System (No Instalado)';
 
   @override
-  String get dialogTitleCNSUpdate => 'Actualizar Sistema CNS Principal';
+  String get dialogTitleCNSUpdate => 'Actualizar Sistema Principal de CNS';
 
   @override
   String dialogContentCNSUpdate(Object oldVersion, Object newVersion) {
@@ -1023,12 +1022,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String dialogContentCNSDowngrade(Object oldVersion, Object newVersion) {
-    return '¡Advertencia! Estás a punto de instalar una versión más antigua de CNS ($newVersion) que la actual ($oldVersion). Esto podría causar problemas. ¿Estás seguro?';
+    return '¡Advertencia! Estás a punto de instalar una versión anterior de CNS ($newVersion) que la actual ($oldVersion). Esto puede causar problemas. ¿Estás seguro?';
   }
 
   @override
   String dialogContentCNSReinstallVersion(Object version) {
-    return 'Ya tienes la versión $version de CNS instalada. ¿Quieres reinstalar los archivos de todos modos?';
+    return 'Ya tienes instalada la versión $version de CNS. ¿Quieres reinstalar los archivos de todos modos?';
   }
 
   @override
@@ -1038,7 +1037,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get dialogActionDowngrade => 'Degradar';
 
   @override
-  String get dialogTitleCNSInstall => 'Instalar Sistema CNS Principal';
+  String get dialogTitleCNSInstall => 'Instalar Sistema Principal de CNS';
 
   @override
   String get dialogContentCNSInstall =>
@@ -1052,11 +1051,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get devDeleteNexusInfoTitle =>
-      'Eliminar todos los archivos nexus_info.json';
+      'Eliminar Todos los Archivos nexus_info.json';
 
   @override
   String get devDeleteNexusInfoDesc =>
-      'Elimina todos los archivos de metadatos del gestor de cada mod. Es útil para forzar una reparación completa.';
+      'Elimina todos los archivos de metadatos del gestor de cada mod. Esto es útil para forzar una reparación completa.';
 
   @override
   String get devExtractIdsTitle => 'Extraer Identificadores';
@@ -1077,7 +1076,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String devDeleteSuccessDesc(Object count) {
-    return 'Se eliminaron correctamente $count archivos nexus_info.json.';
+    return 'Se eliminaron con éxito $count archivos nexus_info.json.';
   }
 
   @override
@@ -1085,7 +1084,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get devConfirmExtractDesc =>
-      'Esto escaneará todos tus mods y creará \'ID Mods.json\' en tu escritorio. Sobrescribirá cualquier archivo existente con el mismo nombre. ¿Deseas continuar?';
+      'Esto escaneará todos tus mods y creará \'ID Mods.json\' en tu escritorio. Esto sobrescribirá cualquier archivo existente con el mismo nombre. ¿Deseas continuar?';
 
   @override
   String get devExtractAction => 'Extraer';
@@ -1103,32 +1102,40 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String devExtractSuccessDesc(Object path) {
-    return 'Archivo creado correctamente en: $path';
+    return 'Archivo creado con éxito en: $path';
   }
 
   @override
   String get errorDialogTitle => 'Ocurrió un Error';
 
   @override
-  String get modDetailsCategory => 'Category';
+  String get modDetailsCategory => 'Categoría';
 
   @override
-  String get modDetailsAuthor => 'Author';
+  String get modDetailsAuthor => 'Autor';
 
   @override
-  String get modDetailsNexusId => 'Nexus ID';
+  String get modDetailsNexusId => 'ID de Nexus';
 
   @override
-  String get modDetailsInstalledOn => 'Installed on';
+  String get modDetailsInstalledOn => 'Instalado el';
 
   @override
-  String get unknownAuthor => 'Unknown';
+  String get unknownAuthor => 'Desconocido';
 
   @override
-  String get statusInstalling => 'Installing...';
+  String get statusInstalling => 'Instalando...';
 
   @override
   String statusInstallingMod(int index, int total, String modName) {
-    return 'Installing $index/$total: $modName';
+    return 'Instalando $index/$total: $modName';
   }
+
+  @override
+  String byText(Object author) {
+    return 'por $author';
+  }
+
+  @override
+  String get filterUpdatesAvailable => 'Actualizaciones disponibles';
 }

@@ -260,7 +260,7 @@ class _PreparedUE4SS {
   _PreparedUE4SS({required this.sourceDir});
 }
 
-enum ModFilter { all, enabled, disabled, repaired }
+enum ModFilter { all, enabled, disabled, updatesAvailable }
 
 enum ModSort { name, date }
 
@@ -4656,8 +4656,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       case ModFilter.disabled:
         mods.retainWhere((mod) => !mod.isEnabled);
         break;
-      case ModFilter.repaired:
-        mods.retainWhere((mod) => mod.origin == 'repaired');
+      case ModFilter.updatesAvailable:
+        mods.retainWhere((mod) {
+          final updateInfo = _modUpdates[mod.directory.path];
+          if (updateInfo == null) return false;
+
+          // Construye el mismo identificador único que se usa para ignorar actualizaciones
+          final updateIdentifier = mod.directory.path + updateInfo['version'];
+          // El mod se muestra solo si la actualización NO está en la lista de ignorados
+          return !_ignoredUpdates.contains(updateIdentifier);
+        });
         break;
       case ModFilter.all:
       default:
@@ -6047,8 +6055,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                         'text': l10n.filterDisabled,
                       },
                       {
-                        'value': ModFilter.repaired,
-                        'text': l10n.filterRepaired,
+                        'value': ModFilter.updatesAvailable,
+                        'text': l10n.filterUpdatesAvailable, // <-- USA LA NUEVA TRADUCCIÓN
                       },
                     ];
                     return filterOptions.map((option) {
@@ -7478,6 +7486,8 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
         (currentModInfo.customSourceUrl ?? currentModInfo.sourceUrl)
             ?.isNotEmpty ??
         false;
+      // Determina el nombre del autor
+      final author = currentModInfo.customAuthor ?? currentModInfo.author;
     String? mainImagePath;
     // 1. PRIORITIZE the custom cover path. This now includes our cached '_nexus_cover.jpg'.
     if (currentModInfo.customCoverPath != null &&
@@ -7616,18 +7626,19 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                   // ++ INICIO DE LA MODIFICACIÓN: AUTOR COMO SUBTÍTULO ++
                   const SizedBox(height: 4),
                   Text(
-                    // Muestra "by [Autor]" o nada si no hay autor
-                    (currentModInfo.customAuthor ?? currentModInfo.author ?? '')
-                            .isNotEmpty
-                        ? "by ${currentModInfo.customAuthor ?? currentModInfo.author!}"
-                        : "",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontStyle: FontStyle.italic,
-                      color: Colors.grey[400],
-                    ),
-                  ),
+  // Verifica si el nombre del autor no es nulo ni está vacío
+  (author?.isNotEmpty ?? false)
+      // Si existe, usa la cadena localizada pasando el autor como argumento
+      ? l10n.byText(author!)
+      // De lo contrario, muestra una cadena vacía
+      : "",
+  textAlign: TextAlign.center,
+  style: TextStyle(
+    fontSize: 16,
+    fontStyle: FontStyle.italic,
+    color: Colors.grey[400],
+  ),
+),
                   const SizedBox(height: 20),
                   // ++ FIN DE LA MODIFICACIÓN ++
                   Row(

@@ -379,8 +379,6 @@
     "modDetailsNexusId": "Nexus ID",
     "modDetailsInstalledOn": "Installed on",
     "unknownAuthor": "Unknown",
-    "imageGallery": "Image Gallery",
-    "noDescriptionAvailable": "No description available.",
 
     "statusInstalling": "Installing...",
     "@statusInstalling": {
@@ -404,6 +402,8 @@
             "example": "Cool Mod"
         }
         }
-    }
+    },
+    "byText": "by {author}",
+    "filterUpdatesAvailable": "Updates Available"
 }
 
