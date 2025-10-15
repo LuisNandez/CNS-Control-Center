@@ -5567,6 +5567,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                         label: l10n.customVersionText,
                         initialValue: displayVersion,
                         defaultValue: modInfo.localVersion ?? '',
+                        maxLength: 15,
                         onSave: (newValue) => _updateModCustomProperty(
                           modInfo,
                           newVersion: newValue,
@@ -6626,6 +6627,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     required String initialValue,
     required String defaultValue,
     required Future<ModInfo?> Function(String) onSave,
+    int? maxLength,
   }) async {
     final controller = TextEditingController(text: initialValue);
     final l10n = AppLocalizations.of(context)!;
@@ -6641,6 +6643,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               content: TextField(
                 controller: controller,
                 autofocus: true,
+                maxLength: maxLength,
                 onChanged: (value) =>
                     setDialogState(() {}), // Rebuild on text change
                 decoration: InputDecoration(labelText: label),
@@ -7521,6 +7524,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
     required String label,
     required String initialValue,
     String? defaultValue,
+    int? maxLength,
   }) async {
     final controller = TextEditingController(text: initialValue);
     final l10n = AppLocalizations.of(context)!;
@@ -7538,6 +7542,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                 autofocus: true,
                 decoration: InputDecoration(labelText: label),
                 maxLines: null,
+                maxLength: maxLength,
                 onChanged: (v) => setDialogState(() {}),
               ),
               actions: [
@@ -7732,6 +7737,102 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
               elevation: 0,
               automaticallyImplyLeading: false,
               centerTitle: true,
+              leadingWidth: 200, // Aumenta el espacio disponible para el `leading`
+              leading: Padding(
+                padding: const EdgeInsets.only(left: 12.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Versión
+                    if (displayVersion != null && displayVersion.isNotEmpty)
+                      InkWell(
+                        onTap: () async {
+                          final newVersion = await _showSingleFieldEditDialog(
+                            title: l10n.editVersionText,
+                            label: l10n.customVersionText,
+                            initialValue: displayVersion,
+                            defaultValue: currentModInfo.localVersion ?? '',
+                            maxLength: 15,
+                          );
+                          if (newVersion != null) {
+                            final updatedMod = await widget.onUpdateDetails(
+                              currentModInfo,
+                              {'customVersion': newVersion},
+                            );
+                            if (updatedMod != null) {
+                              setState(() {
+                                currentModInfo = updatedMod;
+                                _needsReloadOnClose = true;
+                              });
+                            }
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(4),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                          child: Text(
+                            "${l10n.modVersion} $displayVersion",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context).colorScheme.primary,
+                              //fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    
+                    if (displayVersion != null && displayVersion.isNotEmpty)
+                      const SizedBox(width: 8),
+
+                    /*/ Etiqueta
+                    InkWell(
+                      onTap: () async {
+                        final newTag = await _showSingleFieldEditDialog(
+                          title: l10n.editTagText,
+                          label: l10n.customTagText,
+                          initialValue:
+                              currentModInfo.customFitMeshType ??
+                              currentModInfo.fitMeshType ??
+                              l10n.modCategoryOther,
+                          defaultValue: currentModInfo.fitMeshType ?? '',
+                        );
+                        if (newTag != null) {
+                          final updatedMod = await widget.onUpdateDetails(
+                            currentModInfo,
+                            {'customFitMeshType': newTag},
+                          );
+                          if (updatedMod != null) {
+                            setState(() {
+                              currentModInfo = updatedMod;
+                              _needsReloadOnClose = true;
+                            });
+                          }
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          currentModInfo.customFitMeshType ??
+                              currentModInfo.fitMeshType ??
+                              l10n.modCategoryOther,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ),
+                    ),*/
+                  ],
+                ),
+              ),
               title: Container(
                 height: 5,
                 width: 40,
@@ -7864,19 +7965,19 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                   // ++ INICIO DE LA MODIFICACIÓN: AUTOR COMO SUBTÍTULO ++
                   const SizedBox(height: 4),
                   Text(
-  // Verifica si el nombre del autor no es nulo ni está vacío
-  (author?.isNotEmpty ?? false)
-      // Si existe, usa la cadena localizada pasando el autor como argumento
-      ? l10n.byText(author!)
-      // De lo contrario, muestra una cadena vacía
-      : "",
-  textAlign: TextAlign.center,
-  style: TextStyle(
-    fontSize: 16,
-    fontStyle: FontStyle.italic,
-    color: Colors.grey[400],
-  ),
-),
+                        // Verifica si el nombre del autor no es nulo ni está vacío
+                        (author?.isNotEmpty ?? false)
+                            // Si existe, usa la cadena localizada pasando el autor como argumento
+                            ? l10n.byText(author!)
+                            // De lo contrario, muestra una cadena vacía
+                            : "",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.grey[400],
+                        ),
+                      ),
                   const SizedBox(height: 20),
                   // ++ FIN DE LA MODIFICACIÓN ++
                   Row(
@@ -8061,8 +8162,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                                       title: l10n.modDescription,
                                       label: l10n.summaryLabel,
                                       initialValue: currentModInfo.customDescription ??
-                                          _stripHtml(currentModInfo.description) ??
-                                          '',
+                                          _stripHtml(currentModInfo.description) ?? '',
                                       defaultValue: _stripHtml(currentModInfo.description) ?? '',
                                     );
                                     if (newDescription != null) {
@@ -8102,91 +8202,6 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  // ++ INICIO DE LA MODIFICACIÓN: TAG COMO PIE DE PÁGINA ++
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Versión (izquierda)
-                      if (displayVersion != null && displayVersion.isNotEmpty)
-                        InkWell(
-                          onTap: () async {
-                            final newVersion = await _showSingleFieldEditDialog(
-                              title: l10n.editVersionText,
-                              label: l10n.customVersionText,
-                              initialValue: displayVersion,
-                              defaultValue: currentModInfo.localVersion ?? '',
-                            );
-                            if (newVersion != null) {
-                              final updatedMod = await widget.onUpdateDetails(
-                                currentModInfo,
-                                {'customVersion': newVersion},
-                              );
-                              if (updatedMod != null) {
-                                setState(() {
-                                  currentModInfo = updatedMod;
-                                  _needsReloadOnClose = true;
-                                });
-                              }
-                            }
-                          },
-                          child: Text(
-                            "${l10n.modVersion}: $displayVersion",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                        ),
-                      // Etiqueta (derecha)
-                      InkWell(
-                        onTap: () async {
-                          final newTag = await _showSingleFieldEditDialog(
-                            title: l10n.editTagText,
-                            label: l10n.customTagText,
-                            initialValue:
-                                currentModInfo.customFitMeshType ??
-                                currentModInfo.fitMeshType ??
-                                l10n.modCategoryOther,
-                            defaultValue: currentModInfo.fitMeshType ?? '',
-                          );
-                          if (newTag != null) {
-                            final updatedMod = await widget.onUpdateDetails(
-                              currentModInfo,
-                              {'customFitMeshType': newTag},
-                            );
-                            if (updatedMod != null) {
-                              setState(() {
-                                currentModInfo = updatedMod;
-                                _needsReloadOnClose = true;
-                              });
-                            }
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            currentModInfo.customFitMeshType ??
-                                currentModInfo.fitMeshType ??
-                                l10n.modCategoryOther,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  // ++ FIN DE LA MODIFICACIÓN ++
                 ],
               ),
             ),
