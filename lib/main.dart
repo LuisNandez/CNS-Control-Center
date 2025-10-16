@@ -7351,8 +7351,8 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
     // Reemplaza saltos de línea y párrafos por fines de línea.
     final withLineBreaks = htmlString
         .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
-        .replaceAll(RegExp(r'</li>', caseSensitive: false), '\n')
-        .replaceAll(RegExp(r'</p>', caseSensitive: false), '\n');
+        .replaceAll(RegExp(r'</li>', caseSensitive: false), '')
+        .replaceAll(RegExp(r'</p>', caseSensitive: false), '');
     // Reemplaza los elementos de lista por un guion.
     final withListItems = withLineBreaks.replaceAll(
         RegExp(r'<li>', caseSensitive: false), '- ');
@@ -7369,7 +7369,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
         
     // ++ LÍNEA AÑADIDA ++
     // Colapsa tres o más saltos de línea en solo dos, eliminando renglones vacíos excesivos.
-    final cleanedNewlines = decoded.replaceAll(RegExp(r'(\n\s*){3,}'), '\n\n');
+    final cleanedNewlines = decoded.replaceAll(RegExp(r'(\n\s*){2,}'), '\n');
 
     return cleanedNewlines.trim();
   }
