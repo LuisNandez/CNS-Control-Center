@@ -311,5 +311,8 @@
     "statusInstalling": "Installazione in corso...",
     "statusInstallingMod": "Installazione di {index}/{total}: {modName}",
     "byText": "di {author}",
-    "filterUpdatesAvailable": "Aggiornamenti disponibili"
+    "filterUpdatesAvailable": "Aggiornamenti disponibili",
+    "snackBarUpdateIgnored": "Aggiornamento per '{modName}' ignorato per questa sessione.",
+    "snackBarVersionSkipped": "La versione '{version}' di '{modName}' verrà saltata nei controlli futuri.",
+    "statusUpdatingMetadata": "Aggiornamento dei metadati per '{displayName}' ({arg1} di {arg2})..."
 }

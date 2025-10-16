@@ -1117,16 +1117,16 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String snackBarUpdateIgnored(String modName) {
-    return 'Update for \'$modName\' ignored for this session.';
+    return '이번 세션에서 \'$modName\'의 업데이트를 무시했습니다.';
   }
 
   @override
   String snackBarVersionSkipped(String modName, String version) {
-    return 'Version \'$version\' of \'$modName\' will be skipped in future checks.';
+    return '앞으로 \'$modName\'의 \'$version\' 버전은 건너뜁니다.';
   }
 
   @override
   String statusUpdatingMetadata(String displayName, int arg1, int arg2) {
-    return 'Updating metadata for \'$displayName\' ($arg1 of $arg2)...';
+    return '\'$displayName\'의 메타데이터 업데이트 중($arg1/$arg2)...';
   }
 }

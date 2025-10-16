@@ -311,5 +311,8 @@
     "statusInstalling": "Installiere...",
     "statusInstallingMod": "Installiere {index}/{total}: {modName}",
     "byText": "von {author}",
-    "filterUpdatesAvailable": "Updates verfügbar"
+    "filterUpdatesAvailable": "Updates verfügbar",
+    "snackBarUpdateIgnored": "Update für '{modName}' für diese Sitzung ignoriert.",
+    "snackBarVersionSkipped": "Version '{version}' von '{modName}' wird bei zukünftigen Prüfungen übersprungen.",
+    "statusUpdatingMetadata": "Metadaten für '{displayName}' werden aktualisiert ({arg1} von {arg2})..."
 }

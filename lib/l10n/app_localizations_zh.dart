@@ -1107,16 +1107,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String snackBarUpdateIgnored(String modName) {
-    return 'Update for \'$modName\' ignored for this session.';
+    return '已在此会话中忽略“$modName”的更新。';
   }
 
   @override
   String snackBarVersionSkipped(String modName, String version) {
-    return 'Version \'$version\' of \'$modName\' will be skipped in future checks.';
+    return '“$modName”的版本“$version”将在未来的检查中被跳过。';
   }
 
   @override
   String statusUpdatingMetadata(String displayName, int arg1, int arg2) {
-    return 'Updating metadata for \'$displayName\' ($arg1 of $arg2)...';
+    return '正在更新“$displayName”的元数据($arg1/$arg2)...';
   }
 }

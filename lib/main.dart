@@ -1585,13 +1585,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<void> _loadAllMods({bool clearHighlight = true}) async {
-    /*if (_finalModsPath == null) return;
+    if (_finalModsPath == null) return;
     setState(() {
       _isLoading = true;
       if (clearHighlight) {
         _lastInstalledModNames.clear();
       }
-    });*/
+    });
 
     // Esta función interna procesa un directorio (mods activados o desactivados)
     Future<List<ModInfo>> getModsFromDirectory(
@@ -5425,8 +5425,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             TextButton.icon(
               icon: const Icon(Icons.cancel_outlined, size: 20),
               label: Text(l10n.cancelSelection),
-              onPressed: () => _clearSelection(panelStateSetter: panelStateSetter),
+              onPressed: _isInstalling ? null : () => _clearSelection(panelStateSetter: panelStateSetter),
               style: TextButton.styleFrom(
+                // Un estilo visual para cuando el botón está deshabilitado.
+                disabledForegroundColor: Colors.redAccent.withOpacity(0.4),
                 foregroundColor: Colors.redAccent,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
@@ -8262,7 +8264,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                             ),
                             Row(
                               children: [
-                                if (_showTranslateDescriptionButton)
+                                /*if (_showTranslateDescriptionButton)
                                   _isTranslating
                                       ? const Padding(
                                           padding: EdgeInsets.all(4.0),
@@ -8312,7 +8314,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                                   splashRadius: 20,
                                   constraints: const BoxConstraints(),
                                   padding: EdgeInsets.zero,
-                                ),
+                                ),*/
                               ],
                             ),
                           ],

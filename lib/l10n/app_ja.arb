@@ -311,5 +311,8 @@
     "statusInstalling": "インストール中...",
     "statusInstallingMod": "{total}個中{index}個をインストール中：{modName}",
     "byText": "作成者：{author}",
-    "filterUpdatesAvailable": "利用可能なアップデート"
+    "filterUpdatesAvailable": "利用可能なアップデート",
+    "snackBarUpdateIgnored": "「{modName}」の更新はこのセッションでは無視されました。",
+    "snackBarVersionSkipped": "「{modName}」のバージョン「{version}」は今後のチェックでスキップされます。",
+    "statusUpdatingMetadata": "「{displayName}」のメタデータを更新中 ({arg1}/{arg2})..."
 }

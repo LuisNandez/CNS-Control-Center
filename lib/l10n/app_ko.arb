@@ -311,5 +311,8 @@
     "statusInstalling": "설치 중...",
     "statusInstallingMod": "{total}개 중 {index}개 설치 중: {modName}",
     "byText": "제작자: {author}",
-    "filterUpdatesAvailable": "사용 가능한 업데이트"
+    "filterUpdatesAvailable": "사용 가능한 업데이트",
+    "snackBarUpdateIgnored": "이번 세션에서 '{modName}'의 업데이트를 무시했습니다.",
+    "snackBarVersionSkipped": "앞으로 '{modName}'의 '{version}' 버전은 건너뜁니다.",
+    "statusUpdatingMetadata": "'{displayName}'의 메타데이터 업데이트 중({arg1}/{arg2})..."
 }

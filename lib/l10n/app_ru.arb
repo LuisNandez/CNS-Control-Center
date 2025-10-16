@@ -311,5 +311,8 @@
     "statusInstalling": "Установка...",
     "statusInstallingMod": "Установка {index}/{total}: {modName}",
     "byText": "от {author}",
-    "filterUpdatesAvailable": "Доступны обновления"
+    "filterUpdatesAvailable": "Доступны обновления",
+    "snackBarUpdateIgnored": "Обновление для '{modName}' проигнорировано в этом сеансе.",
+    "snackBarVersionSkipped": "Версия '{version}' для '{modName}' будет пропущена при будущих проверках.",
+    "statusUpdatingMetadata": "Обновление метаданных для '{displayName}' ({arg1} из {arg2})..."
 }

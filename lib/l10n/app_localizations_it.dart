@@ -1150,16 +1150,16 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String snackBarUpdateIgnored(String modName) {
-    return 'Update for \'$modName\' ignored for this session.';
+    return 'Aggiornamento per \'$modName\' ignorato per questa sessione.';
   }
 
   @override
   String snackBarVersionSkipped(String modName, String version) {
-    return 'Version \'$version\' of \'$modName\' will be skipped in future checks.';
+    return 'La versione \'$version\' di \'$modName\' verrà saltata nei controlli futuri.';
   }
 
   @override
   String statusUpdatingMetadata(String displayName, int arg1, int arg2) {
-    return 'Updating metadata for \'$displayName\' ($arg1 of $arg2)...';
+    return 'Aggiornamento dei metadati per \'$displayName\' ($arg1 di $arg2)...';
   }
 }

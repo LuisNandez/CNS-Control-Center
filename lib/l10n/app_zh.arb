@@ -311,5 +311,8 @@
     "statusInstalling": "正在安装...",
     "statusInstallingMod": "正在安装 {index}/{total}: {modName}",
     "byText": "作者：{author}",
-    "filterUpdatesAvailable": "可用更新"
+    "filterUpdatesAvailable": "可用更新",
+    "snackBarUpdateIgnored": "已在此会话中忽略“{modName}”的更新。",
+    "snackBarVersionSkipped": "“{modName}”的版本“{version}”将在未来的检查中被跳过。",
+    "statusUpdatingMetadata": "正在更新“{displayName}”的元数据({arg1}/{arg2})..."
 }
