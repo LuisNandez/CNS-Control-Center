@@ -2025,6 +2025,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Version \'{version}\' of \'{modName}\' will be skipped in future checks.'**
   String snackBarVersionSkipped(String modName, String version);
+
+  /// Status message shown while updating the metadata of a single mod.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating metadata for \'{displayName}\' ({arg1} of {arg2})...'**
+  String statusUpdatingMetadata(String displayName, int arg1, int arg2);
 }
 
 class _AppLocalizationsDelegate

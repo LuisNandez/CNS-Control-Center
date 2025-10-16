@@ -1114,4 +1114,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String snackBarVersionSkipped(String modName, String version) {
     return 'Version \'$version\' of \'$modName\' will be skipped in future checks.';
   }
+
+  @override
+  String statusUpdatingMetadata(String displayName, int arg1, int arg2) {
+    return 'Updating metadata for \'$displayName\' ($arg1 of $arg2)...';
+  }
 }

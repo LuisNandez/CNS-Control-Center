@@ -385,6 +385,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
     super.dispose();
   }
+  bool _isUpdatingMetadata = false;
+  double _metadataUpdateProgress = 0.0;
+  String _metadataUpdateStatus = '';
 
   Future<void> _initialize() async {
     await _getAppVersion();
@@ -400,6 +403,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     if (_finalModsPath != null) {
       await _checkCoreInstallations();
       await _migrateModFolders();
+      await _runMetadataUpdateIfNeeded();
       await _loadAllMods();
       await _readCNSData();
     }
@@ -1478,14 +1482,116 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     return name.replaceAll(regex, '').trim();
   }
 
-  Future<void> _loadAllMods({bool clearHighlight = true}) async {
+  /// Escanea todos los mods y, si es necesario, actualiza sus metadatos mostrando una barra de progreso.
+  Future<void> _runMetadataUpdateIfNeeded() async {
     if (_finalModsPath == null) return;
+    final l10n = AppLocalizations.of(context)!;
+
+    // 1. Escanea en busca de mods que necesiten una actualización
+    final List<Map<String, dynamic>> modsToUpdate = [];
+    final List<String> modPaths = [];
+
+    // Escanea mods activados
+    final enabledDir = Directory(_finalModsPath!);
+    if (await enabledDir.exists()) {
+      await for (var entity in enabledDir.list()) {
+        if (entity is Directory) modPaths.add(entity.path);
+      }
+    }
+
+    // Escanea mods desactivados
+    if (_gameRootPath != null) {
+      final backupDirPath = p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__');
+      final disabledDir = Directory(backupDirPath);
+      if (await disabledDir.exists()) {
+        await for (var entity in disabledDir.list()) {
+          if (entity is Directory) modPaths.add(entity.path);
+        }
+      }
+    }
+
+    for (final modPath in modPaths) {
+      if (p.basename(modPath) == '__MOD_BACKUPS__') continue;
+      final infoFile = File(p.join(modPath, 'nexus_info.json'));
+      if (await infoFile.exists()) {
+        try {
+          final content = await infoFile.readAsString();
+          Map<String, dynamic> data = json.decode(content);
+          final String? modManagerVersion = data['managerVersion'];
+          final String? nexusIdForCheck = data['nexusId'];
+
+          bool needsUpdate = modManagerVersion == null || (_compareVersions(_appVersion, modManagerVersion) > 0);
+
+          if (needsUpdate && nexusIdForCheck != null && nexusIdForCheck.isNotEmpty) {
+            modsToUpdate.add({
+              'path': modPath,
+              'nexusId': nexusIdForCheck,
+              'displayName': data['displayName'] ?? p.basename(modPath),
+            });
+          }
+        } catch (e) {
+          print('No se pudo analizar nexus_info.json para la comprobación de actualización de metadatos en ${modPath}: $e');
+        }
+      }
+    }
+
+    // 2. Si se encuentran actualizaciones, ejecuta el proceso
+    if (modsToUpdate.isNotEmpty) {
+      setState(() {
+        _isLoading = false; // Detiene el spinner de carga principal
+        _isUpdatingMetadata = true;
+        _metadataUpdateProgress = 0.0;
+      });
+
+      for (int i = 0; i < modsToUpdate.length; i++) {
+        final modData = modsToUpdate[i];
+        final modDirectory = Directory(modData['path']);
+        final nexusId = modData['nexusId'];
+        final displayName = modData['displayName'];
+        final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
+
+        setState(() {
+          _metadataUpdateProgress = (i + 1) / modsToUpdate.length;
+          _metadataUpdateStatus = l10n.statusUpdatingMetadata(displayName, i + 1, modsToUpdate.length);
+        });
+
+        try {
+          final nexusData = await _fetchNexusModData(nexusId);
+          if (nexusData != null) {
+            final content = await infoFile.readAsString();
+            Map<String, dynamic> data = json.decode(content);
+
+            data['summary'] ??= nexusData['summary'];
+            data['author'] ??= nexusData['author'];
+            data['gallery'] ??= nexusData['gallery'];
+            data['description'] ??= nexusData['description'];
+            data['sourceUrl'] ??= 'https://www.nexusmods.com/stellarblade/mods/$nexusId';
+            data['managerVersion'] = _appVersion;
+
+            final encoder = JsonEncoder.withIndent('  ');
+            await infoFile.writeAsString(encoder.convert(data));
+            await _cacheNexusThumbnail(modDirectory: modDirectory, nexusId: nexusId);
+          }
+        } catch (e) {
+          print('Fallo al actualizar los metadatos para $displayName: $e');
+        }
+      }
+
+      setState(() {
+        _isUpdatingMetadata = false;
+        _metadataUpdateStatus = '';
+      });
+    }
+  }
+
+  Future<void> _loadAllMods({bool clearHighlight = true}) async {
+    /*if (_finalModsPath == null) return;
     setState(() {
       _isLoading = true;
       if (clearHighlight) {
         _lastInstalledModNames.clear();
       }
-    });
+    });*/
 
     // Esta función interna procesa un directorio (mods activados o desactivados)
     Future<List<ModInfo>> getModsFromDirectory(
@@ -5105,7 +5211,31 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                               ),
                             ],
                           )*/
-                        if (_isCheckingForUpdates)
+                          if (_isUpdatingMetadata)
+                          Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8.0,
+                                ),
+                                child: Text(
+                                  _metadataUpdateStatus,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.white70),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              LinearProgressIndicator(
+                                value: _metadataUpdateProgress,
+                                backgroundColor: Colors.grey[800],
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                  Colors.lightBlueAccent, // Color distintivo
+                                ),
+                              ),
+                            ],
+                          )
+                        else if (_isCheckingForUpdates)
                           Column(
                             children: [
                               Padding(

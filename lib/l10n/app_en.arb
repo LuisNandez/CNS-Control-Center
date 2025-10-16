@@ -431,6 +431,24 @@
         "example": "1.2.1"
       }
     }
+  },
+  "statusUpdatingMetadata": "Updating metadata for '{displayName}' ({arg1} of {arg2})...",
+  "@statusUpdatingMetadata": {
+    "description": "Status message shown while updating the metadata of a single mod.",
+    "placeholders": {
+      "displayName": {
+        "type": "String",
+        "example": "Awesome Mod Name"
+      },
+      "arg1": {
+        "type": "int",
+        "example": "1"
+      },
+      "arg2": {
+        "type": "int",
+        "example": "10"
+      }
+    }
   }
 }
 
