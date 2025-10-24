@@ -42,23 +42,24 @@ class ModInfo {
   final DateTime? installDate;
   bool isEnabled;
   final String? origin;
-  final String displayName; // Internal identifier, not user-editable.
-  String customName; // User-editable name.
+  final String displayName;
+  String customName;
   final List<dynamic>?
-  gallery; // Added to store image gallery info from Nexus Mods.
+  gallery;
   final String? fitMeshType;
+  final String? modType;
   final String? customCoverPath;
   final Alignment? customCoverAlignment;
   final DateTime? customCoverLastModified;
   final String? customVersion;
   final String? customFitMeshType;
-  String? summary; // Descripción/resumen del mod.
-  String? description; // Nueva propiedad para la descripción detallada de Nexus.
+  String? summary;
+  String? description;
   final String? customSummary;
-  final String? customDescription; // El usuario puede sobreescribir la descripción.
-  final String? author; // Autor del mod.
+  final String? customDescription;
+  final String? author;
   final String? customAuthor;
-  String? userNotes; // Notas personales del usuario.
+  String? userNotes;
   final String? sourceUrl;
   final String? customSourceUrl;
 
@@ -74,6 +75,7 @@ class ModInfo {
     required this.customName,
     this.gallery,
     this.fitMeshType,
+    this.modType,
     this.customCoverPath,
     this.customCoverAlignment,
     this.customCoverLastModified,
@@ -102,6 +104,7 @@ class ModInfo {
     String? customName,
     List<dynamic>? gallery,
     String? fitMeshType,
+    String? modType,
     String? customCoverPath,
     Alignment? customCoverAlignment,
     DateTime? customCoverLastModified,
@@ -129,6 +132,7 @@ class ModInfo {
       customName: customName ?? this.customName,
       gallery: gallery ?? this.gallery,
       fitMeshType: fitMeshType ?? this.fitMeshType,
+      modType: modType ?? this.modType,
       customCoverPath: customCoverPath ?? this.customCoverPath,
       customCoverAlignment: customCoverAlignment ?? this.customCoverAlignment,
       customCoverLastModified:
@@ -1663,6 +1667,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String? origin;
             List<dynamic>? gallery;
             String? fitMeshType;
+            String? modType;
             String? customCoverPath;
             Alignment? customCoverAlignment;
             DateTime? customCoverLastModified;
@@ -1731,6 +1736,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               origin = data['origin'];
               gallery = data['gallery'];
               fitMeshType = data['fitMeshType'];
+              modType = data['modType'] as String?;
               summary = data['summary'];
               customSummary = data['customSummary'];
               description = data['description'];
@@ -1807,6 +1813,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 customName: customName,
                 gallery: gallery,
                 fitMeshType: fitMeshType,
+                modType: modType,
                 customCoverPath: customCoverPath,
                 customCoverAlignment: customCoverAlignment,
                 customCoverLastModified: customCoverLastModified,
@@ -5761,29 +5768,43 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                       alignment: modInfo.customCoverAlignment ?? Alignment.center,
                     ),
                   ),
-                  if (!modInfo.isEnabled)
+                  //if (!modInfo.isEnabled)
                     Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orangeAccent.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          l10n.modDisabledBadge,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                    top: 8,
+                    right: 8,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // 1. Muestra "Disabled" SÓLO si está deshabilitado
+                        if (!modInfo.isEnabled)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.orangeAccent.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              l10n.modDisabledBadge,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
+                        
+                        // 2. Muestra un espacio SÓLO si está deshabilitado (para separar las etiquetas)
+                        if (!modInfo.isEnabled)
+                          const SizedBox(height: 4),
+
+                        // 3. Muestra SIEMPRE la etiqueta de Tipo (CNS/Genérico)
+                        _buildModTypeBadge(modInfo.modType, l10n),
+                      ],
                     ),
+                  ),
                   if (hasUpdate && !isIgnored)
                     Positioned(
                       top: 8,
@@ -6082,6 +6103,37 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Construye el widget de la etiqueta de Tipo de Mod (CNS o Genérico).
+  Widget _buildModTypeBadge(String? modType, AppLocalizations l10n) {
+    final String modTypeString;
+    final Color modTypeColor;
+
+    if (modType == 'genericPak') {
+      modTypeString = l10n.modTypeGeneric; // "Genérico"
+      modTypeColor = const Color.fromARGB(255, 12, 141, 176); // Color para "Generic"
+    } else {
+      // Asumimos 'cns' por defecto para todos los demás (incluidos mods antiguos)
+      modTypeString = l10n.modTypeCNS; // "CNS"
+      modTypeColor = const Color.fromARGB(255, 138, 3, 136); // Color para "CNS"
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: modTypeColor.withOpacity(0.9), // Usar el color dinámico
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        modTypeString, // Usar el texto dinámico
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
