@@ -2049,6 +2049,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to install generic mod: {modName}'**
   String genericModInstallError(String modName);
+
+  /// No description provided for @modTypeCNS.
+  ///
+  /// In en, this message translates to:
+  /// **'CNS'**
+  String get modTypeCNS;
+
+  /// No description provided for @modTypeGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Generic'**
+  String get modTypeGeneric;
 }
 
 class _AppLocalizationsDelegate

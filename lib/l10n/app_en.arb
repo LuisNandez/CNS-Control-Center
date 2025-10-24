@@ -473,6 +473,8 @@
         "type": "String"
       }
     }
-  }
+  },
+  "modTypeCNS": "CNS",
+  "modTypeGeneric": "Generic"
 }
 

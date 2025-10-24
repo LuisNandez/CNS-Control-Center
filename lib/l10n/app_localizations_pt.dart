@@ -1170,4 +1170,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String genericModInstallError(String modName) {
     return 'Failed to install generic mod: $modName';
   }
+
+  @override
+  String get modTypeCNS => 'CNS';
+
+  @override
+  String get modTypeGeneric => 'Generic';
 }
