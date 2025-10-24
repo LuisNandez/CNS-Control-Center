@@ -1155,4 +1155,19 @@ class AppLocalizationsPt extends AppLocalizations {
   String statusUpdatingMetadata(String displayName, int arg1, int arg2) {
     return 'Atualizando metadados de \'$displayName\' ($arg1 de $arg2)...';
   }
+
+  @override
+  String genericModInstallTitle(String modName) {
+    return 'Generic Mod Installed: $modName';
+  }
+
+  @override
+  String genericModInstallDesc(String path) {
+    return 'Installed to $path. This mod is not managed by the app and must be uninstalled manually.';
+  }
+
+  @override
+  String genericModInstallError(String modName) {
+    return 'Failed to install generic mod: $modName';
+  }
 }

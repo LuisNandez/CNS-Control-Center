@@ -19,8 +19,8 @@ import 'settings_page.dart';
 import 'thumbnail_service.dart';
 import 'notification_service.dart';
 import 'package:translator/translator.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
+import 'mod_classifier_service.dart';
 
 class AppPrefs {
   static const String languageCode = 'languageCode';
@@ -262,7 +262,8 @@ class _PreparedMod {
   final Directory sourceDir;
   final String? nexusId;
   final String? nexusVersion;
-  _PreparedMod({required this.sourceDir, this.nexusId, this.nexusVersion});
+  final String archiveName;
+  _PreparedMod({required this.sourceDir, this.nexusId, this.nexusVersion, required this.archiveName});
 }
 
 class _PreparedUE4SS {
@@ -304,6 +305,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   String? _gameRootPath;
   String? _finalModsPath;
+  String? _genericModsPath;
 
   String? _7zipPath;
 
@@ -1238,7 +1240,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       gamePath ??= await _findSteamInstallation();
 
       if (gamePath != null && await Directory(gamePath).exists()) {
-        final modPath = p.join(
+        // Ruta para mods CNS (la que ya tenías)
+        final cnsModPath = p.join(
           gamePath,
           'SB',
           'Content',
@@ -1246,9 +1249,31 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           '~mods',
           'CustomNanosuitSystem',
         );
+        // NUEVA RUTA: Ruta para mods Genéricos (la carpeta ~mods raíz)
+        final genericModPath = p.join(
+          gamePath,
+          'SB',
+          'Content',
+          'Paks',
+          '~mods',
+        );
+        
+        // --- INICIO DE LA MODIFICACIÓN ---
+        // Asegurarse de que ambas carpetas existan
+        final cnsDir = Directory(cnsModPath);
+        final genericDir = Directory(genericModPath);
+        if (!await cnsDir.exists()) {
+          await cnsDir.create(recursive: true);
+        }
+        if (!await genericDir.exists()) {
+          await genericDir.create(recursive: true);
+        }
+        // --- FIN DE LA MODIFICACIÓN ---
+
         setState(() {
           _gameRootPath = gamePath;
-          _finalModsPath = modPath;
+          _finalModsPath = cnsModPath; // Para mods CNS
+          _genericModsPath = genericModPath; // Para mods Genéricos
           if (mounted) {
             _statusMessage = AppLocalizations.of(context)!.statusGamePathFound;
           }
@@ -1256,6 +1281,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       } else {
         setState(() {
           _finalModsPath = null;
+          _genericModsPath = null; // <-- Asegúrate de ponerlo a null también
           if (mounted) {
             _statusMessage = AppLocalizations.of(
               context,
@@ -1267,6 +1293,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     } catch (e) {
       setState(() {
         _finalModsPath = null;
+        _genericModsPath = null; // <-- Asegúrate de ponerlo a null también
         if (mounted) {
           _statusMessage = AppLocalizations.of(
             context,
@@ -1482,6 +1509,24 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     return name.replaceAll(regex, '').trim();
   }
 
+  String _cleanNexusFileName(String fileName) {
+    // 1. Intenta encontrar un patrón de ID de Mod de Nexus (ej: -123-)
+    // Esta es la misma regex que se usa en _extractNexusInfoFromName
+    final nexusIdRegex = RegExp(r'-(\d{3,5})-');
+    final match = nexusIdRegex.firstMatch(fileName);
+
+    if (match != null) {
+      // ¡Encontrado! Devuelve todo lo que está ANTES del guion.
+      // ej: "AwesomeOutfit-123-1-0" -> match.start es el índice 14.
+      // substring(0, 14) devuelve "AwesomeOutfit".
+      return fileName.substring(0, match.start);
+    } else {
+      // 2. No se encontró el patrón de ID.
+      // Usa la lógica de limpieza antigua (para nombres como "MiMod v1.0").
+      return _stripVersionFromFolderName(fileName);
+    }
+  }
+
   /// Escanea todos los mods y, si es necesario, actualiza sus metadatos mostrando una barra de progreso.
   Future<void> _runMetadataUpdateIfNeeded() async {
     if (_finalModsPath == null) return;
@@ -1604,6 +1649,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       final List<ModInfo> mods = [];
       await for (var entity in dir.list()) {
         if (entity is Directory) {
+          // --- INICIO DE LA MODIFICACIÓN ---
+          // Si estamos escaneando la carpeta genérica, omitimos la carpeta CNS.
+          if (path == _genericModsPath && 
+              p.basename(entity.path).toLowerCase() == 'customnanosuitsystem') {
+                continue;
+          }
           if (p.basename(entity.path) == '__MOD_BACKUPS__') continue;
           try {
             // Inicializa todas las variables que vamos a leer.
@@ -1781,12 +1832,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
 
     try {
-      final enabledMods = await getModsFromDirectory(_finalModsPath!, true);
+      final enabledCnsMods = await getModsFromDirectory(_finalModsPath!, true);
+      final enabledGenericMods = await getModsFromDirectory(_genericModsPath!, true);
 
       if (_gameRootPath == null) {
         final disabledMods = <ModInfo>[];
         setState(() {
-          _allMods = [...enabledMods, ...disabledMods];
+          _allMods = [...enabledCnsMods, ...enabledGenericMods, ...disabledMods];
         });
         return;
       }
@@ -1797,13 +1849,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         '__MOD_BACKUPS__',
       );
       final disabledMods = await getModsFromDirectory(backupDirPath, false);
-
+      
+      // Combina todas las listas
       setState(() {
-        _allMods = [...enabledMods, ...disabledMods];
+        _allMods = [...enabledCnsMods, ...enabledGenericMods, ...disabledMods];
         if (clearHighlight && mounted) {
+          final totalEnabled = enabledCnsMods.length + enabledGenericMods.length; // Suma
           _statusMessage = AppLocalizations.of(
             context,
-          )!.statusModsFound(disabledMods.length, enabledMods.length);
+          )!.statusModsFound(disabledMods.length, totalEnabled); // Usa la suma
           _statusColor = Colors.white;
         }
       });
@@ -2383,6 +2437,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           await _promptAndUpdateCNS(sbDir);
           cnsUpdateInitiated = true;
         } else {
+          // --- LÓGICA HÍBRIDA: MANEJA ARCHIVOS SUELTOS Y SUBDIRECTORIOS ---
+          
+          // Nombre de fallback (limpio)
+          final baseArchiveName = p.basenameWithoutExtension(archiveFile.path);
+          final archiveName = _cleanNexusFileName(baseArchiveName);
+
+          // 1. BUSCAR ARCHIVOS SUELTOS (en cualquier parte del zip)
+          // Esta función busca recursivamente en todo el directorio temporal del zip
           final allModFiles = await _findAllModFilesRecursive(archiveTempDir);
 
           final jsonFiles = allModFiles
@@ -2398,12 +2460,44 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               )
               .toList();
 
+          // 2. DECIDIR EL TIPO BASADO EN LOS ARCHIVOS SUELTOS
+          
+          // CASO A: Archivos sueltos de un mod CNS (tienen .json y .pak)
           if (jsonFiles.isNotEmpty && pakFiles.isNotEmpty) {
+            // Consolida todos los archivos en una sola carpeta temporal
             final consolidatedDir = await Directory(
               p.join(archiveTempDir.path, '_consolidated_'),
             ).create();
 
             for (final modFile in allModFiles) {
+              // Solo copia los archivos de mod, no la basura
+              final ext = p.extension(modFile.path).toLowerCase();
+              if (ext == '.json' || ext == '.pak' || ext == '.ucas' || ext == '.utoc') {
+                final newPath = p.join(
+                  consolidatedDir.path,
+                  p.basename(modFile.path),
+                );
+                await modFile.copy(newPath);
+              }
+            }
+
+            _preparedMods.add(
+              _PreparedMod(
+                sourceDir: consolidatedDir, // Instala desde la carpeta consolidada
+                nexusId: nexusInfo?['id'],
+                nexusVersion: nexusInfo?['version'],
+                archiveName: archiveName,
+              ),
+            );
+          } 
+          // CASO B: Archivos sueltos de un mod Genérico (solo .pak, NO .json)
+          else if (jsonFiles.isEmpty && pakFiles.isNotEmpty) {
+             // Consolida todos los archivos en una sola carpeta temporal
+            final consolidatedDir = await Directory(
+              p.join(archiveTempDir.path, '_consolidated_'),
+            ).create();
+
+            for (final modFile in pakFiles) { // Solo copia los paks
               final newPath = p.join(
                 consolidatedDir.path,
                 p.basename(modFile.path),
@@ -2411,14 +2505,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               await modFile.copy(newPath);
             }
 
-            _preparedMods.add(
+             _preparedMods.add(
               _PreparedMod(
-                sourceDir: consolidatedDir,
+                sourceDir: consolidatedDir, 
                 nexusId: nexusInfo?['id'],
                 nexusVersion: nexusInfo?['version'],
+                archiveName: archiveName,
               ),
             );
-          } else {
+          }
+          // CASO C: No hay archivos sueltos. Buscar en subdirectorios.
+          else {
+            // Usa la función (que acabamos de restaurar) para encontrar
+            // directorios de mod (CNS o Genéricos) anidados.
             final foundModDirs = await _findValidModDirectories(archiveTempDir);
             for (final modDir in foundModDirs) {
               _preparedMods.add(
@@ -2426,6 +2525,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   sourceDir: modDir,
                   nexusId: nexusInfo?['id'],
                   nexusVersion: nexusInfo?['version'],
+                  archiveName: archiveName,
                 ),
               );
             }
@@ -2454,30 +2554,27 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<List<Directory>> _findValidModDirectories(Directory root) async {
     final List<Directory> found = [];
-    bool isRootAMod = false;
 
-    await for (final entity in root.list(followLinks: false)) {
-      if (entity is File && p.extension(entity.path).toLowerCase() == '.json') {
-        isRootAMod = true;
-        break;
-      }
-    }
-
-    if (isRootAMod) {
+    // 1. Comprueba si la propia raíz es un mod.
+    final rootModType = await ModClassifierService.classifyModDirectory(root);
+    if (rootModType != ModDirectoryType.unknown) {
       found.add(root);
+      // Si la raíz es un mod, no escaneamos sus subcarpetas.
       return found;
     }
 
+    // 2. Si la raíz no es un mod, escanea sus subdirectorios.
     await for (final entity in root.list(followLinks: false)) {
       if (entity is Directory) {
         final basename = p.basename(entity.path);
+        // Ignora carpetas de sistema o de "basura"
         if (basename.startsWith('__') || basename.startsWith('.')) continue;
 
+        // Llama recursivamente
         final nestedMods = await _findValidModDirectories(entity);
         found.addAll(nestedMods);
       }
     }
-
     return found;
   }
 
@@ -2514,18 +2611,25 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final Map<String, List<String>> previewMap = {};
 
     for (final preparedMod in _preparedMods) {
-      final displayName = await _getDisplayNameForMod(preparedMod.sourceDir);
-      if (displayName != null) {
+      // 1. Intenta obtener el nombre del .json (para mods CNS)
+      String? displayName = await _getDisplayNameForMod(preparedMod.sourceDir);
+
+      // 2. Si falla (es null), usa el nombre del zip (para mods Genéricos)
+      displayName ??= preparedMod.archiveName;
+
+      // 3. Ahora displayName no debería ser nulo
+      if (displayName.isNotEmpty) {
         String finalFolderName = displayName;
         if (preparedMod.nexusVersion != null) {
           finalFolderName = '$finalFolderName v${preparedMod.nexusVersion}';
         }
 
-        final files = preparedMod.sourceDir
-            .listSync()
-            .whereType<File>()
+        // 4. CORRECCIÓN: Usamos la misma función que el instalador
+        // para encontrar TODOS los archivos que se copiarán.
+        final files = (await _findAllModFilesRecursive(preparedMod.sourceDir))
             .map((f) => p.basename(f.path))
             .toList();
+
         previewMap[finalFolderName] = files;
       }
     }
@@ -2808,13 +2912,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     try {
       for (int i = 0; i < _preparedMods.length; i++) {
-        final preparedMod = _preparedMods[i];
+        final preparedMod = _preparedMods[i]; // <-- Obtenemos el objeto completo
         try {
-          final modName = await _installSingleModFromDirectory(
-            preparedMod.sourceDir,
-            nexusId: preparedMod.nexusId,
-            nexusVersion: preparedMod.nexusVersion,
+          // Llamamos a nuestra nueva función de instalación unificada
+          final modName = await _installSingleMod(
+            preparedMod,
+            l10n: l10n,
           );
+          
           if (modName != null) {
             installedNames.add(modName);
             successCount++;
@@ -2824,7 +2929,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 i + 1,
                 _preparedMods.length,
                 modName,
-              ); // Necesitarás esta traducción
+              );
             });
           } else {
             failCount++;
@@ -2892,29 +2997,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  Future<String?> _installSingleModFromDirectory(
-    Directory modDir, {
-    bool recursive = false,
-    String? nexusId,
-    String? nexusVersion,
-  }) async {
-    const validExtensions = ['.pak', '.ucas', '.utoc', '.json'];
-    final List<File> files = [];
-    await for (final entity in modDir.list(recursive: recursive)) {
-      if (entity is File &&
-          validExtensions.contains(p.extension(entity.path).toLowerCase())) {
-        files.add(entity);
-      }
-    }
-
-    if (files.isEmpty) return null;
-
-    return await _installSingleModFromListOfFiles(
-      files,
-      nexusId: nexusId,
-      nexusVersion: nexusVersion,
-    );
-  }
 
   Future<String?> _getCompositeDisplayName(Directory modDir) async {
     final List<File> jsonFiles = [];
@@ -3084,24 +3166,47 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 
-  Future<String> _installSingleModFromListOfFiles(
-    List<File> files, {
-    String? nexusId,
-    String? nexusVersion,
+  Future<String?> _installSingleMod(
+    _PreparedMod preparedMod, {
+    required AppLocalizations l10n,
   }) async {
-    final l10n = AppLocalizations.of(context)!;
-    final tempModDir = files.first.parent;
+    final modDir = preparedMod.sourceDir;
+    final nexusId = preparedMod.nexusId;
+    final nexusVersion = preparedMod.nexusVersion;
+    
     String? preservedCustomName;
 
-    final fitMeshType = await _getFitMeshTypeForMod(tempModDir);
+    // 1. CLASIFICAR EL MOD Y OBTENER SUS DATOS
+    final modType = await ModClassifierService.classifyModDirectory(modDir);
+    String? baseDisplayName;
+    String? fitMeshType; // <-- ¡La etiqueta que pediste!
+    String? installPath; // <-- Dónde se instalará
 
-    final baseDisplayName = await _getCompositeDisplayName(tempModDir);
+    if (modType == ModDirectoryType.cns) {
+      // Es un mod CNS: obtenemos el nombre y la etiqueta desde sus .json
+      baseDisplayName = await _getCompositeDisplayName(modDir);
+      fitMeshType = await _getFitMeshTypeForMod(modDir);
+      installPath = _finalModsPath; // Se instala en la carpeta CNS
+    } else if (modType == ModDirectoryType.genericPak) {
+      // Es un mod Genérico: usamos el nombre del ZIP y la etiqueta "Generic"
+      baseDisplayName = preparedMod.archiveName;
+      fitMeshType = "Generic"; // <-- ¡AQUÍ ESTÁ LA ETIQUETA!
+      installPath = _genericModsPath; // Se instala en la carpeta genérica
+    } else {
+      // No debería pasar si el clasificador de _processArchives funcionó
+      throw Exception(l10n.errorNoCompatibleFilesInArchive);
+    }
+
     if (baseDisplayName == null) {
       throw FormatException(l10n.errorNoValidDisplayName);
+    }
+    if (installPath == null) {
+      throw Exception("Installation path could not be determined.");
     }
 
     String finalFolderName = baseDisplayName;
 
+    // 2. LÓGICA DE REEMPLAZO/ACTUALIZACIÓN (Esto permanece igual que antes)
     ModInfo? oldVersionMod;
     _AlternativeVersionAction? action;
 
@@ -3111,6 +3216,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
 
     if (nexusIdMatches.isNotEmpty) {
+      // ... (La lógica de diálogo de actualización/reemplazo basada en nexusId)
+      // Esta sección no necesita cambios, la copio de tu función original.
       for (final candidateMod in nexusIdMatches) {
         final candidateName = await _getComparableNameForMod(candidateMod);
         if (candidateName.toLowerCase() == baseDisplayName.toLowerCase()) {
@@ -3136,7 +3243,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             content: Text(
               l10n.dialogContentAlternativeVersion(
                 existingModExample,
-                baseDisplayName,
+                baseDisplayName!,
                 finalFolderName,
               ),
             ),
@@ -3216,7 +3323,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       }
     }
 
-    final newModPath = p.join(_finalModsPath!, finalFolderName);
+    // 3. LÓGICA DE INSTALACIÓN (Esto también se copia)
+    final newModPath = p.join(installPath, finalFolderName);
 
     if (await Directory(newModPath).exists()) {
       final confirmReinstall = await showDialog<bool>(
@@ -3265,21 +3373,26 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     await Directory(newModPath).create(recursive: true);
 
+    // 4. CREAR nexus_info.json (Aquí es donde guardamos la etiqueta)
+    // Usamos el nexusId si existe, pero ahora creamos el archivo *siempre*.
+    final infoFile = File(p.join(newModPath, 'nexus_info.json'));
+    final versionForFile = nexusVersion;
+
+    final Map<String, dynamic> modData = {
+      'nexusId': nexusId,
+      'displayName': baseDisplayName,
+      'customName': preservedCustomName ?? baseDisplayName,
+      'installedVersion': versionForFile,
+      'installDate': DateTime.now().toIso8601String(),
+      'managerVersion': _appVersion,
+      'fitMeshType': fitMeshType, // <-- "Generic" o el tipo de CNS
+      'modType': modType.name,  // <-- AÑADIDO: "cns" o "genericPak"
+      'sourceUrl': nexusId != null
+          ? 'https://www.nexusmods.com/stellarblade/mods/$nexusId'
+          : null,
+    };
+
     if (nexusId != null) {
-      final infoFile = File(p.join(newModPath, 'nexus_info.json'));
-      final versionForFile = nexusVersion;
-
-      final Map<String, dynamic> modData = {
-        'nexusId': nexusId,
-        'displayName': baseDisplayName,
-        'customName': preservedCustomName ?? baseDisplayName,
-        'installedVersion': versionForFile,
-        'installDate': DateTime.now().toIso8601String(),
-        'managerVersion': _appVersion,
-        'fitMeshType': fitMeshType,
-        'sourceUrl': 'https://www.nexusmods.com/stellarblade/mods/$nexusId',
-      };
-
       final nexusData = await _fetchNexusModData(nexusId);
       if (nexusData != null) {
         modData['gallery'] = nexusData['gallery'];
@@ -3287,16 +3400,20 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         modData['author'] = nexusData['author'];
         modData['description'] = nexusData['description'];
       }
-
-      final encoder = JsonEncoder.withIndent('  ');
-      await infoFile.writeAsString(encoder.convert(modData));
     }
 
-    for (final file in files) {
+    final encoder = JsonEncoder.withIndent('  ');
+    await infoFile.writeAsString(encoder.convert(modData));
+    
+    // 5. COPIAR ARCHIVOS (Usando la función auxiliar que ya tenías)
+    final filesToInstall = await _findAllModFilesRecursive(modDir);
+    
+    for (final file in filesToInstall) {
       final fileName = p.basename(file.path);
       final destinationPath = p.join(newModPath, fileName);
       await file.copy(destinationPath);
     }
+    
     if (nexusId != null) {
       await _cacheNexusThumbnail(modDirectory: Directory(newModPath), nexusId: nexusId);
     }
@@ -3310,26 +3427,47 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   Future<void> _enableMod(ModInfo modInfo) async {
-    if (_finalModsPath == null) return;
+    // MODIFICACIÓN: Comprueba ambas rutas
+    if (_finalModsPath == null || _genericModsPath == null) return;
     setState(() => _isLoading = true);
 
     try {
       final modName = p.basename(modInfo.directory.path);
-      final newDirectory = Directory(p.join(_finalModsPath!, modName));
+      
+      // --- INICIO DE LA MODIFICACIÓN: Lógica de ruta de destino ---
+      String modType = 'cns'; // Por defecto es 'cns' para mods antiguos sin tipo
+      final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
+      
+      try {
+        if (await infoFile.exists()) {
+          final content = await infoFile.readAsString();
+          if (content.isNotEmpty) {
+            final data = json.decode(content);
+            modType = data['modType'] ?? 'cns';
+          }
+        }
+      } catch (e) {
+        print("Could not read modType from nexus_info.json, defaulting to 'cns'. Error: $e");
+      }
 
-      await _moveMod(modInfo.directory, _finalModsPath!);
+      // Elige la carpeta de destino correcta
+      final String targetPath = (modType == 'genericPak') 
+          ? _genericModsPath! 
+          : _finalModsPath!;
+      
+      final newDirectory = Directory(p.join(targetPath, modName));
+      await _moveMod(modInfo.directory, targetPath);
+      // --- FIN DE LA MODIFICACIÓN ---
 
       final modIndex = _allMods.indexWhere(
         (m) => m.directory.path == modInfo.directory.path,
       );
       if (modIndex != -1) {
-        // ++ INICIO DE LA CORRECCIÓN ++
         // Usamos copyWith para crear una copia exacta preservando todos los metadatos.
         final updatedMod = modInfo.copyWith(
           directory: newDirectory, // <-- Actualiza la ruta
           isEnabled: true,         // <-- Actualiza el estado
         );
-        // ++ FIN DE LA CORRECCIÓN ++
         setState(() {
           _allMods[modIndex] = updatedMod;
         });
@@ -3348,7 +3486,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       setState(() => _isLoading = false);
     }
   }
-
   Future<void> _disableMod(ModInfo modInfo) async {
     if (_gameRootPath == null) return;
     setState(() => _isLoading = true);
@@ -3486,26 +3623,58 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     setState(() => _isLoading = true);
     try {
-      if (_finalModsPath == null) {
-        throw Exception("Mods path is not defined.");
+      // 1. Asegurarse de que AMBAS rutas de destino estén listas.
+      if (_finalModsPath == null || _genericModsPath == null) {
+        throw Exception("Mods paths are not defined.");
       }
 
-      final modsToUpdate = {for (var mod in disabledMods) mod.directory.path};
+      // 2. Necesitamos un mapa para rastrear la ruta antigua a la nueva.
+      // (Antigua ruta de backup -> Nuevo directorio de destino)
+      final Map<String, Directory> newDirectoryMap = {};
 
       for (final mod in disabledMods) {
-        await _moveMod(mod.directory, _finalModsPath!);
+        final modName = p.basename(mod.directory.path);
+        
+        // 3. Leer el modType para CADA mod (copiando la lógica de _enableMod)
+        String modType = 'cns'; // Por defecto es 'cns' para mods antiguos sin tipo
+        final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+        
+        try {
+          if (await infoFile.exists()) {
+            final content = await infoFile.readAsString();
+            if (content.isNotEmpty) {
+              final data = json.decode(content);
+              modType = data['modType'] ?? 'cns';
+            }
+          }
+        } catch (e) {
+          print("Could not read modType for ${mod.customName}, defaulting to 'cns'. Error: $e");
+        }
+
+        // 4. Determinar la carpeta de destino correcta
+        final String targetPath = (modType == 'genericPak') 
+            ? _genericModsPath! 
+            : _finalModsPath!;
+        
+        // 5. Mover el mod a su carpeta correcta
+        await _moveMod(mod.directory, targetPath);
+        
+        // 6. Almacenar la nueva ruta para la actualización de estado
+        newDirectoryMap[mod.directory.path] = Directory(p.join(targetPath, modName));
       }
       
+      // 7. Actualizar la lista de estado (_allMods) usando el mapa que creamos
       final List<ModInfo> updatedModsList = _allMods.map((originalMod) {
-        if (modsToUpdate.contains(originalMod.directory.path)) {
-          final modName = p.basename(originalMod.directory.path);
-          final newDirectory = Directory(p.join(_finalModsPath!, modName));
-          // ++ INICIO DE LA CORRECCIÓN ++
+        // Comprueba si este mod es uno de los que acabamos de mover
+        if (newDirectoryMap.containsKey(originalMod.directory.path)) {
+          
+          // Obtiene el nuevo directorio que guardamos
+          final newDirectory = newDirectoryMap[originalMod.directory.path]!;
+          
           return originalMod.copyWith(
             directory: newDirectory,
             isEnabled: true,
           );
-          // ++ FIN DE LA CORRECCIÓN ++
         }
         return originalMod;
       }).toList();
@@ -3513,10 +3682,24 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       setState(() {
         _allMods = updatedModsList;
       });
+      
+      // --- FIN DE LA CORRECCIÓN ---
 
-      // ... (lógica de notificación y finally sin cambios)
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.success,
+          title: l10n.snackBarAllModsEnabled(disabledMods.length),
+        );
+      }
     } catch (e) {
-      // ...
+      setState(() {
+        _statusMessage = AppLocalizations.of(
+          context,
+        )!.errorEnableMod(e.toString());
+        _statusColor = Colors.redAccent;
+      });
+      await _loadAllMods(); // Mantenemos la recarga total solo en caso de error
     } finally {
       setState(() => _isLoading = false);
     }
@@ -5067,8 +5250,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final canInstall =
-        _preparedMods.isNotEmpty && !_isLoading && !_isExtracting;
     final filteredAndSortedMods = _getFilteredAndSortedMods(l10n);
 
     final cnsUpdateIdentifier = _cnsUpdateInfo != null
@@ -5360,41 +5541,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 
-  Widget _buildInstallerSection(bool canInstall, AppLocalizations l10n) {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(
-                vertical: 12,
-              ), // Padding vertical reducido
-            ),
-            icon: const Icon(Icons.archive),
-            label: Text(l10n.selectModArchive),
-            onPressed: _isLoading ? null : _pickArchive,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.download_for_offline),
-            label: Text(l10n.installSelectedMod),
-            onPressed: canInstall ? _installMod : null,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(
-                vertical: 12,
-              ), // Padding vertical reducido
-              backgroundColor: canInstall
-                  ? Colors.tealAccent
-                  : Colors.grey[700],
-              foregroundColor: Colors.black87,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   // main.dart
 
@@ -5559,10 +5705,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
     final hasCustomCover =
         modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty;
-    File? customCoverFile;
     if (hasCustomCover) {
-      final path = p.join(modInfo.directory.path, modInfo.customCoverPath!);
-      customCoverFile = File(path);
+      p.join(modInfo.directory.path, modInfo.customCoverPath!);
     }
     final displayVersion = modInfo.customVersion ?? modInfo.localVersion;
     final displayTag =
@@ -7463,7 +7607,6 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
   bool _isTranslating = false;
   bool _showTranslateSummaryButton = false;
   bool _showTranslateDescriptionButton = false;
-  bool _showTranslateButton = false;
   bool _needsReloadOnClose = false;
   late bool _isIgnored;
 

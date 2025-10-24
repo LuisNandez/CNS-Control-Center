@@ -449,6 +449,30 @@
         "example": "10"
       }
     }
+  },
+  "genericModInstallTitle": "Generic Mod Installed: {modName}",
+  "@genericModInstallTitle": {
+    "placeholders": {
+      "modName": {
+        "type": "String"
+      }
+    }
+  },
+  "genericModInstallDesc": "Installed to {path}. This mod is not managed by the app and must be uninstalled manually.",
+  "@genericModInstallDesc": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "genericModInstallError": "Failed to install generic mod: {modName}",
+  "@genericModInstallError": {
+    "placeholders": {
+      "modName": {
+        "type": "String"
+      }
+    }
   }
 }
 

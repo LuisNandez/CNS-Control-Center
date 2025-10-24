@@ -2031,6 +2031,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Updating metadata for \'{displayName}\' ({arg1} of {arg2})...'**
   String statusUpdatingMetadata(String displayName, int arg1, int arg2);
+
+  /// No description provided for @genericModInstallTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generic Mod Installed: {modName}'**
+  String genericModInstallTitle(String modName);
+
+  /// No description provided for @genericModInstallDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed to {path}. This mod is not managed by the app and must be uninstalled manually.'**
+  String genericModInstallDesc(String path);
+
+  /// No description provided for @genericModInstallError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to install generic mod: {modName}'**
+  String genericModInstallError(String modName);
 }
 
 class _AppLocalizationsDelegate
