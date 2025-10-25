@@ -1180,4 +1180,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get modTypeGeneric => 'Generic';
+
+  @override
+  String get modTypeMovies => 'Movies';
 }

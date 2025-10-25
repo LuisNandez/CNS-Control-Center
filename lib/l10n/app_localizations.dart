@@ -2061,6 +2061,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Generic'**
   String get modTypeGeneric;
+
+  /// No description provided for @modTypeMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies'**
+  String get modTypeMovies;
 }
 
 class _AppLocalizationsDelegate

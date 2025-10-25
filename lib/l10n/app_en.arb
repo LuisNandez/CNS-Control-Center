@@ -475,6 +475,7 @@
     }
   },
   "modTypeCNS": "CNS",
-  "modTypeGeneric": "Generic"
+  "modTypeGeneric": "Generic",
+  "modTypeMovies": "Movies"
 }
 

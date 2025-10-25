@@ -1,4 +1,3 @@
-// lib/mod_classifier_service.dart
 import 'dart:io';
 import 'package:path/path.dart' as p;
 
@@ -8,16 +7,19 @@ enum ModDirectoryType {
   cns,
   /// Un mod Pak genérico, instalable pero no gestionable por la UI.
   genericPak,
+  /// Un mod de reemplazo de película (.bk2).
+  movies,
   /// No es un mod o es desconocido.
   unknown
 }
 
 class ModClassifierService {
-  /// Clasifica un directorio como un mod CNS o un mod Pak Genérico
-  /// basado en su contenido, siguiendo tus definiciones.
+  /// Clasifica un directorio como un mod CNS, Genérico o de Películas
+  /// basado en su contenido.
   static Future<ModDirectoryType> classifyModDirectory(Directory modDir) async {
     bool hasJson = false;
     bool hasPakFile = false; // Variable para .pak, .ucas o .utoc
+    bool hasBk2File = false; // Variable para .bk2
 
     // Solo escaneamos la raíz del directorio del mod (no subcarpetas).
     await for (final entity in modDir.list(recursive: false, followLinks: false)) {
@@ -28,28 +30,33 @@ class ModClassifierService {
           hasJson = true;
         } else if (extension == '.pak' || extension == '.ucas' || extension == '.utoc') {
           hasPakFile = true;
+        } else if (extension == '.bk2') {
+          hasBk2File = true;
         }
       }
     }
 
-    // --- NUEVA LÓGICA DE CLASIFICACIÓN ---
+    // --- LÓGICA DE CLASIFICACIÓN (CON PRIORIDAD) ---
 
     // Regla 1: Mod CNS
-    // Si tiene CUALQUIER .json Y al menos un archivo .pak, .ucas, o .utoc,
-    // es un mod CNS.
+    // Si tiene CUALQUIER .json Y al menos un archivo .pak, es CNS.
     if (hasJson && hasPakFile) {
       return ModDirectoryType.cns;
     }
 
     // Regla 2: Mod Genérico
-    // Si NO tiene .json PERO SÍ tiene al menos un archivo .pak, .ucas, o .utoc,
-    // es un mod Genérico.
+    // Si NO tiene .json PERO SÍ tiene al menos un .pak, es Genérico.
     if (!hasJson && hasPakFile) {
       return ModDirectoryType.genericPak;
     }
 
-    // Regla 3: Desconocido
-    // Si no tiene archivos .pak o .json, no es un mod que podamos manejar.
+    // Regla 3: Mod de Películas
+    // Si tiene un .bk2 Y NO tiene ni .json ni .pak, es un mod de Películas.
+    if (hasBk2File && !hasJson && !hasPakFile) {
+      return ModDirectoryType.movies;
+    }
+    
+    // Regla 4: Desconocido
     return ModDirectoryType.unknown;
   }
 }

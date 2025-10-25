@@ -310,6 +310,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   String? _gameRootPath;
   String? _finalModsPath;
   String? _genericModsPath;
+  String? _moviesPath;
+  String? _moviesBackupPath;
 
   String? _7zipPath;
 
@@ -1261,16 +1263,30 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           'Paks',
           '~mods',
         );
+        // Ruta de las películas del juego
+        final moviesPath = p.join(
+          gamePath, 'SB', 'Content', 'Movies',
+        );
+        // Ruta para guardar las películas ORIGINALES del juego
+        final moviesBackupPath = p.join(
+          gamePath, 'SB', 'Content', '__MOVIES_ORIGINALS__',
+        );
         
         // --- INICIO DE LA MODIFICACIÓN ---
-        // Asegurarse de que ambas carpetas existan
+        // Asegurarse de que todas las carpetas de mods existan
         final cnsDir = Directory(cnsModPath);
         final genericDir = Directory(genericModPath);
+        // Asegurarse de que el directorio de respaldo de películas exista
+        final moviesBackupDir = Directory(moviesBackupPath);
+        
         if (!await cnsDir.exists()) {
           await cnsDir.create(recursive: true);
         }
         if (!await genericDir.exists()) {
           await genericDir.create(recursive: true);
+        }
+        if (!await moviesBackupDir.exists()) {
+          await moviesBackupDir.create(recursive: true);
         }
         // --- FIN DE LA MODIFICACIÓN ---
 
@@ -1278,6 +1294,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           _gameRootPath = gamePath;
           _finalModsPath = cnsModPath; // Para mods CNS
           _genericModsPath = genericModPath; // Para mods Genéricos
+          _moviesPath = moviesPath;
+          _moviesBackupPath = moviesBackupPath;
           if (mounted) {
             _statusMessage = AppLocalizations.of(context)!.statusGamePathFound;
           }
@@ -1286,6 +1304,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         setState(() {
           _finalModsPath = null;
           _genericModsPath = null; // <-- Asegúrate de ponerlo a null también
+          _moviesPath = null;
+          _moviesBackupPath = null;
           if (mounted) {
             _statusMessage = AppLocalizations.of(
               context,
@@ -1298,6 +1318,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       setState(() {
         _finalModsPath = null;
         _genericModsPath = null; // <-- Asegúrate de ponerlo a null también
+        _moviesPath = null;
+        _moviesBackupPath = null;
         if (mounted) {
           _statusMessage = AppLocalizations.of(
             context,
@@ -1516,7 +1538,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   String _cleanNexusFileName(String fileName) {
     // 1. Intenta encontrar un patrón de ID de Mod de Nexus (ej: -123-)
     // Esta es la misma regex que se usa en _extractNexusInfoFromName
-    final nexusIdRegex = RegExp(r'-(\d{3,5})-');
+    final nexusIdRegex = RegExp(r'-(\d{2,5})-');
     final match = nexusIdRegex.firstMatch(fileName);
 
     if (match != null) {
@@ -1668,6 +1690,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             List<dynamic>? gallery;
             String? fitMeshType;
             String? modType;
+            bool? isEnabledFromJson;
             String? customCoverPath;
             Alignment? customCoverAlignment;
             DateTime? customCoverLastModified;
@@ -1686,6 +1709,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String? userNotes;
             String? sourceUrl;
             String? customSourceUrl;
+
+            bool isEnabledForMod = isEnabled; 
+            DateTime? installDate;
 
             final infoFile = File(p.join(entity.path, 'nexus_info.json'));
             final fileStat = await entity
@@ -1737,6 +1763,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               gallery = data['gallery'];
               fitMeshType = data['fitMeshType'];
               modType = data['modType'] as String?;
+              isEnabledFromJson = data['isEnabled'] as bool?;
               summary = data['summary'];
               customSummary = data['customSummary'];
               description = data['description'];
@@ -1779,8 +1806,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               }
             }
 
+            if (modType == 'movies' && await infoFile.exists()) {
+                final content = await infoFile.readAsString();
+                final data = json.decode(content);
+                isEnabledForMod = data['isEnabled'] as bool? ?? false;
+              }
             // Lógica de fallback si el nexus_info.json no existe o está incompleto
-            if (fitMeshType == null) {
+            if (fitMeshType == null && modType != 'movies') {
               fitMeshType = await _getFitMeshTypeForMod(entity);
               if (fitMeshType != null && await infoFile.exists()) {
                 try {
@@ -1807,7 +1839,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 nexusId: nexusId,
                 localVersion: installedVersion,
                 lastModified: modLastModified,
-                isEnabled: isEnabled,
+                installDate: installDate,
+                isEnabled: isEnabledForMod,
                 origin: origin,
                 displayName: displayName,
                 customName: customName,
@@ -2124,8 +2157,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
 
     try {
-      // Busca todos los números de 3 a 5 dígitos que estén entre guiones.
-      final potentialIdsRegex = RegExp(r'-(\d{3,5})-');
+      // Busca todos los números de 2 a 5 dígitos que estén entre guiones.
+      final potentialIdsRegex = RegExp(r'-(\d{2,5})-');
       final matches = potentialIdsRegex.allMatches(name);
 
       for (final match in matches) {
@@ -3186,8 +3219,20 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     // 1. CLASIFICAR EL MOD Y OBTENER SUS DATOS
     final modType = await ModClassifierService.classifyModDirectory(modDir);
     String? baseDisplayName;
-    String? fitMeshType; // <-- ¡La etiqueta que pediste!
-    String? installPath; // <-- Dónde se instalará
+    String? fitMeshType;
+    String? installPath;
+    List<String> replacedFiles = [];
+
+    // Definir la ruta de backup general (para mods deshabilitados y movies)
+    if (_gameRootPath == null) throw Exception("Game path not defined.");
+    final backupDirPath = p.join(
+      _gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__',
+    );
+    // Asegurarse de que exista
+    final backupDir = Directory(backupDirPath);
+    if (!await backupDir.exists()) {
+      await backupDir.create(recursive: true);
+    }
 
     if (modType == ModDirectoryType.cns) {
       // Es un mod CNS: obtenemos el nombre y la etiqueta desde sus .json
@@ -3199,6 +3244,20 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       baseDisplayName = preparedMod.archiveName;
       fitMeshType = "Generic"; // <-- ¡AQUÍ ESTÁ LA ETIQUETA!
       installPath = _genericModsPath; // Se instala en la carpeta genérica
+    } else if (modType == ModDirectoryType.movies) {
+      baseDisplayName = preparedMod.archiveName;
+      fitMeshType = null; // Los mods de películas no tienen etiqueta de contenido
+      installPath = backupDirPath; // Se instala DIRECTAMENTE en backups
+      
+      // Busca todos los archivos .bk2 para guardarlos en el JSON
+      await for (final entity in modDir.list()) {
+        if (entity is File && p.extension(entity.path).toLowerCase() == '.bk2') {
+          replacedFiles.add(p.basename(entity.path));
+        }
+      }
+      if (replacedFiles.isEmpty) {
+        throw Exception("Movies mod contains no .bk2 files.");
+      }
     } else {
       // No debería pasar si el clasificador de _processArchives funcionó
       throw Exception(l10n.errorNoCompatibleFilesInArchive);
@@ -3314,6 +3373,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           }
 
           final oldModName = oldVersionMod.customName;
+          // Si el mod a reemplazar era un 'Movies' habilitado, deshabilítalo primero
+          if (oldVersionMod.modType == 'movies' && oldVersionMod.isEnabled) {
+            await _disableMod(oldVersionMod);
+          }
           final deleted = await _deleteDirectoryWithRetry(
             oldVersionMod.directory,
           );
@@ -3369,6 +3432,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             print('Could not read old custom name. Defaulting. Error: $e');
           }
         }
+        // Si el mod a reinstalar es un 'Movies' habilitado, deshabilítalo primero
+        final modToReinstall = _allMods.firstWhere((m) => m.directory.path == newModPath, orElse: () => ModInfo(directory: Directory(''), lastModified: DateTime.now(), isEnabled: false, displayName: '', customName: ''));
+        if (modToReinstall.directory.path.isNotEmpty && modToReinstall.modType == 'movies' && modToReinstall.isEnabled) {
+          await _disableMod(modToReinstall);
+        }
+
         final deleted = await _deleteDirectoryWithRetry(Directory(newModPath));
         if (!deleted) {
           throw Exception(
@@ -3397,7 +3466,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       'sourceUrl': nexusId != null
           ? 'https://www.nexusmods.com/stellarblade/mods/$nexusId'
           : null,
+      'isEnabled': (modType == ModDirectoryType.movies) ? false : null, // Los mods 'Movies' se instalan deshabilitados
+      'replacedFiles': (modType == ModDirectoryType.movies) ? replacedFiles : null,
     };
+    // Limpia valores nulos para no ensuciar el JSON
+    modData.removeWhere((key, value) => value == null);
 
     if (nexusId != null) {
       final nexusData = await _fetchNexusModData(nexusId);
@@ -3413,7 +3486,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     await infoFile.writeAsString(encoder.convert(modData));
     
     // 5. COPIAR ARCHIVOS (Usando la función auxiliar que ya tenías)
-    final filesToInstall = await _findAllModFilesRecursive(modDir);
+    List<File> filesToInstall = [];
+    if (modType == ModDirectoryType.movies) {
+      // Solo copia los archivos .bk2
+      for (final fileName in replacedFiles) {
+        filesToInstall.add(File(p.join(modDir.path, fileName)));
+      }
+    } else {
+      // Lógica anterior para CNS/Genéricos
+      filesToInstall = await _findAllModFilesRecursive(modDir);
+    }
     
     for (final file in filesToInstall) {
       final fileName = p.basename(file.path);
@@ -3439,47 +3521,43 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     setState(() => _isLoading = true);
 
     try {
-      final modName = p.basename(modInfo.directory.path);
-      
-      // --- INICIO DE LA MODIFICACIÓN: Lógica de ruta de destino ---
-      String modType = 'cns'; // Por defecto es 'cns' para mods antiguos sin tipo
-      final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
-      
-      try {
-        if (await infoFile.exists()) {
-          final content = await infoFile.readAsString();
-          if (content.isNotEmpty) {
-            final data = json.decode(content);
-            modType = data['modType'] ?? 'cns';
-          }
-        }
-      } catch (e) {
-        print("Could not read modType from nexus_info.json, defaulting to 'cns'. Error: $e");
-      }
+      ModInfo updatedMod;
 
-      // Elige la carpeta de destino correcta
-      final String targetPath = (modType == 'genericPak') 
-          ? _genericModsPath! 
-          : _finalModsPath!;
-      
-      final newDirectory = Directory(p.join(targetPath, modName));
-      await _moveMod(modInfo.directory, targetPath);
-      // --- FIN DE LA MODIFICACIÓN ---
+      // --- INICIO DE LÓGICA DE BIFURCACIÓN ---
+      if (modInfo.modType == 'movies') {
+        // LÓGICA DE REEMPLAZO (MOVIES)
+        // ++ PASAMOS _allMods para que pueda resolver conflictos ++
+        await _enableMovieMod(modInfo, _allMods);
+        updatedMod = modInfo.copyWith(isEnabled: true); // Actualiza el estado local
+      } else {
+        // LÓGICA DE MOVIMIENTO DE CARPETA (CNS/GENÉRICO)
+        final modName = p.basename(modInfo.directory.path);
+        
+        String modType = modInfo.modType ?? 'cns'; // Usa el tipo del ModInfo
+        
+        final String targetPath = (modType == 'genericPak') 
+            ? _genericModsPath! 
+            : _finalModsPath!;
+        
+        final newDirectory = Directory(p.join(targetPath, modName));
+        await _moveMod(modInfo.directory, targetPath);
+        
+        updatedMod = modInfo.copyWith(
+          directory: newDirectory,
+          isEnabled: true,
+        );
+      }
+      // --- FIN DE LÓGICA DE BIFURCACIÓN ---
 
       final modIndex = _allMods.indexWhere(
         (m) => m.directory.path == modInfo.directory.path,
       );
       if (modIndex != -1) {
-        // Usamos copyWith para crear una copia exacta preservando todos los metadatos.
-        final updatedMod = modInfo.copyWith(
-          directory: newDirectory, // <-- Actualiza la ruta
-          isEnabled: true,         // <-- Actualiza el estado
-        );
         setState(() {
           _allMods[modIndex] = updatedMod;
         });
       } else {
-        await _loadAllMods(); // Fallback por si algo sale mal
+        await _loadAllMods();
       }
     } catch (e) {
       setState(() {
@@ -3493,6 +3571,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       setState(() => _isLoading = false);
     }
   }
+
   Future<void> _disableMod(ModInfo modInfo) async {
     if (_gameRootPath == null) return;
     setState(() => _isLoading = true);
@@ -3505,27 +3584,36 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         await backupDir.create(recursive: true);
       }
 
-      final modName = p.basename(modInfo.directory.path);
-      final newDirectory = Directory(p.join(backupDir.path, modName));
+      ModInfo updatedMod;
 
-      await _moveMod(modInfo.directory, backupDir.path);
+      // --- INICIO DE LÓGICA DE BIFURCACIÓN ---
+      if (modInfo.modType == 'movies') {
+        // LÓGICA DE REEMPLAZO (MOVIES)
+        await _disableMovieMod(modInfo);
+        updatedMod = modInfo.copyWith(isEnabled: false); // Actualiza el estado local
+      } else {
+        // LÓGICA DE MOVIMIENTO DE CARPETA (CNS/GENÉRICO)
+        final modName = p.basename(modInfo.directory.path);
+        final newDirectory = Directory(p.join(backupDir.path, modName));
+
+        await _moveMod(modInfo.directory, backupDir.path);
+
+        updatedMod = modInfo.copyWith(
+          directory: newDirectory,
+          isEnabled: false,
+        );
+      }
+      // --- FIN DE LÓGICA DE BIFURCACIÓN ---
 
       final modIndex = _allMods.indexWhere(
         (m) => m.directory.path == modInfo.directory.path,
       );
       if (modIndex != -1) {
-        // ++ INICIO DE LA CORRECCIÓN ++
-        // Usamos copyWith aquí también.
-        final updatedMod = modInfo.copyWith(
-          directory: newDirectory, // <-- Actualiza la ruta
-          isEnabled: false,        // <-- Actualiza el estado
-        );
-        // ++ FIN DE LA CORRECCIÓN ++
         setState(() {
           _allMods[modIndex] = updatedMod;
         });
       } else {
-        await _loadAllMods(); // Fallback
+        await _loadAllMods();
       }
     } catch (e) {
       setState(() {
@@ -3538,6 +3626,123 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  /// Lógica específica para HABILITAR un mod de tipo "Movies".
+  Future<void> _enableMovieMod(ModInfo modInfo, List<ModInfo> allMods) async {
+    if (_moviesPath == null || _moviesBackupPath == null) {
+      throw Exception("Movies paths are not defined.");
+    }
+
+    final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
+    if (!await infoFile.exists()) {
+      throw Exception("nexus_info.json not found for ${modInfo.customName}.");
+    }
+
+    final data = json.decode(await infoFile.readAsString());
+    final List<String> replacedFiles = List<String>.from(data['replacedFiles'] ?? []);
+
+    // ++ INICIO DE LA LÓGICA DE EXCLUSIVIDAD ++
+    // 1. Deshabilitar otros mods que reemplacen los mismos archivos
+    final Set<String> filesToReplace = replacedFiles.toSet();
+
+    for (final otherMod in allMods) {
+      // Si es el mismo mod, o no está habilitado, o no es de películas, lo ignoramos
+      // ++ LÓGICA REVERTIDA: solo nos importa si 'otherMod.isEnabled' es true ++
+      if (otherMod.directory.path == modInfo.directory.path || 
+          !otherMod.isEnabled || 
+          otherMod.modType != 'movies') {
+        continue;
+      }
+      
+      // Leemos los archivos del otro mod
+      final otherInfoFile = File(p.join(otherMod.directory.path, 'nexus_info.json'));
+      if (!await otherInfoFile.exists()) continue;
+      
+      try {
+        final otherData = json.decode(await otherInfoFile.readAsString());
+        final List<String> otherReplacedFiles = List<String>.from(otherData['replacedFiles'] ?? []);
+
+        // Comprobamos si hay CUALQUIER solapamiento
+        bool hasConflict = otherReplacedFiles.any((file) => filesToReplace.contains(file));
+
+        if (hasConflict) {
+          print("Disabling conflicting movie mod: ${otherMod.customName}");
+          // Deshabilitamos el mod conflictivo (esto restaura la original)
+          await _disableMovieMod(otherMod); 
+          
+          // Actualizamos su estado en la lista principal (_allMods)
+          final modIndex = allMods.indexWhere((m) => m.directory.path == otherMod.directory.path);
+          if (modIndex != -1) {
+            // Actualizamos la instancia en la lista que se está procesando
+            allMods[modIndex] = otherMod.copyWith(isEnabled: false);
+          }
+        }
+      } catch (e) {
+        print("Error checking conflict for ${otherMod.customName}: $e");
+      }
+    }
+    // ++ FIN DE LA LÓGICA DE EXCLUSIVIDAD ++
+
+    // 2. Lógica de habilitación (copia de seguridad y reemplazo)
+    // (Esta lógica se ejecuta DESPUÉS de que _disableMovieMod haya restaurado la original)
+    for (final fileName in replacedFiles) {
+      final gameFile = File(p.join(_moviesPath!, fileName));
+      final backupFile = File(p.join(_moviesBackupPath!, '$fileName.bak'));
+      final modFile = File(p.join(modInfo.directory.path, fileName));
+
+      // 1. Crear respaldo del archivo original, SI NO EXISTE YA
+      // (La lógica de "no sobrescribir respaldo" sigue siendo válida y crucial)
+      if (await gameFile.exists() && !await backupFile.exists()) {
+        await gameFile.copy(backupFile.path);
+      }
+
+      // 2. Copiar el archivo del mod al directorio del juego
+      if (await modFile.exists()) {
+        await modFile.copy(gameFile.path);
+      }
+    }
+
+    // 3. Actualizar el estado en el JSON del nuevo mod
+    data['isEnabled'] = true;
+    final encoder = JsonEncoder.withIndent('  ');
+    await infoFile.writeAsString(encoder.convert(data));
+  }
+  
+  /// Lógica específica para DESHABILITAR un mod de tipo "Movies".
+  Future<void> _disableMovieMod(ModInfo modInfo) async {
+    if (_moviesPath == null || _moviesBackupPath == null) {
+      throw Exception("Movies paths are not defined.");
+    }
+
+    final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
+    if (!await infoFile.exists()) {
+      throw Exception("nexus_info.json not found for ${modInfo.customName}.");
+    }
+
+    final data = json.decode(await infoFile.readAsString());
+    final List<String> replacedFiles = List<String>.from(data['replacedFiles'] ?? []);
+
+    for (final fileName in replacedFiles) {
+      final gameFile = File(p.join(_moviesPath!, fileName));
+      final backupFile = File(p.join(_moviesBackupPath!, '$fileName.bak'));
+
+      // 1. Restaurar el respaldo, SI EXISTE
+      if (await backupFile.exists()) {
+        await backupFile.copy(gameFile.path);
+      } else {
+        // Si no hay respaldo, lo mejor que podemos hacer es borrar el archivo
+        // del mod para no dejarlo en estado "modificado".
+        if (await gameFile.exists()) {
+          await gameFile.delete();
+        }
+      }
+    }
+
+    // 2. Actualizar el estado en el JSON
+    data['isEnabled'] = false;
+    final encoder = JsonEncoder.withIndent('  ');
+    await infoFile.writeAsString(encoder.convert(data));
   }
 
   Future<void> _deleteModPermanently(ModInfo modInfo) async {
@@ -3570,7 +3775,36 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       _lastInstalledModNames.clear();
     });
     try {
+      // --- INICIO DE LÓGICA DE BIFURCACIÓN ---
+      if (modInfo.modType == 'movies') {
+        // LÓGICA DE REEMPLAZO (MOVIES)
+        // 1. Si está habilitado, deshabilítalo primero para restaurar el original.
+        if (modInfo.isEnabled) {
+          await _disableMovieMod(modInfo);
+        }
+        
+        // 2. (Opcional pero recomendado) Borra los backups de los originales
+        final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
+        if (await infoFile.exists() && _moviesBackupPath != null) {
+          try {
+            final data = json.decode(await infoFile.readAsString());
+            final List<String> replacedFiles = List<String>.from(data['replacedFiles'] ?? []);
+            for (final fileName in replacedFiles) {
+              final backupFile = File(p.join(_moviesBackupPath!, '$fileName.bak'));
+              if (await backupFile.exists()) {
+                await backupFile.delete();
+              }
+            }
+          } catch (e) {
+            print("Could not clean up movie backups: $e");
+          }
+        }
+      }
+      // --- FIN DE LÓGICA DE BIFURCACIÓN ---
+
+      // La lógica de borrado de carpeta es la misma para todos
       final deleted = await _deleteDirectoryWithRetry(modInfo.directory);
+      
       if (deleted && mounted) {
         NotificationService.instance.show(
           context: context,
@@ -3593,13 +3827,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _enableAllMods() async {
     final l10n = AppLocalizations.of(context)!;
-    final disabledMods = _allMods.where((mod) => !mod.isEnabled).toList();
+
+    // ++ INICIO DE LA MODIFICACIÓN ++
+    // 1. Obtenemos solo los mods deshabilitados QUE NO SEAN de tipo 'movies'.
+    final disabledMods = _allMods.where((mod) => !mod.isEnabled && mod.modType != 'movies').toList();
+    // ++ FIN DE LA MODIFICACIÓN ++
 
     if (disabledMods.isEmpty) {
       if (mounted) {
         NotificationService.instance.show(
           context: context,
           type: NotificationType.info,
+          // Este mensaje ahora es más preciso, ya que puede haber
+          // mods de películas deshabilitados, pero no mods "habilitables"
           title: l10n.snackBarNoModsToEnable,
         );
       }
@@ -3611,6 +3851,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2a2a2a),
         title: Text(l10n.dialogTitleEnableAll),
+        // El 'disabledMods.length' ahora es correcto (no incluye películas)
         content: Text(l10n.dialogContentEnableAll(disabledMods.length)),
         actions: [
           TextButton(
@@ -3630,58 +3871,42 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     setState(() => _isLoading = true);
     try {
-      // 1. Asegurarse de que AMBAS rutas de destino estén listas.
       if (_finalModsPath == null || _genericModsPath == null) {
         throw Exception("Mods paths are not defined.");
       }
 
-      // 2. Necesitamos un mapa para rastrear la ruta antigua a la nueva.
-      // (Antigua ruta de backup -> Nuevo directorio de destino)
-      final Map<String, Directory> newDirectoryMap = {};
+      // 2. Un mapa para rastrear la ruta antigua a la nueva ModInfo
+      final Map<String, ModInfo> updatedModMap = {};
 
+      // ++ INICIO DE LA MODIFICACIÓN ++
+      // 3. Eliminamos toda la lógica de 'movieFileOwnerMap'.
+      // Iteramos directamente sobre 'disabledMods', que ya no contiene películas.
+      
       for (final mod in disabledMods) {
+        // 4. El 'if (mod.modType == 'movies')' se ha ido.
+        // Solo queda la lógica 'else' (CNS/Genérico).
+        
+        // LÓGICA DE MOVIMIENTO DE CARPETA (CNS/GENÉRICO)
         final modName = p.basename(mod.directory.path);
+        final modType = mod.modType ?? 'cns';
         
-        // 3. Leer el modType para CADA mod (copiando la lógica de _enableMod)
-        String modType = 'cns'; // Por defecto es 'cns' para mods antiguos sin tipo
-        final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
-        
-        try {
-          if (await infoFile.exists()) {
-            final content = await infoFile.readAsString();
-            if (content.isNotEmpty) {
-              final data = json.decode(content);
-              modType = data['modType'] ?? 'cns';
-            }
-          }
-        } catch (e) {
-          print("Could not read modType for ${mod.customName}, defaulting to 'cns'. Error: $e");
-        }
-
-        // 4. Determinar la carpeta de destino correcta
         final String targetPath = (modType == 'genericPak') 
             ? _genericModsPath! 
             : _finalModsPath!;
         
-        // 5. Mover el mod a su carpeta correcta
         await _moveMod(mod.directory, targetPath);
         
-        // 6. Almacenar la nueva ruta para la actualización de estado
-        newDirectoryMap[mod.directory.path] = Directory(p.join(targetPath, modName));
+        updatedModMap[mod.directory.path] = mod.copyWith(
+          directory: Directory(p.join(targetPath, modName)),
+          isEnabled: true,
+        );
       }
+      // ++ FIN DE LA MODIFICACIÓN ++
       
-      // 7. Actualizar la lista de estado (_allMods) usando el mapa que creamos
+      // 5. Actualizar la lista de estado (_allMods) usando el mapa
       final List<ModInfo> updatedModsList = _allMods.map((originalMod) {
-        // Comprueba si este mod es uno de los que acabamos de mover
-        if (newDirectoryMap.containsKey(originalMod.directory.path)) {
-          
-          // Obtiene el nuevo directorio que guardamos
-          final newDirectory = newDirectoryMap[originalMod.directory.path]!;
-          
-          return originalMod.copyWith(
-            directory: newDirectory,
-            isEnabled: true,
-          );
+        if (updatedModMap.containsKey(originalMod.directory.path)) {
+          return updatedModMap[originalMod.directory.path]!;
         }
         return originalMod;
       }).toList();
@@ -3689,13 +3914,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       setState(() {
         _allMods = updatedModsList;
       });
-      
       // --- FIN DE LA CORRECCIÓN ---
 
       if (mounted) {
         NotificationService.instance.show(
           context: context,
           type: NotificationType.success,
+          // 'disabledMods.length' es correcto.
           title: l10n.snackBarAllModsEnabled(disabledMods.length),
         );
       }
@@ -3706,7 +3931,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         )!.errorEnableMod(e.toString());
         _statusColor = Colors.redAccent;
       });
-      await _loadAllMods(); // Mantenemos la recarga total solo en caso de error
+      await _loadAllMods(); 
     } finally {
       setState(() => _isLoading = false);
     }
@@ -3761,22 +3986,34 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         await backupDir.create(recursive: true);
       }
 
-      final modsToUpdate = {for (var mod in enabledMods) mod.directory.path};
+      // 1. Un mapa para rastrear la ruta antigua a la nueva ModInfo
+      final Map<String, ModInfo> updatedModMap = {};
 
       for (final mod in enabledMods) {
-        await _moveMod(mod.directory, backupDir.path);
-      }
-      
-      final List<ModInfo> updatedModsList = _allMods.map((originalMod) {
-        if (modsToUpdate.contains(originalMod.directory.path)) {
-          final modName = p.basename(originalMod.directory.path);
-          final newDirectory = Directory(p.join(backupDir.path, modName));
-          // ++ INICIO DE LA CORRECCIÓN ++
-          return originalMod.copyWith(
-            directory: newDirectory,
+        // ++ INICIO DE LA LÓGICA CORREGIDA ++
+        if (mod.modType == 'movies') {
+          // LÓGICA DE RESTAURACIÓN (MOVIES)
+          await _disableMovieMod(mod);
+          // Prepara la actualización para el mapa. No se mueve de carpeta.
+          updatedModMap[mod.directory.path] = mod.copyWith(isEnabled: false);
+        } else {
+          // LÓGICA DE MOVIMIENTO DE CARPETA (CNS/GENÉRICO)
+          final modName = p.basename(mod.directory.path);
+          await _moveMod(mod.directory, backupDir.path);
+          // Prepara la actualización para el mapa, con la nueva ruta.
+          updatedModMap[mod.directory.path] = mod.copyWith(
+            directory: Directory(p.join(backupDir.path, modName)),
             isEnabled: false,
           );
-          // ++ FIN DE LA CORRECCIÓN ++
+        }
+        // ++ FIN DE LA LÓGICA CORREGIDA ++
+      }
+      
+      // 2. Actualizar la lista de estado (_allMods) usando el mapa
+      final List<ModInfo> updatedModsList = _allMods.map((originalMod) {
+        // Comprueba si este mod es uno de los que acabamos de actualizar
+        if (updatedModMap.containsKey(originalMod.directory.path)) {
+          return updatedModMap[originalMod.directory.path]!;
         }
         return originalMod;
       }).toList();
@@ -6107,18 +6344,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 
-  /// Construye el widget de la etiqueta de Tipo de Mod (CNS o Genérico).
+  /// Construye el widget de la etiqueta de Tipo de Mod (CNS, Genérico o Movies).
   Widget _buildModTypeBadge(String? modType, AppLocalizations l10n) {
     final String modTypeString;
     final Color modTypeColor;
 
     if (modType == 'genericPak') {
       modTypeString = l10n.modTypeGeneric; // "Genérico"
-      modTypeColor = const Color.fromARGB(255, 12, 141, 176); // Color para "Generic"
+      modTypeColor = Colors.blueAccent.shade400; // Color para "Generic"
+    } else if (modType == 'movies') {
+      modTypeString = l10n.modTypeMovies; // "Películas"
+      modTypeColor = Colors.purpleAccent.shade400; // Color para "Movies"
     } else {
       // Asumimos 'cns' por defecto para todos los demás (incluidos mods antiguos)
       modTypeString = l10n.modTypeCNS; // "CNS"
-      modTypeColor = const Color.fromARGB(255, 138, 3, 136); // Color para "CNS"
+      modTypeColor = Colors.teal.shade600; // Color para "CNS"
     }
 
     return Container(
