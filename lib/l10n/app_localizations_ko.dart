@@ -1153,4 +1153,23 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get modTypeMovies => 'Movies';
+
+  @override
+  String get replacesOutfitTitle => 'Replaces Outfit';
+
+  @override
+  String get replacesOutfitClearTooltip => 'Clear outfit selection';
+
+  @override
+  String get replacesOutfitSelectTooltip => 'Select outfit to replace';
+
+  @override
+  String get replacesOutfitNone =>
+      'No outfit selected. The tag will be \'Generic\'.';
+
+  @override
+  String get replacesOutfitSearchHint => 'Search outfits...';
+
+  @override
+  String get modTypeReplacement => 'Replacement';
 }

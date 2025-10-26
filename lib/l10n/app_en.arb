@@ -476,6 +476,12 @@
   },
   "modTypeCNS": "CNS",
   "modTypeGeneric": "Generic",
-  "modTypeMovies": "Movies"
+  "modTypeMovies": "Movies",
+  "replacesOutfitTitle": "Replaces Outfit",
+  "replacesOutfitClearTooltip": "Clear outfit selection",
+  "replacesOutfitSelectTooltip": "Select outfit to replace",
+  "replacesOutfitNone": "No outfit selected. The tag will be 'Generic'.",
+  "replacesOutfitSearchHint": "Search outfits...",
+  "modTypeReplacement": "Replacement"
 }
 

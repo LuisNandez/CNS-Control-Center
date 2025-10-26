@@ -21,6 +21,7 @@ import 'notification_service.dart';
 import 'package:translator/translator.dart';
 import 'package:flutter/gestures.dart';
 import 'mod_classifier_service.dart';
+import 'outfit_data.dart';
 
 class AppPrefs {
   static const String languageCode = 'languageCode';
@@ -62,6 +63,7 @@ class ModInfo {
   String? userNotes;
   final String? sourceUrl;
   final String? customSourceUrl;
+  final String? replacesOutfit;
 
   ModInfo({
     required this.directory,
@@ -90,6 +92,7 @@ class ModInfo {
     this.userNotes,
     this.sourceUrl,
     this.customSourceUrl,
+    this.replacesOutfit,
   });
 
   ModInfo copyWith({
@@ -119,6 +122,7 @@ class ModInfo {
     String? userNotes,
     String? sourceUrl,
     String? customSourceUrl,
+    String? replacesOutfit,
   }) {
     return ModInfo(
       directory: directory ?? this.directory,
@@ -148,6 +152,7 @@ class ModInfo {
       userNotes: userNotes ?? this.userNotes,
       sourceUrl: sourceUrl ?? this.sourceUrl,
       customSourceUrl: customSourceUrl ?? this.customSourceUrl,
+      replacesOutfit: replacesOutfit ?? this.replacesOutfit,
     );
   }
 
@@ -1709,6 +1714,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             String? userNotes;
             String? sourceUrl;
             String? customSourceUrl;
+            String? replacesOutfit;
 
             bool isEnabledForMod = isEnabled; 
             DateTime? installDate;
@@ -1773,6 +1779,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               userNotes = data['userNotes'];
               sourceUrl = data['sourceUrl'];
               customSourceUrl = data['customSourceUrl'];
+              replacesOutfit = data['replacesOutfit'] as String?;
 
               if (installedVersion != null &&
                   installedVersion.toLowerCase().startsWith('v')) {
@@ -1872,6 +1879,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 userNotes: userNotes,
                 sourceUrl: sourceUrl,
                 customSourceUrl: customSourceUrl,
+                replacesOutfit: replacesOutfit,
               ),
             );
           } catch (e) {
@@ -6049,7 +6057,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           const SizedBox(height: 4),
 
                         // 3. Muestra SIEMPRE la etiqueta de Tipo (CNS/Genérico)
-                        _buildModTypeBadge(modInfo.modType, l10n),
+                        _buildModTypeBadge(modInfo, l10n),
                       ],
                     ),
                   ),
@@ -6356,11 +6364,18 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   /// Construye el widget de la etiqueta de Tipo de Mod (CNS, Genérico o Movies).
-  Widget _buildModTypeBadge(String? modType, AppLocalizations l10n) {
+  Widget _buildModTypeBadge(ModInfo mod, AppLocalizations l10n) { // <--- 1. PARÁMETRO CAMBIADO
     final String modTypeString;
     final Color modTypeColor;
 
-    if (modType == 'genericPak') {
+    // 2. LÓGICA MEJORADA
+    final String? modType = mod.modType;
+    final bool isReplacement = mod.replacesOutfit != null && mod.replacesOutfit!.isNotEmpty;
+
+    if (modType == 'genericPak' && isReplacement) {
+      modTypeString = l10n.modTypeReplacement; // "Reemplazo" (Necesitarás esta traducción)
+      modTypeColor = const Color.fromARGB(255, 206, 55, 158); // Nuevo color para "Reemplazo"
+    } else if (modType == 'genericPak') {
       modTypeString = l10n.modTypeGeneric; // "Genérico"
       modTypeColor = Colors.blueAccent.shade400; // Color para "Generic"
     } else if (modType == 'movies') {
@@ -7456,6 +7471,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (newData.containsKey('userNotes'))
         data['userNotes'] = newData['userNotes'];
 
+      if (newData.containsKey('replacesOutfit')) {
+        final value = newData['replacesOutfit'] as String?;
+        if (value == null || value.isEmpty) {
+          // Si el valor es nulo o vacío, lo eliminamos
+          data.remove('replacesOutfit');
+        } else {
+          // Si hay un valor, lo guardamos
+          data['replacesOutfit'] = value;
+        }
+      }
+
       if (newData.containsKey('customSourceUrl')) {
         final value = newData['customSourceUrl'] as String;
         if (value.isEmpty || value == mod.sourceUrl)
@@ -7530,6 +7556,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         userNotes: data['userNotes'],
         sourceUrl: data['sourceUrl'] ?? mod.sourceUrl,
         customSourceUrl: data['customSourceUrl'],
+        replacesOutfit: data['replacesOutfit'],
       );
     } catch (e) {
       print('Error updating mod details: $e');
@@ -8325,6 +8352,225 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
     );
   }
 
+  /// Muestra el panel flotante para seleccionar un traje.
+  Future<void> _showOutfitSelectionDialog(AppLocalizations l10n) async {
+    // Usamos showModalBottomSheet para una sensación de "panel flotante"
+    final String? selectedOutfit = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF2d2d2d),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        // Usamos un StatefulBuilder para la funcionalidad de búsqueda
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            String searchQuery = '';
+            // Filtra la lista global de trajes
+            final filteredOutfits = stellarBladeOutfits.where((outfit) => 
+              outfit.toLowerCase().contains(searchQuery.toLowerCase())
+            ).toList();
+
+            return DraggableScrollableSheet(
+              initialChildSize: 0.8,
+              minChildSize: 0.5,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (_, scrollController) {
+                return Column(
+                  children: [
+                    // --- Barra de agarre ---
+                    Container(
+                      height: 5,
+                      width: 40,
+                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[700],
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                    // --- Barra de búsqueda ---
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: TextField(
+                        autofocus: true,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            searchQuery = value;
+                          });
+                        },
+                        decoration: InputDecoration(
+                          hintText: l10n.replacesOutfitSearchHint, // Necesitarás esta traducción
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16)
+                        ),
+                      ),
+                    ),
+                    // --- Lista ---
+                    Expanded(
+                      child: ListView.builder(
+                        controller: scrollController,
+                        itemCount: filteredOutfits.length,
+                        itemBuilder: (context, index) {
+                          final outfit = filteredOutfits[index];
+                          return ListTile(
+                            title: Text(outfit),
+                            onTap: () {
+                              // Devuelve el traje seleccionado
+                              Navigator.of(context).pop(outfit);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+
+    // Si se seleccionó un traje (no fue nulo), llama a la lógica de actualización
+    if (selectedOutfit != null) {
+      _onOutfitSelected(selectedOutfit);
+    }
+  }
+
+  /// Maneja el guardado del traje seleccionado.
+  Future<void> _onOutfitSelected(String? outfitName) async {
+    // Pasa los nuevos datos a la función de actualización del widget principal
+    final updatedMod = await widget.onUpdateDetails(
+      currentModInfo,
+      {
+        'replacesOutfit': outfitName, // Será nulo si se está limpiando
+      },
+    );
+
+    if (updatedMod != null && mounted) {
+      setState(() {
+        currentModInfo = updatedMod;
+        _needsReloadOnClose = true; // Marca que la lista principal necesita recargarse
+      });
+    }
+  }
+
+  /// Construye la UI para seleccionar un traje de reemplazo.
+  Widget _buildOutfitReplacementSection(AppLocalizations l10n) {
+    final String? replacedOutfit = currentModInfo.replacesOutfit;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // --- TÍTULO ---
+              Row(
+                children: [
+                  Icon(
+                    Icons.swap_horiz_rounded,
+                    color: Colors.tealAccent.withOpacity(0.8),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    l10n.replacesOutfitTitle, // Necesitarás esta traducción
+                    style: const TextStyle(
+                      color: Colors.tealAccent,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              
+              // --- BOTÓN DE EDITAR / LIMPIAR ---
+              IconButton(
+                icon: Icon(
+                  // Cambia el ícono si ya hay un traje seleccionado
+                  replacedOutfit != null ? Icons.edit_off_rounded : Icons.edit_rounded,
+                  color: replacedOutfit != null ? Colors.redAccent : Colors.white70,
+                  size: 20,
+                ),
+                onPressed: () {
+                    if (replacedOutfit != null) {
+                      // Limpiar la selección
+                      _onOutfitSelected(null);
+                    } else {
+                      // Mostrar el diálogo de selección
+                      _showOutfitSelectionDialog(l10n);
+                    }
+                },
+                tooltip: replacedOutfit != null 
+                    ? l10n.replacesOutfitClearTooltip 
+                    : l10n.replacesOutfitSelectTooltip, // Necesitarás estas traducciones
+                splashRadius: 20,
+                constraints: const BoxConstraints(),
+                padding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+
+          // --- "MINI-RETRATO" (El nombre del traje seleccionado) ---
+          if (replacedOutfit != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.4),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, color: Colors.greenAccent, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      replacedOutfit,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            // Mensaje de que no hay nada seleccionado
+            const SizedBox(height: 10),
+            Text(
+              l10n.replacesOutfitNone, // Necesitarás esta traducción
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.5),
+                fontStyle: FontStyle.italic,
+                height: 1.5,
+                fontSize: 15,
+              ),
+            )
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -8672,6 +8918,10 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                       ),
                     ],
                   ),
+                  if (currentModInfo.modType == 'genericPak') ...[
+                    const SizedBox(height: 20),
+                    _buildOutfitReplacementSection(l10n),
+                  ],
                   const SizedBox(height: 30),
                   _buildInfoSection(
                     title: l10n.modSummary,

@@ -2067,6 +2067,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Movies'**
   String get modTypeMovies;
+
+  /// No description provided for @replacesOutfitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replaces Outfit'**
+  String get replacesOutfitTitle;
+
+  /// No description provided for @replacesOutfitClearTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear outfit selection'**
+  String get replacesOutfitClearTooltip;
+
+  /// No description provided for @replacesOutfitSelectTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Select outfit to replace'**
+  String get replacesOutfitSelectTooltip;
+
+  /// No description provided for @replacesOutfitNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No outfit selected. The tag will be \'Generic\'.'**
+  String get replacesOutfitNone;
+
+  /// No description provided for @replacesOutfitSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search outfits...'**
+  String get replacesOutfitSearchHint;
+
+  /// No description provided for @modTypeReplacement.
+  ///
+  /// In en, this message translates to:
+  /// **'Replacement'**
+  String get modTypeReplacement;
 }
 
 class _AppLocalizationsDelegate
