@@ -1205,4 +1205,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get modTypeReplacement => 'Replacement';
+
+  @override
+  String get replacesOutfitHover => 'Hover over an outfit to see a preview.';
 }

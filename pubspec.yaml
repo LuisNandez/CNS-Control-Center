@@ -85,9 +85,8 @@ flutter:
   uses-material-design: true
   generate: true
   assets:
-    - assets/
-    - mod_database.json
     - assets/images/outfits/
+    - mod_database.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

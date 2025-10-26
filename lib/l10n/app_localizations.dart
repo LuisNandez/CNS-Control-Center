@@ -2103,6 +2103,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Replacement'**
   String get modTypeReplacement;
+
+  /// No description provided for @replacesOutfitHover.
+  ///
+  /// In en, this message translates to:
+  /// **'Hover over an outfit to see a preview.'**
+  String get replacesOutfitHover;
 }
 
 class _AppLocalizationsDelegate

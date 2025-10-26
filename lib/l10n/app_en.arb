@@ -482,6 +482,7 @@
   "replacesOutfitSelectTooltip": "Select outfit to replace",
   "replacesOutfitNone": "No outfit selected. The tag will be 'Generic'.",
   "replacesOutfitSearchHint": "Search outfits...",
-  "modTypeReplacement": "Replacement"
+  "modTypeReplacement": "Replacement",
+  "replacesOutfitHover": "Hover over an outfit to see a preview."
 }
 

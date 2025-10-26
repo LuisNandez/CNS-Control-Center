@@ -8354,7 +8354,12 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
 
   /// Muestra el panel flotante para seleccionar un traje.
   Future<void> _showOutfitSelectionDialog(AppLocalizations l10n) async {
-    // Usamos showModalBottomSheet para una sensación de "panel flotante"
+    // --- CAMBIO 1: El Notifier ahora guarda el *nombre* del traje, no el índice ---
+    // Esto soluciona la raíz de todos los errores.
+    final ValueNotifier<String?> hoveredOutfitNotifier = ValueNotifier<String?>(null);
+    String searchQuery = ''; // El estado de la búsqueda se manejará localmente
+    bool isClosing = false;
+
     final String? selectedOutfit = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -8362,81 +8367,203 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      // Hacemos el panel más ancho y alto para que quepan bien las dos columnas
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.8,
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
       builder: (context) {
-        // Usamos un StatefulBuilder para la funcionalidad de búsqueda
+        // Usamos un StatefulBuilder para que SÓLO la columna de la lista
+        // se reconstruya al escribir en el buscador.
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setDialogState) {
-            String searchQuery = '';
-            // Filtra la lista global de trajes
+            
+            // La lista filtrada se calcula aquí, cada vez que el StatefulBuilder se reconstruye
             final filteredOutfits = stellarBladeOutfits.where((outfit) => 
               outfit.toLowerCase().contains(searchQuery.toLowerCase())
-            ).toList();
+            ).toList(); //
 
-            return DraggableScrollableSheet(
-              initialChildSize: 0.8,
-              minChildSize: 0.5,
-              maxChildSize: 0.9,
-              expand: false,
-              builder: (_, scrollController) {
-                return Column(
-                  children: [
-                    // --- Barra de agarre ---
-                    Container(
-                      height: 5,
-                      width: 40,
-                      margin: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[700],
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    ),
-                    // --- Barra de búsqueda ---
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                      child: TextField(
-                        autofocus: true,
-                        onChanged: (value) {
-                          setDialogState(() {
-                            searchQuery = value;
-                          });
-                        },
-                        decoration: InputDecoration(
-                          hintText: l10n.replacesOutfitSearchHint, // Necesitarás esta traducción
-                          prefixIcon: const Icon(Icons.search),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16)
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --- LADO IZQUIERDO: BÚSQUEDA Y LISTA (2/3 del espacio) ---
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    children: [
+                      // Barra de agarre
+                      Container(
+                        height: 5,
+                        width: 40,
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[700],
+                          borderRadius: BorderRadius.circular(5),
                         ),
                       ),
-                    ),
-                    // --- Lista ---
-                    Expanded(
-                      child: ListView.builder(
-                        controller: scrollController,
-                        itemCount: filteredOutfits.length,
-                        itemBuilder: (context, index) {
-                          final outfit = filteredOutfits[index];
-                          return ListTile(
-                            title: Text(outfit),
-                            onTap: () {
-                              // Devuelve el traje seleccionado
-                              Navigator.of(context).pop(outfit);
-                            },
-                          );
-                        },
+                      // Barra de búsqueda
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        child: TextField(
+                          autofocus: true,
+                          onChanged: (value) {
+                            // setDialogState SÓLO se usa para la búsqueda
+                            setDialogState(() {
+                              searchQuery = value;
+                            });
+                          },
+                          decoration: InputDecoration(
+                            hintText: l10n.replacesOutfitSearchHint,
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16)
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              },
+                      // Lista de trajes (Expandida y con Scroll)
+                      Expanded(
+                        child: MouseRegion(
+                          onExit: (_) {
+                            if (isClosing) return;
+                            // ++ INICIO DE LA MODIFICACIÓN ++
+                            // Solo actualiza el notificador si el valor
+                            // no es ya 'null'. Esto previene que
+                            // onExit se dispare múltiples veces y
+                            // cause el 'Duplicate key' en el AnimatedSwitcher.
+                            if (hoveredOutfitNotifier.value != null) {
+                              hoveredOutfitNotifier.value = null;
+                            }
+                            // ++ FIN DE LA MODIFICACIÓN ++
+                          },
+                          child: ListView.builder(
+                            itemCount: filteredOutfits.length,
+                            itemBuilder: (context, index) {
+                              final outfit = filteredOutfits[index];
+                              return MouseRegion(
+                                // onEnter sigue aquí para *establecer* la vista previa
+                                onEnter: (_) {
+                                  if (isClosing) return;
+                                  // ++ INICIO DE LA MODIFICACIÓN ++
+                                  // Solo actualiza el notificador si el nuevo valor
+                                  // es diferente al valor actual.
+                                  // Esto previene el crash de "Duplicate key"
+                                  // cuando el cursor se mueve rápido sobre el mismo item.
+                                  if (hoveredOutfitNotifier.value != outfit) {
+                                    hoveredOutfitNotifier.value = outfit;
+                                  }
+                                  // ++ FIN DE LA MODIFICACIÓN ++
+                                },
+                                // -- Ya NO necesitamos onExit aquí --
+                                child: ListTile(
+                                title: Text(outfit),
+                                onTap: () {
+                                  isClosing = true;
+                                  Navigator.of(context).pop(outfit);
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      )
+                    ],
+                  ),
+                ),
+                
+                // --- LADO DERECHO: VISTA PREVIA (1/3 del espacio) ---
+                Expanded(
+                  flex: 1,
+                  // --- CAMBIO 3: Escucha el ValueNotifier<String?> ---
+                  child: ValueListenableBuilder<String?>(
+                    valueListenable: hoveredOutfitNotifier,
+                    builder: (context, hoveredOutfitName, child) {
+                      
+                      return Container(
+                        // Ocupa toda la altura del panel
+                        height: double.infinity, 
+                        color: Colors.black.withOpacity(0.3),
+                        padding: const EdgeInsets.all(16.0),
+                        child: Center(
+                          child: AnimatedCrossFade(
+                            // 1. Estado: Muestra el placeholder (first) o la imagen (second)
+                            crossFadeState: hoveredOutfitName == null 
+                              ? CrossFadeState.showFirst 
+                              : CrossFadeState.showSecond,
+                            
+                            duration: const Duration(milliseconds: 200),
+                            
+                            // 2. Placeholder (Primer hijo)
+                            firstChild: Column(
+                              key: const ValueKey('outfit_placeholder'),
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.image_search_rounded, size: 60, color: Colors.grey[700]),
+                                const SizedBox(height: 16),
+                                Text(
+                                  l10n.replacesOutfitHover,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.grey[500]),
+                                ),
+                              ],
+                            ),
+                            
+                            // 3. Imagen (Segundo hijo)
+                            // La clave ValueKey(hoveredOutfitName) es crucial.
+                            // Le dice al widget que cambie de imagen aunque el estado
+                            // (showSecond) sea el mismo.
+                            secondChild: ClipRRect(
+                              key: ValueKey(hoveredOutfitName),
+                              child: Image.asset(
+                                // Usamos ?? '' para evitar errores si hoveredOutfitName es nulo
+                                // durante el primer frame de la transición.
+                                _generateOutfitImagePath(hoveredOutfitName ?? ''),
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  final path = _generateOutfitImagePath(hoveredOutfitName ?? '');
+                                  return Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Text(
+                                        "Preview not found at:\n$path",
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+
+                            // 4. (Opcional pero recomendado) Esto evita que el panel "salte"
+                            // de tamaño durante la animación de fundido.
+                            layoutBuilder: (topChild, topChildKey, bottomChild, bottomChildKey) {
+                              return Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  bottomChild,
+                                  topChild,
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             );
           },
         );
       },
     );
+    // (Por si el usuario cierra el panel sin seleccionar nada)
+    isClosing = true;
+    // Limpiamos el "mensajero" después de que el panel se cierra.
+    hoveredOutfitNotifier.dispose();
 
-    // Si se seleccionó un traje (no fue nulo), llama a la lógica de actualización
     if (selectedOutfit != null) {
       _onOutfitSelected(selectedOutfit);
     }
@@ -8458,6 +8585,21 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
         _needsReloadOnClose = true; // Marca que la lista principal necesita recargarse
       });
     }
+  }
+
+  /// Genera la ruta del asset para la vista previa de un traje.
+  String _generateOutfitImagePath(String outfitName) {
+    // 1. Minúsculas
+    String safeName = outfitName.toLowerCase();
+    // 2. Quitar (NG+) y caracteres especiales
+    safeName = safeName
+        .replaceAll('(ng+)', 'ng_plus')
+        .replaceAll(RegExp(r'[^\w\s-]'), '');
+    // 3. Reemplazar espacios y guiones con guiones bajos
+    safeName = safeName.replaceAll(RegExp(r'[\s-]+'), '_');
+
+    // 4. Devolver la ruta completa del asset
+    return 'assets/images/outfits/$safeName.webp'; // Asume .webp
   }
 
   /// Construye la UI para seleccionar un traje de reemplazo.
