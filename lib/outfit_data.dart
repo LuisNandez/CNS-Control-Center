@@ -1,43 +1,48 @@
 /// Lista de todos los Nano Suits (trajes) disponibles en Stellar Blade
-/// extraída de las fuentes [106-119] del PDF proporcionado.
+/// extraída de las fuentes [1-3] del archivo CSV proporcionado.
 const List<String> stellarBladeOutfits = [
-  // Juego base [106-107]
+  // New Game
   'Skin Suit',
   'Planet Diving Suit (7th)',
   'Planet Diving Suit (7th) V2',
   'Keyhole Suit',
-  'Racer\'s High',
-  'Wasteland Adventurer',
-  'Planet Diving Suit (6th)',
-  'Stargazer Suit',
-  'Red Passion',
-  'Cyber Magician',
-  'Holiday Rabbit',
   'Raven Suit',
+  'Fluffy Bear',
+  'Sky Ace',
+  'Black Rose',
+  'La Vie en Rose',
+  'Blue Monsoon',
   'Black Pearl',
-  'Orca Exploration Suit',
-  'Moutan Peony',
-  'Cybernetic Dress',
-  'Keyhole Dress',
-  'Sporty Yellow',
-  'Junk Mechanic',
-  'Daily Denim',
-  'Black Full Dress',
-  'Daily Biker',
+  'Ocean Maid',
+  'Planet Diving Suit (6th)',
+  'Planet Diving Suit (3rd)',
+  'Prototype Planet Diving Suit',
+  'Planet Diving Suit (2nd)',
+  'Photogenic',
   'Daily Mascot',
   'Daily Force',
-  'Daily Knitted Dress',
-  'Fluffy Bear',
+  'Daily Biker',
+  'Daily Sailor',
+  'Daily Denim',
+  'Moutan Peony',
+  'Cybernetic Bondage',
+  'Racer\'s High',
+  'Holiday Rabbit',
+  'Black Wave',
+  'Cyber Magician',
+  'Cybernetic Dress',
   'Motivation',
   'Punk Top',
+  'Orca Exploration Suit',
   'Orca Engineer',
-  'Black Rose',
-  'Photogenic',
-  'Prototype Planet Diving Suit',
-  'La Vie en Rose',
-  'Ocean Maid',
-  
-  // New Game+ [108]
+  'Wasteland Adventurer',
+  'Red Passion',
+  'Sporty Yellow',
+  'Junk Mechanic',
+  'Black Full Dress',
+  'Daily Knitted Dress',
+
+  // New Game +
   'Red Pearl',
   'Angelic Rose',
   'Telegenic',
@@ -64,7 +69,7 @@ const List<String> stellarBladeOutfits = [
   'Crew Style',
   'Cyber Trickster',
   'Orca Pathfinder',
-  'Keyhole Dress (NG+)', // Objeto separado del "Keyhole Dress" base
+  'Keyhole Dress',
   'Cybernetic Suit',
   'Holiday Bunny',
   'Emerald Passion',
@@ -73,21 +78,31 @@ const List<String> stellarBladeOutfits = [
   'Speeder\'s High',
   'Planet Diving Suit (6th) V2',
 
-  // Actualizaciones [109-115]
+  // Update 1.003
   'Black Kunoichi',
   'White Kunoichi',
   'Midsummer Redhood',
   'Midsummer Alice',
   'Neurolink Suit',
-  'Four Seconds Destroyed Denim',
+
+  // Update 1.004
+  'FourSeconds Destroyed Denim',
   'Cyber Illusionist',
+
+  // Update 1.006
   'Wave Diver Bikini',
   'Wave Oblique Monokini',
+
+  // Update 1.009
   'FourSeconds Black Denim',
   'FourSeconds Everyday Wear',
   'Neurolink Skin',
   'War Dress',
+
+  // Update 1.010
   'Santa Dress',
+
+  // Update 1.011
   'Planet Diving Protection Suit (7th)',
   'Planet Diving Protection Suit (7th) V2',
   'Tidal Maid',
@@ -114,14 +129,23 @@ const List<String> stellarBladeOutfits = [
   'Ultimate Bunny',
   'Extreme Bunny',
   'Crimson Wings',
+
+  // Update 1.014
   'Ocean String',
 
-  // DLC/Packs [117-119]
+  // Deluxe Pack
+  'Stargazer Suit',
+
+  // Tachyon Pack
   'Planet Diving Suit (Captain)',
+
+  // NieR:Automata DLC
   'YoRHa No.2 Type B Uniform',
   'YoRHa Uniform 1',
   'YoRHa Unofficial Ceremonial Attire',
   'YoRHa Type A No.2 Uniform',
+
+  // Goddess of Victory: NIKKE DLC
   'Wandering Swordfighter Outfit',
   'Cooling Suit',
   'Elegant Dress',
