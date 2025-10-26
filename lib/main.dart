@@ -1805,6 +1805,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 customName = displayName;
               }
             }
+            // Si el JSON no existía (modType sigue null) y el mod está HABILITADO
+            // inferimos el tipo basado en la carpeta que estamos escaneando.
+            if (modType == null && isEnabled) {
+              if (path == _genericModsPath) {
+                modType = 'genericPak';
+              } else if (path == _finalModsPath) {
+                modType = 'cns';
+              }
+              // Si está deshabilitado (isEnabled = false), lo dejamos como null
+              // y la UI lo tratará como 'cns' por defecto (comportamiento antiguo).
+            }
 
             if (modType == 'movies' && await infoFile.exists()) {
                 final content = await infoFile.readAsString();
@@ -7323,6 +7334,20 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       return null;
     }
   }
+
+  String? _extractNexusIdFromUrl(String url) {
+    try {
+      // Regex para encontrar ".../stellarblade/mods/123"
+      final regex = RegExp(r'nexusmods\.com/stellarblade/mods/(\d+)');
+      final match = regex.firstMatch(url);
+      // Devuelve el primer grupo capturado (el ID) si hay coincidencia.
+      return match?.group(1);
+    } catch (e) {
+      print("Error al analizar la URL de Nexus: $e");
+      return null;
+    }
+  }
+
   /// Actualiza múltiples detalles del mod en el archivo JSON y devuelve un ModInfo actualizado.
   Future<ModInfo?> _updateModDetails(
     ModInfo mod,
@@ -7336,6 +7361,45 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (await infoFile.exists()) {
         final content = await infoFile.readAsString();
         if (content.isNotEmpty) data = json.decode(content);
+      }
+
+      String? newNexusId; // Para almacenar un nuevo ID y usarlo para cachear la miniatura
+      if (newData.containsKey('customSourceUrl')) {
+        final newUrl = newData['customSourceUrl'] as String;
+        final potentialNexusId = _extractNexusIdFromUrl(newUrl);
+        final oldNexusId = data['nexusId'] as String?;
+
+        // Comprueba si es una URL de Nexus válida, nueva y diferente a la que ya teníamos
+        if (potentialNexusId != null && potentialNexusId != oldNexusId) {
+          print('Nuevo Nexus ID $potentialNexusId detectado. Obteniendo metadatos...');
+          // Si es así, obtenemos los datos de la API
+          final nexusData = await _fetchNexusModData(potentialNexusId);
+
+          if (nexusData != null) {
+            newNexusId = potentialNexusId; // Guardamos el ID para cachear la miniatura más tarde
+            
+            // Rellenamos el mapa 'data' con los nuevos metadatos
+            data['nexusId'] = newNexusId;
+            data['gallery'] = nexusData['gallery'];
+            data['summary'] = nexusData['summary'];
+            data['author'] = nexusData['author'];
+            data['description'] = nexusData['description'];
+            data['sourceUrl'] = newUrl; // Establece la URL principal
+
+            // Limpiamos todos los campos personalizados que serían anulados por estos nuevos datos
+            data.remove('customSourceUrl');
+            data.remove('customSummary');
+            data.remove('customAuthor');
+            data.remove('customDescription');
+            
+            // También eliminamos las claves de 'newData' para que no se procesen de nuevo más abajo
+            newData.remove('customSourceUrl');
+            newData.remove('author'); // El diálogo 'General Edit' también envía 'author'
+            // (No es necesario eliminar 'summary' o 'customDescription' ya que vienen de otros diálogos)
+
+            print('Metadatos obtenidos y aplicados para $newNexusId.');
+          }
+        }
       }
 
       if (newData.containsKey('newCoverFile')) {
@@ -7424,7 +7488,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       // --- LÍNEA ELIMINADA ---
       // await _loadAllMods(clearHighlight: false);  <-- ESTO CAUSABA EL PARPADEO
-
+      if (newNexusId != null) {
+        await _cacheNexusThumbnail(modDirectory: modDirectory, nexusId: newNexusId);
+      }
       // Ahora, construimos y devolvemos un nuevo objeto ModInfo con los datos actualizados
       // para que el panel pueda refrescar su propia UI sin afectar el fondo.
       return ModInfo(
@@ -7440,6 +7506,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         customVersion: data['customVersion'],
         origin: data['origin'] ?? mod.origin,
         gallery: data['gallery'] ?? mod.gallery,
+        modType: data['modType'] ?? mod.modType,
         fitMeshType: data['fitMeshType'] ?? mod.fitMeshType,
         customFitMeshType: data['customFitMeshType'],
         customCoverPath: data['customCoverPath'],
