@@ -8644,7 +8644,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
               IconButton(
                 icon: Icon(
                   // Cambia el ícono si ya hay un traje seleccionado
-                  replacedOutfit != null ? Icons.edit_off_rounded : Icons.edit_rounded,
+                  replacedOutfit != null ? Icons.cancel_outlined : Icons.checkroom_outlined,
                   color: replacedOutfit != null ? Colors.redAccent : Colors.white70,
                   size: 20,
                 ),
@@ -8670,25 +8670,48 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
           // --- "MINI-RETRATO" (El nombre del traje seleccionado) ---
           if (replacedOutfit != null) ...[
             const SizedBox(height: 12),
+            // Mantenemos el contenedor original para el fondo y el borde
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.all(12), // Un poco más de padding para la imagen
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.4),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center, // Centra verticalmente
                 children: [
-                  const Icon(Icons.check_circle_outline, color: Colors.greenAccent, size: 18),
-                  const SizedBox(width: 10),
+                  // 1. Vista previa de la imagen
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6.0), // Bordes redondeados más pequeños
+                    child: Image.asset(
+                      _generateOutfitImagePath(replacedOutfit), // Usamos la función auxiliar
+                      width: 92.5, // Proporción 3:4 (como 60x80)
+                      height: 167,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        // Placeholder si la imagen no se encuentra
+                        return Container(
+                          width: 52.5,
+                          height: 70,
+                          color: Colors.black.withOpacity(0.2),
+                          child: const Icon(Icons.hide_image_outlined, color: Colors.grey),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  
+                  // 2. Nombre del traje
                   Expanded(
                     child: Text(
                       replacedOutfit,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500
+                        fontSize: 16, // Más grande
+                        fontWeight: FontWeight.w500,
                       ),
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
