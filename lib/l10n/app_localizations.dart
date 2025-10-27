@@ -2109,6 +2109,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hover over an outfit to see a preview.'**
   String get replacesOutfitHover;
+
+  /// Title for the dialog that asks if a generic mod is an outfit replacement
+  ///
+  /// In en, this message translates to:
+  /// **'Outfit Replacement?'**
+  String get dialogTitleOutfitReplacement;
+
+  /// Content for the outfit replacement dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Is the mod \'{modName}\' an outfit replacement?\n\nSelect \'Yes\' to choose which outfit it replaces, or \'No\' to install it as a generic mod.'**
+  String dialogContentOutfitReplacement(String modName);
+
+  /// Button text for 'No'
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get dialogActionNo;
+
+  /// Button text for 'Yes'
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get dialogActionYes;
 }
 
 class _AppLocalizationsDelegate

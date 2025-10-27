@@ -3067,6 +3067,229 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
+  /// Muestra un diálogo para preguntar al usuario si un mod genérico es un reemplazo de traje.
+  Future<bool> _promptForOutfitReplacement(String modName) async {
+      final l10n = AppLocalizations.of(context)!;
+      final bool? isReplacement = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false, // Forzar una elección
+        builder: (context) => AlertDialog(
+          backgroundColor: const Color(0xFF2a2a2a),
+          title: Text(l10n.dialogTitleOutfitReplacement), // <<< MODIFICADO
+          content: Text(l10n.dialogContentOutfitReplacement(modName)), // <<< MODIFICADO
+          actions: [
+            // Botón "No"
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l10n.dialogActionNo), // <<< MODIFICADO
+            ),
+            // Botón "Sí"
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.tealAccent,
+                foregroundColor: Colors.black,
+              ),
+              child: Text(l10n.dialogActionYes), // <<< MODIFICADO
+            ),
+          ],
+        ),
+      );
+      return isReplacement ?? false; // Por defecto 'falso' si se cierra
+  }
+
+  // ++ AÑADIR ESTA FUNCIÓN (COPIADA Y MODIFICADA DE _ModDetailsPanelState) ++
+  /// Muestra el panel flotante para seleccionar un traje y DEVUELVE el nombre seleccionado.
+  Future<String?> _promptToSelectOutfit(AppLocalizations l10n) async {
+    final ValueNotifier<String?> hoveredOutfitNotifier = ValueNotifier<String?>(null);
+    String searchQuery = '';
+    bool isClosing = false;
+
+    final String? selectedOutfit = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF2d2d2d),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.8,
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            final filteredOutfits = stellarBladeOutfits.where((outfit) => 
+              outfit.toLowerCase().contains(searchQuery.toLowerCase())
+            ).toList();
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --- LADO IZQUIERDO: BÚSQUEDA Y LISTA (2/3 del espacio) ---
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 5,
+                        width: 40,
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[700],
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        child: TextField(
+                          autofocus: true,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              searchQuery = value;
+                            });
+                          },
+                          decoration: InputDecoration(
+                            hintText: l10n.replacesOutfitSearchHint,
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16)
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: MouseRegion(
+                          onExit: (_) {
+                            if (isClosing) return;
+                            if (hoveredOutfitNotifier.value != null) {
+                              hoveredOutfitNotifier.value = null;
+                            }
+                          },
+                          child: ListView.builder(
+                            itemCount: filteredOutfits.length,
+                            itemBuilder: (context, index) {
+                              final outfit = filteredOutfits[index];
+                              return MouseRegion(
+                                onEnter: (_) {
+                                  if (isClosing) return;
+                                  if (hoveredOutfitNotifier.value != outfit) {
+                                    hoveredOutfitNotifier.value = outfit;
+                                  }
+                                },
+                                child: ListTile(
+                                title: Text(outfit),
+                                onTap: () {
+                                  isClosing = true;
+                                  // ¡CAMBIO CLAVE! Solo hacemos pop con el valor.
+                                  Navigator.of(context).pop(outfit);
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      )
+                    ],
+                  ),
+                ),
+                
+                // --- LADO DERECHO: VISTA PREVIA (1/3 del espacio) ---
+                Expanded(
+                  flex: 1,
+                  child: ValueListenableBuilder<String?>(
+                    valueListenable: hoveredOutfitNotifier,
+                    builder: (context, hoveredOutfitName, child) {
+                      
+                      return Container(
+                        height: double.infinity, 
+                        color: Colors.black.withOpacity(0.3),
+                        padding: const EdgeInsets.all(16.0),
+                        child: Center(
+                          child: AnimatedCrossFade(
+                            crossFadeState: hoveredOutfitName == null 
+                              ? CrossFadeState.showFirst 
+                              : CrossFadeState.showSecond,
+                            duration: const Duration(milliseconds: 200),
+                            firstChild: Column(
+                              key: const ValueKey('outfit_placeholder'),
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.image_search_rounded, size: 60, color: Colors.grey[700]),
+                                const SizedBox(height: 16),
+                                Text(
+                                  l10n.replacesOutfitHover,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.grey[500]),
+                                ),
+                              ],
+                            ),
+                            secondChild: ClipRRect(
+                              key: ValueKey(hoveredOutfitName),
+                              child: Image.asset(
+                                _generateOutfitImagePath(hoveredOutfitName ?? ''), // Reusa la función auxiliar
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  final path = _generateOutfitImagePath(hoveredOutfitName ?? '');
+                                  return Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Text(
+                                        "Preview not found at:\n$path",
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            layoutBuilder: (topChild, topChildKey, bottomChild, bottomChildKey) {
+                              return Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  bottomChild,
+                                  topChild,
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    
+    isClosing = true;
+    hoveredOutfitNotifier.dispose();
+
+    // Devuelve el traje seleccionado (o null si se cierra el panel)
+    return selectedOutfit;
+  }
+
+  // ++ AÑADIR ESTA FUNCIÓN (COPIADA DE _ModDetailsPanelState) ++
+  /// Genera la ruta del asset para la vista previa de un traje.
+  String _generateOutfitImagePath(String outfitName) {
+    // 1. Minúsculas
+    String safeName = outfitName.toLowerCase();
+    // 2. Quitar (NG+) y caracteres especiales
+    safeName = safeName
+        .replaceAll('(ng+)', 'ng_plus')
+        .replaceAll(RegExp(r'[^\w\s-]'), '');
+    // 3. Reemplazar espacios y guiones con guiones bajos
+    safeName = safeName.replaceAll(RegExp(r'[\s-]+'), '_');
+
+    // 4. Devolver la ruta completa del asset
+    return 'assets/images/outfits/$safeName.webp'; // Asume .webp
+  }
+
 
   Future<String?> _getCompositeDisplayName(Directory modDir) async {
     final List<File> jsonFiles = [];
@@ -3245,6 +3468,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final nexusVersion = preparedMod.nexusVersion;
     
     String? preservedCustomName;
+    String? selectedOutfit;
 
     // 1. CLASIFICAR EL MOD Y OBTENER SUS DATOS
     final modType = await ModClassifierService.classifyModDirectory(modDir);
@@ -3274,6 +3498,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       baseDisplayName = preparedMod.archiveName;
       fitMeshType = "Generic"; // <-- ¡AQUÍ ESTÁ LA ETIQUETA!
       installPath = _genericModsPath; // Se instala en la carpeta genérica
+      // Preguntar si es un reemplazo de traje COMENTADO POR AHORA
+      /*final bool isReplacement = await _promptForOutfitReplacement(baseDisplayName);
+      if (isReplacement) {
+        // Si es un reemplazo, abrimos el panel de selección de trajes
+        selectedOutfit = await _promptToSelectOutfit(l10n);
+      }*/
     } else if (modType == ModDirectoryType.movies) {
       baseDisplayName = preparedMod.archiveName;
       fitMeshType = null; // Los mods de películas no tienen etiqueta de contenido
@@ -3498,6 +3728,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           : null,
       'isEnabled': (modType == ModDirectoryType.movies) ? false : null, // Los mods 'Movies' se instalan deshabilitados
       'replacedFiles': (modType == ModDirectoryType.movies) ? replacedFiles : null,
+      'replacesOutfit': selectedOutfit,
     };
     // Limpia valores nulos para no ensuciar el JSON
     modData.removeWhere((key, value) => value == null);
@@ -3855,12 +4086,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  Future<void> _enableAllMods() async {
+  Future<void> _enableAllMods(List<ModInfo> modsInView) async {
     final l10n = AppLocalizations.of(context)!;
 
     // ++ INICIO DE LA MODIFICACIÓN ++
     // 1. Obtenemos solo los mods deshabilitados QUE NO SEAN de tipo 'movies'.
-    final disabledMods = _allMods.where((mod) => !mod.isEnabled && mod.modType != 'movies').toList();
+    final disabledMods = modsInView.where((mod) => !mod.isEnabled && mod.modType != 'movies').toList();
     // ++ FIN DE LA MODIFICACIÓN ++
 
     if (disabledMods.isEmpty) {
@@ -3967,9 +4198,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  Future<void> _disableAllMods() async {
+  Future<void> _disableAllMods(List<ModInfo> modsInView) async {
     final l10n = AppLocalizations.of(context)!;
-    final enabledMods = _allMods.where((mod) => mod.isEnabled).toList();
+    final enabledMods = modsInView.where((mod) => mod.isEnabled).toList();
 
     if (enabledMods.isEmpty) {
       if (mounted) {
@@ -4073,9 +4304,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  Future<void> _deleteDisabledMods() async {
+  Future<void> _deleteDisabledMods(List<ModInfo> modsInView) async {
     final l10n = AppLocalizations.of(context)!;
-    final disabledMods = _allMods.where((mod) => !mod.isEnabled).toList();
+    final disabledMods = modsInView.where((mod) => !mod.isEnabled).toList();
 
     if (disabledMods.isEmpty) {
       if (mounted) {
@@ -6621,6 +6852,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     bool hasEnabledMods,
     bool hasDisabledMods,
   ) {
+    // 1. Calcula los estados basándose en la lista 'mods' (la vista actual)
+    final bool hasEnabledModsInView = mods.any((mod) => mod.isEnabled);
+    final bool hasDisabledModsInView = mods.any((mod) => !mod.isEnabled);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -6800,43 +7034,43 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 IconButton(
                   icon: Icon(
                     Icons.power_outlined,
-                    // ++ START: COLOR CHANGE ++
-                    color: (_isLoading || !hasDisabledMods)
+                    // ++ MODIFICADO: Usa el booleano de la vista actual
+                    color: (_isLoading || !hasDisabledModsInView)
                         ? Colors.greenAccent.withOpacity(0.4)
                         : Colors.greenAccent,
-                    // ++ END: COLOR CHANGE ++
                   ),
-                  onPressed: _isLoading || !hasDisabledMods
+                  // ++ MODIFICADO: Usa el booleano y pasa la lista 'mods'
+                  onPressed: _isLoading || !hasDisabledModsInView
                       ? null
-                      : _enableAllMods,
+                      : () => _enableAllMods(mods),
                   tooltip: l10n.enableAllModsTooltip,
                 ),
                 IconButton(
                   icon: Icon(
                     Icons.power_off_outlined,
-                    // ++ START: COLOR CHANGE ++
-                    color: (_isLoading || !hasEnabledMods)
+                    // ++ MODIFICADO: Usa el booleano de la vista actual
+                    color: (_isLoading || !hasEnabledModsInView)
                         ? Colors.orangeAccent.withOpacity(0.4)
                         : Colors.orangeAccent,
-                    // ++ END: COLOR CHANGE ++
                   ),
-                  onPressed: _isLoading || !hasEnabledMods
+                  // ++ MODIFICADO: Usa el booleano y pasa la lista 'mods'
+                  onPressed: _isLoading || !hasEnabledModsInView
                       ? null
-                      : _disableAllMods,
+                      : () => _disableAllMods(mods),
                   tooltip: l10n.disableAllModsTooltip,
                 ),
                 IconButton(
                   icon: Icon(
                     Icons.delete_sweep_outlined,
-                    // ++ START: COLOR CHANGE ++
-                    color: (_isLoading || !hasDisabledMods)
+                    // ++ MODIFICADO: Usa el booleano de la vista actual
+                    color: (_isLoading || !hasDisabledModsInView)
                         ? Colors.redAccent.withOpacity(0.4)
                         : Colors.redAccent,
-                    // ++ END: COLOR CHANGE ++
                   ),
-                  onPressed: _isLoading || !hasDisabledMods
+                  // ++ MODIFICADO: Usa el booleano y pasa la lista 'mods'
+                  onPressed: _isLoading || !hasDisabledModsInView
                       ? null
-                      : _deleteDisabledMods,
+                      : () => _deleteDisabledMods(mods),
                   tooltip: l10n.deleteAllModsTooltip,
                 ),
                 IconButton(

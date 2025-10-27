@@ -1205,4 +1205,18 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get replacesOutfitHover => 'Hover over an outfit to see a preview.';
+
+  @override
+  String get dialogTitleOutfitReplacement => 'Outfit Replacement?';
+
+  @override
+  String dialogContentOutfitReplacement(String modName) {
+    return 'Is the mod \'$modName\' an outfit replacement?\n\nSelect \'Yes\' to choose which outfit it replaces, or \'No\' to install it as a generic mod.';
+  }
+
+  @override
+  String get dialogActionNo => 'No';
+
+  @override
+  String get dialogActionYes => 'Yes';
 }

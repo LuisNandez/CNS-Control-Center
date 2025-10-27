@@ -483,6 +483,28 @@
   "replacesOutfitNone": "No outfit selected. The tag will be 'Generic'.",
   "replacesOutfitSearchHint": "Search outfits...",
   "modTypeReplacement": "Replacement",
-  "replacesOutfitHover": "Hover over an outfit to see a preview."
+  "replacesOutfitHover": "Hover over an outfit to see a preview.",
+  "dialogTitleOutfitReplacement": "Outfit Replacement?",
+  "@dialogTitleOutfitReplacement": {
+    "description": "Title for the dialog that asks if a generic mod is an outfit replacement"
+  },
+  "dialogContentOutfitReplacement": "Is the mod '{modName}' an outfit replacement?\n\nSelect 'Yes' to choose which outfit it replaces, or 'No' to install it as a generic mod.",
+  "@dialogContentOutfitReplacement": {
+    "description": "Content for the outfit replacement dialog",
+    "placeholders": {
+      "modName": {
+        "type": "String",
+        "example": "Awesome Mod"
+      }
+    }
+  },
+  "dialogActionNo": "No",
+  "@dialogActionNo": {
+    "description": "Button text for 'No'"
+  },
+  "dialogActionYes": "Yes",
+  "@dialogActionYes": {
+    "description": "Button text for 'Yes'"
+  }
 }
 
