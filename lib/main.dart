@@ -358,6 +358,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   bool _developerModeEnabled = false;
   int _versionTapCount = 0;
+  final ValueNotifier<String?> _hoveredOutfitNotifier = ValueNotifier<String?>(null);
 
   // ++ THUMBNAIL SERVICE INSTANCE ++
   final ThumbnailService _thumbnailService = ThumbnailService();
@@ -393,6 +394,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _hoveredOutfitNotifier.dispose();
     try {
       if (_tempExtractionDir != null && _tempExtractionDir!.existsSync()) {
         _tempExtractionDir!.deleteSync(recursive: true);
@@ -5627,8 +5629,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
         final nameMatch = mod.customName.toLowerCase().contains(query);
         final tagMatch = displayTag.toLowerCase().contains(query);
+        // Comprueba si el traje reemplazado coincide con la búsqueda
+        final outfitMatch = (mod.replacesOutfit != null)
+            ? mod.replacesOutfit!.toLowerCase().contains(query)
+            : false;
 
-        return nameMatch || tagMatch;
+        return nameMatch || tagMatch || outfitMatch; // Añade outfitMatch
       });
     }
 
@@ -5931,168 +5937,153 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           ),
         ],
       ),
-      body: DropTarget(
-        onDragDone: (details) async {
-          final files = details.files.map((file) => File(file.path)).toList();
-          if (files.isNotEmpty) {
-            // En lugar de procesar, ahora abre el panel CON los archivos.
-            _showInstallationPanel(initialFiles: files);
-          }
-        },
-        onDragEntered: (details) => setState(() => _isDragging = true),
-        onDragExited: (details) => setState(() => _isDragging = false),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _finalModsPath == null && !_isLoading
-                  ? _buildPathSelectionScreen(l10n)
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (_modsToInstallPreviewMap.isNotEmpty)
-                        const Divider(height: 30, thickness: 1),
-                        Expanded(
-                          child: _buildModsListSection(
-                            l10n.installedMods,
-                            filteredAndSortedMods,
-                            l10n,
-                            hasEnabledMods,
-                            hasDisabledMods,
-                          ),
+      
+      // El body del Scaffold ahora es un Stack que contiene
+      // el DropTarget (cuerpo principal) Y el nuevo Overlay de vista previa
+      body: Stack(
+        children: [
+          DropTarget(
+            onDragDone: (details) async {
+              final files = details.files.map((file) => File(file.path)).toList();
+              if (files.isNotEmpty) {
+                // En lugar de procesar, ahora abre el panel CON los archivos.
+                _showInstallationPanel(initialFiles: files);
+              }
+            },
+            onDragEntered: (details) => setState(() => _isDragging = true),
+            onDragExited: (details) => setState(() => _isDragging = false),
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: _finalModsPath == null && !_isLoading
+                      ? _buildPathSelectionScreen(l10n)
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (_modsToInstallPreviewMap.isNotEmpty)
+                            const Divider(height: 30, thickness: 1),
+                            Expanded(
+                              child: _buildModsListSection(
+                                l10n.installedMods,
+                                filteredAndSortedMods,
+                                l10n,
+                                hasEnabledMods,
+                                hasDisabledMods,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            if (_isUpdatingMetadata)
+                              Column(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8.0,
+                                    ),
+                                    child: Text(
+                                      _metadataUpdateStatus,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(color: Colors.white70),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  LinearProgressIndicator(
+                                    value: _metadataUpdateProgress,
+                                    backgroundColor: Colors.grey[800],
+                                    valueColor: const AlwaysStoppedAnimation<Color>(
+                                      Colors.lightBlueAccent, // Color distintivo
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else if (_isCheckingForUpdates)
+                              Column(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8.0,
+                                    ),
+                                    child: Text(
+                                      l10n.statusCheckingUpdates,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(color: Colors.white70),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  LinearProgressIndicator(
+                                    value: null,
+                                    backgroundColor: Colors.grey[800],
+                                    valueColor: const AlwaysStoppedAnimation<Color>(
+                                      Colors.tealAccent,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else if (_isLoading)
+                              Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else
+                              Text(
+                                _statusMessage,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: _statusColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                          ],
                         ),
-                        const SizedBox(height: 20),
-                        /*if (_isExtracting)
-                          Column(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8.0,
-                                ),
-                                child: Text(
-                                  _extractionStatus,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(color: Colors.white70),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              LinearProgressIndicator(
-                                value: _extractionProgress,
-                                backgroundColor: Colors.grey[800],
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                  Colors.tealAccent,
-                                ),
-                              ),
-                            ],
-                          )*/
-                          if (_isUpdatingMetadata)
-                          Column(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8.0,
-                                ),
-                                child: Text(
-                                  _metadataUpdateStatus,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(color: Colors.white70),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              LinearProgressIndicator(
-                                value: _metadataUpdateProgress,
-                                backgroundColor: Colors.grey[800],
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                  Colors.lightBlueAccent, // Color distintivo
-                                ),
-                              ),
-                            ],
-                          )
-                        else if (_isCheckingForUpdates)
-                          Column(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8.0,
-                                ),
-                                child: Text(
-                                  l10n.statusCheckingUpdates,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(color: Colors.white70),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              LinearProgressIndicator(
-                                value: null,
-                                backgroundColor: Colors.grey[800],
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                  Colors.tealAccent,
-                                ),
-                              ),
-                            ],
-                          )
-                        else if (_isLoading)
-                          Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                            ),
-                          )
-                        else
-                          Text(
-                            _statusMessage,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: _statusColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                      ],
-                    ),
-            ),
-            if (_isDragging)
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  border: Border.all(
-                    color: Colors.tealAccent,
-                    width: 3,
-                    style: BorderStyle.solid,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.download_for_offline,
-                        size: 80,
+                if (_isDragging)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      border: Border.all(
                         color: Colors.tealAccent,
+                        width: 3,
+                        style: BorderStyle.solid,
                       ),
-                      const SizedBox(height: 20),
-                      Text(
-                        l10n.dropTargetOverlay,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.download_for_offline,
+                            size: 80,
+                            color: Colors.tealAccent,
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            l10n.dropTargetOverlay,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-          ],
-        ),
+              ],
+            ),
+          ),
+          // ++ AÑADIDO: El overlay de vista previa se renderiza aquí ++
+          _buildOutfitPreviewOverlay(),
+        ],
       ),
     );
   }
@@ -6484,6 +6475,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Flexible(
+                  child: MouseRegion(
+                    // 2. Define onEnter y onExit
+                    onEnter: (_) {
+                      if (isReplacement) {
+                        // Actualiza el notificador solo si es un mod de reemplazo
+                        _hoveredOutfitNotifier.value = modInfo.replacesOutfit;
+                      }
+                    },
+                    onExit: (_) {
+                      if (isReplacement) {
+                        _hoveredOutfitNotifier.value = null;
+                      }
+                    },
                   child: InkWell(
                     onTap: isReplacement ? null : () async {
                       final updatedMod = await _showEditDialog(
@@ -6528,17 +6532,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                 fontSize: 10,
                                 // (Opcional) Color diferente para el texto del traje
                                 color: isReplacement 
-                                  ? Colors.purpleAccent.shade100 
+                                  ? const Color.fromARGB(255, 153, 151, 153) 
                                   : Colors.white70,
                               ),
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                             ),
-                          ),
-                        ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
+                  //
                 ),
                 Row(
                   children: [
@@ -8243,6 +8249,84 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 
+  // ++ AÑADIDO: Función para construir el overlay de vista previa del traje ++
+  Widget _buildOutfitPreviewOverlay() {
+    return ValueListenableBuilder<String?>(
+      valueListenable: _hoveredOutfitNotifier,
+      builder: (context, outfitName, child) {
+        // Usa AnimatedOpacity para una aparición/desaparición suave
+        return AnimatedOpacity(
+          opacity: outfitName != null ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 200),
+          // Si no hay outfit, no renderiza nada
+          child: (outfitName == null)
+              ? const SizedBox.shrink()
+              // IgnorePointer evita que el overlay bloquee clics
+              : IgnorePointer(
+                  child: Align(
+                    // Posiciona el overlay en la esquina inferior izquierda
+                    alignment: Alignment.bottomLeft,
+                    child: Container(
+                      // Tamaño fijo para la vista previa
+                      width: 210, // Proporción 3:4.5 (como la tarjeta)
+                      height: 315,
+                      margin: const EdgeInsets.all(24), // Margen desde la esquina
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2a2a2a),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.tealAccent, width: 2),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black54,
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Column(
+                          children: [
+                            // La imagen del traje
+                            Expanded(
+                              child: Image.asset(
+                                _generateOutfitImagePath(outfitName),
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Center(
+                                  child: Icon(
+                                    Icons.hide_image_outlined,
+                                    color: Colors.grey[700],
+                                    size: 50,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // El nombre del traje
+                            Padding(
+                              padding: const EdgeInsets.all(10.0),
+                              child: Text(
+                                outfitName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+        );
+      },
+    );
+  }
+
 }
 
 class ModImage extends StatelessWidget {
@@ -9295,7 +9379,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                       const SizedBox(width: 8),
 
                     // --- INICIO DE LA MODIFICACIÓN (Descomentado y actualizado) ---
-                    // Etiqueta
+                    /*/ Etiqueta
                     (() { // Usamos un constructor anónimo para definir las variables
                       final bool isReplacement = currentModInfo.replacesOutfit != null && currentModInfo.replacesOutfit!.isNotEmpty;
                       final String displayTag = isReplacement 
@@ -9361,7 +9445,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                         ),
                       );
                     })(), // Fin del constructor anónimo de la etiqueta
-                    // --- FIN DE LA MODIFICACIÓN ---
+                    // --- FIN DE LA MODIFICACIÓN ---*/
                   ],
                 ),
               ),
