@@ -505,6 +505,28 @@
   "dialogActionYes": "Yes",
   "@dialogActionYes": {
     "description": "Button text for 'Yes'"
+  },
+  "dialogTitleOutfitConflict": "Outfit Conflict Detected",
+  "@dialogTitleOutfitConflict": {
+    "description": "Title of the dialog when trying to enable a mod that replaces an outfit already replaced by another mod."
+  },
+  "dialogContentOutfitConflict": "The outfit '{outfitName}' is already being replaced by the mod '{modName}'.\n\nDo you want to disable '{modName}' and activate this one instead?",
+  "@dialogContentOutfitConflict": {
+    "description": "Content of the outfit conflict dialog. outfitName is the outfit's name, modName is the conflicting mod's name.",
+    "placeholders": {
+      "outfitName": {
+        "type": "String",
+        "example": "Skin Suit"
+      },
+      "modName": {
+        "type": "String",
+        "example": "My Awesome Mod"
+      }
+    }
+  },
+  "dialogActionActivateAndDisable": "Disable and Activate",
+  "@dialogActionActivateAndDisable": {
+    "description": "Button to force activation of a mod, disabling the conflicting one."
   }
 }
 

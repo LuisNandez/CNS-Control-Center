@@ -3779,6 +3779,76 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<void> _enableMod(ModInfo modInfo) async {
     // MODIFICACIÓN: Comprueba ambas rutas
     if (_finalModsPath == null || _genericModsPath == null) return;
+    final String? outfitToReplace = modInfo.replacesOutfit;
+    final bool isReplacementMod = outfitToReplace != null && outfitToReplace.isNotEmpty;
+
+    if (isReplacementMod) {
+      // Es un mod de reemplazo. Comprobar si ya hay otro habilitado para el mismo traje.
+      ModInfo? conflictingMod;
+      try {
+        // Buscamos en todos los mods
+        for (final otherMod in _allMods) {
+          // Si el 'otro mod' está habilitado,
+          // no es el mismo mod que intentamos activar,
+          // y reemplaza el MISMO traje...
+          if (otherMod.isEnabled &&
+              otherMod.directory.path != modInfo.directory.path &&
+              otherMod.replacesOutfit == outfitToReplace) {
+            conflictingMod = otherMod;
+            break; // ¡Conflicto encontrado! Salimos del bucle.
+          }
+        }
+      } catch (e) {
+        // (En caso de que el bucle falle, aunque es poco probable)
+        conflictingMod = null;
+      }
+
+      // Si se encontró un mod en conflicto, muestra un diálogo y detén la activación.
+      if (conflictingMod != null) {
+        final l10n = AppLocalizations.of(context)!;
+        // Ahora el diálogo devuelve un booleano (true = forzar activación)
+        final bool? forceActivate = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false, // No permitir cerrar sin elegir
+          builder: (context) => AlertDialog(
+            backgroundColor: const Color(0xFF2a2a2a),
+            title: Text(l10n.dialogTitleOutfitConflict), // L10N existente
+            content: Text(
+              l10n.dialogContentOutfitConflict( // <<< L10N MODIFICADO
+                outfitToReplace,
+                conflictingMod!.customName,
+              ),
+            ),
+            actions: [
+              // Botón de Cancelar
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(l10n.dialogActionCancel), // L10N existente
+              ),
+              // Botón de Activar y Desactivar
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.tealAccent,
+                  foregroundColor: Colors.black,
+                ),
+                child: Text(l10n.dialogActionActivateAndDisable), // <<< NUEVO L10N
+              ),
+            ],
+          ),
+        );
+
+        // Si el usuario no forzó la activación (canceló)
+        if (forceActivate != true) {
+          return; // Detiene la activación.
+        }
+
+        // Si el usuario SÍ forzó la activación, desactiva el mod conflictivo
+        // antes de continuar con la activación del nuevo.
+        await _disableMod(conflictingMod);
+        // ++ FIN DE LA MODIFICACIÓN DEL DIÁLOGO ++
+      }
+    }
     setState(() => _isLoading = true);
 
     try {
@@ -6233,10 +6303,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       p.join(modInfo.directory.path, modInfo.customCoverPath!);
     }
     final displayVersion = modInfo.customVersion ?? modInfo.localVersion;
-    final displayTag =
-        modInfo.customFitMeshType ??
-        modInfo.fitMeshType ??
-        l10n.modCategoryOther;
+    final bool isReplacement = modInfo.replacesOutfit != null && modInfo.replacesOutfit!.isNotEmpty;
+    // La etiqueta ahora es el traje (si es un reemplazo) o la etiqueta personalizada/original (si no lo es)
+    final String displayTag = isReplacement 
+        ? modInfo.replacesOutfit! 
+        : (modInfo.customFitMeshType ?? modInfo.fitMeshType ?? l10n.modCategoryOther);
 
     void _performSurgicalUpdate(ModInfo? updatedMod) {
       if (updatedMod == null) return;
@@ -6414,12 +6485,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               children: [
                 Flexible(
                   child: InkWell(
-                    onTap: () async {
+                    onTap: isReplacement ? null : () async {
                       final updatedMod = await _showEditDialog(
                         context: context,
                         title: l10n.editTagText,
                         label: l10n.customTagText,
-                        initialValue: displayTag,
+                        initialValue: displayTag, // 'displayTag' ya tiene el valor correcto
                         defaultValue:
                             modInfo.fitMeshType ?? l10n.modCategoryOther,
                         onSave: (newValue) =>
@@ -6434,17 +6505,37 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.2),
+                        color: isReplacement 
+                            ? Colors.black.withOpacity(0.4) 
+                            : Colors.grey.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
-                        displayTag,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.white70,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
+                      child: Row( 
+                        mainAxisSize: MainAxisSize.min, // Para que el icono no empuje el texto
+                        children: [
+                          if (isReplacement)
+                            Icon(
+                              Icons.checkroom_outlined, 
+                              size: 10, 
+                              color: Colors.purpleAccent.shade100, // Color distintivo
+                            ),
+                          if (isReplacement)
+                            const SizedBox(width: 4),
+                          Flexible( // El texto debe ser flexible para los "..."
+                            child: Text(
+                              displayTag, // 'displayTag' ya tiene el nombre del traje
+                              style: TextStyle(
+                                fontSize: 10,
+                                // (Opcional) Color diferente para el texto del traje
+                                color: isReplacement 
+                                  ? Colors.purpleAccent.shade100 
+                                  : Colors.white70,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -7668,8 +7759,74 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     ModInfo mod,
     Map<String, dynamic> newData,
   ) async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       Directory modDirectory = mod.directory;
+
+      if (newData.containsKey('replacesOutfit')) {
+        final String? newOutfit = newData['replacesOutfit'] as String?;
+
+        // 1. Comprobamos solo si se está ASIGNANDO un nuevo traje (no si se está borrando)
+        if (newOutfit != null && newOutfit.isNotEmpty) {
+          ModInfo? conflictingMod;
+          try {
+            // 2. Buscamos en todos los mods
+            for (final otherMod in _allMods) {
+              // Si el 'otro mod' está habilitado,
+              // no es el mismo mod que intentamos editar,
+              // y reemplaza el MISMO traje...
+              if (otherMod.isEnabled &&
+                  otherMod.directory.path != mod.directory.path &&
+                  otherMod.replacesOutfit == newOutfit) {
+                conflictingMod = otherMod;
+                break; // ¡Conflicto encontrado!
+              }
+            }
+          } catch (e) {
+            conflictingMod = null;
+          }
+
+          // 3. Si se encontró un mod en conflicto, muestra el diálogo de elección.
+          if (conflictingMod != null) {
+            final bool? forceActivate = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                backgroundColor: const Color(0xFF2a2a2a),
+                title: Text(l10n.dialogTitleOutfitConflict),
+                content: Text(
+                  l10n.dialogContentOutfitConflict( // Reutilizamos el l10n
+                    newOutfit,
+                    conflictingMod!.customName,
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: Text(l10n.dialogActionCancel),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.tealAccent,
+                      foregroundColor: Colors.black,
+                    ),
+                    child: Text(l10n.dialogActionActivateAndDisable), // Reutilizamos el l10n
+                  ),
+                ],
+              ),
+            );
+
+            // 4. Si el usuario canceló, detenemos el guardado
+            if (forceActivate != true) {
+              return null; // Devuelve null para indicar que no se guardó nada
+            }
+
+            // 5. Si el usuario confirmó, desactiva el mod conflictivo
+            await _disableMod(conflictingMod);
+          }
+        }
+      }
 
       final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
       Map<String, dynamic> data = {};
@@ -9137,52 +9294,74 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                     if (displayVersion != null && displayVersion.isNotEmpty)
                       const SizedBox(width: 8),
 
-                    /*/ Etiqueta
-                    InkWell(
-                      onTap: () async {
-                        final newTag = await _showSingleFieldEditDialog(
-                          title: l10n.editTagText,
-                          label: l10n.customTagText,
-                          initialValue:
-                              currentModInfo.customFitMeshType ??
-                              currentModInfo.fitMeshType ??
-                              l10n.modCategoryOther,
-                          defaultValue: currentModInfo.fitMeshType ?? '',
-                        );
-                        if (newTag != null) {
-                          final updatedMod = await widget.onUpdateDetails(
-                            currentModInfo,
-                            {'customFitMeshType': newTag},
+                    // --- INICIO DE LA MODIFICACIÓN (Descomentado y actualizado) ---
+                    // Etiqueta
+                    (() { // Usamos un constructor anónimo para definir las variables
+                      final bool isReplacement = currentModInfo.replacesOutfit != null && currentModInfo.replacesOutfit!.isNotEmpty;
+                      final String displayTag = isReplacement 
+                          ? currentModInfo.replacesOutfit! 
+                          : (currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType ?? l10n.modCategoryOther);
+
+                      return InkWell(
+                        // Deshabilitamos el onTap si es un reemplazo
+                        onTap: isReplacement ? null : () async {
+                          final newTag = await _showSingleFieldEditDialog(
+                            title: l10n.editTagText,
+                            label: l10n.customTagText,
+                            initialValue: displayTag,
+                            defaultValue: currentModInfo.fitMeshType ?? '',
                           );
-                          if (updatedMod != null) {
-                            setState(() {
-                              currentModInfo = updatedMod;
-                              _needsReloadOnClose = true;
-                            });
+                          if (newTag != null) {
+                            final updatedMod = await widget.onUpdateDetails(
+                              currentModInfo,
+                              {'customFitMeshType': newTag},
+                            );
+                            if (updatedMod != null) {
+                              setState(() {
+                                currentModInfo = updatedMod;
+                                _needsReloadOnClose = true;
+                              });
+                            }
                           }
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          currentModInfo.customFitMeshType ??
-                              currentModInfo.fitMeshType ??
-                              l10n.modCategoryOther,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white70,
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isReplacement
+                              ? Colors.black.withOpacity(0.4) // Fondo oscuro
+                              : Colors.grey.withOpacity(0.2), // Fondo original
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row( // Usamos un Row para el icono
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isReplacement)
+                                Icon(
+                                  Icons.checkroom_outlined, 
+                                  size: 12, 
+                                  color: Colors.purpleAccent.shade100, // Color distintivo
+                                ),
+                              if (isReplacement)
+                                const SizedBox(width: 6),
+                              Text(
+                                displayTag, // Muestra el nombre del traje
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isReplacement
+                                    ? Colors.purpleAccent.shade100 // Color distintivo
+                                    : Colors.white70, // Color original
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ),*/
+                      );
+                    })(), // Fin del constructor anónimo de la etiqueta
+                    // --- FIN DE LA MODIFICACIÓN ---
                   ],
                 ),
               ),

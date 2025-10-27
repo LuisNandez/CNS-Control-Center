@@ -2133,6 +2133,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Yes'**
   String get dialogActionYes;
+
+  /// Title of the dialog when trying to enable a mod that replaces an outfit already replaced by another mod.
+  ///
+  /// In en, this message translates to:
+  /// **'Outfit Conflict Detected'**
+  String get dialogTitleOutfitConflict;
+
+  /// Content of the outfit conflict dialog. outfitName is the outfit's name, modName is the conflicting mod's name.
+  ///
+  /// In en, this message translates to:
+  /// **'The outfit \'{outfitName}\' is already being replaced by the mod \'{modName}\'.\n\nDo you want to disable \'{modName}\' and activate this one instead?'**
+  String dialogContentOutfitConflict(String outfitName, String modName);
+
+  /// Button to force activation of a mod, disabling the conflicting one.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable and Activate'**
+  String get dialogActionActivateAndDisable;
 }
 
 class _AppLocalizationsDelegate

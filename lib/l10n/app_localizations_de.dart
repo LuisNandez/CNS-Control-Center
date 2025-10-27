@@ -1219,4 +1219,15 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get dialogActionYes => 'Yes';
+
+  @override
+  String get dialogTitleOutfitConflict => 'Outfit Conflict Detected';
+
+  @override
+  String dialogContentOutfitConflict(String outfitName, String modName) {
+    return 'The outfit \'$outfitName\' is already being replaced by the mod \'$modName\'.\n\nDo you want to disable \'$modName\' and activate this one instead?';
+  }
+
+  @override
+  String get dialogActionActivateAndDisable => 'Disable and Activate';
 }
