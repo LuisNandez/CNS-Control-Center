@@ -30,6 +30,7 @@ class AppPrefs {
   static const String nexusApiKey = 'nexusApiKey';
   static const String skippedVersions = 'skippedVersions';
   static const String filterMode = 'filterMode';
+  static const String modTypeFilterMode = 'modTypeFilterMode';
   static const String sortMode = 'sortMode';
   static const String viewMode = 'viewMode'; // New preference for view mode
 }
@@ -280,7 +281,9 @@ class _PreparedUE4SS {
   _PreparedUE4SS({required this.sourceDir});
 }
 
-enum ModFilter { all, enabled, disabled, updatesAvailable }
+enum ModFilter { all, enabled, disabled, updatesAvailable}
+
+enum ModTypeFilter { all, cns, replacement, movies, generic }
 
 enum ModSort { name, date }
 
@@ -346,6 +349,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   String _installationStatus = '';
 
   ModFilter _currentFilter = ModFilter.all;
+  ModTypeFilter _currentModTypeFilter = ModTypeFilter.all;
   ModSort _currentSort = ModSort.date;
   ModListViewMode _viewMode = ModListViewMode.grid;
 
@@ -1120,12 +1124,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final prefs = await SharedPreferences.getInstance();
     final filterIndex =
         prefs.getInt(AppPrefs.filterMode) ?? ModFilter.all.index;
+    // ++ AÑADIDO PARA EL NUEVO FILTRO ++
+    final modTypeFilterIndex =
+        prefs.getInt(AppPrefs.modTypeFilterMode) ?? ModTypeFilter.all.index;
+    // --
     final sortIndex = prefs.getInt(AppPrefs.sortMode) ?? ModSort.date.index;
     final viewModeIndex =
         prefs.getInt(AppPrefs.viewMode) ?? ModListViewMode.grid.index;
 
     setState(() {
       _currentFilter = ModFilter.values[filterIndex];
+      // ++ AÑADIDO PARA EL NUEVO FILTRO ++
+      _currentModTypeFilter = ModTypeFilter.values[modTypeFilterIndex];
+      // --
       _currentSort = ModSort.values[sortIndex];
       _viewMode = ModListViewMode.values[viewModeIndex];
     });
@@ -4950,7 +4961,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
     return null;
   }
-//Funcion comentada por el momento, puede ser util en un futuro.
+  //Funcion comentada por el momento, puede ser util en un futuro.
   /*Future<void> _recheckSpecificMod(String nexusId, {String? newVersion}) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
       print("API Key not configured, cannot re-check mod.");
@@ -5255,6 +5266,35 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   List<ModInfo> _getFilteredAndSortedMods(AppLocalizations l10n) {
     List<ModInfo> mods = List.from(_allMods);
 
+    // --- 1. APLICA EL FILTRO DE TIPO DE MOD (Barra de Navegación) ---
+    switch (_currentModTypeFilter) {
+      case ModTypeFilter.cns:
+        // Incluye mods 'cns' y mods antiguos (null) que son tratados como cns
+        mods.retainWhere((mod) => mod.modType == 'cns' || mod.modType == null);
+        break;
+      case ModTypeFilter.generic:
+        // Solo mods genéricos que NO son de reemplazo
+        mods.retainWhere((mod) =>
+            mod.modType == 'genericPak' &&
+            (mod.replacesOutfit == null || mod.replacesOutfit!.isEmpty));
+        break;
+      case ModTypeFilter.replacement:
+        // Solo mods genéricos que SÍ son de reemplazo
+        mods.retainWhere((mod) =>
+            mod.modType == 'genericPak' &&
+            (mod.replacesOutfit != null && mod.replacesOutfit!.isNotEmpty));
+        break;
+      case ModTypeFilter.movies:
+        mods.retainWhere((mod) => mod.modType == 'movies');
+        break;
+      case ModTypeFilter.all:
+      default:
+        // No filtrar por tipo
+        break;
+    }
+
+    // --- 2. APLICA EL FILTRO DE ESTADO (Dropdown) ---
+    // Esto ahora filtra SOBRE la lista ya filtrada por tipo.
     switch (_currentFilter) {
       case ModFilter.enabled:
         mods.retainWhere((mod) => mod.isEnabled);
@@ -5267,34 +5307,31 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           final updateInfo = _modUpdates[mod.directory.path];
           if (updateInfo == null) return false;
 
-          // Construye el mismo identificador único que se usa para ignorar actualizaciones
           final updateIdentifier = mod.directory.path + updateInfo['version'];
-          // El mod se muestra solo si la actualización NO está en la lista de ignorados
           return !_ignoredUpdates.contains(updateIdentifier);
         });
         break;
       case ModFilter.all:
       default:
+        // No filtrar por estado
         break;
     }
 
+    // --- 3. APLICA EL FILTRO DE BÚSQUEDA ---
     if (_searchQuery.isNotEmpty) {
       mods.retainWhere((mod) {
-        // Obtenemos la etiqueta visible, igual que en la UI.
         final displayTag =
             mod.customFitMeshType ?? mod.fitMeshType ?? l10n.modCategoryOther;
         final query = _searchQuery.toLowerCase();
 
-        // Comprobamos si el nombre del mod coincide.
         final nameMatch = mod.customName.toLowerCase().contains(query);
-        // Comprobamos si la etiqueta coincide.
         final tagMatch = displayTag.toLowerCase().contains(query);
 
-        // El mod se mantiene si cualquiera de los dos coincide.
         return nameMatch || tagMatch;
       });
     }
 
+    // --- 4. APLICA EL ORDENAMIENTO ---
     switch (_currentSort) {
       case ModSort.name:
         mods.sort(
@@ -5304,23 +5341,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         break;
       case ModSort.date:
       default:
-        // ✅ INICIO DE LA SOLUCIÓN
         mods.sort((a, b) {
-          // 1. Criterio principal: Ordenar por fecha (descendente)
           final dateCompare = b.lastModified.compareTo(a.lastModified);
 
-          // 2. Si las fechas son diferentes, usamos ese resultado
           if (dateCompare != 0) {
             return dateCompare;
           }
-
-          // 3. Criterio de desempate: Si las fechas son iguales, ordenar por nombre (ascendente)
-          //    para garantizar un orden estable y predecible.
           return a.customName.toLowerCase().compareTo(
             b.customName.toLowerCase(),
           );
         });
-        // ✅ FIN DE LA SOLUCIÓN
         break;
     }
 
@@ -6696,6 +6726,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     });
                   },
                   itemBuilder: (BuildContext context) {
+                    // ++ LISTA SIMPLIFICADA ++
                     final filterOptions = [
                       {'value': ModFilter.all, 'text': l10n.filterAll},
                       {'value': ModFilter.enabled, 'text': l10n.filterEnabled},
@@ -6705,9 +6736,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                       },
                       {
                         'value': ModFilter.updatesAvailable,
-                        'text': l10n.filterUpdatesAvailable, // <-- USA LA NUEVA TRADUCCIÓN
+                        'text': l10n.filterUpdatesAvailable,
                       },
                     ];
+                    
+                    // ++ CONSTRUCTOR SIMPLIFICADO ++
                     return filterOptions.map((option) {
                       return PopupMenuItem<ModFilter>(
                         value: option['value'] as ModFilter,
@@ -6817,7 +6850,40 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        Padding(
+              padding: const EdgeInsets.only(top: 12.0),
+              child: Container(
+                width: double.infinity, // Ocupa todo el ancho
+                alignment: Alignment.center, // Centra los botones
+                child: SingleChildScrollView( // Permite scroll horizontal en ventanas pequeñas
+                  scrollDirection: Axis.horizontal,
+                  child: ToggleButtons(
+                    isSelected: ModTypeFilter.values
+                        .map((type) => type == _currentModTypeFilter)
+                        .toList(),
+                    onPressed: (index) async {
+                      final newTypeFilter = ModTypeFilter.values[index];
+                      final prefs = await SharedPreferences.getInstance();
+                      // Guardamos la nueva preferencia
+                      await prefs.setInt(AppPrefs.modTypeFilterMode, newTypeFilter.index); 
+                      setState(() {
+                        _currentModTypeFilter = newTypeFilter;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    constraints: const BoxConstraints(minHeight: 36), // Altura fija
+                    children: [
+                      _buildNavButton(l10n.filterAll),
+                      _buildNavButton(l10n.modTypeCNS),
+                      _buildNavButton(l10n.modTypeReplacement),
+                      _buildNavButton(l10n.modTypeMovies),
+                      _buildNavButton(l10n.modTypeGeneric),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        const SizedBox(height: 8),
         Expanded(
           child: mods.isEmpty
               ? Center(
@@ -7776,6 +7842,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  /// Widget auxiliar para dar padding uniforme a los botones de navegación
+  Widget _buildNavButton(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Text(text),
+    );
   }
 
 }
