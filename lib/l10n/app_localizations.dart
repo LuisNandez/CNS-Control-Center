@@ -2151,6 +2151,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Disable and Activate'**
   String get dialogActionActivateAndDisable;
+
+  /// Title for the replacement mod switch
+  ///
+  /// In en, this message translates to:
+  /// **'Replacement mod'**
+  String get replacementModSwitchTitle;
+
+  /// Description for the replacement mod switch
+  ///
+  /// In en, this message translates to:
+  /// **'Check if this mod is designed to replace a suit in the game.'**
+  String get replacementModSwitchDesc;
 }
 
 class _AppLocalizationsDelegate

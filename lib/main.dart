@@ -5576,16 +5576,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         mods.retainWhere((mod) => mod.modType == 'cns' || mod.modType == null);
         break;
       case ModTypeFilter.generic:
-        // Solo mods genéricos que NO son de reemplazo
-        mods.retainWhere((mod) =>
-            mod.modType == 'genericPak' &&
-            (mod.replacesOutfit == null || mod.replacesOutfit!.isEmpty));
+        // Ahora solo busca mods marcados explícitamente como 'genericPak'
+        mods.retainWhere((mod) => mod.modType == 'genericPak');
         break;
       case ModTypeFilter.replacement:
-        // Solo mods genéricos que SÍ son de reemplazo
-        mods.retainWhere((mod) =>
-            mod.modType == 'genericPak' &&
-            (mod.replacesOutfit != null && mod.replacesOutfit!.isNotEmpty));
+        // Ahora busca mods marcados explícitamente como 'replacement'
+        // (Esto también incluirá los mods antiguos que tenías,
+        // una vez que actives el switch en ellos por primera vez).
+        mods.retainWhere((mod) => mod.modType == 'replacement');
         break;
       case ModTypeFilter.movies:
         mods.retainWhere((mod) => mod.modType == 'movies');
@@ -6722,25 +6720,24 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   /// Construye el widget de la etiqueta de Tipo de Mod (CNS, Genérico o Movies).
-  Widget _buildModTypeBadge(ModInfo mod, AppLocalizations l10n) { // <--- 1. PARÁMETRO CAMBIADO
+  Widget _buildModTypeBadge(ModInfo mod, AppLocalizations l10n) {
     final String modTypeString;
     final Color modTypeColor;
 
     // 2. LÓGICA MEJORADA
     final String? modType = mod.modType;
-    final bool isReplacement = mod.replacesOutfit != null && mod.replacesOutfit!.isNotEmpty;
 
-    if (modType == 'genericPak' && isReplacement) {
-      modTypeString = l10n.modTypeReplacement; // "Reemplazo" (Necesitarás esta traducción)
-      modTypeColor = const Color.fromARGB(255, 206, 55, 158); // Nuevo color para "Reemplazo"
+    if (modType == 'replacement') {
+      modTypeString = l10n.modTypeReplacement; // "Reemplazo"
+      modTypeColor = const Color.fromARGB(255, 182, 33, 135); // Color para "Reemplazo"
     } else if (modType == 'genericPak') {
       modTypeString = l10n.modTypeGeneric; // "Genérico"
-      modTypeColor = Colors.blueAccent.shade400; // Color para "Generic"
+      modTypeColor = const Color.fromARGB(255, 23, 86, 175); // Color para "Generic"
     } else if (modType == 'movies') {
       modTypeString = l10n.modTypeMovies; // "Películas"
-      modTypeColor = Colors.purpleAccent.shade400; // Color para "Movies"
+      modTypeColor = const Color.fromARGB(255, 153, 49, 49); // Color para "Movies"
     } else {
-      // Asumimos 'cns' por defecto para todos los demás (incluidos mods antiguos)
+      // Esto ahora solo se aplica a 'cns' y a mods antiguos (null)
       modTypeString = l10n.modTypeCNS; // "CNS"
       modTypeColor = Colors.teal.shade600; // Color para "CNS"
     }
@@ -7934,6 +7931,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (newData.containsKey('userNotes'))
         data['userNotes'] = newData['userNotes'];
 
+      if (newData.containsKey('modType')) {
+        data['modType'] = newData['modType'];
+      }
+
       if (newData.containsKey('replacesOutfit')) {
         final value = newData['replacesOutfit'] as String?;
         if (value == null || value.isEmpty) {
@@ -8544,12 +8545,17 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
   bool _showTranslateDescriptionButton = false;
   bool _needsReloadOnClose = false;
   late bool _isIgnored;
+  late bool _isReplacementMod;
 
   @override
   void initState() {
     super.initState();
     currentModInfo = widget.initialModInfo;
     _isIgnored = widget.isIgnored;
+    _isReplacementMod = currentModInfo.modType == 'replacement' ||
+        (currentModInfo.modType == 'genericPak' &&
+            (currentModInfo.replacesOutfit != null &&
+                currentModInfo.replacesOutfit!.isNotEmpty));
     // Comprueba si se puede traducir tan pronto como el widget se renderiza por primera vez.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _updateTranslationButtonVisibility();
@@ -9654,9 +9660,78 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                       ),
                     ],
                   ),
-                  if (currentModInfo.modType == 'genericPak') ...[
+                  if (currentModInfo.modType == 'genericPak' ||
+                    currentModInfo.modType == 'replacement' ||
+                    (currentModInfo.modType == null && currentModInfo.replacesOutfit != null) ) ...[
                     const SizedBox(height: 20),
-                    _buildOutfitReplacementSection(l10n),
+                    // --- Switch para Mod de Reemplazo ---
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: SwitchListTile(
+                        title: Text(
+                          l10n.replacementModSwitchTitle, // "Mod de Reemplazo"
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Text(
+                          l10n.replacementModSwitchDesc, // "Marca si este mod reemplaza un traje."
+                          style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                        ),
+                        value: _isReplacementMod,
+                        activeColor: Colors.tealAccent,
+
+                        // ++ INICIO DE LA MODIFICACIÓN: onChanged ++
+                        onChanged: (bool newValue) async {
+                          // Define el nuevo tipo de mod basado en el switch
+                          final String newModType = newValue ? 'replacement' : 'genericPak';
+                          
+                          // Prepara los datos para guardar.
+                          final Map<String, dynamic> dataToSave = {
+                            'modType': newModType,
+                          };
+
+                          // Si el usuario está APAGANDO el switch,
+                          // también borramos el traje seleccionado.
+                          if (newValue == false) {
+                            dataToSave['replacesOutfit'] = null;
+                          }
+
+                          // Guardamos los cambios inmediatamente
+                          final updatedMod = await widget.onUpdateDetails(
+                            currentModInfo,
+                            dataToSave,
+                          );
+
+                          // Actualizamos la UI local
+                          if (updatedMod != null && mounted) {
+                            setState(() {
+                              currentModInfo = updatedMod;
+                              _isReplacementMod = newValue; // Sincroniza el switch
+                              _needsReloadOnClose = true;
+                            });
+                          } else {
+                            // Si falla el guardado, revierte el switch
+                            setState(() {
+                              _isReplacementMod = !newValue;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+
+                    // --- Sección de Selección de Traje (Condicional) ---
+                    if (_isReplacementMod) ...[
+                      const SizedBox(height: 20),
+                      _buildOutfitReplacementSection(l10n),
+                    ],
                   ],
                   const SizedBox(height: 30),
                   _buildInfoSection(

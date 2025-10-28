@@ -1236,4 +1236,11 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get dialogActionActivateAndDisable => 'Disable and Activate';
+
+  @override
+  String get replacementModSwitchTitle => 'Replacement mod';
+
+  @override
+  String get replacementModSwitchDesc =>
+      'Check if this mod is designed to replace a suit in the game.';
 }

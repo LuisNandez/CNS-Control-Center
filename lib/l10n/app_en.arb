@@ -527,6 +527,14 @@
   "dialogActionActivateAndDisable": "Disable and Activate",
   "@dialogActionActivateAndDisable": {
     "description": "Button to force activation of a mod, disabling the conflicting one."
+  },
+  "replacementModSwitchTitle": "Replacement mod",
+  "@replacementModSwitchTitle": {
+    "description": "Title for the replacement mod switch"
+  },
+  "replacementModSwitchDesc": "Check if this mod is designed to replace a suit in the game.",
+  "@replacementModSwitchDesc": {
+    "description": "Description for the replacement mod switch"
   }
 }
 
