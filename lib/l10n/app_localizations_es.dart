@@ -1237,4 +1237,11 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get replacementModSwitchDesc =>
       'Check if this mod is designed to replace a suit in the game.';
+
+  @override
+  String get settingsShowModTagsTitle => 'Show mod type tags';
+
+  @override
+  String get settingsShowModTagsDesc =>
+      'Display mod type tags (e.g., CNS, Generic) on each mod card in the list.';
 }

@@ -34,6 +34,7 @@ class AppPrefs {
   static const String modTypeFilterMode = 'modTypeFilterMode';
   static const String sortMode = 'sortMode';
   static const String viewMode = 'viewMode'; // New preference for view mode
+  static const String showModTypeTags = 'showModTypeTags'; // New preference for showing mod type tags
 }
 
 // Data class to hold all information about a mod.
@@ -353,6 +354,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   ModTypeFilter _currentModTypeFilter = ModTypeFilter.all;
   ModSort _currentSort = ModSort.date;
   ModListViewMode _viewMode = ModListViewMode.grid;
+  bool _showModTypeTags = true;
 
   bool _isUe4ssInstalled = false;
   bool _isCnsCoreInstalled = false;
@@ -1138,6 +1140,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final sortIndex = prefs.getInt(AppPrefs.sortMode) ?? ModSort.date.index;
     final viewModeIndex =
         prefs.getInt(AppPrefs.viewMode) ?? ModListViewMode.grid.index;
+    final showTags = prefs.getBool(AppPrefs.showModTypeTags) ?? true;
 
     setState(() {
       _currentFilter = ModFilter.values[filterIndex];
@@ -1146,6 +1149,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       // --
       _currentSort = ModSort.values[sortIndex];
       _viewMode = ModListViewMode.values[viewModeIndex];
+      _showModTypeTags = showTags;
     });
   }
 
@@ -3783,11 +3787,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     await modDir.rename(destinationPath);
   }
 
-  Future<void> _enableMod(ModInfo modInfo) async {
+  Future<bool> _enableMod(ModInfo modInfo) async {
     // MODIFICACIÓN: Comprueba ambas rutas
-    if (_finalModsPath == null || _genericModsPath == null) return;
+    if (_finalModsPath == null || _genericModsPath == null) return false;
     final String? outfitToReplace = modInfo.replacesOutfit;
-    final bool isReplacementMod = outfitToReplace != null && outfitToReplace.isNotEmpty;
+    final bool isReplacementMod =
+        outfitToReplace != null && outfitToReplace.isNotEmpty;
 
     if (isReplacementMod) {
       // Es un mod de reemplazo. Comprobar si ya hay otro habilitado para el mismo traje.
@@ -3941,16 +3946,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
         // Si el usuario no forzó la activación (canceló)
         if (forceActivate != true) {
-          return; // Detiene la activación.
+          return false;
         }
 
         // Si el usuario SÍ forzó la activación, desactiva el mod conflictivo
         // antes de continuar con la activación del nuevo.
-        await _disableMod(conflictingMod);
+        final bool disabled = await _disableMod(conflictingMod);
+        if (!disabled) {
+          // Si no se pudo deshabilitar el mod conflictivo,
+          // cancela la activación del nuevo.
+          return false;
+        }
         // ++ FIN DE LA MODIFICACIÓN DEL DIÁLOGO ++
       }
     }
-    setState(() => _isLoading = true);
+    //setState(() => _isLoading = true);
 
     try {
       ModInfo updatedMod;
@@ -3991,6 +4001,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       } else {
         await _loadAllMods();
       }
+      return true;
     } catch (e) {
       setState(() {
         _statusMessage = AppLocalizations.of(
@@ -3999,14 +4010,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         _statusColor = Colors.redAccent;
       });
       await _loadAllMods();
-    } finally {
-      setState(() => _isLoading = false);
+      return false;
+    }
+     finally {
+      //setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _disableMod(ModInfo modInfo) async {
-    if (_gameRootPath == null) return;
-    setState(() => _isLoading = true);
+  Future<bool> _disableMod(ModInfo modInfo) async {
+    if (_gameRootPath == null) return false;
+    //setState(() => _isLoading = true);
 
     try {
       final backupDir = Directory(
@@ -4047,6 +4060,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       } else {
         await _loadAllMods();
       }
+      return true;
     } catch (e) {
       setState(() {
         _statusMessage = AppLocalizations.of(
@@ -4055,8 +4069,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         _statusColor = Colors.redAccent;
       });
       await _loadAllMods();
+      return false;
     } finally {
-      setState(() => _isLoading = false);
+      //setState(() => _isLoading = false);
     }
   }
 
@@ -6025,6 +6040,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     onDeleteAllNexusInfo: _deleteAllNexusInfoFiles,
                     onExtractModIds: _extractModIdentifiers,
                     isDeveloperModeEnabled: _developerModeEnabled,
+                    initialShowModTypeTags: _showModTypeTags,
+                    onShowModTypeTagsChanged: (newValue) async {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool(AppPrefs.showModTypeTags, newValue);
+                      setState(() {
+                        _showModTypeTags = newValue;
+                      });
+                    },
                     onShowAboutDialog: _showAboutDialog,
                     onRunSelfHealing: _showSelfHealConfirmationDialog,
                   ),
@@ -6477,7 +6500,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           const SizedBox(height: 4),
 
                         // 3. Muestra SIEMPRE la etiqueta de Tipo (CNS/Genérico)
-                        _buildModTypeBadge(modInfo, l10n),
+                        if (_showModTypeTags)
+                          _buildModTypeBadge(modInfo, l10n),
                       ],
                     ),
                   ),
@@ -6664,20 +6688,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 ),
                 Row(
                   children: [
-                    Transform.scale(
-                      scale: 0.6,
-                      child: Switch(
-                        value: modInfo.isEnabled,
-                        onChanged: _isLoading
-                            ? null
-                            : (value) {
-                                if (value) {
-                                  _enableMod(modInfo);
-                                } else {
-                                  _disableMod(modInfo);
-                                }
-                              },
-                      ),
+                    AnimatedModSwitch(
+                      // Usamos una Key única para que Flutter sepa qué widget persistir
+                      key: ValueKey('switch-grid-${modInfo.directory.path}'),
+                      modInfo: modInfo,
+                      isLoading: _isLoading,
+                      onEnable: _enableMod,
+                      onDisable: _disableMod,
+                      scale: 0.6, // Mantenemos el escalado
                     ),
                     PopupMenuButton<String>(
                       icon: const Icon(Icons.more_vert, size: 20),
@@ -10455,5 +10473,122 @@ class BBCodeRenderer extends StatelessWidget {
       case 7: return 32.0;
       default: return 14.0;
     }
+  }
+}
+
+/// Un widget Switch que maneja su propio estado de animación localmente
+/// para permitir una transición visual suave (deslizamiento) al cambiar,
+/// mientras sigue llamando a los callbacks del widget principal para
+/// ejecutar la lógica de habilitación/deshabilitación.
+class AnimatedModSwitch extends StatefulWidget {
+  final ModInfo modInfo;
+  final bool isLoading;
+  // MODIFICADO: Las funciones ahora deben devolver un bool (éxito o fracaso)
+  final Future<bool> Function(ModInfo) onEnable;
+  final Future<bool> Function(ModInfo) onDisable;
+  final double scale; // Para el GridView
+
+  const AnimatedModSwitch({
+    super.key,
+    required this.modInfo,
+    required this.isLoading,
+    required this.onEnable,
+    required this.onDisable,
+    this.scale = 1.0, // Valor por defecto de 1.0 para el ListView
+  });
+
+  @override
+  State<AnimatedModSwitch> createState() => _AnimatedModSwitchState();
+}
+
+class _AnimatedModSwitchState extends State<AnimatedModSwitch> {
+  late bool _isEnabled;
+  bool _isLocallyLoading = false; // <-- AÑADIDO: Estado de carga local
+
+  @override
+  void initState() {
+    super.initState();
+    _isEnabled = widget.modInfo.isEnabled;
+  }
+
+  // MODIFICADO: Lógica de actualización mejorada
+  @override
+  void didUpdateWidget(covariant AnimatedModSwitch oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Si la lista principal se recarga Y no estamos ocupados localmente,
+    // aceptamos el nuevo valor del mod.
+    if (widget.modInfo.isEnabled != _isEnabled && !_isLocallyLoading) {
+      _isEnabled = widget.modInfo.isEnabled;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // El switch se deshabilita si el padre está cargando (ej. borrando otro mod)
+    // O si estamos esperando que este propio switch termine su acción.
+    final bool isDisabled = widget.isLoading || _isLocallyLoading;
+
+    Widget switchWidget = Switch(
+      value: _isEnabled,
+      activeColor: Colors.tealAccent,
+      // MODIFICADO: El onChanged ahora es async y maneja el estado local
+      onChanged: isDisabled
+          ? null
+          : (newValue) async {
+              // 1. Actualiza el estado local INMEDIATAMENTE
+              //    Esto dispara la animación y bloquea nuevos clics.
+              setState(() {
+                _isEnabled = newValue;
+                _isLocallyLoading = true;
+              });
+
+              // 2. ¡LA CLAVE! Espera a que la animación de deslizamiento (aprox. 300ms)
+              //    termine ANTES de llamar a la lógica de archivos, que es
+              //    instantánea y recarga toda la lista.
+              await Future.delayed(const Duration(milliseconds: 300));
+
+              // 3. Llama a la función del widget principal y ESPERA a que termine
+              try {
+                bool success;
+                if (newValue) {
+                  success = await widget.onEnable(widget.modInfo);
+                } else {
+                  success = await widget.onDisable(widget.modInfo);
+                }
+
+                // Si la operación falló (ej. se canceló el diálogo de conflicto),
+                // revierte la animación.
+                if (!success && mounted) {
+                  setState(() {
+                    _isEnabled = !newValue;
+                  });
+                }
+              } catch (e) {
+                // Si hubo una excepción, revierte la animación
+                if (mounted) {
+                  setState(() {
+                    _isEnabled = !newValue;
+                  });
+                }
+              } finally {
+                // 4. Haya éxito o no, desbloquea el switch
+                if (mounted) {
+                  setState(() {
+                    _isLocallyLoading = false;
+                  });
+                }
+              }
+            },
+    );
+
+    // Aplica el escalado solo si es diferente de 1.0
+    if (widget.scale != 1.0) {
+      return Transform.scale(
+        scale: widget.scale,
+        child: switchWidget,
+      );
+    }
+
+    return switchWidget;
   }
 }

@@ -535,6 +535,14 @@
   "replacementModSwitchDesc": "Check if this mod is designed to replace a suit in the game.",
   "@replacementModSwitchDesc": {
     "description": "Description for the replacement mod switch"
+  },
+  "settingsShowModTagsTitle": "Show mod type tags",
+  "@settingsShowModTagsTitle": {
+    "description": "Title for the setting that toggles mod tags visibility"
+  },
+  "settingsShowModTagsDesc": "Display mod type tags (e.g., CNS, Generic) on each mod card in the list.",
+  "@settingsShowModTagsDesc": {
+    "description": "Description for the setting that toggles mod tags visibility"
   }
 }
 

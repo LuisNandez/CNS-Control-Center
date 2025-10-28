@@ -2163,6 +2163,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Check if this mod is designed to replace a suit in the game.'**
   String get replacementModSwitchDesc;
+
+  /// Title for the setting that toggles mod tags visibility
+  ///
+  /// In en, this message translates to:
+  /// **'Show mod type tags'**
+  String get settingsShowModTagsTitle;
+
+  /// Description for the setting that toggles mod tags visibility
+  ///
+  /// In en, this message translates to:
+  /// **'Display mod type tags (e.g., CNS, Generic) on each mod card in the list.'**
+  String get settingsShowModTagsDesc;
 }
 
 class _AppLocalizationsDelegate

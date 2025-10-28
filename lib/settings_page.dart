@@ -24,6 +24,8 @@ class SettingsPage extends StatefulWidget {
   final VoidCallback onShowLanguageDialog;
   final VoidCallback onShowAboutDialog;
   final VoidCallback onRunSelfHealing;
+  final bool initialShowModTypeTags;
+  final ValueChanged<bool> onShowModTypeTagsChanged;
 
   const SettingsPage({
     super.key,
@@ -49,6 +51,8 @@ class SettingsPage extends StatefulWidget {
     required this.onShowLanguageDialog,
     required this.onShowAboutDialog,
     required this.onRunSelfHealing,
+    required this.initialShowModTypeTags,
+    required this.onShowModTypeTagsChanged,
   });
 
   @override
@@ -62,6 +66,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   late bool isUe4ssInstalled;
   late bool isCnsCoreInstalled;
+  late bool _showModTypeTags;
 
   @override
   void initState() {
@@ -71,6 +76,7 @@ class _SettingsPageState extends State<SettingsPage> {
     apiKey = widget.initialApiKey;
     isUe4ssInstalled = widget.isUe4ssInstalled;
     isCnsCoreInstalled = widget.isCnsCoreInstalled;
+    _showModTypeTags = widget.initialShowModTypeTags;
   }
 
   @override
@@ -91,6 +97,19 @@ class _SettingsPageState extends State<SettingsPage> {
             title: Text(l10n.settingsLanguage),
             subtitle: Text(l10n.settingsLanguageDesc),
             onTap: widget.onShowLanguageDialog,
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.label_outline),
+            title: Text(l10n.settingsShowModTagsTitle),
+            subtitle: Text(l10n.settingsShowModTagsDesc),
+            value: _showModTypeTags,
+            onChanged: (bool newValue) {
+              setState(() {
+                _showModTypeTags = newValue;
+              });
+              widget.onShowModTypeTagsChanged(newValue);
+            },
+            activeColor: Colors.tealAccent,
           ),
           const Divider(),
           _SettingsSectionHeader(title: l10n.settingsPathsAndTools),
