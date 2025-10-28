@@ -22,6 +22,7 @@ import 'package:translator/translator.dart';
 import 'package:flutter/gestures.dart';
 import 'mod_classifier_service.dart';
 import 'outfit_data.dart';
+import 'dart:async';
 
 class AppPrefs {
   static const String languageCode = 'languageCode';
@@ -358,7 +359,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   bool _developerModeEnabled = false;
   int _versionTapCount = 0;
-  final ValueNotifier<String?> _hoveredOutfitNotifier = ValueNotifier<String?>(null);
+  Timer? _hoverTimer;
+  OverlayEntry? _previewOverlay;
+  Offset _cursorPosition = Offset.zero;
+
 
   // ++ THUMBNAIL SERVICE INSTANCE ++
   final ThumbnailService _thumbnailService = ThumbnailService();
@@ -394,7 +398,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   @override
   void dispose() {
     _searchController.dispose();
-    _hoveredOutfitNotifier.dispose();
+    _hoverTimer?.cancel();
+    _previewOverlay?.remove();
     try {
       if (_tempExtractionDir != null && _tempExtractionDir!.existsSync()) {
         _tempExtractionDir!.deleteSync(recursive: true);
@@ -3808,37 +3813,131 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       // Si se encontró un mod en conflicto, muestra un diálogo y detén la activación.
       if (conflictingMod != null) {
         final l10n = AppLocalizations.of(context)!;
+        
         // Ahora el diálogo devuelve un booleano (true = forzar activación)
-        final bool? forceActivate = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false, // No permitir cerrar sin elegir
-          builder: (context) => AlertDialog(
-            backgroundColor: const Color(0xFF2a2a2a),
-            title: Text(l10n.dialogTitleOutfitConflict), // L10N existente
-            content: Text(
-              l10n.dialogContentOutfitConflict( // <<< L10N MODIFICADO
-                outfitToReplace,
-                conflictingMod!.customName,
-              ),
-            ),
-            actions: [
-              // Botón de Cancelar
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(l10n.dialogActionCancel), // L10N existente
-              ),
-              // Botón de Activar y Desactivar
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.tealAccent,
-                  foregroundColor: Colors.black,
+        // Obtenemos los nombres para usarlos como separadores
+      final String outfitName = outfitToReplace;
+      final String modName = conflictingMod.customName;
+      
+      // Obtenemos el texto completo de la localización
+      final String fullString = l10n.dialogContentOutfitConflict(outfitName, modName);
+      
+      // Dividimos el texto usando los nombres como separadores
+      final List<String> parts = fullString.split(outfitName);
+      final String part1 = parts.isNotEmpty ? parts[0] : "";
+      
+      String part2 = "";
+      String part3 = "";
+      
+      if (parts.length > 1) {
+        // Buscamos el nombre del mod en la segunda parte del texto
+        final List<String> parts2 = parts[1].split(modName);
+        part2 = parts2.isNotEmpty ? parts2[0] : "";
+        if (parts2.length > 1) {
+          part3 = parts2[1];
+        }
+      }
+      
+      // Ahora el diálogo devuelve un booleano (true = forzar activación)
+      final bool? forceActivate = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false, // No permitir cerrar sin elegir
+        builder: (context) => AlertDialog(
+          backgroundColor: const Color(0xFF2a2a2a),
+          title: Text(l10n.dialogTitleOutfitConflict),
+          
+          // Reemplazamos el 'content: Text(...)' por 'content: RichText(...)'
+          content: RichText(
+            text: TextSpan(
+              // Usar el estilo de texto por defecto del diálogo
+              style: Theme.of(context).dialogTheme.contentTextStyle ?? const TextStyle(color: Colors.white, height: 1.5),
+              children: [
+                // Parte 1 del texto
+                TextSpan(text: part1),
+                
+                // Widget 1: El nombre del traje (interactivo)
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: MouseRegion(
+                    onEnter: (event) {
+                      _cursorPosition = event.position;
+                      _hoverTimer?.cancel();
+                      _hoverTimer = Timer(const Duration(milliseconds: 800), () {
+                        if (mounted) {
+                          _showPreviewOverlay(
+                            context,
+                            outfitName, // El nombre del traje
+                            _cursorPosition,
+                          );
+                        }
+                      });
+                    },
+                    onExit: (event) => _hidePreviewOverlay(),
+                    onHover: (event) => _cursorPosition = event.position,
+                    child: Text(
+                      outfitName, // El nombre resaltado
+                      style: const TextStyle(
+                        color: Colors.tealAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ),
-                child: Text(l10n.dialogActionActivateAndDisable), // <<< NUEVO L10N
-              ),
-            ],
+                
+                // Parte 2 del texto
+                TextSpan(text: part2),
+                
+                // Widget 2: El nombre del mod (interactivo)
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: InkWell(
+                    onTap: () {
+                      // Cierra el diálogo actual (con 'false' para cancelar la activación)
+                      //Navigator.of(context).pop(false);
+                      // Abre el panel de detalles del mod en conflicto
+                      _showDetailsPage(conflictingMod!); 
+                    },
+                    child: Text(
+                      modName, // El nombre resaltado
+                      style: const TextStyle(
+                        color: Colors.yellowAccent,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ),
+                
+                // Parte 3 del texto
+                TextSpan(text: part3),
+              ],
+            ),
           ),
-        );
+          
+          actions: [
+            // Botón de Cancelar
+            TextButton(
+              onPressed: () {
+                _hidePreviewOverlay(); // Oculta la vista previa si está visible
+                Navigator.of(context).pop(false);
+              },
+              child: Text(l10n.dialogActionCancel),
+            ),
+            // Botón de Activar y Desactivar
+            ElevatedButton(
+              onPressed: () {
+                 _hidePreviewOverlay(); // Oculta la vista previa si está visible
+                Navigator.of(context).pop(true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.tealAccent,
+                foregroundColor: Colors.black,
+              ),
+              child: Text(l10n.dialogActionActivateAndDisable),
+            ),
+          ],
+        ),
+      );
 
         // Si el usuario no forzó la activación (canceló)
         if (forceActivate != true) {
@@ -6080,7 +6179,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
             ),
           ),
           // ++ AÑADIDO: El overlay de vista previa se renderiza aquí ++
-          _buildOutfitPreviewOverlay(),
+          //_buildOutfitPreviewOverlay(),
         ],
       ),
     );
@@ -6473,76 +6572,95 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Flexible(
-                  child: MouseRegion(
-                    // 2. Define onEnter y onExit
-                    onEnter: (_) {
-                      if (isReplacement) {
-                        // Actualiza el notificador solo si es un mod de reemplazo
-                        _hoveredOutfitNotifier.value = modInfo.replacesOutfit;
-                      }
+                  child: Listener( // ++ 1. AÑADIR LISTENER ++
+                    onPointerMove: (event) {
+                      // Actualiza la posición del cursor continuamente
+                      // Usamos la posición global para el Overlay
+                      _cursorPosition = event.position;
                     },
-                    onExit: (_) {
-                      if (isReplacement) {
-                        _hoveredOutfitNotifier.value = null;
-                      }
-                    },
-                  child: InkWell(
-                    onTap: isReplacement ? null : () async {
-                      final updatedMod = await _showEditDialog(
-                        context: context,
-                        title: l10n.editTagText,
-                        label: l10n.customTagText,
-                        initialValue: displayTag, // 'displayTag' ya tiene el valor correcto
-                        defaultValue:
-                            modInfo.fitMeshType ?? l10n.modCategoryOther,
-                        onSave: (newValue) =>
-                            _updateModCustomProperty(modInfo, newTag: newValue),
-                      );
-                      _performSurgicalUpdate(updatedMod);
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isReplacement 
-                            ? Colors.black.withOpacity(0.4) 
-                            : Colors.grey.withOpacity(0.2),
+                    child: MouseRegion(
+                      // ++ 2. MODIFICAR onEnter ++
+                      onEnter: (event) {
+                        if (isReplacement) {
+                          // Guarda la posición inicial
+                          _cursorPosition = event.position;
+                          // Cancela cualquier temporizador pendiente
+                          _hoverTimer?.cancel();
+                          // Inicia un nuevo temporizador de 800 milisegundos
+                          _hoverTimer = Timer(const Duration(milliseconds: 800), () {
+                            // Al completarse, muestra el overlay en la última posición guardada
+                            if (mounted) {
+                              _showPreviewOverlay(
+                                context,
+                                modInfo.replacesOutfit!,
+                                _cursorPosition,
+                              );
+                            }
+                          });
+                        }
+                      },
+                      // ++ 3. MODIFICAR onExit ++
+                      onExit: (_) {
+                        // Al salir, oculta todo (cancela el temporizador y quita el overlay)
+                        _hidePreviewOverlay();
+                      },
+                      child: InkWell(
+                        onTap: isReplacement ? null : () async {
+                          final updatedMod = await _showEditDialog(
+                            context: context,
+                            title: l10n.editTagText,
+                            label: l10n.customTagText,
+                            initialValue: displayTag, // 'displayTag' ya tiene el valor correcto
+                            defaultValue:
+                                modInfo.fitMeshType ?? l10n.modCategoryOther,
+                            onSave: (newValue) =>
+                                _updateModCustomProperty(modInfo, newTag: newValue),
+                          );
+                          _performSurgicalUpdate(updatedMod);
+                        },
                         borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row( 
-                        mainAxisSize: MainAxisSize.min, // Para que el icono no empuje el texto
-                        children: [
-                          if (isReplacement)
-                            Icon(
-                              Icons.checkroom_outlined, 
-                              size: 10, 
-                              color: Colors.purpleAccent.shade100, // Color distintivo
-                            ),
-                          if (isReplacement)
-                            const SizedBox(width: 4),
-                          Flexible( // El texto debe ser flexible para los "..."
-                            child: Text(
-                              displayTag, // 'displayTag' ya tiene el nombre del traje
-                              style: TextStyle(
-                                fontSize: 10,
-                                // (Opcional) Color diferente para el texto del traje
-                                color: isReplacement 
-                                  ? const Color.fromARGB(255, 153, 151, 153) 
-                                  : Colors.white70,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isReplacement 
+                                ? Colors.black.withOpacity(0.4) 
+                                : Colors.grey.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row( 
+                            mainAxisSize: MainAxisSize.min, // Para que el icono no empuje el texto
+                            children: [
+                              if (isReplacement)
+                                Icon(
+                                  Icons.checkroom_outlined, 
+                                  size: 10, 
+                                  color: Colors.purpleAccent.shade100, // Color distintivo
+                                ),
+                              if (isReplacement)
+                                const SizedBox(width: 4),
+                              Flexible( // El texto debe ser flexible para los "..."
+                                child: Text(
+                                  displayTag, // 'displayTag' ya tiene el nombre del traje
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    // (Opcional) Color diferente para el texto del traje
+                                    color: isReplacement 
+                                      ? const Color.fromARGB(255, 153, 151, 153) 
+                                      : Colors.white70,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
                               ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                  //
                 ),
                 Row(
                   children: [
@@ -7790,26 +7908,116 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           }
 
           // 3. Si se encontró un mod en conflicto, muestra el diálogo de elección.
-          if (conflictingMod != null) {
+          if (conflictingMod != null && mod.isEnabled) {
+            final String outfitName = newOutfit;
+            final String modName = conflictingMod.customName;
+            
+            // Obtenemos el texto completo de la localización
+            final String fullString = l10n.dialogContentOutfitConflict(outfitName, modName);
+            
+            // Dividimos el texto usando los nombres como separadores
+            final List<String> parts = fullString.split(outfitName);
+            final String part1 = parts.isNotEmpty ? parts[0] : "";
+            
+            String part2 = "";
+            String part3 = "";
+            
+            if (parts.length > 1) {
+              // Buscamos el nombre del mod en la segunda parte del texto
+              final List<String> parts2 = parts[1].split(modName);
+              part2 = parts2.isNotEmpty ? parts2[0] : "";
+              if (parts2.length > 1) {
+                part3 = parts2[1];
+              }
+            }
+            
             final bool? forceActivate = await showDialog<bool>(
               context: context,
               barrierDismissible: false,
               builder: (context) => AlertDialog(
                 backgroundColor: const Color(0xFF2a2a2a),
                 title: Text(l10n.dialogTitleOutfitConflict),
-                content: Text(
-                  l10n.dialogContentOutfitConflict( // Reutilizamos el l10n
-                    newOutfit,
-                    conflictingMod!.customName,
+                
+                // Reemplazamos el 'content: Text(...)' por 'content: RichText(...)'
+                content: RichText(
+                  text: TextSpan(
+                    // Usar el estilo de texto por defecto del diálogo
+                    style: Theme.of(context).dialogTheme.contentTextStyle ?? const TextStyle(color: Colors.white, height: 1.5),
+                    children: [
+                      // Parte 1 del texto
+                      TextSpan(text: part1),
+                      
+                      // Widget 1: El nombre del traje (interactivo)
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: MouseRegion(
+                          onEnter: (event) {
+                            _cursorPosition = event.position;
+                            _hoverTimer?.cancel();
+                            _hoverTimer = Timer(const Duration(milliseconds: 800), () {
+                              if (mounted) {
+                                _showPreviewOverlay(
+                                  context,
+                                  outfitName, // El nombre del traje
+                                  _cursorPosition,
+                                );
+                              }
+                            });
+                          },
+                          onExit: (event) => _hidePreviewOverlay(),
+                          onHover: (event) => _cursorPosition = event.position,
+                          child: Text(
+                            outfitName, // El nombre resaltado
+                            style: const TextStyle(
+                              color: Colors.tealAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      // Parte 2 del texto
+                      TextSpan(text: part2),
+                      
+                      // Widget 2: El nombre del mod (interactivo)
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: InkWell(
+                          onTap: () {
+                            // ¡YA NO CERRAMOS LA ALERTA!
+                            // Abre el panel de detalles del mod en conflicto
+                            _showDetailsPage(conflictingMod!); 
+                          },
+                          child: Text(
+                            modName, // El nombre resaltado
+                            style: const TextStyle(
+                              color: Colors.yellowAccent,
+                              fontWeight: FontWeight.bold,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      // Parte 3 del texto
+                      TextSpan(text: part3),
+                    ],
                   ),
                 ),
+                
                 actions: [
                   TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
+                    onPressed: () {
+                      _hidePreviewOverlay(); // Oculta la vista previa si está visible
+                      Navigator.of(context).pop(false);
+                    },
                     child: Text(l10n.dialogActionCancel),
                   ),
                   ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(true),
+                    onPressed: () {
+                      _hidePreviewOverlay(); // Oculta la vista previa si está visible
+                      Navigator.of(context).pop(true);
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.tealAccent,
                       foregroundColor: Colors.black,
@@ -8250,7 +8458,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     );
   }
 
-  // ++ AÑADIDO: Función para construir el overlay de vista previa del traje ++
+  /*/ ++ AÑADIDO: Función para construir el overlay de vista previa del traje ++
   Widget _buildOutfitPreviewOverlay() {
     return ValueListenableBuilder<String?>(
       valueListenable: _hoveredOutfitNotifier,
@@ -8326,6 +8534,59 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         );
       },
     );
+  }*/
+
+  /// Muestra el overlay de vista previa del traje en la posición del cursor.
+  void _showPreviewOverlay(BuildContext context, String outfitName, Offset position) {
+    // Oculta cualquier overlay anterior
+    _hidePreviewOverlay();
+
+    _previewOverlay = OverlayEntry(
+      builder: (context) => Positioned(
+        // Posiciona el overlay ligeramente abajo y a la derecha del cursor
+        // para que el cursor no lo tape.
+        left: position.dx - 50,
+        top: position.dy - 220,
+        child: IgnorePointer( // Evita que el overlay bloquee clics
+          child: Opacity(
+            opacity: 1, // 100% de opacidad (totalmente visible)
+            child: SizedBox(
+              // Tamaño de la vista previa (sin borde)
+              width: 100, 
+              height: 211,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8.0), // Un leve redondeo
+                child: Image.asset(
+                  _generateOutfitImagePath(outfitName), // Reutiliza la función existente
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    // Placeholder en caso de error
+                    color: Colors.black.withOpacity(0.5),
+                    child: const Icon(
+                      Icons.hide_image_outlined,
+                      color: Colors.grey,
+                      size: 50,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Inserta el overlay en la pantalla
+    if (mounted) {
+      Overlay.of(context).insert(_previewOverlay!);
+    }
+  }
+
+  /// Oculta y limpia el temporizador y el overlay de vista previa.
+  void _hidePreviewOverlay() {
+    _hoverTimer?.cancel(); // Cancela el temporizador si está activo
+    _previewOverlay?.remove(); // Elimina el overlay de la pantalla
+    _previewOverlay = null; // Limpia la referencia
   }
 
 }
