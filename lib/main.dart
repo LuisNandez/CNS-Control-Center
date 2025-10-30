@@ -937,7 +937,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<List<File>> _findAllModFilesRecursive(Directory dir) async {
     final List<File> foundFiles = [];
-    const validExtensions = ['.json', '.pak', '.ucas', '.utoc', '.bk2'];
+    const validExtensions = ['.json', '.pak', '.ucas', '.utoc', '.bk2', '.lua', '.txt'];
     await for (final entity in dir.list(recursive: true, followLinks: false)) {
       if (entity is File &&
           validExtensions.contains(p.extension(entity.path).toLowerCase())) {
@@ -2837,12 +2837,38 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         }
 
         // 4. CORRECCIÓN: Usamos la misma función que el instalador
-        // para encontrar TODOS los archivos que se copiarán.
-        final files = (await _findAllModFilesRecursive(preparedMod.sourceDir))
-            .map((f) => p.basename(f.path))
-            .toList();
+        final List<String> allFileDisplayPaths = [];
 
-        previewMap[finalFolderName] = files;
+        // 4a. Archivos del sourceDir (LogicMods, CNS, Genérico, etc.)
+        // Estos solo mostrarán el nombre del archivo, ya que van a la carpeta principal del mod.
+        if (await preparedMod.sourceDir.exists()) {
+            final sourceFiles = await _findAllModFilesRecursive(preparedMod.sourceDir);
+            allFileDisplayPaths.addAll(sourceFiles.map((f) => p.basename(f.path)));
+        }
+
+        // 4b. Archivos del ue4ssDir (si existen)
+        if (preparedMod.ue4ssDir != null && await preparedMod.ue4ssDir!.exists()) {
+            final ue4ssFiles = await _findAllModFilesRecursive(preparedMod.ue4ssDir!);
+            for (final file in ue4ssFiles) {
+                // Obtenemos la ruta relativa para mostrar la estructura (ej: ModName/Scripts/main.lua)
+                final relativePath = p.relative(file.path, from: preparedMod.ue4ssDir!.path);
+                // Añadimos un prefijo para que el usuario sepa dónde va
+                allFileDisplayPaths.add(p.join("[UE4SS]", relativePath).replaceAll(r'\', '/'));
+            }
+        }
+
+        // 4c. Archivos del tildeModsDir (si existen)
+        if (preparedMod.tildeModsDir != null && await preparedMod.tildeModsDir!.exists()) {
+            final tildeFiles = await _findAllModFilesRecursive(preparedMod.tildeModsDir!);
+            for (final file in tildeFiles) {
+                final relativePath = p.relative(file.path, from: preparedMod.tildeModsDir!.path);
+                // Añadimos un prefijo para que el usuario sepa dónde va
+                allFileDisplayPaths.add(p.join("[~MODS]", relativePath).replaceAll(r'\', '/'));
+            }
+        }
+
+        // 5. Asigna la lista COMPLETA al mapa
+        previewMap[finalFolderName] = allFileDisplayPaths;
       }
     }
 
@@ -3786,10 +3812,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         // (Opcional) Informar que no se copió nada de UE4SS
         print("No se encontró la carpeta 'Mods' (UE4SS) para $finalFolderName. Omitiendo copia de scripts.");
       }
+      bool hasTildeModsComponent = false; // Rastreador
       if (tildeModsSourceDir != null && await tildeModsSourceDir.exists()) {
         
         // 1. Definir la nueva ruta de destino específica para este mod
         final tildeModDestPathWithFolder = p.join(tildeModsDestPath, finalFolderName);
+        hasTildeModsComponent = true; // Marcar como verdadero
 
         print("Instalando archivos complementarios de ~mods para $finalFolderName en: $tildeModDestPathWithFolder");
 
@@ -3801,6 +3829,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
         // 3. Copiar el contenido de la fuente (~mods/*) a la nueva carpeta de destino
         await _copyDirectory(tildeModsSourceDir, destDir);
+      }
+
+      // Obtener la lista de carpetas de componentes de UE4SS
+      List<String> ue4ssComponentFolders = [];
+      if (ue4ssSourceDir != null && await ue4ssSourceDir.exists()) {
+        await for (final entity in ue4ssSourceDir.list()) {
+          if (entity is Directory) {
+            ue4ssComponentFolders.add(p.basename(entity.path));
+          }
+        }
       }
       // --- 5. Crear nexus_info.json ---
       // Lo creamos dentro de la carpeta que SÍ gestionamos (.../Paks/LogicMods/<mod_name>)
@@ -3819,6 +3857,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         'sourceUrl': nexusId != null
             ? 'https://www.nexusmods.com/stellarblade/mods/$nexusId'
             : null,
+        'tildeModsComponentFolder': hasTildeModsComponent ? finalFolderName : null,
+        'ue4ssComponents': ue4ssComponentFolders.isNotEmpty ? ue4ssComponentFolders : null,
       };
       modData.removeWhere((key, value) => value == null); // Limpia nulos
       
@@ -4309,6 +4349,57 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       } else {
         // LÓGICA DE MOVIMIENTO DE CARPETA (CNS/GENÉRICO)
         final modName = p.basename(modInfo.directory.path);
+
+        final backupContainerDir = modInfo.directory;
+
+        // ++ INICIO DE LA MODIFICACIÓN ++
+        // 1. Restaurar componentes adicionales si es un LogicMod
+        if (modInfo.modType == 'logicMod') {
+          // Leer el JSON desde su ubicación actual (dentro del respaldo)
+          final infoFile = File(p.join(backupContainerDir.path, 'nexus_info.json'));
+          if (await infoFile.exists()) {
+            try {
+              final data = json.decode(await infoFile.readAsString());
+              
+              // 2. Restaurar Parte C (~mods component)
+              final String? tildeFolder = data['tildeModsComponentFolder'];
+              if (tildeFolder != null && _genericModsPath != null) {
+                // Origen: __MOD_BACKUPS__/<mod_name>/_tilde_mods/<mod_name>
+                final tildeBackupContainer = Directory(p.join(backupContainerDir.path, "_tilde_mods"));
+                final tildeSourceDir = Directory(p.join(tildeBackupContainer.path, tildeFolder));
+                
+                if (await tildeSourceDir.exists()) {
+                  print("Restaurando componente ~mods: $tildeFolder");
+                  // Mover de vuelta a .../Paks/~mods/
+                  await _moveMod(tildeSourceDir, _genericModsPath!);
+                  // Limpiar la carpeta contenedora vacía
+                  if (await tildeBackupContainer.list().isEmpty) await tildeBackupContainer.delete();
+                }
+              }
+
+              // 3. Restaurar Parte B (UE4SS components)
+              final List<dynamic>? ue4ssFolders = data['ue4ssComponents'];
+              if (ue4ssFolders != null && _ue4ssModsPath != null) {
+                // Origen: __MOD_BACKUPS__/<mod_name>/_ue4ss_mods/
+                final ue4ssBackupContainer = Directory(p.join(backupContainerDir.path, "_ue4ss_mods"));
+                
+                for (final folderName in ue4ssFolders.cast<String>()) {
+                  // Origen: .../_ue4ss_mods/<component_name>
+                  final ue4ssSourceDir = Directory(p.join(ue4ssBackupContainer.path, folderName));
+                  if (await ue4ssSourceDir.exists()) {
+                    print("Restaurando componente UE4SS: $folderName");
+                    // Mover de vuelta a .../ue4ss/Mods/
+                    await _moveMod(ue4ssSourceDir, _ue4ssModsPath!);
+                  }
+                }
+                // Limpiar la carpeta contenedora vacía
+                if (await ue4ssBackupContainer.list().isEmpty) await ue4ssBackupContainer.delete();
+              }
+            } catch (e) {
+              print("Error al restaurar componentes de LogicMod: $e");
+            }
+          }
+        }
         
         String modType = modInfo.modType ?? 'cns'; // Usa el tipo del ModInfo
         
@@ -4322,7 +4413,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         }
         
         final newDirectory = Directory(p.join(targetPath, modName));
-        await _moveMod(modInfo.directory, targetPath);
+        await _moveMod(backupContainerDir, targetPath);
         
         updatedMod = modInfo.copyWith(
           directory: newDirectory,
@@ -4380,8 +4471,52 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         // LÓGICA DE MOVIMIENTO DE CARPETA (CNS/GENÉRICO)
         final modName = p.basename(modInfo.directory.path);
         final newDirectory = Directory(p.join(backupDir.path, modName));
-
+        // 1. Mover Parte A (La carpeta principal, ej: LogicMods/<mod_name>)
         await _moveMod(modInfo.directory, backupDir.path);
+
+        // ++ INICIO DE LA MODIFICACIÓN ++
+        // 2. Mover componentes adicionales si es un LogicMod
+        if (modInfo.modType == 'logicMod') {
+          // Leer el JSON desde su *nueva* ubicación (dentro del respaldo)
+          final infoFile = File(p.join(newDirectory.path, 'nexus_info.json'));
+          if (await infoFile.exists()) {
+            try {
+              final data = json.decode(await infoFile.readAsString());
+              
+              // 3. Mover Parte C (~mods component)
+              final String? tildeFolder = data['tildeModsComponentFolder'];
+              if (tildeFolder != null && _genericModsPath != null) {
+                final tildeSourceDir = Directory(p.join(_genericModsPath!, tildeFolder));
+                // Destino: __MOD_BACKUPS__/<mod_name>/_tilde_mods/
+                final tildeDestContainer = Directory(p.join(newDirectory.path, "_tilde_mods"));
+                if (!await tildeDestContainer.exists()) await tildeDestContainer.create();
+                
+                if (await tildeSourceDir.exists()) {
+                  print("Archivando componente ~mods: $tildeFolder");
+                  await _moveMod(tildeSourceDir, tildeDestContainer.path);
+                }
+              }
+
+              // 4. Mover Parte B (UE4SS components)
+              final List<dynamic>? ue4ssFolders = data['ue4ssComponents'];
+              if (ue4ssFolders != null && _ue4ssModsPath != null) {
+                // Destino: __MOD_BACKUPS__/<mod_name>/_ue4ss_mods/
+                final ue4ssDestContainer = Directory(p.join(newDirectory.path, "_ue4ss_mods"));
+                if (!await ue4ssDestContainer.exists()) await ue4ssDestContainer.create();
+
+                for (final folderName in ue4ssFolders.cast<String>()) {
+                  final ue4ssSourceDir = Directory(p.join(_ue4ssModsPath!, folderName));
+                  if (await ue4ssSourceDir.exists()) {
+                    print("Archivando componente UE4SS: $folderName");
+                    await _moveMod(ue4ssSourceDir, ue4ssDestContainer.path);
+                  }
+                }
+              }
+            } catch (e) {
+              print("Error al archivar componentes de LogicMod: $e");
+            }
+          }
+        }
 
         updatedMod = modInfo.copyWith(
           directory: newDirectory,
