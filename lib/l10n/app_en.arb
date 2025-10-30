@@ -543,6 +543,10 @@
   "settingsShowModTagsDesc": "Display mod type tags (e.g., CNS, Generic) on each mod card in the list.",
   "@settingsShowModTagsDesc": {
     "description": "Description for the setting that toggles mod tags visibility"
+  },
+  "modTypeLogic": "Logic",
+  "@modTypeLogic": {
+    "description": "Description for the Logic mod type"
   }
 }
 

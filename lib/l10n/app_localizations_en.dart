@@ -1238,4 +1238,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsShowModTagsDesc =>
       'Display mod type tags (e.g., CNS, Generic) on each mod card in the list.';
+
+  @override
+  String get modTypeLogic => 'Logic';
 }

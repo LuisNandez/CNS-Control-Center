@@ -2175,6 +2175,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Display mod type tags (e.g., CNS, Generic) on each mod card in the list.'**
   String get settingsShowModTagsDesc;
+
+  /// Description for the Logic mod type
+  ///
+  /// In en, this message translates to:
+  /// **'Logic'**
+  String get modTypeLogic;
 }
 
 class _AppLocalizationsDelegate

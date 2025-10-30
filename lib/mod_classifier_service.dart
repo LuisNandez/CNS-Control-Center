@@ -9,6 +9,8 @@ enum ModDirectoryType {
   genericPak,
   /// Un mod de reemplazo de película (.bk2).
   movies,
+  /// Un mod de lógica de scripts (UE4SS + Paks).
+  logicMod, // ++ AÑADIDO ++
   /// No es un mod o es desconocido.
   unknown
 }
@@ -20,6 +22,12 @@ class ModClassifierService {
     bool hasJson = false;
     bool hasPakFile = false; // Variable para .pak, .ucas o .utoc
     bool hasBk2File = false; // Variable para .bk2
+
+    // NOTA: Esta función clasifica mods YA INSTALADOS.
+    // La detección de 'logicMod' desde un ZIP se hace en main.dart.
+    // Un 'logicMod' instalado se identificará por su 'nexus_info.json'
+    // que tendrá "modType": "logicMod".
+    // Esta función se usa como fallback o para clasificar mods extraídos.
 
     // Solo escaneamos la raíz del directorio del mod (no subcarpetas).
     await for (final entity in modDir.list(recursive: false, followLinks: false)) {
