@@ -1720,19 +1720,30 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     // Esta función interna procesa un directorio (mods activados o desactivados)
     Future<List<ModInfo>> getModsFromDirectory(
       String path,
-      bool isEnabled,
-    ) async {
+      bool isEnabled, {
+      Set<String> logicModNamesToIgnore = const {},
+    }) async {
       final dir = Directory(path);
       if (!await dir.exists()) return [];
 
       final List<ModInfo> mods = [];
       await for (var entity in dir.list()) {
         if (entity is Directory) {
-          // --- INICIO DE LA MODIFICACIÓN ---
-          // Si estamos escaneando la carpeta genérica, omitimos la carpeta CNS.
-          final basename = p.basename(entity.path).toLowerCase();
+          final basename = p.basename(entity.path);
+
+          // Si estamos escaneando la carpeta genérica (~mods) Y
+          // el nombre de esta carpeta coincide con un LogicMod ya cargado,
+          // sáltatela, porque es un componente, no un mod independiente.
           if (path == _genericModsPath && 
-              (basename == 'customnanosuitsystem' || basename == 'logicmods')) {
+              logicModNamesToIgnore.contains(basename)) {
+            print("Omitiendo carpeta genérica (es un componente de LogicMod): $basename");
+            continue; 
+          }
+
+          // Si estamos escaneando la carpeta genérica, omitimos la carpeta CNS.
+          final basenameLower = basename.toLowerCase();
+          if (path == _genericModsPath && 
+              (basenameLower == 'customnanosuitsystem' || basenameLower == 'logicmods')) {
                 continue;
           }
           if (basename == '__mod_backups__') continue;
@@ -1940,9 +1951,22 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
 
     try {
-      final enabledCnsMods = await getModsFromDirectory(_finalModsPath!, true);
-      final enabledGenericMods = await getModsFromDirectory(_genericModsPath!, true);
+      // 1. Cargamos los LogicMods PRIMERO
       final enabledLogicMods = await getModsFromDirectory(_logicModsPath!, true);
+      
+      // 2. Extraemos sus nombres de carpeta (ej: "SpeedMasterEve")
+      final Set<String> logicModFolderNames = enabledLogicMods.map((mod) => p.basename(mod.directory.path)).toSet();
+
+      // 3. Cargamos los mods CNS
+      final enabledCnsMods = await getModsFromDirectory(_finalModsPath!, true);
+      
+      // 4. Cargamos los mods Genéricos, pero les pasamos la lista de
+      //    nombres de LogicMods para que los ignoren.
+      final enabledGenericMods = await getModsFromDirectory(
+        _genericModsPath!, 
+        true,
+        logicModNamesToIgnore: logicModFolderNames, // <-- Parámetro añadido
+      );
 
       if (_gameRootPath == null) {
         final disabledMods = <ModInfo>[];
@@ -2609,7 +2633,52 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           continue; // Es LogicMod, pasa al siguiente archivo
         }
 
-        // 3. Comprobar Actualización CNS (Prioridad 3)
+        // 3. NUEVO CHECK: Comprobar LogicMod anidado (ej: <ModName>/LogicMods/...)
+        // Esto captura mods que no tienen la estructura SB/ completa.
+        Directory? nestedLogicModDir;
+        
+        // Listamos las entidades en la raíz del zip extraído
+        final List<FileSystemEntity> rootEntities = await archiveTempDir.list().toList();
+        
+        // Filtramos para encontrar solo directorios
+        final rootDirs = rootEntities.whereType<Directory>().toList();
+
+        if (rootDirs.length == 1) {
+            // Si solo hay UNA carpeta en la raíz (ej: V1-3SloMoWidget_P)
+            final potentialModRoot = rootDirs.first;
+            final potentialLogicModsDir = Directory(p.join(potentialModRoot.path, 'LogicMods'));
+            
+            if (await potentialLogicModsDir.exists()) {
+                // ¡Encontrado! Esta es la carpeta que queremos.
+                nestedLogicModDir = potentialLogicModsDir;
+            }
+        } else {
+            // Si hay varias carpetas, o ninguna, comprobamos si 'LogicMods'
+            // está directamente en la raíz (ej: LogicMods/...).
+            final rootLogicModsDir = Directory(p.join(archiveTempDir.path, 'LogicMods'));
+            if (await rootLogicModsDir.exists()) {
+                nestedLogicModDir = rootLogicModsDir;
+            }
+        }
+
+        // Si encontramos un 'LogicMods' anidado o en la raíz...
+        if (nestedLogicModDir != null) {
+            print('LogicMod anidado detectado: $fileName');
+            _preparedMods.add(
+                _PreparedMod(
+                    sourceDir: nestedLogicModDir, // <--- Pasamos la carpeta INTERNA
+                    ue4ssDir: null, // No hay componente ue4ss en esta estructura
+                    tildeModsDir: null, // No hay componente ~mods
+                    nexusId: nexusInfo?['id'],
+                    nexusVersion: nexusInfo?['version'],
+                    archiveName: archiveName,
+                    modType: ModDirectoryType.logicMod,
+                ),
+            );
+            continue; // Es LogicMod, pasa al siguiente archivo
+        }
+
+        // 4. Comprobar Actualización CNS (Prioridad 4)
         final sbDir = Directory(p.join(archiveTempDir.path, 'SB'));
         if (await sbDir.exists() &&
             await Directory(p.join(sbDir.path, 'Binaries')).exists() &&
