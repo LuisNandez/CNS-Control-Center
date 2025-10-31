@@ -354,6 +354,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   bool _isInstalling = false;
   double _installationProgress = 0.0;
   String _installationStatus = '';
+  Set<String> _logicModIds = {};
 
   ModFilter _currentFilter = ModFilter.all;
   ModTypeFilter _currentModTypeFilter = ModTypeFilter.all;
@@ -425,6 +426,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     await _thumbnailService.initialize(); // ++ INITIALIZE THUMBNAIL SERVICE ++
     await _cleanUpOrphanedTempDirs();
     await _loadModDatabase();
+    await _loadLogicModIds();
     await _find7zipPath();
     await _loadApiKey();
     await _loadSkippedVersions();
@@ -916,7 +918,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         title: l10n.snackBarUninstalled(componentName),
       );
 
-      return true; // <-- INFORMA QUE LA OPERACIÓN FUE EXITOSA
+      return true;
     } catch (e) {
       NotificationService.instance.show(
         context: context,
@@ -924,7 +926,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         title: l10n.errorUninstalling(componentName),
         description: e.toString(),
       );
-      return false; // <-- INFORMA QUE LA OPERACIÓN FALLÓ
+      return false;
     } finally {
       await _checkCoreInstallations();
       await _readCNSData();
@@ -950,15 +952,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<void> _cleanUpOrphanedTempDirs() async {
     try {
       final tempDir = Directory.systemTemp;
-      // Asynchronously checks the contents of the system's temporary directory.
       await for (final entity in tempDir.list()) {
-        // If an entity is a folder and its name starts with "mod_manager_", delete it.
         if (entity is Directory &&
             p.basename(entity.path).startsWith('mod_manager_')) {
           try {
             await entity.delete(recursive: true);
           } catch (e) {
-            // Ignore errors if a specific folder cannot be deleted (it might be in use).
             print('Could not delete orphan directory ${entity.path}: $e');
           }
         }
@@ -1101,6 +1100,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
+  Future<void> _loadLogicModIds() async {
+    try {
+      final String content = await rootBundle.loadString('logic_mod_ids.json');
+      final List<dynamic> idList = json.decode(content);
+      setState(() {
+        _logicModIds = idList.cast<String>().toSet();
+      });
+      print('Local logic mod ID database loaded successfully (${_logicModIds.length} IDs).');
+    } catch (e) {
+      print('Could not find or read logic_mod_ids.json, skipping: $e');
+    }
+  }
+
   Future<void> _loadApiKey() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -1138,10 +1150,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     final prefs = await SharedPreferences.getInstance();
     final filterIndex =
         prefs.getInt(AppPrefs.filterMode) ?? ModFilter.all.index;
-    // ++ AÑADIDO PARA EL NUEVO FILTRO ++
     final modTypeFilterIndex =
         prefs.getInt(AppPrefs.modTypeFilterMode) ?? ModTypeFilter.all.index;
-    // --
     final sortIndex = prefs.getInt(AppPrefs.sortMode) ?? ModSort.date.index;
     final viewModeIndex =
         prefs.getInt(AppPrefs.viewMode) ?? ModListViewMode.grid.index;
@@ -1149,9 +1159,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     setState(() {
       _currentFilter = ModFilter.values[filterIndex];
-      // ++ AÑADIDO PARA EL NUEVO FILTRO ++
       _currentModTypeFilter = ModTypeFilter.values[modTypeFilterIndex];
-      // --
       _currentSort = ModSort.values[sortIndex];
       _viewMode = ModListViewMode.values[viewModeIndex];
       _showModTypeTags = showTags;
@@ -1278,7 +1286,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       gamePath ??= await _findSteamInstallation();
 
       if (gamePath != null && await Directory(gamePath).exists()) {
-        // Ruta para mods CNS (la que ya tenías)
         final cnsModPath = p.join(
           gamePath,
           'SB',
@@ -1287,7 +1294,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           '~mods',
           'CustomNanosuitSystem',
         );
-        // NUEVA RUTA: Ruta para mods Genéricos (la carpeta ~mods raíz)
         final genericModPath = p.join(
           gamePath,
           'SB',
@@ -1311,9 +1317,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         final ue4ssModsPath = p.join(
           gamePath, 'SB', 'Binaries', 'Win64', 'ue4ss', 'Mods',
         );
-        
-        // --- INICIO DE LA MODIFICACIÓN ---
-        // Asegurarse de que todas las carpetas de mods existan
+        // Guarda la ruta encontrada
         final cnsDir = Directory(cnsModPath);
         final genericDir = Directory(genericModPath);
         final moviesBackupDir = Directory(moviesBackupPath);
@@ -1335,12 +1339,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         if (!await ue4ssModsDir.exists()) {
           await ue4ssModsDir.create(recursive: true);
         }
-        // --- FIN DE LA MODIFICACIÓN ---
 
         setState(() {
           _gameRootPath = gamePath;
-          _finalModsPath = cnsModPath; // Para mods CNS
-          _genericModsPath = genericModPath; // Para mods Genéricos
+          _finalModsPath = cnsModPath;
+          _genericModsPath = genericModPath;
           _moviesPath = moviesPath;
           _moviesBackupPath = moviesBackupPath;
           _logicModsPath = logicModsPath;
@@ -1434,8 +1437,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       return null;
     }
 
-    // Primero, reinicia la versión a null.
-    // Si no se encuentran los archivos, este será el valor final.
     setState(() {
       _cnsVersion = null;
       _cnsNexusId = null;
@@ -1443,7 +1444,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
     String? newVersion;
 
-    // Intenta leer desde nexus_info.json (fuente principal)
     try {
       final infoFile = File(
         p.join(
@@ -1463,13 +1463,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           _cnsVersion = data['installedVersion'];
         });
         newVersion = data['installedVersion'];
-        return newVersion; // Versión encontrada, terminamos aquí.
+        return newVersion;
       }
     } catch (e) {
       print('Error reading CNS nexus_info.json: $e');
     }
 
-    // Si no se encontró arriba, intenta leer desde el archivo main.lua
     try {
       final luaFile = File(
         p.join(
@@ -1591,7 +1590,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   String _cleanNexusFileName(String fileName) {
     // 1. Intenta encontrar un patrón de ID de Mod de Nexus (ej: -123-)
     // Esta es la misma regex que se usa en _extractNexusInfoFromName
-    final nexusIdRegex = RegExp(r'-(\d{2,5})-');
+    final nexusIdRegex = RegExp(r'-(\d{1,6})-');
     final match = nexusIdRegex.firstMatch(fileName);
 
     if (match != null) {
@@ -2250,8 +2249,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
 
     try {
-      // Busca todos los números de 2 a 5 dígitos que estén entre guiones.
-      final potentialIdsRegex = RegExp(r'-(\d{2,5})-');
+      // Busca todos los números de 1 a 6 dígitos que estén entre guiones.
+      final potentialIdsRegex = RegExp(r'-(\d{1,6})-');
       final matches = potentialIdsRegex.allMatches(name);
 
       for (final match in matches) {
@@ -2561,6 +2560,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         });
 
         final nexusInfo = await _extractNexusInfoFromName(fileName);
+        final String? nexusId = nexusInfo?['id'];
+        final bool isLogicModById = (nexusId != null && _logicModIds.contains(nexusId));
         final archiveTempDir = Directory(
           p.join(_tempExtractionDir!.path, i.toString()),
         );
@@ -2692,7 +2693,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         final foundModDirs = await _findValidModDirectories(archiveTempDir);
         if (foundModDirs.isNotEmpty) {
           for (final modDir in foundModDirs) {
-            final modType = await ModClassifierService.classifyModDirectory(modDir); // Clasifica el directorio extraído
+            var modType = await ModClassifierService.classifyModDirectory(modDir); // Clasifica el directorio extraído
+            if (isLogicModById && modType != ModDirectoryType.unknown) {
+              print("Overriding mod type to 'logicMod' based on ID: $nexusId");
+              modType = ModDirectoryType.logicMod;
+            }
             if (modType != ModDirectoryType.unknown) {
               _preparedMods.add(
                 _PreparedMod(
@@ -2768,6 +2773,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               p.basename(modFile.path),
             );
             await modFile.copy(newPath);
+          }
+
+          ModDirectoryType modType = ModDirectoryType.genericPak; // <-- Valor por defecto
+          if (isLogicModById) {
+              print("Overriding mod type to 'logicMod' based on ID: $nexusId");
+              modType = ModDirectoryType.logicMod;
           }
 
            _preparedMods.add(
