@@ -1132,89 +1132,87 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String genericModInstallTitle(String modName) {
-    return 'Generic Mod Installed: $modName';
+    return '일반 모드 설치됨: $modName';
   }
 
   @override
   String genericModInstallDesc(String path) {
-    return 'Installed to $path. This mod is not managed by the app and must be uninstalled manually.';
+    return '$path에 설치되었습니다.\n이 모드는 앱에서 관리하지 않으므로 수동으로 제거해야 합니다.';
   }
 
   @override
   String genericModInstallError(String modName) {
-    return 'Failed to install generic mod: $modName';
+    return '일반 모드 설치 실패: $modName';
   }
 
   @override
   String get modTypeCNS => 'CNS';
 
   @override
-  String get modTypeGeneric => 'Generic';
+  String get modTypeGeneric => '일반';
 
   @override
-  String get modTypeMovies => 'Movies';
+  String get modTypeMovies => '무비';
 
   @override
-  String get replacesOutfitTitle => 'Replaces Outfit';
+  String get replacesOutfitTitle => '의상 교체';
 
   @override
-  String get replacesOutfitClearTooltip => 'Clear outfit selection';
+  String get replacesOutfitClearTooltip => '의상 선택 지우기';
 
   @override
-  String get replacesOutfitSelectTooltip => 'Select outfit to replace';
+  String get replacesOutfitSelectTooltip => '교체할 의상 선택';
 
   @override
-  String get replacesOutfitNone =>
-      'No outfit selected. The tag will be \'Generic\'.';
+  String get replacesOutfitNone => '선택된 의상 없음.\n태그는 \'일반\'이 됩니다.';
 
   @override
-  String get replacesOutfitSearchHint => 'Search outfits...';
+  String get replacesOutfitSearchHint => '의상 검색...';
 
   @override
-  String get modTypeReplacement => 'Replacement';
+  String get modTypeReplacement => '교체';
 
   @override
-  String get replacesOutfitHover => 'Hover over an outfit to see a preview.';
+  String get replacesOutfitHover => '의상 위로 마우스를 가져가면 미리보기를 볼 수 있습니다.';
 
   @override
-  String get dialogTitleOutfitReplacement => 'Outfit Replacement?';
+  String get dialogTitleOutfitReplacement => '의상 교체?';
 
   @override
   String dialogContentOutfitReplacement(String modName) {
-    return 'Is the mod \'$modName\' an outfit replacement?\n\nSelect \'Yes\' to choose which outfit it replaces, or \'No\' to install it as a generic mod.';
+    return '\'$modName\' 모드는 의상 교체 모드입니까?\n\n\'예\'를 선택하여 교체할 의상을 선택하거나 \'아니요\'를 선택하여 일반 모드로 설치하십시오.';
   }
 
   @override
-  String get dialogActionNo => 'No';
+  String get dialogActionNo => '아니요';
 
   @override
-  String get dialogActionYes => 'Yes';
+  String get dialogActionYes => '예';
 
   @override
-  String get dialogTitleOutfitConflict => 'Outfit Conflict Detected';
+  String get dialogTitleOutfitConflict => '의상 충돌 감지됨';
 
   @override
   String dialogContentOutfitConflict(String outfitName, String modName) {
-    return 'The outfit \'$outfitName\' is already being replaced by the mod \'$modName\'.\n\nDo you want to disable \'$modName\' and activate this one instead?';
+    return '\'$outfitName\' 의상은 이미 \'$modName\' 모드에 의해 교체되었습니다.\n\n\'$modName\'을(를) 비활성화하고 이 모드를 활성화하시겠습니까?';
   }
 
   @override
-  String get dialogActionActivateAndDisable => 'Disable and Activate';
+  String get dialogActionActivateAndDisable => '비활성화 및 활성화';
 
   @override
-  String get replacementModSwitchTitle => 'Replacement mod';
+  String get replacementModSwitchTitle => '교체 모드';
 
   @override
-  String get replacementModSwitchDesc =>
-      'Check if this mod is designed to replace a suit in the game.';
+  String get replacementModSwitchDesc => '이 모드가 게임 내 슈트를 교체하도록 설계되었는지 확인하십시오.';
 
   @override
-  String get settingsShowModTagsTitle => 'Show mod type tags';
+  String get settingsShowModTagsTitle => '모드 유형 태그 표시';
 
   @override
   String get settingsShowModTagsDesc =>
-      'Display mod type tags (e.g., CNS, Generic) on each mod card in the list.';
+      '목록의 각 모드 카드에 모드 유형 태그(예: CNS, 일반)를 표시합니다.';
 
   @override
-  String get modTypeLogic => 'Logic';
+  String get modTypeLogic => '로직';
 }

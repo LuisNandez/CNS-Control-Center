@@ -1122,89 +1122,87 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String genericModInstallTitle(String modName) {
-    return 'Generic Mod Installed: $modName';
+    return '已安装通用 Mod：$modName';
   }
 
   @override
   String genericModInstallDesc(String path) {
-    return 'Installed to $path. This mod is not managed by the app and must be uninstalled manually.';
+    return '已安装到 $path。\n此 mod 不受应用管理，必须手动卸载。';
   }
 
   @override
   String genericModInstallError(String modName) {
-    return 'Failed to install generic mod: $modName';
+    return '安装通用 mod 失败：$modName';
   }
 
   @override
   String get modTypeCNS => 'CNS';
 
   @override
-  String get modTypeGeneric => 'Generic';
+  String get modTypeGeneric => '通用';
 
   @override
-  String get modTypeMovies => 'Movies';
+  String get modTypeMovies => '影片';
 
   @override
-  String get replacesOutfitTitle => 'Replaces Outfit';
+  String get replacesOutfitTitle => '替换服装';
 
   @override
-  String get replacesOutfitClearTooltip => 'Clear outfit selection';
+  String get replacesOutfitClearTooltip => '清除服装选择';
 
   @override
-  String get replacesOutfitSelectTooltip => 'Select outfit to replace';
+  String get replacesOutfitSelectTooltip => '选择要替换的服装';
 
   @override
-  String get replacesOutfitNone =>
-      'No outfit selected. The tag will be \'Generic\'.';
+  String get replacesOutfitNone => '未选择服装。\n标签将为“通用”。';
 
   @override
-  String get replacesOutfitSearchHint => 'Search outfits...';
+  String get replacesOutfitSearchHint => '搜索服装...';
 
   @override
-  String get modTypeReplacement => 'Replacement';
+  String get modTypeReplacement => '替换';
 
   @override
-  String get replacesOutfitHover => 'Hover over an outfit to see a preview.';
+  String get replacesOutfitHover => '悬停在服装上以查看预览。';
 
   @override
-  String get dialogTitleOutfitReplacement => 'Outfit Replacement?';
+  String get dialogTitleOutfitReplacement => '替换服装？';
 
   @override
   String dialogContentOutfitReplacement(String modName) {
-    return 'Is the mod \'$modName\' an outfit replacement?\n\nSelect \'Yes\' to choose which outfit it replaces, or \'No\' to install it as a generic mod.';
+    return 'Mod \'$modName\' 是服装替换吗？\n\n选择“是”以选择它替换的服装，或“否”以将其安装为通用 mod。';
   }
 
   @override
-  String get dialogActionNo => 'No';
+  String get dialogActionNo => '否';
 
   @override
-  String get dialogActionYes => 'Yes';
+  String get dialogActionYes => '是';
 
   @override
-  String get dialogTitleOutfitConflict => 'Outfit Conflict Detected';
+  String get dialogTitleOutfitConflict => '检测到服装冲突';
 
   @override
   String dialogContentOutfitConflict(String outfitName, String modName) {
-    return 'The outfit \'$outfitName\' is already being replaced by the mod \'$modName\'.\n\nDo you want to disable \'$modName\' and activate this one instead?';
+    return '服装 \'$outfitName\' 已被 mod \'$modName\' 替换。\n\n您想禁用 \'$modName\' 并激活这一个吗？';
   }
 
   @override
-  String get dialogActionActivateAndDisable => 'Disable and Activate';
+  String get dialogActionActivateAndDisable => '禁用并激活';
 
   @override
-  String get replacementModSwitchTitle => 'Replacement mod';
+  String get replacementModSwitchTitle => '替换 mod';
 
   @override
-  String get replacementModSwitchDesc =>
-      'Check if this mod is designed to replace a suit in the game.';
+  String get replacementModSwitchDesc => '检查此 mod 是否设计为替换游戏中的套装。';
 
   @override
-  String get settingsShowModTagsTitle => 'Show mod type tags';
+  String get settingsShowModTagsTitle => '显示 mod 类型标签';
 
   @override
   String get settingsShowModTagsDesc =>
-      'Display mod type tags (e.g., CNS, Generic) on each mod card in the list.';
+      '在列表中的每个 mod 卡片上显示 mod 类型标签（例如 CNS、通用）。';
 
   @override
-  String get modTypeLogic => 'Logic';
+  String get modTypeLogic => '逻辑';
 }

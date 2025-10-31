@@ -1135,89 +1135,87 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String genericModInstallTitle(String modName) {
-    return 'Generic Mod Installed: $modName';
+    return '汎用MODインストール済み：$modName';
   }
 
   @override
   String genericModInstallDesc(String path) {
-    return 'Installed to $path. This mod is not managed by the app and must be uninstalled manually.';
+    return '$path にインストールされました。\nこのMODはアプリによって管理されておらず、手動でアンインストールする必要があります。';
   }
 
   @override
   String genericModInstallError(String modName) {
-    return 'Failed to install generic mod: $modName';
+    return '汎用MODのインストールに失敗しました：$modName';
   }
 
   @override
   String get modTypeCNS => 'CNS';
 
   @override
-  String get modTypeGeneric => 'Generic';
+  String get modTypeGeneric => '汎用';
 
   @override
-  String get modTypeMovies => 'Movies';
+  String get modTypeMovies => 'ムービー';
 
   @override
-  String get replacesOutfitTitle => 'Replaces Outfit';
+  String get replacesOutfitTitle => '置き換え衣装';
 
   @override
-  String get replacesOutfitClearTooltip => 'Clear outfit selection';
+  String get replacesOutfitClearTooltip => '衣装の選択をクリア';
 
   @override
-  String get replacesOutfitSelectTooltip => 'Select outfit to replace';
+  String get replacesOutfitSelectTooltip => '置き換える衣装を選択';
 
   @override
-  String get replacesOutfitNone =>
-      'No outfit selected. The tag will be \'Generic\'.';
+  String get replacesOutfitNone => '衣装が選択されていません。\nタグは「汎用」になります。';
 
   @override
-  String get replacesOutfitSearchHint => 'Search outfits...';
+  String get replacesOutfitSearchHint => '衣装を検索...';
 
   @override
-  String get modTypeReplacement => 'Replacement';
+  String get modTypeReplacement => '置き換え';
 
   @override
-  String get replacesOutfitHover => 'Hover over an outfit to see a preview.';
+  String get replacesOutfitHover => '衣装にカーソルを合わせるとプレビューが表示されます。';
 
   @override
-  String get dialogTitleOutfitReplacement => 'Outfit Replacement?';
+  String get dialogTitleOutfitReplacement => '衣装の置き換え？';
 
   @override
   String dialogContentOutfitReplacement(String modName) {
-    return 'Is the mod \'$modName\' an outfit replacement?\n\nSelect \'Yes\' to choose which outfit it replaces, or \'No\' to install it as a generic mod.';
+    return 'MOD \'$modName\' は衣装の置き換えですか？\n\n「はい」を選択して置き換える衣装を選ぶか、「いいえ」を選択して汎用MODとしてインストールします。';
   }
 
   @override
-  String get dialogActionNo => 'No';
+  String get dialogActionNo => 'いいえ';
 
   @override
-  String get dialogActionYes => 'Yes';
+  String get dialogActionYes => 'はい';
 
   @override
-  String get dialogTitleOutfitConflict => 'Outfit Conflict Detected';
+  String get dialogTitleOutfitConflict => '衣装の競合が検出されました';
 
   @override
   String dialogContentOutfitConflict(String outfitName, String modName) {
-    return 'The outfit \'$outfitName\' is already being replaced by the mod \'$modName\'.\n\nDo you want to disable \'$modName\' and activate this one instead?';
+    return '衣装 \'$outfitName\' は既にMOD \'$modName\' によって置き換えられています。\n\n\'$modName\' を無効にして、こちらを有効にしますか？';
   }
 
   @override
-  String get dialogActionActivateAndDisable => 'Disable and Activate';
+  String get dialogActionActivateAndDisable => '無効にして有効化';
 
   @override
-  String get replacementModSwitchTitle => 'Replacement mod';
+  String get replacementModSwitchTitle => '置き換えMOD';
 
   @override
   String get replacementModSwitchDesc =>
-      'Check if this mod is designed to replace a suit in the game.';
+      'このMODがゲーム内のスーツを置き換えるように設計されているか確認してください。';
 
   @override
-  String get settingsShowModTagsTitle => 'Show mod type tags';
+  String get settingsShowModTagsTitle => 'MODタイプタグを表示';
 
   @override
-  String get settingsShowModTagsDesc =>
-      'Display mod type tags (e.g., CNS, Generic) on each mod card in the list.';
+  String get settingsShowModTagsDesc => 'リストの各MODカードにMODタイプタグ（例：CNS、汎用）を表示します。';
 
   @override
-  String get modTypeLogic => 'Logic';
+  String get modTypeLogic => 'ロジック';
 }

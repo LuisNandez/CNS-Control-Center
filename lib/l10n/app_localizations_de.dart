@@ -1162,89 +1162,90 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String genericModInstallTitle(String modName) {
-    return 'Generic Mod Installed: $modName';
+    return 'Allgemeiner Mod installiert: $modName';
   }
 
   @override
   String genericModInstallDesc(String path) {
-    return 'Installed to $path. This mod is not managed by the app and must be uninstalled manually.';
+    return 'Installiert in $path.\nDieser Mod wird nicht von der App verwaltet und muss manuell deinstalliert werden.';
   }
 
   @override
   String genericModInstallError(String modName) {
-    return 'Failed to install generic mod: $modName';
+    return 'Installation des allgemeinen Mods fehlgeschlagen: $modName';
   }
 
   @override
   String get modTypeCNS => 'CNS';
 
   @override
-  String get modTypeGeneric => 'Generic';
+  String get modTypeGeneric => 'Allgemein';
 
   @override
-  String get modTypeMovies => 'Movies';
+  String get modTypeMovies => 'Filme';
 
   @override
-  String get replacesOutfitTitle => 'Replaces Outfit';
+  String get replacesOutfitTitle => 'Ersetzt Outfit';
 
   @override
-  String get replacesOutfitClearTooltip => 'Clear outfit selection';
+  String get replacesOutfitClearTooltip => 'Outfit-Auswahl löschen';
 
   @override
-  String get replacesOutfitSelectTooltip => 'Select outfit to replace';
+  String get replacesOutfitSelectTooltip => 'Zu ersetzendes Outfit auswählen';
 
   @override
   String get replacesOutfitNone =>
-      'No outfit selected. The tag will be \'Generic\'.';
+      'Kein Outfit ausgewählt.\nDer Tag wird \'Allgemein\' sein.';
 
   @override
-  String get replacesOutfitSearchHint => 'Search outfits...';
+  String get replacesOutfitSearchHint => 'Outfits suchen...';
 
   @override
-  String get modTypeReplacement => 'Replacement';
+  String get modTypeReplacement => 'Ersatz';
 
   @override
-  String get replacesOutfitHover => 'Hover over an outfit to see a preview.';
+  String get replacesOutfitHover =>
+      'Fahren Sie mit der Maus über ein Outfit, um eine Vorschau anzuzeigen.';
 
   @override
-  String get dialogTitleOutfitReplacement => 'Outfit Replacement?';
+  String get dialogTitleOutfitReplacement => 'Outfit-Ersatz?';
 
   @override
   String dialogContentOutfitReplacement(String modName) {
-    return 'Is the mod \'$modName\' an outfit replacement?\n\nSelect \'Yes\' to choose which outfit it replaces, or \'No\' to install it as a generic mod.';
+    return 'Ist der Mod \'$modName\' ein Outfit-Ersatz?\n\nWählen Sie \'Ja\', um auszuwählen, welches Outfit er ersetzt, oder \'Nein\', um ihn als allgemeinen Mod zu installieren.';
   }
 
   @override
-  String get dialogActionNo => 'No';
+  String get dialogActionNo => 'Nein';
 
   @override
-  String get dialogActionYes => 'Yes';
+  String get dialogActionYes => 'Ja';
 
   @override
-  String get dialogTitleOutfitConflict => 'Outfit Conflict Detected';
+  String get dialogTitleOutfitConflict => 'Outfit-Konflikt erkannt';
 
   @override
   String dialogContentOutfitConflict(String outfitName, String modName) {
-    return 'The outfit \'$outfitName\' is already being replaced by the mod \'$modName\'.\n\nDo you want to disable \'$modName\' and activate this one instead?';
+    return 'Das Outfit \'$outfitName\' wird bereits durch den Mod \'$modName\' ersetzt.\n\nMöchten Sie \'$modName\' deaktivieren und stattdessen diesen aktivieren?';
   }
 
   @override
-  String get dialogActionActivateAndDisable => 'Disable and Activate';
+  String get dialogActionActivateAndDisable => 'Deaktivieren und Aktivieren';
 
   @override
-  String get replacementModSwitchTitle => 'Replacement mod';
+  String get replacementModSwitchTitle => 'Ersatz-Mod';
 
   @override
   String get replacementModSwitchDesc =>
-      'Check if this mod is designed to replace a suit in the game.';
+      'Aktivieren Sie diese Option, wenn dieser Mod dazu dient, einen Anzug im Spiel zu ersetzen.';
 
   @override
-  String get settingsShowModTagsTitle => 'Show mod type tags';
+  String get settingsShowModTagsTitle => 'Mod-Typ-Tags anzeigen';
 
   @override
   String get settingsShowModTagsDesc =>
-      'Display mod type tags (e.g., CNS, Generic) on each mod card in the list.';
+      'Zeigt Mod-Typ-Tags (z. B. CNS, Allgemein) auf jeder Mod-Karte in der Liste an.';
 
   @override
-  String get modTypeLogic => 'Logic';
+  String get modTypeLogic => 'Logik';
 }
