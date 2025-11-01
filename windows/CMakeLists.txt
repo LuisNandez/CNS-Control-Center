@@ -4,7 +4,7 @@ project(stellar_blade_managment LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "CNS_Control_Center")
+set(BINARY_NAME "SB_Control_Center")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.

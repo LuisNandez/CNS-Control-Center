@@ -176,7 +176,7 @@ void main() async {
     minimumSize: Size(680, 700),
     size: Size(1100, 700),
     center: true,
-    title: 'CNS Control Center',
+    title: 'SB Control Center',
   );
 
   windowManager.waitUntilReadyToShow(windowOptions, () async {
@@ -228,7 +228,7 @@ class _ModInstallerAppState extends State<ModInstallerApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CNS Control Center',
+      title: 'SB Control Center',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
         primaryColor: Colors.blueGrey[700],
