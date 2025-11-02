@@ -548,8 +548,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           builder: (BuildContext context, StateSetter setPanelState) {
             if (initialFiles != null && !hasProcessedInitialFiles) {
               // Usamos un post-frame callback para evitar errores de "setState durante el build".
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _processArchives(initialFiles, panelStateSetter: setPanelState);
+              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                final bool didInstall = await _processArchives( // <-- MODIFICADO
+                  initialFiles,
+                  panelStateSetter: setPanelState,
+                );
+                // Si se instaló algo, cierra el panel
+                if (didInstall && mounted) {
+                  Navigator.pop(context);
+                }
               });
               hasProcessedInitialFiles = true; // Marcamos como procesados.
             }
@@ -578,11 +585,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 onDragDone: (details) async {
                 final files = details.files.map((f) => File(f.path)).toList();
                 if (files.isNotEmpty) {
-                  // ++ INICIO DE LA MODIFICACIÓN ++
-                  // Pasa el actualizador de estado del panel a la función de lógica
-                  await _processArchives(files, panelStateSetter: setPanelState);
-                  setPanelState(() {}); // Actualiza la UI una última vez si es necesario
-                  // ++ FIN DE LA MODIFICACIÓN ++
+                  final bool didInstall = await _processArchives( // <-- MODIFICADO
+                    files,
+                    panelStateSetter: setPanelState,
+                  );
+                  if (didInstall && mounted) {
+                    Navigator.pop(context); // Cierra el panel
+                  } else {
+                    setPanelState(() {}); // Actualiza la UI si no se cerró
+                  }
                 }
               },
               onDragEntered: (details) => setPanelState(() => _isDragging = true),
@@ -620,8 +631,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                                 icon: const Icon(Icons.archive),
                                 label: Text(l10n.selectModArchive),
                                 onPressed: (_isLoading || _isExtracting || _isInstalling) ? null : () async {
-                                    await _pickArchive(panelStateSetter: setPanelState);
-                                    setPanelState(() {});
+                                    final bool didInstall = await _pickArchive(panelStateSetter: setPanelState); // <-- MODIFICADO
+                                    if (didInstall && mounted) {
+                                      Navigator.pop(context); // Cierra el panel
+                                    } else {
+                                      setPanelState(() {}); // Actualiza la UI si no se cerró
+                                    }
                                   },
                               ),
                             ),
@@ -1590,7 +1605,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   String _cleanNexusFileName(String fileName) {
     // 1. Intenta encontrar un patrón de ID de Mod de Nexus (ej: -123-)
     // Esta es la misma regex que se usa en _extractNexusInfoFromName
-    final nexusIdRegex = RegExp(r'-(\d{1,6})-');
+    final nexusIdRegex = RegExp(r'-(\d{2,6})-');
     final match = nexusIdRegex.firstMatch(fileName);
 
     if (match != null) {
@@ -2211,7 +2226,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
   }
 
-  Future<void> _pickArchive({StateSetter? panelStateSetter}) async { // <-- AÑADE EL PARÁMETRO AQUÍ
+  Future<bool> _pickArchive({StateSetter? panelStateSetter}) async { // <-- AÑADE EL PARÁMETRO AQUÍ
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -2221,7 +2236,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       if (result != null && result.files.isNotEmpty) {
         final files = result.paths.map((path) => File(path!)).toList();
         // ++ PASA EL PARÁMETRO A LA SIGUIENTE FUNCIÓN ++
-        await _processArchives(files, panelStateSetter: panelStateSetter); 
+        return await _processArchives(files, panelStateSetter: panelStateSetter);
       }
     } catch (e) {
       // Usa el setter si está disponible, si no, usa setState
@@ -2232,6 +2247,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         )!.statusError(e.toString()),
       );
     }
+    return false;
   }
   Future<Map<String, String>?> _extractNexusInfoFromName(String name) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
@@ -2249,8 +2265,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
 
     try {
-      // Busca todos los números de 1 a 6 dígitos que estén entre guiones.
-      final potentialIdsRegex = RegExp(r'-(\d{1,6})-');
+      // Busca todos los números de 2 a 6 dígitos que estén entre guiones.
+      final potentialIdsRegex = RegExp(r'-(\d{2,6})-');
       final matches = potentialIdsRegex.allMatches(name);
 
       for (final match in matches) {
@@ -2366,7 +2382,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     return isInstalled;
   }
 
-  Future<void> _promptAndInstallUE4SS(Directory sourceDir) async {
+  Future<bool> _promptAndInstallUE4SS(Directory sourceDir) async {
     final l10n = AppLocalizations.of(context)!;
 
     if (_isUe4ssInstalled) {
@@ -2389,7 +2405,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           ],
         ),
       );
-      if (reinstall != true) return;
+      if (reinstall != true) return false;
     } else {
       final confirm = await showDialog<bool>(
         context: context,
@@ -2412,7 +2428,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       );
       if (confirm != true) {
         setState(() => _statusMessage = l10n.statusUE4SSInstallCancelled);
-        return;
+        return false;
       }
     }
 
@@ -2478,11 +2494,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         _isUe4ssInstalled = true;
         _clearSelection();
       });
+      return true;
     } catch (e) {
       setState(() {
         _statusMessage = l10n.statusError(e.toString());
         _statusColor = Colors.redAccent;
       });
+      return false;
     } finally {
       setState(() => _isLoading = false);
     }
@@ -2522,7 +2540,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 }
   
 
-  Future<void> _processArchives(List<File> archives, {StateSetter? panelStateSetter}) async {
+  Future<bool> _processArchives(List<File> archives, {StateSetter? panelStateSetter}) async {
     final l10n = AppLocalizations.of(context)!;
     final updateState = panelStateSetter ?? setState;
     updateState(() {
@@ -2601,7 +2619,32 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           continue; // Es UE4SS, pasa al siguiente archivo
         }
 
-        // 2. Comprobar LogicMod (Prioridad 2)
+        // 2. Comprobar Actualización CNS
+        final sbDir = Directory(p.join(archiveTempDir.path, 'SB'));
+        
+        // 1. Primero comprueba si la carpeta 'SB' existe
+        if (await sbDir.exists()) {
+          
+          // 2. Ahora, comprueba si el archivo LUA específico de CNS existe
+          final cnsLuaFile = File(p.join(
+            sbDir.path,
+            'Binaries',
+            'Win64',
+            'ue4ss',
+            'Mods',
+            'DekCNS',
+            'Scripts',
+            'main.lua',
+          ));
+
+          if (await cnsLuaFile.exists()) {
+            // 3. Si existe, ES el mod CNS principal
+            print("Paquete CNS Principal detectado. Iniciando proceso de actualización...");
+            return await _promptAndUpdateCNS(sbDir);
+          }
+        }
+
+        // 3. Comprobar LogicMod (Prioridad 3)
         final logicSourceDir = Directory(p.join(
           archiveTempDir.path, 'SB', 'Content', 'Paks', 'LogicMods'
         ));
@@ -2677,16 +2720,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                 ),
             );
             continue; // Es LogicMod, pasa al siguiente archivo
-        }
-
-        // 4. Comprobar Actualización CNS (Prioridad 4)
-        final sbDir = Directory(p.join(archiveTempDir.path, 'SB'));
-        if (await sbDir.exists() &&
-            await Directory(p.join(sbDir.path, 'Binaries')).exists() &&
-            await Directory(p.join(sbDir.path, 'Content')).exists()) {
-          await _promptAndUpdateCNS(sbDir);
-          cnsUpdateInitiated = true;
-          continue; // Es CNS, pasa al siguiente archivo
         }
 
         // 4. Comprobar Subdirectorios de Mods (Prioridad 4)
@@ -2821,16 +2854,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
       if (_preparedUE4SS != null) {
         _preparedMods.clear();
-        await _promptAndInstallUE4SS(_preparedUE4SS!.sourceDir);
-      } else if (cnsUpdateInitiated && _preparedMods.isEmpty) {
+        return await _promptAndInstallUE4SS(_preparedUE4SS!.sourceDir);
       } else {
         await _prepareInstallationPreview(panelStateSetter: panelStateSetter);
       }
+      return false;
     } catch (e) {
       updateState(() {
         _statusMessage = l10n.statusError(e.toString());
         _statusColor = Colors.redAccent;
       });
+      return false;
     } finally {
       updateState(() {
         _isExtracting = false;
@@ -2963,7 +2997,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     });
   }
 
-  Future<void> _promptAndUpdateCNS(Directory sourceSBDir) async {
+  Future<bool> _promptAndUpdateCNS(Directory sourceSBDir) async {
     final l10n = AppLocalizations.of(context)!;
 
     if (!_isUe4ssInstalled) {
@@ -3000,7 +3034,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           ],
         ),
       );
-      return; // Detiene la instalación si UE4SS no está presente.
+      return false; // Detiene la instalación si UE4SS no está presente.
     }
 
     final newVersion = await _getVersionFromCnsPackage(sourceSBDir);
@@ -3057,7 +3091,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           ],
         ),
       );
-      if (confirm != true) return;
+      if (confirm != true) return false;
     } else {
       final confirm = await showDialog<bool>(
         context: context,
@@ -3080,7 +3114,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       );
       if (confirm != true) {
         setState(() => _statusMessage = l10n.statusUpdateSystemCancelled);
-        return;
+        return false;
       }
     }
 
@@ -3172,11 +3206,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       });
 
       await _readCNSData();
+      return true;
     } catch (e) {
       setState(() {
         _statusMessage = l10n.statusError(e.toString());
         _statusColor = Colors.redAccent;
       });
+      return false;
     } finally {
       setState(() => _isLoading = false);
     }
