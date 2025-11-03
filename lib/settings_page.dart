@@ -26,6 +26,7 @@ class SettingsPage extends StatefulWidget {
   final VoidCallback onRunSelfHealing;
   final bool initialShowModTypeTags;
   final ValueChanged<bool> onShowModTypeTagsChanged;
+  final VoidCallback onRunConflictPatcher;
 
   const SettingsPage({
     super.key,
@@ -53,6 +54,7 @@ class SettingsPage extends StatefulWidget {
     required this.onRunSelfHealing,
     required this.initialShowModTypeTags,
     required this.onShowModTypeTagsChanged,
+    required this.onRunConflictPatcher,
   });
 
   @override
@@ -140,6 +142,12 @@ class _SettingsPageState extends State<SettingsPage> {
             title: Text(l10n.settingsRepairMods),
             subtitle: Text(l10n.settingsRepairModsDesc),
             onTap: widget.onRunSelfHealing,
+          ),
+          ListTile(
+            leading: const Icon(Icons.electrical_services_outlined, color: Colors.orangeAccent),
+            title: const Text("Ejecutar Patcher de Conflictos"), // Texto nuevo
+            subtitle: const Text("Repara crasheos por Container_Id y Package_Id (requiere Python)"), // Texto nuevo
+            onTap: widget.onRunConflictPatcher,
           ),
           
           // ++ NUEVA SECCIÓN PARA GESTIONAR COMPONENTES PRINCIPALES ++

@@ -23,6 +23,7 @@ import 'package:flutter/gestures.dart';
 import 'mod_classifier_service.dart';
 import 'outfit_data.dart';
 import 'dart:async';
+import 'patcher_service.dart';
 
 class AppPrefs {
   static const String languageCode = 'languageCode';
@@ -424,6 +425,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   Future<void> _initialize() async {
     await _getAppVersion();
     await _thumbnailService.initialize(); // ++ INITIALIZE THUMBNAIL SERVICE ++
+    //await _deployScriptAssets();
     await _cleanUpOrphanedTempDirs();
     await _loadModDatabase();
     await _loadLogicModIds();
@@ -441,6 +443,41 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       await _readCNSData();
     }
   }
+
+  /*// Escribe los scripts empaquetados en el disco al iniciar la app.
+Future<void> _deployScriptAssets() async {
+  final l10n = AppLocalizations.of(context)!;
+  try {
+    // 1. Obtener el directorio de la aplicación
+    String appPath = Platform.resolvedExecutable;
+    String appDir = p.dirname(appPath);
+
+    // 2. Definir el nombre y la ruta final del script
+    const String scriptFileName = 'StellarBlade_Chunk_Id_exe.py';
+    final File targetFile = File(p.join(appDir, scriptFileName));
+
+    // 3. Cargar el contenido del asset
+    final String scriptContent =
+        await rootBundle.loadString('assets/scripts/conflict_patcher.py');
+
+    // 4. Escribir el archivo en el disco
+    // Esto sobrescribirá el archivo si ya existe,
+    // asegurando que la app siempre tenga la versión más reciente del script.
+    await targetFile.writeAsString(scriptContent);
+
+    print("Script de Patcher de Conflictos desplegado en: ${targetFile.path}");
+  } catch (e) {
+    print("Falló al desplegar el script de assets: $e");
+    if (mounted) {
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.error,
+        title: "Error de inicialización",
+        description: "No se pudo crear el script del patcher: $e",
+      );
+    }
+  }
+}*/
 
   /// Verifica la existencia de manifiestos para determinar si UE4SS y CNS están instalados.
   Future<void> _checkCoreInstallations() async {
@@ -2194,6 +2231,157 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     await _loadAllMods();
     setState(() => _isLoading = false);
   }
+
+/// Ejecuta el Patcher de Conflictos nativo de Dart.
+Future<void> _runConflictPatcher() async {
+  final l10n = AppLocalizations.of(context)!;
+
+  if (_genericModsPath == null || !await Directory(_genericModsPath!).exists()) {
+    NotificationService.instance.show(
+      context: context,
+      type: NotificationType.error,
+      title: l10n.errorDialogTitle,
+      description: l10n.statusGamePathNotFound,
+    );
+    return;
+  }
+
+  setState(() {
+    _isLoading = true;
+    _statusMessage = "Ejecutando Patcher de Conflictos...";
+  });
+
+  String fullLog = ""; // Para el botón "Mostrar Log Completo"
+
+  try {
+    // 1. Crear una instancia del servicio y ejecutar el parcheo
+    final PatcherService patcher = PatcherService();
+    final PatcherResult result =
+        await patcher.patchConflictsInDirectory(_genericModsPath!);
+
+    fullLog = result.fullLog; // Guardamos el log completo
+
+    // 2. Procesar los resultados para crear un resumen simple
+    final StringBuffer summary = StringBuffer();
+
+    // --- Resumen de Container ID (Correcciones de Crashes) ---
+    if (result.containerIdsFixed > 0) {
+      summary.writeln(
+          "✅ ¡Éxito! Se corrigieron ${result.containerIdsFixed} conflictos de Container ID que causan crasheos.");
+    } else {
+      summary.writeln(
+          "✅ No se encontraron conflictos de Container ID (crashes).");
+    }
+    summary.writeln("---");
+
+    // --- INICIO DE LA NUEVA LÓGICA DE AGRUPACIÓN ---
+    
+    // Un mapa para agrupar los conflictos.
+    // La clave (String) será la lista de mods en conflicto (ej: "Mod A, Mod B")
+    // El valor (int) será cuántos archivos comparten.
+    final Map<String, int> conflictGroups = {};
+    const int commonConflictThreshold = 10;
+
+    result.packageIdConflicts.forEach((id, mods) {
+      // 1. Filtramos los "auto-conflictos" (mods.length < 2)
+      //    y los conflictos "comunes" (demasiados mods).
+      if (mods.length > 1 && mods.length < commonConflictThreshold) {
+        
+        // 2. Ordenamos la lista de mods para que "A, B" sea igual que "B, A"
+        mods.sort();
+
+        // 3. Creamos una clave única para este grupo de mods
+        final String groupKey = mods.join('\n    '); // Usamos \n para formatear
+
+        // 4. Contamos cuántos archivos comparte este grupo
+        conflictGroups[groupKey] = (conflictGroups[groupKey] ?? 0) + 1;
+      }
+    });
+    // --- FIN DE LA NUEVA LÓGICA DE AGRUPACIÓN ---
+
+    // --- Resumen de Package ID (Conflictos de Sobrescritura) ---
+    if (conflictGroups.isEmpty) {
+      summary.writeln(
+          "✅ ¡Buenas noticias! No se encontraron conflictos graves de Package ID (sobrescritura).");
+    } else {
+      summary.writeln(
+          "⚠️ ¡Atención! Se encontraron ${conflictGroups.length} grupos de mods que no pueden coexistir:");
+      summary.writeln("---");
+
+      // Ahora iteramos sobre los grupos únicos
+      conflictGroups.forEach((modGroup, fileCount) {
+        summary.writeln(
+            "  • Este grupo de mods compite por $fileCount archivos:");
+        summary.writeln("    $modGroup\n"); // El modGroup ya tiene el formato con \n
+      });
+    }
+
+    // 3. Mostrar el nuevo diálogo de resumen
+    await showDialog(
+      context: context,
+      builder: (summaryContext) => AlertDialog(
+        backgroundColor: const Color(0xFF2a2a2a),
+        title: const Text("Resumen del Patcher"),
+        content: SingleChildScrollView(child: SelectableText(summary.toString())),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(summaryContext).pop(),
+            child: Text(l10n.dialogActionClose),
+          ),
+          // El botón "MOSTRAR LOG COMPLETO"
+          ElevatedButton(
+            child: const Text("Mostrar Log Completo"),
+            onPressed: () {
+              Navigator.of(summaryContext).pop(); // Cierra el diálogo de resumen
+              _showFullPatcherLog(fullLog); // Abre el diálogo de log completo
+            },
+          ),
+        ],
+      ),
+    );
+  } catch (e) {
+    NotificationService.instance.show(
+      context: context,
+      type: NotificationType.error,
+      title: l10n.errorDialogTitle,
+      description: e.toString(),
+    );
+    // Si falla, muestra el log que se haya acumulado
+    _showFullPatcherLog(fullLog.isEmpty ? e.toString() : fullLog);
+  } finally {
+    setState(() {
+      _isLoading = false;
+      _statusMessage = '';
+    });
+  }
+}
+
+// ++ AÑADE ESTA NUEVA FUNCIÓN DE AYUDA (para no repetir código) ++
+// (Puedes ponerla justo después de la función _runConflictPatcher)
+void _showFullPatcherLog(String logContent) {
+  final l10n = AppLocalizations.of(context)!;
+  showDialog(
+    context: context,
+    builder: (logContext) => AlertDialog(
+      backgroundColor: const Color(0xFF2a2a2a),
+      title: const Text("Registro del Patcher de Conflictos (Dart)"),
+      // Hacemos el diálogo más grande para el log
+      content: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.7,
+        height: MediaQuery.of(context).size.height * 0.7,
+        child: SingleChildScrollView(
+          child: SelectableText(logContent),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(logContext).pop(),
+          child: Text(l10n.dialogActionClose),
+        ),
+      ],
+    ),
+  );
+}
 
   Future<String?> _fetchLatestModVersion(String nexusId) async {
     try {
@@ -6644,6 +6832,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                     },
                     onShowAboutDialog: _showAboutDialog,
                     onRunSelfHealing: _showSelfHealConfirmationDialog,
+                    onRunConflictPatcher: _runConflictPatcher,
                   ),
                 ),
               );
