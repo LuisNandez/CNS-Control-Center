@@ -7,6 +7,7 @@ import 'dart:math'; // Importamos 'math' para Random
 import 'dart:typed_data';
 // import 'package:uuid/uuid.dart'; // Ya no es necesario
 import 'package:path/path.dart' as p;
+import 'l10n/app_localizations.dart';
 
 // Usamos una clase para encapsular la lógica, tal como lo hacía el script de Python.
 class PatcherResult {
@@ -36,17 +37,20 @@ class PatcherService {
   // ++ USAMOS Random.secure() en lugar de UUID ++
   final Random _random = Random.secure(); 
 
+  final AppLocalizations l10n;
+  PatcherService(this.l10n);
+
   // Esta es la función principal que llamarás desde main.dart
   Future<PatcherResult> patchConflictsInDirectory(String modsDirectoryPath) {
     // Usamos un try-catch para devolver el log, ya sea de éxito o de error.
     // Observa que ahora devuelve un Future<PatcherResult>
     return _safeRun(() async {
-      _log.writeln("=== StellarBlade Dart Patcher Inciado ===");
-      _log.writeln("Directorio de trabajo: $modsDirectoryPath");
+      _log.writeln(l10n.patcherStarted);
+      _log.writeln(l10n.workingDirectory(modsDirectoryPath));
 
       final dir = Directory(modsDirectoryPath);
       if (!await dir.exists()) {
-        throw Exception("El directorio ~mods no existe en: $modsDirectoryPath");
+        throw Exception(l10n.modsDirNotFound(modsDirectoryPath));
       }
 
       final List<File> utocFiles = [];
@@ -62,17 +66,16 @@ class PatcherService {
             }
           }
         } catch (e) {
-          _log.writeln(
-              "\n  ADVERTENCIA: No se pudo escanear la carpeta ${currentDir.path}. Omitiendo.");
-          _log.writeln("  Error: $e\n");
+          _log.writeln(l10n.warnCannotScanFolder(currentDir.path));
+          _log.writeln(l10n.errorDetails(e.toString()));
         }
       }
 
       await findUtocFiles(dir);
 
-      _log.writeln("Encontrados ${utocFiles.length} archivos .utoc");
+      _log.writeln(l10n.foundUtocFiles(utocFiles.length));
       if (utocFiles.isEmpty) {
-        _log.writeln("No se encontraron mods para procesar.");
+        _log.writeln(l10n.noModsFound2);
         // Devolvemos un resultado vacío
         return PatcherResult(
           fullLog: _log.toString(),
@@ -100,12 +103,10 @@ class PatcherService {
       });
 
       // 3. Escribir el resumen final en el log (PARA EL LOG COMPLETO)
-      _log.writeln("\n=== Resumen del Patcher (Datos Crudos) ===");
-      _log.writeln("Procesados ${utocFiles.length} mods.");
-      _log.writeln(
-          "Se corrigieron $fixedContainerIdCount conflictos de Container ID.");
-      _log.writeln(
-          "Se encontraron ${allPackageIdConflicts.length} conflictos de Package ID.");
+      _log.writeln(l10n.patcherSummaryTitle);
+      _log.writeln(l10n.processedMods(utocFiles.length));
+      _log.writeln(l10n.fixedContainerIdConflicts(fixedContainerIdCount));
+      _log.writeln(l10n.foundPackageIdConflicts(allPackageIdConflicts.length));
 
       // 4. Devolver el objeto PatcherResult estructurado
       return PatcherResult(
@@ -121,10 +122,10 @@ class PatcherService {
     try {
       return await action();
     } catch (e, s) {
-      _log.writeln("\n=== ERROR FATAL ===");
+      _log.writeln(l10n.fatalErrorTitle);
       _log.writeln(e.toString());
       _log.writeln(s.toString());
-      print("Error en PatcherService: $e");
+      print(l10n.patcherServiceError(e.toString()));
       // Devolver un PatcherResult con el log de error
       return PatcherResult(
         fullLog: _log.toString(),
@@ -212,13 +213,13 @@ class PatcherService {
   // ++ FUNCIÓN COMPLETAMENTE REESCRITA (para evitar errores de RandomAccessFile) ++
   Future<bool> _parseUtoc(File utocFile) async {
     final String baseName = p.basename(utocFile.path);
-    _log.writeln("--- Analizando: $baseName ---");
+    _log.writeln(l10n.analyzingFile(baseName));
 
     try {
       final String ucasPath = utocFile.path.replaceAll('.utoc', '.ucas');
       final File ucasFile = File(ucasPath);
       if (!await ucasFile.exists()) {
-        _log.writeln("  ADVERTENCIA: No se encontró el archivo .ucas. Saltando.");
+        _log.writeln(l10n.warnUcasNotFound);
         return false;
       }
 
@@ -236,7 +237,7 @@ class PatcherService {
       for (int i = 0; i < tocEntryCount; i++) {
         final int offset = 144 + (i * 12); // Offset desde el inicio del archivo
         if (offset + 12 > utocData.length) {
-            _log.writeln("  ADVERTENCIA: Encabezado corrupto, tamaño de entrada excede el tamaño del archivo. Saltando.");
+            _log.writeln(l10n.warnCorruptHeader);
             break;
         }
         final int packageId = utocView.getUint64(offset, Endian.little);
@@ -253,37 +254,35 @@ class PatcherService {
       // --- Lógica de Conflicto de Container ID ---
       if (_containerIds.contains(oldContainerId)) {
         // ¡Conflicto detectado!
-        _log.writeln(
-            "  CONFLICTO de Container ID detectado: $oldContainerId");
+        _log.writeln(l10n.conflictContainerIdDetected(oldContainerId));
 
         // Generamos un nuevo ID
         final int newContainerId = _generateU64Id();
-        _log.writeln("  Generando nuevo ID: $newContainerId");
+        _log.writeln(l10n.generatingNewId(newContainerId));
 
         // 1. Modificar el encabezado en memoria (offset 56)
         utocView.setUint64(56, newContainerId, Endian.little);
 
         // 2. Escribir los bytes del .utoc modificados de vuelta al disco
         await utocFile.writeAsBytes(utocData);
-        _log.writeln("  Archivo .utoc parcheado.");
+        _log.writeln(l10n.utocFilePatched);
 
         // 3. Parchear el archivo .ucas (usando la función que ya lee/escribe)
-        _log.writeln("  Parcheando archivo .ucas...");
+        _log.writeln(l10n.patchingUcasFile);
         final int replacements =
             await _findAndReplaceBytes(ucasFile, oldContainerId, newContainerId);
-        _log.writeln(
-            "  Reemplazos exitosos en .ucas: $replacements");
+        _log.writeln(l10n.ucasReplacementsSuccess(replacements));
 
-        _log.writeln("  ¡Parcheo completado!");
+        _log.writeln(l10n.patchComplete);
         return true;
       } else {
         // No hay conflicto, solo registramos el ID
         _containerIds.add(oldContainerId);
-        _log.writeln("  ID $oldContainerId registrado. No hay conflictos.");
+        _log.writeln(l10n.idRegisteredNoConflict(oldContainerId));
         return false;
       }
     } catch (e, s) {
-      _log.writeln("  ERROR al procesar $baseName: $e");
+      _log.writeln(l10n.errorProcessingFile(baseName, e.toString()));
       _log.writeln(s.toString());
       return false; // Indica que no se arregló
     }

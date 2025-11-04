@@ -2181,6 +2181,216 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Logic'**
   String get modTypeLogic;
+
+  /// No description provided for @patcherStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'=== StellarBlade Dart Patcher Started ==='**
+  String get patcherStarted;
+
+  /// No description provided for @workingDirectory.
+  ///
+  /// In en, this message translates to:
+  /// **'Working directory: {path}'**
+  String workingDirectory(String path);
+
+  /// No description provided for @modsDirNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The ~mods directory does not exist at: {path}'**
+  String modsDirNotFound(String path);
+
+  /// No description provided for @warnCannotScanFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'\n  WARNING: Could not scan folder {path}. Skipping.'**
+  String warnCannotScanFolder(String path);
+
+  /// No description provided for @errorDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'  Error: {error}\n'**
+  String errorDetails(String error);
+
+  /// No description provided for @foundUtocFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Found {count} .utoc files'**
+  String foundUtocFiles(int count);
+
+  /// No description provided for @noModsFound2.
+  ///
+  /// In en, this message translates to:
+  /// **'No mods found to process.'**
+  String get noModsFound2;
+
+  /// No description provided for @patcherSummaryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'\n=== Patcher Summary (Raw Data) ==='**
+  String get patcherSummaryTitle;
+
+  /// No description provided for @processedMods.
+  ///
+  /// In en, this message translates to:
+  /// **'Processed {count} mods.'**
+  String processedMods(int count);
+
+  /// No description provided for @fixedContainerIdConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed {count} Container ID conflicts.'**
+  String fixedContainerIdConflicts(int count);
+
+  /// No description provided for @foundPackageIdConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'Found {count} Package ID conflicts.'**
+  String foundPackageIdConflicts(int count);
+
+  /// No description provided for @fatalErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'\n=== FATAL ERROR ==='**
+  String get fatalErrorTitle;
+
+  /// No description provided for @patcherServiceError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error in PatcherService: {error}'**
+  String patcherServiceError(String error);
+
+  /// No description provided for @analyzingFile.
+  ///
+  /// In en, this message translates to:
+  /// **'--- Analyzing: {fileName} ---'**
+  String analyzingFile(String fileName);
+
+  /// No description provided for @warnUcasNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'  WARNING: .ucas file not found. Skipping.'**
+  String get warnUcasNotFound;
+
+  /// No description provided for @warnCorruptHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'  WARNING: Corrupt header, entry size exceeds file size. Skipping.'**
+  String get warnCorruptHeader;
+
+  /// No description provided for @conflictContainerIdDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'  Container ID CONFLICT detected: {id}'**
+  String conflictContainerIdDetected(int id);
+
+  /// No description provided for @generatingNewId.
+  ///
+  /// In en, this message translates to:
+  /// **'  Generating new ID: {id}'**
+  String generatingNewId(int id);
+
+  /// No description provided for @utocFilePatched.
+  ///
+  /// In en, this message translates to:
+  /// **'  .utoc file patched.'**
+  String get utocFilePatched;
+
+  /// No description provided for @patchingUcasFile.
+  ///
+  /// In en, this message translates to:
+  /// **'  Patching .ucas file...'**
+  String get patchingUcasFile;
+
+  /// No description provided for @ucasReplacementsSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'  Successful replacements in .ucas: {count}'**
+  String ucasReplacementsSuccess(int count);
+
+  /// No description provided for @patchComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'  Patch complete!'**
+  String get patchComplete;
+
+  /// No description provided for @idRegisteredNoConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'  ID {id} registered. No conflicts.'**
+  String idRegisteredNoConflict(int id);
+
+  /// No description provided for @errorProcessingFile.
+  ///
+  /// In en, this message translates to:
+  /// **'  ERROR processing {fileName}: {error}'**
+  String errorProcessingFile(String fileName, String error);
+
+  /// No description provided for @statusRunningPatcher.
+  ///
+  /// In en, this message translates to:
+  /// **'Running Conflict Patcher...'**
+  String get statusRunningPatcher;
+
+  /// No description provided for @summarySuccessContainerIds.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Success! Fixed {count} crash-causing Container ID conflicts.'**
+  String summarySuccessContainerIds(int count);
+
+  /// No description provided for @summaryNoContainerIdConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ No Container ID (crash) conflicts were found.'**
+  String get summaryNoContainerIdConflicts;
+
+  /// No description provided for @summaryNoPackageIdConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Good news! No serious Package ID (overwrite) conflicts were found.'**
+  String get summaryNoPackageIdConflicts;
+
+  /// No description provided for @summaryFoundPackageIdConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ Warning! Found {count} groups of mods that cannot coexist:'**
+  String summaryFoundPackageIdConflicts(int count);
+
+  /// No description provided for @summaryConflictGroupDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'  • This group of mods competes for {count} files:'**
+  String summaryConflictGroupDetails(int count);
+
+  /// No description provided for @patcherSummaryDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Patcher Summary'**
+  String get patcherSummaryDialogTitle;
+
+  /// No description provided for @dialogActionShowFullLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Full Log'**
+  String get dialogActionShowFullLog;
+
+  /// No description provided for @fullLogDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflict Patcher Log (Dart)'**
+  String get fullLogDialogTitle;
+
+  /// No description provided for @runConflictPatcherTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Run Conflict Patcher'**
+  String get runConflictPatcherTitle;
+
+  /// No description provided for @runConflictPatcherSubtitlePython.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixes Container_Id & Package_Id crashes'**
+  String get runConflictPatcherSubtitlePython;
 }
 
 class _AppLocalizationsDelegate

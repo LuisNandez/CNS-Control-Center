@@ -34,8 +34,9 @@ class AppPrefs {
   static const String filterMode = 'filterMode';
   static const String modTypeFilterMode = 'modTypeFilterMode';
   static const String sortMode = 'sortMode';
-  static const String viewMode = 'viewMode'; // New preference for view mode
-  static const String showModTypeTags = 'showModTypeTags'; // New preference for showing mod type tags
+  static const String viewMode = 'viewMode';
+  static const String showModTypeTags =
+      'showModTypeTags';
 }
 
 // Data class to hold all information about a mod.
@@ -49,8 +50,7 @@ class ModInfo {
   final String? origin;
   final String displayName;
   String customName;
-  final List<dynamic>?
-  gallery;
+  final List<dynamic>? gallery;
   final String? fitMeshType;
   final String? modType;
   final String? customCoverPath;
@@ -144,7 +144,7 @@ class ModInfo {
       customCoverPath: customCoverPath ?? this.customCoverPath,
       customCoverAlignment: customCoverAlignment ?? this.customCoverAlignment,
       customCoverLastModified:
-      customCoverLastModified ?? this.customCoverLastModified,
+          customCoverLastModified ?? this.customCoverLastModified,
       customVersion: customVersion ?? this.customVersion,
       customFitMeshType: customFitMeshType ?? this.customFitMeshType,
       summary: summary ?? this.summary,
@@ -279,7 +279,15 @@ class _PreparedMod {
   final String? nexusVersion;
   final String archiveName;
   final ModDirectoryType modType;
-  _PreparedMod({required this.sourceDir, this.ue4ssDir, this.tildeModsDir, this.nexusId, this.nexusVersion, required this.archiveName, required this.modType});
+  _PreparedMod({
+    required this.sourceDir,
+    this.ue4ssDir,
+    this.tildeModsDir,
+    this.nexusId,
+    this.nexusVersion,
+    required this.archiveName,
+    required this.modType,
+  });
 }
 
 class _PreparedUE4SS {
@@ -287,7 +295,7 @@ class _PreparedUE4SS {
   _PreparedUE4SS({required this.sourceDir});
 }
 
-enum ModFilter { all, enabled, disabled, updatesAvailable}
+enum ModFilter { all, enabled, disabled, updatesAvailable }
 
 enum ModTypeFilter { all, cns, replacement, movies, logicMod, generic }
 
@@ -372,7 +380,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   OverlayEntry? _previewOverlay;
   Offset _cursorPosition = Offset.zero;
 
-
   // ++ THUMBNAIL SERVICE INSTANCE ++
   final ThumbnailService _thumbnailService = ThumbnailService();
 
@@ -418,6 +425,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     }
     super.dispose();
   }
+
   bool _isUpdatingMetadata = false;
   double _metadataUpdateProgress = 0.0;
   String _metadataUpdateStatus = '';
@@ -558,14 +566,14 @@ Future<void> _deployScriptAssets() async {
     return paths;
   }
 
-  Future<void> _showInstallationPanel({List<File>? initialFiles}) async { 
+  Future<void> _showInstallationPanel({List<File>? initialFiles}) async {
     // Limpia cualquier selección anterior al abrir el panel
     if (_preparedMods.isNotEmpty) {
       _clearSelection();
     }
-  
+
     final l10n = AppLocalizations.of(context)!;
-    
+
     // El panel se reconstruirá internamente usando este StateSetter
     // para no afectar a la pantalla principal.
     await showModalBottomSheet<void>(
@@ -586,7 +594,8 @@ Future<void> _deployScriptAssets() async {
             if (initialFiles != null && !hasProcessedInitialFiles) {
               // Usamos un post-frame callback para evitar errores de "setState durante el build".
               WidgetsBinding.instance.addPostFrameCallback((_) async {
-                final bool didInstall = await _processArchives( // <-- MODIFICADO
+                final bool didInstall = await _processArchives(
+                  // <-- MODIFICADO
                   initialFiles,
                   panelStateSetter: setPanelState,
                 );
@@ -597,7 +606,11 @@ Future<void> _deployScriptAssets() async {
               });
               hasProcessedInitialFiles = true; // Marcamos como procesados.
             }
-            final canInstall = _preparedMods.isNotEmpty && !_isLoading && !_isExtracting && !_isInstalling;
+            final canInstall =
+                _preparedMods.isNotEmpty &&
+                !_isLoading &&
+                !_isExtracting &&
+                !_isInstalling;
             return WillPopScope(
               onWillPop: () async {
                 // CASO 1: Si está ocupado (extrayendo/instalando), bloquea el cierre.
@@ -610,182 +623,241 @@ Future<void> _deployScriptAssets() async {
                   await _cancelAndCleanInstallation();
                   // Actualiza el mensaje en la pantalla principal de forma segura.
                   setState(() {
-                     _statusMessage = AppLocalizations.of(context)!.statusSelectionCancelled;
-                     _statusColor = Colors.white;
+                    _statusMessage = AppLocalizations.of(
+                      context,
+                    )!.statusSelectionCancelled;
+                    _statusColor = Colors.white;
                   });
                 }
-                
+
                 // CASO 3: Si no está ocupado y no hay nada seleccionado, permite el cierre.
                 return true;
               },
-            child: DropTarget(
+              child: DropTarget(
                 onDragDone: (details) async {
-                final files = details.files.map((f) => File(f.path)).toList();
-                if (files.isNotEmpty) {
-                  final bool didInstall = await _processArchives( // <-- MODIFICADO
-                    files,
-                    panelStateSetter: setPanelState,
-                  );
-                  if (didInstall && mounted) {
-                    Navigator.pop(context); // Cierra el panel
-                  } else {
-                    setPanelState(() {}); // Actualiza la UI si no se cerró
+                  final files = details.files.map((f) => File(f.path)).toList();
+                  if (files.isNotEmpty) {
+                    final bool didInstall = await _processArchives(
+                      // <-- MODIFICADO
+                      files,
+                      panelStateSetter: setPanelState,
+                    );
+                    if (didInstall && mounted) {
+                      Navigator.pop(context); // Cierra el panel
+                    } else {
+                      setPanelState(() {}); // Actualiza la UI si no se cerró
+                    }
                   }
-                }
-              },
-              onDragEntered: (details) => setPanelState(() => _isDragging = true),
-              onDragExited: (details) => setPanelState(() => _isDragging = false),
-              child: Stack(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Barra superior para cerrar el panel
-                        Center(
-                          child: Container(
-                            height: 5,
-                            width: 40,
-                            margin: const EdgeInsets.only(bottom: 20),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[700],
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                          ),
-                        ),
-                        
-                        // Contenido del panel
-                        Text(l10n.installNewMod, style: Theme.of(context).textTheme.headlineSmall),
-                        const SizedBox(height: 16),
-                        
-                        // Botones de selección e instalación
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.archive),
-                                label: Text(l10n.selectModArchive),
-                                onPressed: (_isLoading || _isExtracting || _isInstalling) ? null : () async {
-                                    final bool didInstall = await _pickArchive(panelStateSetter: setPanelState); // <-- MODIFICADO
-                                    if (didInstall && mounted) {
-                                      Navigator.pop(context); // Cierra el panel
-                                    } else {
-                                      setPanelState(() {}); // Actualiza la UI si no se cerró
-                                    }
-                                  },
+                },
+                onDragEntered: (details) =>
+                    setPanelState(() => _isDragging = true),
+                onDragExited: (details) =>
+                    setPanelState(() => _isDragging = false),
+                child: Stack(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Barra superior para cerrar el panel
+                          Center(
+                            child: Container(
+                              height: 5,
+                              width: 40,
+                              margin: const EdgeInsets.only(bottom: 20),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[700],
+                                borderRadius: BorderRadius.circular(5),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.download_for_offline),
-                                label: Text(l10n.installSelectedMod),
-                                onPressed: canInstall ? () async {
-                                  // ++ INICIO DE LA MODIFICACIÓN ++
-                                  // Pasa el setter a la función de instalación
-                                  await _installMod(panelStateSetter: setPanelState);
-                                  if (mounted) Navigator.pop(context); // Cierra el panel
-                                  // ++ FIN DE LA MODIFICACIÓN ++
-                                } : null,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: canInstall ? Colors.tealAccent : Colors.grey[700],
-                                  foregroundColor: Colors.black87,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        // Vista previa de la instalación
-                        if (_modsToInstallPreviewMap.isNotEmpty)
-                          _buildSelectionPreviewSection(
-                            l10n,
-                            panelStateSetter: setPanelState, // <-- PASA EL SETTER AQUÍ
                           ),
-                        
-                        
-                        const SizedBox(height: 20),
 
-                        // Indicadores de estado y progreso
-                        if (_isExtracting)
-                          Column(
+                          // Contenido del panel
+                          Text(
+                            l10n.installNewMod,
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Botones de selección e instalación
+                          Row(
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                                child: Text(
-                                  _extractionStatus,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(color: Colors.white70),
-                                  overflow: TextOverflow.ellipsis,
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.archive),
+                                  label: Text(l10n.selectModArchive),
+                                  onPressed:
+                                      (_isLoading ||
+                                          _isExtracting ||
+                                          _isInstalling)
+                                      ? null
+                                      : () async {
+                                          final bool didInstall =
+                                              await _pickArchive(
+                                                panelStateSetter: setPanelState,
+                                              ); // <-- MODIFICADO
+                                          if (didInstall && mounted) {
+                                            Navigator.pop(
+                                              context,
+                                            ); // Cierra el panel
+                                          } else {
+                                            setPanelState(
+                                              () {},
+                                            ); // Actualiza la UI si no se cerró
+                                          }
+                                        },
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              LinearProgressIndicator(
-                                value: _extractionProgress,
-                                backgroundColor: Colors.grey[800],
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                  Colors.tealAccent,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.download_for_offline),
+                                  label: Text(l10n.installSelectedMod),
+                                  onPressed: canInstall
+                                      ? () async {
+                                          // ++ INICIO DE LA MODIFICACIÓN ++
+                                          // Pasa el setter a la función de instalación
+                                          await _installMod(
+                                            panelStateSetter: setPanelState,
+                                          );
+                                          if (mounted)
+                                            Navigator.pop(
+                                              context,
+                                            ); // Cierra el panel
+                                          // ++ FIN DE LA MODIFICACIÓN ++
+                                        }
+                                      : null,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: canInstall
+                                        ? Colors.tealAccent
+                                        : Colors.grey[700],
+                                    foregroundColor: Colors.black87,
+                                  ),
                                 ),
                               ),
                             ],
-                          )
-                          else if (_isInstalling) // <-- AÑADIDO ESTE CASO
+                          ),
+
+                          // Vista previa de la instalación
+                          if (_modsToInstallPreviewMap.isNotEmpty)
+                            _buildSelectionPreviewSection(
+                              l10n,
+                              panelStateSetter:
+                                  setPanelState, // <-- PASA EL SETTER AQUÍ
+                            ),
+
+                          const SizedBox(height: 20),
+
+                          // Indicadores de estado y progreso
+                          if (_isExtracting)
                             Column(
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8.0,
+                                  ),
                                   child: Text(
-                                    _installationStatus, // Usa el nuevo estado
+                                    _extractionStatus,
                                     textAlign: TextAlign.center,
-                                    style: const TextStyle(color: Colors.white70),
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 LinearProgressIndicator(
-                                  value: _installationProgress, // Usa el nuevo progreso
+                                  value: _extractionProgress,
+                                  backgroundColor: Colors.grey[800],
+                                  valueColor:
+                                      const AlwaysStoppedAnimation<Color>(
+                                        Colors.tealAccent,
+                                      ),
+                                ),
+                              ],
+                            )
+                          else if (_isInstalling) // <-- AÑADIDO ESTE CASO
+                            Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8.0,
+                                  ),
+                                  child: Text(
+                                    _installationStatus, // Usa el nuevo estado
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                LinearProgressIndicator(
+                                  value:
+                                      _installationProgress, // Usa el nuevo progreso
                                   backgroundColor: Colors.grey[800],
                                   valueColor: const AlwaysStoppedAnimation<Color>(
-                                    Colors.greenAccent, // Un color diferente para distinguirla
+                                    Colors
+                                        .greenAccent, // Un color diferente para distinguirla
                                   ),
                                 ),
                               ],
                             )
-                        else if (_preparedMods.isNotEmpty || _statusColor != Colors.white)
+                          else if (_preparedMods.isNotEmpty ||
+                              _statusColor != Colors.white)
                             Text(
                               _statusMessage,
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 14, color: _statusColor),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: _statusColor,
+                              ),
                             ),
 
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-                  ),
-
-                  // Overlay de arrastrar y soltar
-                  if (_isDragging)
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                        border: Border.all(color: Colors.tealAccent, width: 3),
+                          const SizedBox(height: 16),
+                        ],
                       ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.download_for_offline, size: 80, color: Colors.tealAccent),
-                            const SizedBox(height: 20),
-                            Text(l10n.dropTargetOverlay, style: const TextStyle(color: Colors.white, fontSize: 24)),
-                          ],
+                    ),
+
+                    // Overlay de arrastrar y soltar
+                    if (_isDragging)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.7),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(20),
+                          ),
+                          border: Border.all(
+                            color: Colors.tealAccent,
+                            width: 3,
+                          ),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.download_for_offline,
+                                size: 80,
+                                color: Colors.tealAccent,
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                l10n.dropTargetOverlay,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              ),
+                  ],
+                ),
               ),
             );
           },
@@ -803,14 +875,16 @@ Future<void> _deployScriptAssets() async {
     required String nexusId,
   }) async {
     final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
-    if (!await infoFile.exists()) return; // El archivo de información debe existir
+    if (!await infoFile.exists())
+      return; // El archivo de información debe existir
 
     try {
       Map<String, dynamic> data = json.decode(await infoFile.readAsString());
 
       // SI EL MOD YA TIENE UNA PORTADA PERSONALIZADA, NO HACEMOS NADA.
       // Esto respeta la elección del usuario y evita descargas innecesarias.
-      if (data['customCoverPath'] != null && (data['customCoverPath'] as String).isNotEmpty) {
+      if (data['customCoverPath'] != null &&
+          (data['customCoverPath'] as String).isNotEmpty) {
         return;
       }
 
@@ -818,7 +892,7 @@ Future<void> _deployScriptAssets() async {
       final nexusData = await _fetchNexusModData(nexusId);
       final gallery = nexusData?['gallery'] as List<dynamic>?;
       if (gallery == null || gallery.isEmpty) return;
-      
+
       final imageUrl = gallery.first['image'] as String?;
       if (imageUrl == null || imageUrl.isEmpty) return;
 
@@ -826,24 +900,31 @@ Future<void> _deployScriptAssets() async {
       final response = await http.get(Uri.parse(imageUrl));
       if (response.statusCode == 200) {
         // 3. Guardamos la imagen en la carpeta del mod con un nombre estándar
-        final fileExtension = p.extension(imageUrl).isNotEmpty ? p.extension(imageUrl) : '.jpg';
+        final fileExtension = p.extension(imageUrl).isNotEmpty
+            ? p.extension(imageUrl)
+            : '.jpg';
         const coverFileName = '_nexus_cover'; // Nombre base estándar
         final finalFileName = '$coverFileName$fileExtension';
-        
+
         final coverFile = File(p.join(modDirectory.path, finalFileName));
         await coverFile.writeAsBytes(response.bodyBytes);
 
         // 4. Actualizamos el archivo nexus_info.json con la ruta local y una alineación por defecto
         data['customCoverPath'] = finalFileName;
-        data['customCoverAlignmentX'] ??= 0.0; // Añade alineación por defecto si no existe
+        data['customCoverAlignmentX'] ??=
+            0.0; // Añade alineación por defecto si no existe
         data['customCoverAlignmentY'] ??= 0.0;
-        
+
         final encoder = JsonEncoder.withIndent('  ');
         await infoFile.writeAsString(encoder.convert(data));
-        print('Portada de Nexus cacheada para ${p.basename(modDirectory.path)}');
+        print(
+          'Portada de Nexus cacheada para ${p.basename(modDirectory.path)}',
+        );
       }
     } catch (e) {
-      print('No se pudo cachear la portada de Nexus para ${p.basename(modDirectory.path)}: $e');
+      print(
+        'No se pudo cachear la portada de Nexus para ${p.basename(modDirectory.path)}: $e',
+      );
     }
   }
 
@@ -991,7 +1072,15 @@ Future<void> _deployScriptAssets() async {
 
   Future<List<File>> _findAllModFilesRecursive(Directory dir) async {
     final List<File> foundFiles = [];
-    const validExtensions = ['.json', '.pak', '.ucas', '.utoc', '.bk2', '.lua', '.txt'];
+    const validExtensions = [
+      '.json',
+      '.pak',
+      '.ucas',
+      '.utoc',
+      '.bk2',
+      '.lua',
+      '.txt',
+    ];
     await for (final entity in dir.list(recursive: true, followLinks: false)) {
       if (entity is File &&
           validExtensions.contains(p.extension(entity.path).toLowerCase())) {
@@ -1159,7 +1248,9 @@ Future<void> _deployScriptAssets() async {
       setState(() {
         _logicModIds = idList.cast<String>().toSet();
       });
-      print('Local logic mod ID database loaded successfully (${_logicModIds.length} IDs).');
+      print(
+        'Local logic mod ID database loaded successfully (${_logicModIds.length} IDs).',
+      );
     } catch (e) {
       print('Could not find or read logic_mod_ids.json, skipping: $e');
     }
@@ -1354,20 +1445,30 @@ Future<void> _deployScriptAssets() async {
           '~mods',
         );
         // Ruta de las películas del juego
-        final moviesPath = p.join(
-          gamePath, 'SB', 'Content', 'Movies',
-        );
+        final moviesPath = p.join(gamePath, 'SB', 'Content', 'Movies');
         // Ruta para guardar las películas ORIGINALES del juego
         final moviesBackupPath = p.join(
-          gamePath, 'SB', 'Content', '__MOVIES_ORIGINALS__',
+          gamePath,
+          'SB',
+          'Content',
+          '__MOVIES_ORIGINALS__',
         );
         // Ruta para los mods de Lógica (Paks)
         final logicModsPath = p.join(
-          gamePath, 'SB', 'Content', 'Paks', 'LogicMods',
+          gamePath,
+          'SB',
+          'Content',
+          'Paks',
+          'LogicMods',
         );
         // Ruta para los mods de Lógica (UE4SS)
         final ue4ssModsPath = p.join(
-          gamePath, 'SB', 'Binaries', 'Win64', 'ue4ss', 'Mods',
+          gamePath,
+          'SB',
+          'Binaries',
+          'Win64',
+          'ue4ss',
+          'Mods',
         );
         // Guarda la ruta encontrada
         final cnsDir = Directory(cnsModPath);
@@ -1375,7 +1476,7 @@ Future<void> _deployScriptAssets() async {
         final moviesBackupDir = Directory(moviesBackupPath);
         final logicModsDir = Directory(logicModsPath);
         final ue4ssModsDir = Directory(ue4ssModsPath);
-        
+
         if (!await cnsDir.exists()) {
           await cnsDir.create(recursive: true);
         }
@@ -1676,7 +1777,12 @@ Future<void> _deployScriptAssets() async {
 
     // Escanea mods desactivados
     if (_gameRootPath != null) {
-      final backupDirPath = p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__');
+      final backupDirPath = p.join(
+        _gameRootPath!,
+        'SB',
+        'Content',
+        '__MOD_BACKUPS__',
+      );
       final disabledDir = Directory(backupDirPath);
       if (await disabledDir.exists()) {
         await for (var entity in disabledDir.list()) {
@@ -1695,9 +1801,13 @@ Future<void> _deployScriptAssets() async {
           final String? modManagerVersion = data['managerVersion'];
           final String? nexusIdForCheck = data['nexusId'];
 
-          bool needsUpdate = modManagerVersion == null || (_compareVersions(_appVersion, modManagerVersion) > 0);
+          bool needsUpdate =
+              modManagerVersion == null ||
+              (_compareVersions(_appVersion, modManagerVersion) > 0);
 
-          if (needsUpdate && nexusIdForCheck != null && nexusIdForCheck.isNotEmpty) {
+          if (needsUpdate &&
+              nexusIdForCheck != null &&
+              nexusIdForCheck.isNotEmpty) {
             modsToUpdate.add({
               'path': modPath,
               'nexusId': nexusIdForCheck,
@@ -1705,7 +1815,9 @@ Future<void> _deployScriptAssets() async {
             });
           }
         } catch (e) {
-          print('No se pudo analizar nexus_info.json para la comprobación de actualización de metadatos en ${modPath}: $e');
+          print(
+            'No se pudo analizar nexus_info.json para la comprobación de actualización de metadatos en ${modPath}: $e',
+          );
         }
       }
     }
@@ -1727,7 +1839,11 @@ Future<void> _deployScriptAssets() async {
 
         setState(() {
           _metadataUpdateProgress = (i + 1) / modsToUpdate.length;
-          _metadataUpdateStatus = l10n.statusUpdatingMetadata(displayName, i + 1, modsToUpdate.length);
+          _metadataUpdateStatus = l10n.statusUpdatingMetadata(
+            displayName,
+            i + 1,
+            modsToUpdate.length,
+          );
         });
 
         try {
@@ -1740,12 +1856,16 @@ Future<void> _deployScriptAssets() async {
             data['author'] ??= nexusData['author'];
             data['gallery'] ??= nexusData['gallery'];
             data['description'] ??= nexusData['description'];
-            data['sourceUrl'] ??= 'https://www.nexusmods.com/stellarblade/mods/$nexusId';
+            data['sourceUrl'] ??=
+                'https://www.nexusmods.com/stellarblade/mods/$nexusId';
             data['managerVersion'] = _appVersion;
 
             final encoder = JsonEncoder.withIndent('  ');
             await infoFile.writeAsString(encoder.convert(data));
-            await _cacheNexusThumbnail(modDirectory: modDirectory, nexusId: nexusId);
+            await _cacheNexusThumbnail(
+              modDirectory: modDirectory,
+              nexusId: nexusId,
+            );
           }
         } catch (e) {
           print('Fallo al actualizar los metadatos para $displayName: $e');
@@ -1785,17 +1905,20 @@ Future<void> _deployScriptAssets() async {
           // Si estamos escaneando la carpeta genérica (~mods) Y
           // el nombre de esta carpeta coincide con un LogicMod ya cargado,
           // sáltatela, porque es un componente, no un mod independiente.
-          if (path == _genericModsPath && 
+          if (path == _genericModsPath &&
               logicModNamesToIgnore.contains(basename)) {
-            print("Omitiendo carpeta genérica (es un componente de LogicMod): $basename");
-            continue; 
+            print(
+              "Omitiendo carpeta genérica (es un componente de LogicMod): $basename",
+            );
+            continue;
           }
 
           // Si estamos escaneando la carpeta genérica, omitimos la carpeta CNS.
           final basenameLower = basename.toLowerCase();
-          if (path == _genericModsPath && 
-              (basenameLower == 'customnanosuitsystem' || basenameLower == 'logicmods')) {
-                continue;
+          if (path == _genericModsPath &&
+              (basenameLower == 'customnanosuitsystem' ||
+                  basenameLower == 'logicmods')) {
+            continue;
           }
           if (basename == '__mod_backups__') continue;
           try {
@@ -1806,7 +1929,6 @@ Future<void> _deployScriptAssets() async {
             List<dynamic>? gallery;
             String? fitMeshType;
             String? modType;
-            bool? isEnabledFromJson;
             String? customCoverPath;
             Alignment? customCoverAlignment;
             DateTime? customCoverLastModified;
@@ -1827,12 +1949,11 @@ Future<void> _deployScriptAssets() async {
             String? customSourceUrl;
             String? replacesOutfit;
 
-            bool isEnabledForMod = isEnabled; 
+            bool isEnabledForMod = isEnabled;
             DateTime? installDate;
 
             final infoFile = File(p.join(entity.path, 'nexus_info.json'));
-            final fileStat = await entity
-                .stat();
+            final fileStat = await entity.stat();
             if (await infoFile.exists()) {
               final content = await infoFile.readAsString();
               Map<String, dynamic> data = json.decode(content);
@@ -1863,7 +1984,10 @@ Future<void> _deployScriptAssets() async {
                   print(
                     '...metadata for ${data['displayName']} updated successfully.',
                   );
-                  await _cacheNexusThumbnail(modDirectory: entity, nexusId: nexusIdForCheck);
+                  await _cacheNexusThumbnail(
+                    modDirectory: entity,
+                    nexusId: nexusIdForCheck,
+                  );
                 }
               }
               // --- FIN DE LA LÓGICA DE ACTUALIZACIÓN ---
@@ -1880,7 +2004,6 @@ Future<void> _deployScriptAssets() async {
               gallery = data['gallery'];
               fitMeshType = data['fitMeshType'];
               modType = data['modType'] as String?;
-              isEnabledFromJson = data['isEnabled'] as bool?;
               summary = data['summary'];
               customSummary = data['customSummary'];
               description = data['description'];
@@ -1936,10 +2059,10 @@ Future<void> _deployScriptAssets() async {
             }
 
             if (modType == 'movies' && await infoFile.exists()) {
-                final content = await infoFile.readAsString();
-                final data = json.decode(content);
-                isEnabledForMod = data['isEnabled'] as bool? ?? false;
-              }
+              final content = await infoFile.readAsString();
+              final data = json.decode(content);
+              isEnabledForMod = data['isEnabled'] as bool? ?? false;
+            }
             // Lógica de fallback si el nexus_info.json no existe o está incompleto
             if (fitMeshType == null && modType != 'movies') {
               fitMeshType = await _getFitMeshTypeForMod(entity);
@@ -2003,18 +2126,23 @@ Future<void> _deployScriptAssets() async {
 
     try {
       // 1. Cargamos los LogicMods PRIMERO
-      final enabledLogicMods = await getModsFromDirectory(_logicModsPath!, true);
-      
+      final enabledLogicMods = await getModsFromDirectory(
+        _logicModsPath!,
+        true,
+      );
+
       // 2. Extraemos sus nombres de carpeta (ej: "SpeedMasterEve")
-      final Set<String> logicModFolderNames = enabledLogicMods.map((mod) => p.basename(mod.directory.path)).toSet();
+      final Set<String> logicModFolderNames = enabledLogicMods
+          .map((mod) => p.basename(mod.directory.path))
+          .toSet();
 
       // 3. Cargamos los mods CNS
       final enabledCnsMods = await getModsFromDirectory(_finalModsPath!, true);
-      
+
       // 4. Cargamos los mods Genéricos, pero les pasamos la lista de
       //    nombres de LogicMods para que los ignoren.
       final enabledGenericMods = await getModsFromDirectory(
-        _genericModsPath!, 
+        _genericModsPath!,
         true,
         logicModNamesToIgnore: logicModFolderNames, // <-- Parámetro añadido
       );
@@ -2022,7 +2150,12 @@ Future<void> _deployScriptAssets() async {
       if (_gameRootPath == null) {
         final disabledMods = <ModInfo>[];
         setState(() {
-          _allMods = [...enabledCnsMods, ...enabledGenericMods, ...enabledLogicMods, ...disabledMods];
+          _allMods = [
+            ...enabledCnsMods,
+            ...enabledGenericMods,
+            ...enabledLogicMods,
+            ...disabledMods,
+          ];
         });
         return;
       }
@@ -2033,12 +2166,20 @@ Future<void> _deployScriptAssets() async {
         '__MOD_BACKUPS__',
       );
       final disabledMods = await getModsFromDirectory(backupDirPath, false);
-      
+
       // Combina todas las listas
       setState(() {
-        _allMods = [...enabledCnsMods, ...enabledGenericMods, ...enabledLogicMods, ...disabledMods];
+        _allMods = [
+          ...enabledCnsMods,
+          ...enabledGenericMods,
+          ...enabledLogicMods,
+          ...disabledMods,
+        ];
         if (clearHighlight && mounted) {
-          final totalEnabled = enabledCnsMods.length + enabledGenericMods.length + enabledLogicMods.length; // Suma
+          final totalEnabled =
+              enabledCnsMods.length +
+              enabledGenericMods.length +
+              enabledLogicMods.length; // Suma
           _statusMessage = AppLocalizations.of(
             context,
           )!.statusModsFound(disabledMods.length, totalEnabled); // Usa la suma
@@ -2204,7 +2345,10 @@ Future<void> _deployScriptAssets() async {
 
           final encoder = JsonEncoder.withIndent('  ');
           await infoFile.writeAsString(encoder.convert(modData));
-          await _cacheNexusThumbnail(modDirectory: mod.directory, nexusId: nexusId);
+          await _cacheNexusThumbnail(
+            modDirectory: mod.directory,
+            nexusId: nexusId,
+          );
           repairedCount++;
         } catch (e) {
           print('Could not self-repair mod "$primaryDisplayName": $e');
@@ -2232,156 +2376,168 @@ Future<void> _deployScriptAssets() async {
     setState(() => _isLoading = false);
   }
 
-/// Ejecuta el Patcher de Conflictos nativo de Dart.
-Future<void> _runConflictPatcher() async {
-  final l10n = AppLocalizations.of(context)!;
+  /// Ejecuta el Patcher de Conflictos nativo de Dart.
+  Future<void> _runConflictPatcher() async {
+    final l10n = AppLocalizations.of(context)!;
 
-  if (_genericModsPath == null || !await Directory(_genericModsPath!).exists()) {
-    NotificationService.instance.show(
-      context: context,
-      type: NotificationType.error,
-      title: l10n.errorDialogTitle,
-      description: l10n.statusGamePathNotFound,
-    );
-    return;
-  }
-
-  setState(() {
-    _isLoading = true;
-    _statusMessage = "Ejecutando Patcher de Conflictos...";
-  });
-
-  String fullLog = ""; // Para el botón "Mostrar Log Completo"
-
-  try {
-    // 1. Crear una instancia del servicio y ejecutar el parcheo
-    final PatcherService patcher = PatcherService();
-    final PatcherResult result =
-        await patcher.patchConflictsInDirectory(_genericModsPath!);
-
-    fullLog = result.fullLog; // Guardamos el log completo
-
-    // 2. Procesar los resultados para crear un resumen simple
-    final StringBuffer summary = StringBuffer();
-
-    // --- Resumen de Container ID (Correcciones de Crashes) ---
-    if (result.containerIdsFixed > 0) {
-      summary.writeln(
-          "✅ ¡Éxito! Se corrigieron ${result.containerIdsFixed} conflictos de Container ID que causan crasheos.");
-    } else {
-      summary.writeln(
-          "✅ No se encontraron conflictos de Container ID (crashes).");
+    if (_genericModsPath == null ||
+        !await Directory(_genericModsPath!).exists()) {
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.error,
+        title: l10n.errorDialogTitle,
+        description: l10n.statusGamePathNotFound,
+      );
+      return;
     }
-    summary.writeln("---");
 
-    // --- INICIO DE LA NUEVA LÓGICA DE AGRUPACIÓN ---
-    
-    // Un mapa para agrupar los conflictos.
-    // La clave (String) será la lista de mods en conflicto (ej: "Mod A, Mod B")
-    // El valor (int) será cuántos archivos comparten.
-    final Map<String, int> conflictGroups = {};
-    const int commonConflictThreshold = 10;
-
-    result.packageIdConflicts.forEach((id, mods) {
-      // 1. Filtramos los "auto-conflictos" (mods.length < 2)
-      //    y los conflictos "comunes" (demasiados mods).
-      if (mods.length > 1 && mods.length < commonConflictThreshold) {
-        
-        // 2. Ordenamos la lista de mods para que "A, B" sea igual que "B, A"
-        mods.sort();
-
-        // 3. Creamos una clave única para este grupo de mods
-        final String groupKey = mods.join('\n    '); // Usamos \n para formatear
-
-        // 4. Contamos cuántos archivos comparte este grupo
-        conflictGroups[groupKey] = (conflictGroups[groupKey] ?? 0) + 1;
-      }
+    setState(() {
+      _isLoading = true;
+      _statusMessage = l10n.statusRunningPatcher;
     });
-    // --- FIN DE LA NUEVA LÓGICA DE AGRUPACIÓN ---
 
-    // --- Resumen de Package ID (Conflictos de Sobrescritura) ---
-    if (conflictGroups.isEmpty) {
-      summary.writeln(
-          "✅ ¡Buenas noticias! No se encontraron conflictos graves de Package ID (sobrescritura).");
-    } else {
-      summary.writeln(
-          "⚠️ ¡Atención! Se encontraron ${conflictGroups.length} grupos de mods que no pueden coexistir:");
+    String fullLog = ""; // Para el botón "Mostrar Log Completo"
+
+    try {
+      // 1. Crear una instancia del servicio y ejecutar el parcheo
+      final PatcherService patcher = PatcherService(l10n);
+      final PatcherResult result = await patcher.patchConflictsInDirectory(
+        _genericModsPath!,
+      );
+
+      fullLog = result.fullLog; // Guardamos el log completo
+
+      // 2. Procesar los resultados para crear un resumen simple
+      final StringBuffer summary = StringBuffer();
+
+      // --- Resumen de Container ID (Correcciones de Crashes) ---
+      if (result.containerIdsFixed > 0) {
+        summary.writeln(
+          l10n.summarySuccessContainerIds(result.containerIdsFixed),
+        );
+      } else {
+        summary.writeln(
+          l10n.summaryNoContainerIdConflicts,
+        );
+      }
       summary.writeln("---");
 
-      // Ahora iteramos sobre los grupos únicos
-      conflictGroups.forEach((modGroup, fileCount) {
+      // --- INICIO DE LA NUEVA LÓGICA DE AGRUPACIÓN ---
+
+      // Un mapa para agrupar los conflictos.
+      // La clave (String) será la lista de mods en conflicto (ej: "Mod A, Mod B")
+      // El valor (int) será cuántos archivos comparten.
+      final Map<String, int> conflictGroups = {};
+      const int commonConflictThreshold = 10;
+
+      result.packageIdConflicts.forEach((id, mods) {
+        // 1. Filtramos los "auto-conflictos" (mods.length < 2)
+        //    y los conflictos "comunes" (demasiados mods).
+        if (mods.length > 1 && mods.length < commonConflictThreshold) {
+          // 2. Ordenamos la lista de mods para que "A, B" sea igual que "B, A"
+          mods.sort();
+
+          // 3. Creamos una clave única para este grupo de mods
+          final String groupKey = mods.join(
+            '\n    ',
+          ); // Usamos \n para formatear
+
+          // 4. Contamos cuántos archivos comparte este grupo
+          conflictGroups[groupKey] = (conflictGroups[groupKey] ?? 0) + 1;
+        }
+      });
+      // --- FIN DE LA NUEVA LÓGICA DE AGRUPACIÓN ---
+
+      // --- Resumen de Package ID (Conflictos de Sobrescritura) ---
+      if (conflictGroups.isEmpty) {
         summary.writeln(
-            "  • Este grupo de mods compite por $fileCount archivos:");
-        summary.writeln("    $modGroup\n"); // El modGroup ya tiene el formato con \n
+          l10n.summaryNoPackageIdConflicts,
+        );
+      } else {
+        summary.writeln(
+          l10n.summaryFoundPackageIdConflicts(conflictGroups.length),
+        );
+        summary.writeln("---");
+
+        // Ahora iteramos sobre los grupos únicos
+        conflictGroups.forEach((modGroup, fileCount) {
+          summary.writeln(
+            l10n.summaryConflictGroupDetails(fileCount),
+          );
+          summary.writeln(
+            "    $modGroup\n",
+          ); // El modGroup ya tiene el formato con \n
+        });
+      }
+
+      // 3. Mostrar el nuevo diálogo de resumen
+      await showDialog(
+        context: context,
+        builder: (summaryContext) => AlertDialog(
+          backgroundColor: const Color(0xFF2a2a2a),
+          title: Text(l10n.patcherSummaryDialogTitle),
+          content: SingleChildScrollView(
+            child: SelectableText(summary.toString()),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(summaryContext).pop(),
+              child: Text(l10n.dialogActionClose),
+            ),
+            // El botón "MOSTRAR LOG COMPLETO"
+            ElevatedButton(
+              child: Text(l10n.dialogActionShowFullLog),
+              onPressed: () {
+                Navigator.of(
+                  summaryContext,
+                ).pop(); // Cierra el diálogo de resumen
+                _showFullPatcherLog(fullLog); // Abre el diálogo de log completo
+              },
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.error,
+        title: l10n.errorDialogTitle,
+        description: e.toString(),
+      );
+      // Si falla, muestra el log que se haya acumulado
+      _showFullPatcherLog(fullLog.isEmpty ? e.toString() : fullLog);
+    } finally {
+      setState(() {
+        _isLoading = false;
+        _statusMessage = '';
       });
     }
+  }
 
-    // 3. Mostrar el nuevo diálogo de resumen
-    await showDialog(
+  // ++ AÑADE ESTA NUEVA FUNCIÓN DE AYUDA (para no repetir código) ++
+  // (Puedes ponerla justo después de la función _runConflictPatcher)
+  void _showFullPatcherLog(String logContent) {
+    final l10n = AppLocalizations.of(context)!;
+    showDialog(
       context: context,
-      builder: (summaryContext) => AlertDialog(
+      builder: (logContext) => AlertDialog(
         backgroundColor: const Color(0xFF2a2a2a),
-        title: const Text("Resumen del Patcher"),
-        content: SingleChildScrollView(child: SelectableText(summary.toString())),
+        title: Text(l10n.fullLogDialogTitle),
+        // Hacemos el diálogo más grande para el log
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.7,
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: SingleChildScrollView(child: SelectableText(logContent)),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(summaryContext).pop(),
+            onPressed: () => Navigator.of(logContext).pop(),
             child: Text(l10n.dialogActionClose),
-          ),
-          // El botón "MOSTRAR LOG COMPLETO"
-          ElevatedButton(
-            child: const Text("Mostrar Log Completo"),
-            onPressed: () {
-              Navigator.of(summaryContext).pop(); // Cierra el diálogo de resumen
-              _showFullPatcherLog(fullLog); // Abre el diálogo de log completo
-            },
           ),
         ],
       ),
     );
-  } catch (e) {
-    NotificationService.instance.show(
-      context: context,
-      type: NotificationType.error,
-      title: l10n.errorDialogTitle,
-      description: e.toString(),
-    );
-    // Si falla, muestra el log que se haya acumulado
-    _showFullPatcherLog(fullLog.isEmpty ? e.toString() : fullLog);
-  } finally {
-    setState(() {
-      _isLoading = false;
-      _statusMessage = '';
-    });
   }
-}
-
-// ++ AÑADE ESTA NUEVA FUNCIÓN DE AYUDA (para no repetir código) ++
-// (Puedes ponerla justo después de la función _runConflictPatcher)
-void _showFullPatcherLog(String logContent) {
-  final l10n = AppLocalizations.of(context)!;
-  showDialog(
-    context: context,
-    builder: (logContext) => AlertDialog(
-      backgroundColor: const Color(0xFF2a2a2a),
-      title: const Text("Registro del Patcher de Conflictos (Dart)"),
-      // Hacemos el diálogo más grande para el log
-      content: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.7,
-        height: MediaQuery.of(context).size.height * 0.7,
-        child: SingleChildScrollView(
-          child: SelectableText(logContent),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(logContext).pop(),
-          child: Text(l10n.dialogActionClose),
-        ),
-      ],
-    ),
-  );
-}
 
   Future<String?> _fetchLatestModVersion(String nexusId) async {
     try {
@@ -2414,7 +2570,8 @@ void _showFullPatcherLog(String logContent) {
     }
   }
 
-  Future<bool> _pickArchive({StateSetter? panelStateSetter}) async { // <-- AÑADE EL PARÁMETRO AQUÍ
+  Future<bool> _pickArchive({StateSetter? panelStateSetter}) async {
+    // <-- AÑADE EL PARÁMETRO AQUÍ
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -2424,7 +2581,10 @@ void _showFullPatcherLog(String logContent) {
       if (result != null && result.files.isNotEmpty) {
         final files = result.paths.map((path) => File(path!)).toList();
         // ++ PASA EL PARÁMETRO A LA SIGUIENTE FUNCIÓN ++
-        return await _processArchives(files, panelStateSetter: panelStateSetter);
+        return await _processArchives(
+          files,
+          panelStateSetter: panelStateSetter,
+        );
       }
     } catch (e) {
       // Usa el setter si está disponible, si no, usa setState
@@ -2437,6 +2597,7 @@ void _showFullPatcherLog(String logContent) {
     }
     return false;
   }
+  
   Future<Map<String, String>?> _extractNexusInfoFromName(String name) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
       if (mounted) {
@@ -2695,40 +2856,48 @@ void _showFullPatcherLog(String logContent) {
   }
 
   Future<Directory?> _findSubFolder(Directory root, String folderName) async {
-  final targetName = folderName.toLowerCase();
+    final targetName = folderName.toLowerCase();
 
-  // Comprueba si alguna de las carpetas en la raíz es la que buscamos
-  try {
-    await for (final entity in root.list(recursive: false, followLinks: false)) {
-      if (entity is Directory) {
-        if (p.basename(entity.path).toLowerCase() == targetName) {
-          return entity; // Encontrada
+    // Comprueba si alguna de las carpetas en la raíz es la que buscamos
+    try {
+      await for (final entity in root.list(
+        recursive: false,
+        followLinks: false,
+      )) {
+        if (entity is Directory) {
+          if (p.basename(entity.path).toLowerCase() == targetName) {
+            return entity; // Encontrada
+          }
         }
       }
+    } catch (e) {
+      print("Error listando directorio raíz ($root): $e");
     }
-  } catch (e) {
-    print("Error listando directorio raíz ($root): $e");
-  }
 
-  // Si no está en la raíz, busca recursivamente en las subcarpetas
-  try {
-    await for (final entity in root.list(recursive: false, followLinks: false)) {
-      if (entity is Directory) {
-        final found = await _findSubFolder(entity, folderName);
-        if (found != null) {
-          return found; // Encontrada en subcarpeta
+    // Si no está en la raíz, busca recursivamente en las subcarpetas
+    try {
+      await for (final entity in root.list(
+        recursive: false,
+        followLinks: false,
+      )) {
+        if (entity is Directory) {
+          final found = await _findSubFolder(entity, folderName);
+          if (found != null) {
+            return found; // Encontrada en subcarpeta
+          }
         }
       }
+    } catch (e) {
+      print("Error buscando recursivamente en ($root): $e");
     }
-  } catch (e) {
-    print("Error buscando recursivamente en ($root): $e");
+
+    return null; // No encontrada
   }
 
-  return null; // No encontrada
-}
-  
-
-  Future<bool> _processArchives(List<File> archives, {StateSetter? panelStateSetter}) async {
+  Future<bool> _processArchives(
+    List<File> archives, {
+    StateSetter? panelStateSetter,
+  }) async {
     final l10n = AppLocalizations.of(context)!;
     final updateState = panelStateSetter ?? setState;
     updateState(() {
@@ -2737,7 +2906,6 @@ void _showFullPatcherLog(String logContent) {
       _extractionStatus = '';
     });
 
-    bool cnsUpdateInitiated = false;
     _preparedUE4SS = null;
 
     try {
@@ -2767,7 +2935,8 @@ void _showFullPatcherLog(String logContent) {
 
         final nexusInfo = await _extractNexusInfoFromName(fileName);
         final String? nexusId = nexusInfo?['id'];
-        final bool isLogicModById = (nexusId != null && _logicModIds.contains(nexusId));
+        final bool isLogicModById =
+            (nexusId != null && _logicModIds.contains(nexusId));
         final archiveTempDir = Directory(
           p.join(_tempExtractionDir!.path, i.toString()),
         );
@@ -2809,43 +2978,53 @@ void _showFullPatcherLog(String logContent) {
 
         // 2. Comprobar Actualización CNS
         final sbDir = Directory(p.join(archiveTempDir.path, 'SB'));
-        
+
         // 1. Primero comprueba si la carpeta 'SB' existe
         if (await sbDir.exists()) {
-          
           // 2. Ahora, comprueba si el archivo LUA específico de CNS existe
-          final cnsLuaFile = File(p.join(
-            sbDir.path,
-            'Binaries',
-            'Win64',
-            'ue4ss',
-            'Mods',
-            'DekCNS',
-            'Scripts',
-            'main.lua',
-          ));
+          final cnsLuaFile = File(
+            p.join(
+              sbDir.path,
+              'Binaries',
+              'Win64',
+              'ue4ss',
+              'Mods',
+              'DekCNS',
+              'Scripts',
+              'main.lua',
+            ),
+          );
 
           if (await cnsLuaFile.exists()) {
             // 3. Si existe, ES el mod CNS principal
-            print("Paquete CNS Principal detectado. Iniciando proceso de actualización...");
+            print(
+              "Paquete CNS Principal detectado. Iniciando proceso de actualización...",
+            );
             return await _promptAndUpdateCNS(sbDir);
           }
         }
 
         // 3. Comprobar LogicMod (Prioridad 3)
-        final logicSourceDir = Directory(p.join(
-          archiveTempDir.path, 'SB', 'Content', 'Paks', 'LogicMods'
-        ));
-        final ue4ssSourceDir = Directory(p.join(
-          archiveTempDir.path, 'SB', 'Binaries', 'Win64', 'ue4ss', 'Mods'
-        ));
+        final logicSourceDir = Directory(
+          p.join(archiveTempDir.path, 'SB', 'Content', 'Paks', 'LogicMods'),
+        );
+        final ue4ssSourceDir = Directory(
+          p.join(
+            archiveTempDir.path,
+            'SB',
+            'Binaries',
+            'Win64',
+            'ue4ss',
+            'Mods',
+          ),
+        );
 
         // Comprobamos si AMBAS carpetas existen en esa ruta exacta
         if (await logicSourceDir.exists() && await ue4ssSourceDir.exists()) {
-          final tildeModsSourceDir = Directory(p.join(
-            archiveTempDir.path, 'SB', 'Content', 'Paks', '~mods'
-          ));
-          
+          final tildeModsSourceDir = Directory(
+            p.join(archiveTempDir.path, 'SB', 'Content', 'Paks', '~mods'),
+          );
+
           // Comprueba si el directorio existe antes de pasarlo
           final bool tildeModsExists = await tildeModsSourceDir.exists();
           // ¡LogicMod detectado!
@@ -2854,8 +3033,10 @@ void _showFullPatcherLog(String logContent) {
           _preparedMods.add(
             _PreparedMod(
               sourceDir: logicSourceDir, // Pasa la carpeta .../Paks/LogicMods
-              ue4ssDir: ue4ssSourceDir,  // Pasa la carpeta .../ue4ss/Mods
-              tildeModsDir: tildeModsExists ? tildeModsSourceDir : null, // ++ AÑADIDO ++
+              ue4ssDir: ue4ssSourceDir, // Pasa la carpeta .../ue4ss/Mods
+              tildeModsDir: tildeModsExists
+                  ? tildeModsSourceDir
+                  : null, // ++ AÑADIDO ++
               nexusId: nexusInfo?['id'],
               nexusVersion: nexusInfo?['version'],
               archiveName: archiveName,
@@ -2868,53 +3049,61 @@ void _showFullPatcherLog(String logContent) {
         // 3. NUEVO CHECK: Comprobar LogicMod anidado (ej: <ModName>/LogicMods/...)
         // Esto captura mods que no tienen la estructura SB/ completa.
         Directory? nestedLogicModDir;
-        
+
         // Listamos las entidades en la raíz del zip extraído
-        final List<FileSystemEntity> rootEntities = await archiveTempDir.list().toList();
-        
+        final List<FileSystemEntity> rootEntities = await archiveTempDir
+            .list()
+            .toList();
+
         // Filtramos para encontrar solo directorios
         final rootDirs = rootEntities.whereType<Directory>().toList();
 
         if (rootDirs.length == 1) {
-            // Si solo hay UNA carpeta en la raíz (ej: V1-3SloMoWidget_P)
-            final potentialModRoot = rootDirs.first;
-            final potentialLogicModsDir = Directory(p.join(potentialModRoot.path, 'LogicMods'));
-            
-            if (await potentialLogicModsDir.exists()) {
-                // ¡Encontrado! Esta es la carpeta que queremos.
-                nestedLogicModDir = potentialLogicModsDir;
-            }
+          // Si solo hay UNA carpeta en la raíz (ej: V1-3SloMoWidget_P)
+          final potentialModRoot = rootDirs.first;
+          final potentialLogicModsDir = Directory(
+            p.join(potentialModRoot.path, 'LogicMods'),
+          );
+
+          if (await potentialLogicModsDir.exists()) {
+            // ¡Encontrado! Esta es la carpeta que queremos.
+            nestedLogicModDir = potentialLogicModsDir;
+          }
         } else {
-            // Si hay varias carpetas, o ninguna, comprobamos si 'LogicMods'
-            // está directamente en la raíz (ej: LogicMods/...).
-            final rootLogicModsDir = Directory(p.join(archiveTempDir.path, 'LogicMods'));
-            if (await rootLogicModsDir.exists()) {
-                nestedLogicModDir = rootLogicModsDir;
-            }
+          // Si hay varias carpetas, o ninguna, comprobamos si 'LogicMods'
+          // está directamente en la raíz (ej: LogicMods/...).
+          final rootLogicModsDir = Directory(
+            p.join(archiveTempDir.path, 'LogicMods'),
+          );
+          if (await rootLogicModsDir.exists()) {
+            nestedLogicModDir = rootLogicModsDir;
+          }
         }
 
         // Si encontramos un 'LogicMods' anidado o en la raíz...
         if (nestedLogicModDir != null) {
-            print('LogicMod anidado detectado: $fileName');
-            _preparedMods.add(
-                _PreparedMod(
-                    sourceDir: nestedLogicModDir, // <--- Pasamos la carpeta INTERNA
-                    ue4ssDir: null, // No hay componente ue4ss en esta estructura
-                    tildeModsDir: null, // No hay componente ~mods
-                    nexusId: nexusInfo?['id'],
-                    nexusVersion: nexusInfo?['version'],
-                    archiveName: archiveName,
-                    modType: ModDirectoryType.logicMod,
-                ),
-            );
-            continue; // Es LogicMod, pasa al siguiente archivo
+          print('LogicMod anidado detectado: $fileName');
+          _preparedMods.add(
+            _PreparedMod(
+              sourceDir: nestedLogicModDir, // <--- Pasamos la carpeta INTERNA
+              ue4ssDir: null, // No hay componente ue4ss en esta estructura
+              tildeModsDir: null, // No hay componente ~mods
+              nexusId: nexusInfo?['id'],
+              nexusVersion: nexusInfo?['version'],
+              archiveName: archiveName,
+              modType: ModDirectoryType.logicMod,
+            ),
+          );
+          continue; // Es LogicMod, pasa al siguiente archivo
         }
 
         // 4. Comprobar Subdirectorios de Mods (Prioridad 4)
         final foundModDirs = await _findValidModDirectories(archiveTempDir);
         if (foundModDirs.isNotEmpty) {
           for (final modDir in foundModDirs) {
-            var modType = await ModClassifierService.classifyModDirectory(modDir); // Clasifica el directorio extraído
+            var modType = await ModClassifierService.classifyModDirectory(
+              modDir,
+            ); // Clasifica el directorio extraído
             if (isLogicModById && modType != ModDirectoryType.unknown) {
               print("Overriding mod type to 'logicMod' based on ID: $nexusId");
               modType = ModDirectoryType.logicMod;
@@ -2962,7 +3151,10 @@ void _showFullPatcherLog(String logContent) {
 
           for (final modFile in allModFiles) {
             final ext = p.extension(modFile.path).toLowerCase();
-            if (ext == '.json' || ext == '.pak' || ext == '.ucas' || ext == '.utoc') {
+            if (ext == '.json' ||
+                ext == '.pak' ||
+                ext == '.ucas' ||
+                ext == '.utoc') {
               final newPath = p.join(
                 consolidatedDir.path,
                 p.basename(modFile.path),
@@ -2972,19 +3164,19 @@ void _showFullPatcherLog(String logContent) {
           }
 
           _preparedMods.add(
-              _PreparedMod(
-                sourceDir: consolidatedDir,
-                ue4ssDir: null, // No es un LogicMod
-                nexusId: nexusInfo?['id'],
-                nexusVersion: nexusInfo?['version'],
-                archiveName: archiveName,
-                modType: ModDirectoryType.cns, // <-- Asignar tipo
-              ),
-            );
-          } 
+            _PreparedMod(
+              sourceDir: consolidatedDir,
+              ue4ssDir: null, // No es un LogicMod
+              nexusId: nexusInfo?['id'],
+              nexusVersion: nexusInfo?['version'],
+              archiveName: archiveName,
+              modType: ModDirectoryType.cns, // <-- Asignar tipo
+            ),
+          );
+        }
         // CASO B: Archivos sueltos de un mod Genérico
         else if (jsonFiles.isEmpty && pakFiles.isNotEmpty) {
-           final consolidatedDir = await Directory(
+          final consolidatedDir = await Directory(
             p.join(archiveTempDir.path, '_consolidated_'),
           ).create();
 
@@ -2996,15 +3188,16 @@ void _showFullPatcherLog(String logContent) {
             await modFile.copy(newPath);
           }
 
-          ModDirectoryType modType = ModDirectoryType.genericPak; // <-- Valor por defecto
+          /*ModDirectoryType modType =
+              ModDirectoryType.genericPak;
           if (isLogicModById) {
-              print("Overriding mod type to 'logicMod' based on ID: $nexusId");
-              modType = ModDirectoryType.logicMod;
-          }
+            print("Overriding mod type to 'logicMod' based on ID: $nexusId");
+            modType = ModDirectoryType.logicMod;
+          }*/
 
-           _preparedMods.add(
+          _preparedMods.add(
             _PreparedMod(
-              sourceDir: consolidatedDir, 
+              sourceDir: consolidatedDir,
               ue4ssDir: null, // No es un LogicMod
               nexusId: nexusInfo?['id'],
               nexusVersion: nexusInfo?['version'],
@@ -3018,8 +3211,9 @@ void _showFullPatcherLog(String logContent) {
           final consolidatedDir = await Directory(
             p.join(archiveTempDir.path, '_consolidated_'),
           ).create();
-          
-          for (final modFile in bk2Files) { // Solo copia los bk2
+
+          for (final modFile in bk2Files) {
+            // Solo copia los bk2
             final newPath = p.join(
               consolidatedDir.path,
               p.basename(modFile.path),
@@ -3027,9 +3221,9 @@ void _showFullPatcherLog(String logContent) {
             await modFile.copy(newPath);
           }
 
-           _preparedMods.add(
+          _preparedMods.add(
             _PreparedMod(
-              sourceDir: consolidatedDir, 
+              sourceDir: consolidatedDir,
               ue4ssDir: null, // No es un LogicMod
               nexusId: nexusInfo?['id'],
               nexusVersion: nexusInfo?['version'],
@@ -3105,15 +3299,19 @@ void _showFullPatcherLog(String logContent) {
     return null;
   }
 
-  Future<void> _prepareInstallationPreview({StateSetter? panelStateSetter}) async {
+  Future<void> _prepareInstallationPreview({
+    StateSetter? panelStateSetter,
+  }) async {
     // ++ INICIO DE LA MODIFICACIÓN ++
     AppLocalizations? l10n;
     if (mounted) {
       l10n = AppLocalizations.of(context);
     }
-    
+
     if (_preparedMods.isEmpty) {
-      final errorMessage = l10n?.errorNoCompatibleFilesInArchive ?? 'No compatible files found in archive.';
+      final errorMessage =
+          l10n?.errorNoCompatibleFilesInArchive ??
+          'No compatible files found in archive.';
       _clearSelection(
         message: errorMessage,
         panelStateSetter: panelStateSetter,
@@ -3144,29 +3342,49 @@ void _showFullPatcherLog(String logContent) {
         // 4a. Archivos del sourceDir (LogicMods, CNS, Genérico, etc.)
         // Estos solo mostrarán el nombre del archivo, ya que van a la carpeta principal del mod.
         if (await preparedMod.sourceDir.exists()) {
-            final sourceFiles = await _findAllModFilesRecursive(preparedMod.sourceDir);
-            allFileDisplayPaths.addAll(sourceFiles.map((f) => p.basename(f.path)));
+          final sourceFiles = await _findAllModFilesRecursive(
+            preparedMod.sourceDir,
+          );
+          allFileDisplayPaths.addAll(
+            sourceFiles.map((f) => p.basename(f.path)),
+          );
         }
 
         // 4b. Archivos del ue4ssDir (si existen)
-        if (preparedMod.ue4ssDir != null && await preparedMod.ue4ssDir!.exists()) {
-            final ue4ssFiles = await _findAllModFilesRecursive(preparedMod.ue4ssDir!);
-            for (final file in ue4ssFiles) {
-                // Obtenemos la ruta relativa para mostrar la estructura (ej: ModName/Scripts/main.lua)
-                final relativePath = p.relative(file.path, from: preparedMod.ue4ssDir!.path);
-                // Añadimos un prefijo para que el usuario sepa dónde va
-                allFileDisplayPaths.add(p.join("[UE4SS]", relativePath).replaceAll(r'\', '/'));
-            }
+        if (preparedMod.ue4ssDir != null &&
+            await preparedMod.ue4ssDir!.exists()) {
+          final ue4ssFiles = await _findAllModFilesRecursive(
+            preparedMod.ue4ssDir!,
+          );
+          for (final file in ue4ssFiles) {
+            // Obtenemos la ruta relativa para mostrar la estructura (ej: ModName/Scripts/main.lua)
+            final relativePath = p.relative(
+              file.path,
+              from: preparedMod.ue4ssDir!.path,
+            );
+            // Añadimos un prefijo para que el usuario sepa dónde va
+            allFileDisplayPaths.add(
+              p.join("[UE4SS]", relativePath).replaceAll(r'\', '/'),
+            );
+          }
         }
 
         // 4c. Archivos del tildeModsDir (si existen)
-        if (preparedMod.tildeModsDir != null && await preparedMod.tildeModsDir!.exists()) {
-            final tildeFiles = await _findAllModFilesRecursive(preparedMod.tildeModsDir!);
-            for (final file in tildeFiles) {
-                final relativePath = p.relative(file.path, from: preparedMod.tildeModsDir!.path);
-                // Añadimos un prefijo para que el usuario sepa dónde va
-                allFileDisplayPaths.add(p.join("[~MODS]", relativePath).replaceAll(r'\', '/'));
-            }
+        if (preparedMod.tildeModsDir != null &&
+            await preparedMod.tildeModsDir!.exists()) {
+          final tildeFiles = await _findAllModFilesRecursive(
+            preparedMod.tildeModsDir!,
+          );
+          for (final file in tildeFiles) {
+            final relativePath = p.relative(
+              file.path,
+              from: preparedMod.tildeModsDir!.path,
+            );
+            // Añadimos un prefijo para que el usuario sepa dónde va
+            allFileDisplayPaths.add(
+              p.join("[~MODS]", relativePath).replaceAll(r'\', '/'),
+            );
+          }
         }
 
         // 5. Asigna la lista COMPLETA al mapa
@@ -3442,10 +3660,10 @@ void _showFullPatcherLog(String logContent) {
     updateState(() {
       _isInstalling = true;
       _installationProgress = 0.0;
-      _installationStatus = l10n.statusInstalling; // Necesitarás esta traducción
+      _installationStatus =
+          l10n.statusInstalling; // Necesitarás esta traducción
       _lastInstalledModNames.clear();
     });
-    
 
     List<String> installedNames = [];
     String? errorMessage;
@@ -3454,14 +3672,12 @@ void _showFullPatcherLog(String logContent) {
 
     try {
       for (int i = 0; i < _preparedMods.length; i++) {
-        final preparedMod = _preparedMods[i]; // <-- Obtenemos el objeto completo
+        final preparedMod =
+            _preparedMods[i]; // <-- Obtenemos el objeto completo
         try {
           // Llamamos a nuestra nueva función de instalación unificada
-          final modName = await _installSingleMod(
-            preparedMod,
-            l10n: l10n,
-          );
-          
+          final modName = await _installSingleMod(preparedMod, l10n: l10n);
+
           if (modName != null) {
             installedNames.add(modName);
             successCount++;
@@ -3539,213 +3755,6 @@ void _showFullPatcherLog(String logContent) {
     }
   }
 
-  /// Muestra un diálogo para preguntar al usuario si un mod genérico es un reemplazo de traje.
-  Future<bool> _promptForOutfitReplacement(String modName) async {
-      final l10n = AppLocalizations.of(context)!;
-      final bool? isReplacement = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false, // Forzar una elección
-        builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF2a2a2a),
-          title: Text(l10n.dialogTitleOutfitReplacement), // <<< MODIFICADO
-          content: Text(l10n.dialogContentOutfitReplacement(modName)), // <<< MODIFICADO
-          actions: [
-            // Botón "No"
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(l10n.dialogActionNo), // <<< MODIFICADO
-            ),
-            // Botón "Sí"
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.tealAccent,
-                foregroundColor: Colors.black,
-              ),
-              child: Text(l10n.dialogActionYes), // <<< MODIFICADO
-            ),
-          ],
-        ),
-      );
-      return isReplacement ?? false; // Por defecto 'falso' si se cierra
-  }
-
-  // ++ AÑADIR ESTA FUNCIÓN (COPIADA Y MODIFICADA DE _ModDetailsPanelState) ++
-  /// Muestra el panel flotante para seleccionar un traje y DEVUELVE el nombre seleccionado.
-  Future<String?> _promptToSelectOutfit(AppLocalizations l10n) async {
-    final ValueNotifier<String?> hoveredOutfitNotifier = ValueNotifier<String?>(null);
-    String searchQuery = '';
-    bool isClosing = false;
-
-    final String? selectedOutfit = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF2d2d2d),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.8,
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setDialogState) {
-            final filteredOutfits = stellarBladeOutfits.where((outfit) => 
-              outfit.toLowerCase().contains(searchQuery.toLowerCase())
-            ).toList();
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // --- LADO IZQUIERDO: BÚSQUEDA Y LISTA (2/3 del espacio) ---
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    children: [
-                      Container(
-                        height: 5,
-                        width: 40,
-                        margin: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[700],
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        child: TextField(
-                          autofocus: true,
-                          onChanged: (value) {
-                            setDialogState(() {
-                              searchQuery = value;
-                            });
-                          },
-                          decoration: InputDecoration(
-                            hintText: l10n.replacesOutfitSearchHint,
-                            prefixIcon: const Icon(Icons.search),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16)
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: MouseRegion(
-                          onExit: (_) {
-                            if (isClosing) return;
-                            if (hoveredOutfitNotifier.value != null) {
-                              hoveredOutfitNotifier.value = null;
-                            }
-                          },
-                          child: ListView.builder(
-                            itemCount: filteredOutfits.length,
-                            itemBuilder: (context, index) {
-                              final outfit = filteredOutfits[index];
-                              return MouseRegion(
-                                onEnter: (_) {
-                                  if (isClosing) return;
-                                  if (hoveredOutfitNotifier.value != outfit) {
-                                    hoveredOutfitNotifier.value = outfit;
-                                  }
-                                },
-                                child: ListTile(
-                                title: Text(outfit),
-                                onTap: () {
-                                  isClosing = true;
-                                  // ¡CAMBIO CLAVE! Solo hacemos pop con el valor.
-                                  Navigator.of(context).pop(outfit);
-                                },
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      )
-                    ],
-                  ),
-                ),
-                
-                // --- LADO DERECHO: VISTA PREVIA (1/3 del espacio) ---
-                Expanded(
-                  flex: 1,
-                  child: ValueListenableBuilder<String?>(
-                    valueListenable: hoveredOutfitNotifier,
-                    builder: (context, hoveredOutfitName, child) {
-                      
-                      return Container(
-                        height: double.infinity, 
-                        color: Colors.black.withOpacity(0.3),
-                        padding: const EdgeInsets.all(16.0),
-                        child: Center(
-                          child: AnimatedCrossFade(
-                            crossFadeState: hoveredOutfitName == null 
-                              ? CrossFadeState.showFirst 
-                              : CrossFadeState.showSecond,
-                            duration: const Duration(milliseconds: 200),
-                            firstChild: Column(
-                              key: const ValueKey('outfit_placeholder'),
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.image_search_rounded, size: 60, color: Colors.grey[700]),
-                                const SizedBox(height: 16),
-                                Text(
-                                  l10n.replacesOutfitHover,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.grey[500]),
-                                ),
-                              ],
-                            ),
-                            secondChild: ClipRRect(
-                              key: ValueKey(hoveredOutfitName),
-                              child: Image.asset(
-                                _generateOutfitImagePath(hoveredOutfitName ?? ''), // Reusa la función auxiliar
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) {
-                                  final path = _generateOutfitImagePath(hoveredOutfitName ?? '');
-                                  return Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Text(
-                                        "Preview not found at:\n$path",
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            layoutBuilder: (topChild, topChildKey, bottomChild, bottomChildKey) {
-                              return Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  bottomChild,
-                                  topChild,
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-    
-    isClosing = true;
-    hoveredOutfitNotifier.dispose();
-
-    // Devuelve el traje seleccionado (o null si se cierra el panel)
-    return selectedOutfit;
-  }
-
   // ++ AÑADIR ESTA FUNCIÓN (COPIADA DE _ModDetailsPanelState) ++
   /// Genera la ruta del asset para la vista previa de un traje.
   String _generateOutfitImagePath(String outfitName) {
@@ -3761,7 +3770,6 @@ void _showFullPatcherLog(String logContent) {
     // 4. Devolver la ruta completa del asset
     return 'assets/images/outfits/$safeName.webp'; // Asume .webp
   }
-
 
   Future<String?> _getCompositeDisplayName(Directory modDir) async {
     final List<File> jsonFiles = [];
@@ -3941,7 +3949,7 @@ void _showFullPatcherLog(String logContent) {
     final modType = preparedMod.modType;
     final ue4ssDir = preparedMod.ue4ssDir;
     final tildeModsDir = preparedMod.tildeModsDir;
-    
+
     String? preservedCustomName;
     String? selectedOutfit;
 
@@ -3955,60 +3963,69 @@ void _showFullPatcherLog(String logContent) {
     // Definir la ruta de backup general (para mods deshabilitados y movies)
     if (_gameRootPath == null) throw Exception("Game path not defined.");
     final backupDirPath = p.join(
-      _gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__',
+      _gameRootPath!,
+      'SB',
+      'Content',
+      '__MOD_BACKUPS__',
     );
     // Asegurarse de que exista
     final backupDir = Directory(backupDirPath);
     if (!await backupDir.exists()) {
       await backupDir.create(recursive: true);
     }
-    String finalFolderName; // La movemos aquí para que sea accesible por LogicMod
+    String
+    finalFolderName; // La movemos aquí para que sea accesible por LogicMod
 
     if (modType == ModDirectoryType.logicMod) {
       // Es un LogicMod: Lógica de instalación dividida
       baseDisplayName = preparedMod.archiveName;
       fitMeshType = "Logic"; // Etiqueta
-      
+
       // --- 1. Definir rutas ---
       // Ruta de la carpeta "LogicMods" en el zip (la fuente es la raíz del zip)
       final logicSourceDir = modDir; // sourceDir *es* la carpeta LogicMods
       final ue4ssSourceDir = ue4ssDir; // ue4ssDir *es* la carpeta Mods
-      final tildeModsSourceDir = tildeModsDir; // tildeModsDir *es* la carpeta Mods
-      
+      final tildeModsSourceDir =
+          tildeModsDir; // tildeModsDir *es* la carpeta Mods
+
       // Ruta de destino para los LogicMods (.../Paks/LogicMods)
-      installPath = _logicModsPath; 
-      if (installPath == null) throw Exception("LogicMods path is not defined.");
-      
+      installPath = _logicModsPath;
+      if (installPath == null)
+        throw Exception("LogicMods path is not defined.");
+
       // Ruta de destino para los archivos UE4SS (.../ue4ss/Mods)
       final ue4ssDestPath = _ue4ssModsPath;
-      if (ue4ssDestPath == null) throw Exception("UE4SS Mods path is not defined.");
+      if (ue4ssDestPath == null)
+        throw Exception("UE4SS Mods path is not defined.");
 
-      final tildeModsDestPath = _genericModsPath; 
-      if (tildeModsDestPath == null) throw Exception("Generic mods (~mods) path is not defined.");
+      final tildeModsDestPath = _genericModsPath;
+      if (tildeModsDestPath == null)
+        throw Exception("Generic mods (~mods) path is not defined.");
 
       // Nombre de la carpeta del mod (para la parte Lógica)
-      finalFolderName = baseDisplayName; 
+      finalFolderName = baseDisplayName;
       if (nexusVersion != null) {
         finalFolderName = '$finalFolderName v$nexusVersion';
       }
-      
+
       // Ruta final para la parte Lógica: .../Paks/LogicMods/<mod_name>
       final logicModDestPath = p.join(installPath, finalFolderName);
 
       // --- 2. Lógica de Reemplazo ---
       // La "carpeta del mod" que gestionamos (activar/desactivar) es la de LogicMods.
       // La parte de UE4SS se considera una dependencia permanente.
-      
+
       ModInfo? oldVersionMod;
       // Buscamos un mod existente con el mismo nombre Y que sea 'logicMod'
       try {
         oldVersionMod = _allMods.firstWhere(
-          (mod) => mod.displayName == baseDisplayName && mod.modType == 'logicMod',
+          (mod) =>
+              mod.displayName == baseDisplayName && mod.modType == 'logicMod',
         );
       } catch (e) {
         oldVersionMod = null; // No se encontró
       }
-      
+
       _AlternativeVersionAction? action;
       if (oldVersionMod != null) {
         // Ya existe un mod con este nombre.
@@ -4018,11 +4035,12 @@ void _showFullPatcherLog(String logContent) {
           newVersion: nexusVersion,
         );
       }
-      
+
       if (action != null) {
         switch (action) {
           case _AlternativeVersionAction.replace:
-            if (oldVersionMod == null) { // Comprobación de seguridad
+            if (oldVersionMod == null) {
+              // Comprobación de seguridad
               throw Exception(
                 "Attempted to replace a mod but no old version was identified.",
               );
@@ -4042,9 +4060,13 @@ void _showFullPatcherLog(String logContent) {
               }
             }
             // Borramos la carpeta de LogicMods antigua
-            final deleted = await _deleteDirectoryWithRetry(oldVersionMod.directory);
+            final deleted = await _deleteDirectoryWithRetry(
+              oldVersionMod.directory,
+            );
             if (!deleted) {
-              throw Exception('Could not delete old mod version (${oldVersionMod.customName}).');
+              throw Exception(
+                'Could not delete old mod version (${oldVersionMod.customName}).',
+              );
             }
             // NOTA: No podemos desinstalar la parte de UE4SS. El usuario es responsable.
             break;
@@ -4059,7 +4081,7 @@ void _showFullPatcherLog(String logContent) {
 
       // --- 3. Comprobar si la carpeta de destino existe (después del reemplazo) ---
       if (await Directory(logicModDestPath).exists()) {
-         final confirmReinstall = await showDialog<bool>(
+        final confirmReinstall = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
             backgroundColor: const Color(0xFF2a2a2a),
@@ -4094,7 +4116,9 @@ void _showFullPatcherLog(String logContent) {
               print('Could not read old custom name. Error: $e');
             }
           }
-          final deleted = await _deleteDirectoryWithRetry(Directory(logicModDestPath));
+          final deleted = await _deleteDirectoryWithRetry(
+            Directory(logicModDestPath),
+          );
           if (!deleted) {
             throw Exception(
               'Could not delete existing mod ($finalFolderName) to reinstall.',
@@ -4102,7 +4126,7 @@ void _showFullPatcherLog(String logContent) {
           }
         }
       }
-      
+
       // --- 4. Copiar los archivos ---
 
       // Parte A: Copiar .../zip/LogicMods/* A .../Paks/LogicMods/<mod_name>/
@@ -4114,16 +4138,22 @@ void _showFullPatcherLog(String logContent) {
         await _copyDirectory(ue4ssSourceDir, Directory(ue4ssDestPath));
       } else {
         // (Opcional) Informar que no se copió nada de UE4SS
-        print("No se encontró la carpeta 'Mods' (UE4SS) para $finalFolderName. Omitiendo copia de scripts.");
+        print(
+          "No se encontró la carpeta 'Mods' (UE4SS) para $finalFolderName. Omitiendo copia de scripts.",
+        );
       }
       bool hasTildeModsComponent = false; // Rastreador
       if (tildeModsSourceDir != null && await tildeModsSourceDir.exists()) {
-        
         // 1. Definir la nueva ruta de destino específica para este mod
-        final tildeModDestPathWithFolder = p.join(tildeModsDestPath, finalFolderName);
+        final tildeModDestPathWithFolder = p.join(
+          tildeModsDestPath,
+          finalFolderName,
+        );
         hasTildeModsComponent = true; // Marcar como verdadero
 
-        print("Instalando archivos complementarios de ~mods para $finalFolderName en: $tildeModDestPathWithFolder");
+        print(
+          "Instalando archivos complementarios de ~mods para $finalFolderName en: $tildeModDestPathWithFolder",
+        );
 
         // 2. Asegurarse de que esa carpeta exista
         final destDir = Directory(tildeModDestPathWithFolder);
@@ -4148,7 +4178,7 @@ void _showFullPatcherLog(String logContent) {
       // Lo creamos dentro de la carpeta que SÍ gestionamos (.../Paks/LogicMods/<mod_name>)
       final infoFile = File(p.join(logicModDestPath, 'nexus_info.json'));
       final versionForFile = nexusVersion;
-      
+
       final Map<String, dynamic> modData = {
         'nexusId': nexusId,
         'displayName': baseDisplayName,
@@ -4157,15 +4187,19 @@ void _showFullPatcherLog(String logContent) {
         'installDate': DateTime.now().toIso8601String(),
         'managerVersion': _appVersion,
         'fitMeshType': fitMeshType, // "Logic"
-        'modType': modType.name,  // "logicMod"
+        'modType': modType.name, // "logicMod"
         'sourceUrl': nexusId != null
             ? 'https://www.nexusmods.com/stellarblade/mods/$nexusId'
             : null,
-        'tildeModsComponentFolder': hasTildeModsComponent ? finalFolderName : null,
-        'ue4ssComponents': ue4ssComponentFolders.isNotEmpty ? ue4ssComponentFolders : null,
+        'tildeModsComponentFolder': hasTildeModsComponent
+            ? finalFolderName
+            : null,
+        'ue4ssComponents': ue4ssComponentFolders.isNotEmpty
+            ? ue4ssComponentFolders
+            : null,
       };
       modData.removeWhere((key, value) => value == null); // Limpia nulos
-      
+
       if (nexusId != null) {
         final nexusData = await _fetchNexusModData(nexusId);
         if (nexusData != null) {
@@ -4181,10 +4215,12 @@ void _showFullPatcherLog(String logContent) {
 
       // --- 6. Copiar miniatura (igual que antes) ---
       if (nexusId != null) {
-        await _cacheNexusThumbnail(modDirectory: Directory(logicModDestPath), nexusId: nexusId);
+        await _cacheNexusThumbnail(
+          modDirectory: Directory(logicModDestPath),
+          nexusId: nexusId,
+        );
       }
       return finalFolderName; // Devuelve el nombre para el snackbar
-
     } else if (modType == ModDirectoryType.cns) {
       // Es un mod CNS: obtenemos el nombre y la etiqueta desde sus .json
       baseDisplayName = await _getCompositeDisplayName(modDir);
@@ -4193,16 +4229,18 @@ void _showFullPatcherLog(String logContent) {
     } else if (modType == ModDirectoryType.genericPak) {
       // Es un mod Genérico: usamos el nombre del ZIP y la etiqueta "Generic"
       baseDisplayName = preparedMod.archiveName;
-      fitMeshType = "Generic"; 
+      fitMeshType = "Generic";
       installPath = _genericModsPath; // Se instala en la carpeta genérica
     } else if (modType == ModDirectoryType.movies) {
       baseDisplayName = preparedMod.archiveName;
-      fitMeshType = null; // Los mods de películas no tienen etiqueta de contenido
+      fitMeshType =
+          null; // Los mods de películas no tienen etiqueta de contenido
       installPath = backupDirPath; // Se instala DIRECTAMENTE en backups
-      
+
       // Busca todos los archivos .bk2 para guardarlos en el JSON
       await for (final entity in modDir.list()) {
-        if (entity is File && p.extension(entity.path).toLowerCase() == '.bk2') {
+        if (entity is File &&
+            p.extension(entity.path).toLowerCase() == '.bk2') {
           replacedFiles.add(p.basename(entity.path));
         }
       }
@@ -4384,8 +4422,19 @@ void _showFullPatcherLog(String logContent) {
           }
         }
         // Si el mod a reinstalar es un 'Movies' habilitado, deshabilítalo primero
-        final modToReinstall = _allMods.firstWhere((m) => m.directory.path == newModPath, orElse: () => ModInfo(directory: Directory(''), lastModified: DateTime.now(), isEnabled: false, displayName: '', customName: ''));
-        if (modToReinstall.directory.path.isNotEmpty && modToReinstall.modType == 'movies' && modToReinstall.isEnabled) {
+        final modToReinstall = _allMods.firstWhere(
+          (m) => m.directory.path == newModPath,
+          orElse: () => ModInfo(
+            directory: Directory(''),
+            lastModified: DateTime.now(),
+            isEnabled: false,
+            displayName: '',
+            customName: '',
+          ),
+        );
+        if (modToReinstall.directory.path.isNotEmpty &&
+            modToReinstall.modType == 'movies' &&
+            modToReinstall.isEnabled) {
           await _disableMod(modToReinstall);
         }
 
@@ -4413,12 +4462,16 @@ void _showFullPatcherLog(String logContent) {
       'installDate': DateTime.now().toIso8601String(),
       'managerVersion': _appVersion,
       'fitMeshType': fitMeshType, // <-- "Generic" o el tipo de CNS
-      'modType': modType.name,  // <-- AÑADIDO: "cns" o "genericPak"
+      'modType': modType.name, // <-- AÑADIDO: "cns" o "genericPak"
       'sourceUrl': nexusId != null
           ? 'https://www.nexusmods.com/stellarblade/mods/$nexusId'
           : null,
-      'isEnabled': (modType == ModDirectoryType.movies) ? false : null, // Los mods 'Movies' se instalan deshabilitados
-      'replacedFiles': (modType == ModDirectoryType.movies) ? replacedFiles : null,
+      'isEnabled': (modType == ModDirectoryType.movies)
+          ? false
+          : null, // Los mods 'Movies' se instalan deshabilitados
+      'replacedFiles': (modType == ModDirectoryType.movies)
+          ? replacedFiles
+          : null,
       'replacesOutfit': selectedOutfit,
     };
     // Limpia valores nulos para no ensuciar el JSON
@@ -4436,7 +4489,7 @@ void _showFullPatcherLog(String logContent) {
 
     final encoder = JsonEncoder.withIndent('  ');
     await infoFile.writeAsString(encoder.convert(modData));
-    
+
     // 5. COPIAR ARCHIVOS (Usando la función auxiliar que ya tenías)
     List<File> filesToInstall = [];
     if (modType == ModDirectoryType.movies) {
@@ -4448,15 +4501,18 @@ void _showFullPatcherLog(String logContent) {
       // Lógica anterior para CNS/Genéricos
       filesToInstall = await _findAllModFilesRecursive(modDir);
     }
-    
+
     for (final file in filesToInstall) {
       final fileName = p.basename(file.path);
       final destinationPath = p.join(newModPath, fileName);
       await file.copy(destinationPath);
     }
-    
+
     if (nexusId != null) {
-      await _cacheNexusThumbnail(modDirectory: Directory(newModPath), nexusId: nexusId);
+      await _cacheNexusThumbnail(
+        modDirectory: Directory(newModPath),
+        nexusId: nexusId,
+      );
     }
     return finalFolderName;
   }
@@ -4468,7 +4524,10 @@ void _showFullPatcherLog(String logContent) {
   }
 
   Future<bool> _enableMod(ModInfo modInfo) async {
-    if (_finalModsPath == null || _genericModsPath == null || _logicModsPath == null) return false;
+    if (_finalModsPath == null ||
+        _genericModsPath == null ||
+        _logicModsPath == null)
+      return false;
     final String? outfitToReplace = modInfo.replacesOutfit;
     final bool isReplacementMod =
         outfitToReplace != null && outfitToReplace.isNotEmpty;
@@ -4497,131 +4556,139 @@ void _showFullPatcherLog(String logContent) {
       // Si se encontró un mod en conflicto, muestra un diálogo y detén la activación.
       if (conflictingMod != null) {
         final l10n = AppLocalizations.of(context)!;
-        
+
         // Ahora el diálogo devuelve un booleano (true = forzar activación)
         // Obtenemos los nombres para usarlos como separadores
-      final String outfitName = outfitToReplace;
-      final String modName = conflictingMod.customName;
-      
-      // Obtenemos el texto completo de la localización
-      final String fullString = l10n.dialogContentOutfitConflict(outfitName, modName);
-      
-      // Dividimos el texto usando los nombres como separadores
-      final List<String> parts = fullString.split(outfitName);
-      final String part1 = parts.isNotEmpty ? parts[0] : "";
-      
-      String part2 = "";
-      String part3 = "";
-      
-      if (parts.length > 1) {
-        // Buscamos el nombre del mod en la segunda parte del texto
-        final List<String> parts2 = parts[1].split(modName);
-        part2 = parts2.isNotEmpty ? parts2[0] : "";
-        if (parts2.length > 1) {
-          part3 = parts2[1];
+        final String outfitName = outfitToReplace;
+        final String modName = conflictingMod.customName;
+
+        // Obtenemos el texto completo de la localización
+        final String fullString = l10n.dialogContentOutfitConflict(
+          outfitName,
+          modName,
+        );
+
+        // Dividimos el texto usando los nombres como separadores
+        final List<String> parts = fullString.split(outfitName);
+        final String part1 = parts.isNotEmpty ? parts[0] : "";
+
+        String part2 = "";
+        String part3 = "";
+
+        if (parts.length > 1) {
+          // Buscamos el nombre del mod en la segunda parte del texto
+          final List<String> parts2 = parts[1].split(modName);
+          part2 = parts2.isNotEmpty ? parts2[0] : "";
+          if (parts2.length > 1) {
+            part3 = parts2[1];
+          }
         }
-      }
-      
-      // Ahora el diálogo devuelve un booleano (true = forzar activación)
-      final bool? forceActivate = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false, // No permitir cerrar sin elegir
-        builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF2a2a2a),
-          title: Text(l10n.dialogTitleOutfitConflict),
-          
-          // Reemplazamos el 'content: Text(...)' por 'content: RichText(...)'
-          content: RichText(
-            text: TextSpan(
-              // Usar el estilo de texto por defecto del diálogo
-              style: Theme.of(context).dialogTheme.contentTextStyle ?? const TextStyle(color: Colors.white, height: 1.5),
-              children: [
-                // Parte 1 del texto
-                TextSpan(text: part1),
-                
-                // Widget 1: El nombre del traje (interactivo)
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.middle,
-                  child: MouseRegion(
-                    onEnter: (event) {
-                      _cursorPosition = event.position;
-                      _hoverTimer?.cancel();
-                      _hoverTimer = Timer(const Duration(milliseconds: 800), () {
-                        if (mounted) {
-                          _showPreviewOverlay(
-                            context,
-                            outfitName, // El nombre del traje
-                            _cursorPosition,
-                          );
-                        }
-                      });
-                    },
-                    onExit: (event) => _hidePreviewOverlay(),
-                    onHover: (event) => _cursorPosition = event.position,
-                    child: Text(
-                      outfitName, // El nombre resaltado
-                      style: const TextStyle(
-                        color: Colors.tealAccent,
-                        fontWeight: FontWeight.bold,
+
+        // Ahora el diálogo devuelve un booleano (true = forzar activación)
+        final bool? forceActivate = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false, // No permitir cerrar sin elegir
+          builder: (context) => AlertDialog(
+            backgroundColor: const Color(0xFF2a2a2a),
+            title: Text(l10n.dialogTitleOutfitConflict),
+
+            // Reemplazamos el 'content: Text(...)' por 'content: RichText(...)'
+            content: RichText(
+              text: TextSpan(
+                // Usar el estilo de texto por defecto del diálogo
+                style:
+                    Theme.of(context).dialogTheme.contentTextStyle ??
+                    const TextStyle(color: Colors.white, height: 1.5),
+                children: [
+                  // Parte 1 del texto
+                  TextSpan(text: part1),
+
+                  // Widget 1: El nombre del traje (interactivo)
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: MouseRegion(
+                      onEnter: (event) {
+                        _cursorPosition = event.position;
+                        _hoverTimer?.cancel();
+                        _hoverTimer = Timer(
+                          const Duration(milliseconds: 800),
+                          () {
+                            if (mounted) {
+                              _showPreviewOverlay(
+                                context,
+                                outfitName, // El nombre del traje
+                                _cursorPosition,
+                              );
+                            }
+                          },
+                        );
+                      },
+                      onExit: (event) => _hidePreviewOverlay(),
+                      onHover: (event) => _cursorPosition = event.position,
+                      child: Text(
+                        outfitName, // El nombre resaltado
+                        style: const TextStyle(
+                          color: Colors.tealAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                
-                // Parte 2 del texto
-                TextSpan(text: part2),
-                
-                // Widget 2: El nombre del mod (interactivo)
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.middle,
-                  child: InkWell(
-                    onTap: () {
-                      // Cierra el diálogo actual (con 'false' para cancelar la activación)
-                      //Navigator.of(context).pop(false);
-                      // Abre el panel de detalles del mod en conflicto
-                      _showDetailsPage(conflictingMod!); 
-                    },
-                    child: Text(
-                      modName, // El nombre resaltado
-                      style: const TextStyle(
-                        color: Colors.yellowAccent,
-                        fontWeight: FontWeight.bold,
-                        decoration: TextDecoration.underline,
+
+                  // Parte 2 del texto
+                  TextSpan(text: part2),
+
+                  // Widget 2: El nombre del mod (interactivo)
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: InkWell(
+                      onTap: () {
+                        // Cierra el diálogo actual (con 'false' para cancelar la activación)
+                        //Navigator.of(context).pop(false);
+                        // Abre el panel de detalles del mod en conflicto
+                        _showDetailsPage(conflictingMod!);
+                      },
+                      child: Text(
+                        modName, // El nombre resaltado
+                        style: const TextStyle(
+                          color: Colors.yellowAccent,
+                          fontWeight: FontWeight.bold,
+                          decoration: TextDecoration.underline,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                
-                // Parte 3 del texto
-                TextSpan(text: part3),
-              ],
-            ),
-          ),
-          
-          actions: [
-            // Botón de Cancelar
-            TextButton(
-              onPressed: () {
-                _hidePreviewOverlay(); // Oculta la vista previa si está visible
-                Navigator.of(context).pop(false);
-              },
-              child: Text(l10n.dialogActionCancel),
-            ),
-            // Botón de Activar y Desactivar
-            ElevatedButton(
-              onPressed: () {
-                 _hidePreviewOverlay(); // Oculta la vista previa si está visible
-                Navigator.of(context).pop(true);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.tealAccent,
-                foregroundColor: Colors.black,
+
+                  // Parte 3 del texto
+                  TextSpan(text: part3),
+                ],
               ),
-              child: Text(l10n.dialogActionActivateAndDisable),
             ),
-          ],
-        ),
-      );
+
+            actions: [
+              // Botón de Cancelar
+              TextButton(
+                onPressed: () {
+                  _hidePreviewOverlay(); // Oculta la vista previa si está visible
+                  Navigator.of(context).pop(false);
+                },
+                child: Text(l10n.dialogActionCancel),
+              ),
+              // Botón de Activar y Desactivar
+              ElevatedButton(
+                onPressed: () {
+                  _hidePreviewOverlay(); // Oculta la vista previa si está visible
+                  Navigator.of(context).pop(true);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.tealAccent,
+                  foregroundColor: Colors.black,
+                ),
+                child: Text(l10n.dialogActionActivateAndDisable),
+              ),
+            ],
+          ),
+        );
 
         // Si el usuario no forzó la activación (canceló)
         if (forceActivate != true) {
@@ -4649,7 +4716,9 @@ void _showFullPatcherLog(String logContent) {
         // LÓGICA DE REEMPLAZO (MOVIES)
         // ++ PASAMOS _allMods para que pueda resolver conflictos ++
         await _enableMovieMod(modInfo, _allMods);
-        updatedMod = modInfo.copyWith(isEnabled: true); // Actualiza el estado local
+        updatedMod = modInfo.copyWith(
+          isEnabled: true,
+        ); // Actualiza el estado local
       } else {
         // LÓGICA DE MOVIMIENTO DE CARPETA (CNS/GENÉRICO)
         final modName = p.basename(modInfo.directory.path);
@@ -4660,24 +4729,31 @@ void _showFullPatcherLog(String logContent) {
         // 1. Restaurar componentes adicionales si es un LogicMod
         if (modInfo.modType == 'logicMod') {
           // Leer el JSON desde su ubicación actual (dentro del respaldo)
-          final infoFile = File(p.join(backupContainerDir.path, 'nexus_info.json'));
+          final infoFile = File(
+            p.join(backupContainerDir.path, 'nexus_info.json'),
+          );
           if (await infoFile.exists()) {
             try {
               final data = json.decode(await infoFile.readAsString());
-              
+
               // 2. Restaurar Parte C (~mods component)
               final String? tildeFolder = data['tildeModsComponentFolder'];
               if (tildeFolder != null && _genericModsPath != null) {
                 // Origen: __MOD_BACKUPS__/<mod_name>/_tilde_mods/<mod_name>
-                final tildeBackupContainer = Directory(p.join(backupContainerDir.path, "_tilde_mods"));
-                final tildeSourceDir = Directory(p.join(tildeBackupContainer.path, tildeFolder));
-                
+                final tildeBackupContainer = Directory(
+                  p.join(backupContainerDir.path, "_tilde_mods"),
+                );
+                final tildeSourceDir = Directory(
+                  p.join(tildeBackupContainer.path, tildeFolder),
+                );
+
                 if (await tildeSourceDir.exists()) {
                   print("Restaurando componente ~mods: $tildeFolder");
                   // Mover de vuelta a .../Paks/~mods/
                   await _moveMod(tildeSourceDir, _genericModsPath!);
                   // Limpiar la carpeta contenedora vacía
-                  if (await tildeBackupContainer.list().isEmpty) await tildeBackupContainer.delete();
+                  if (await tildeBackupContainer.list().isEmpty)
+                    await tildeBackupContainer.delete();
                 }
               }
 
@@ -4685,11 +4761,15 @@ void _showFullPatcherLog(String logContent) {
               final List<dynamic>? ue4ssFolders = data['ue4ssComponents'];
               if (ue4ssFolders != null && _ue4ssModsPath != null) {
                 // Origen: __MOD_BACKUPS__/<mod_name>/_ue4ss_mods/
-                final ue4ssBackupContainer = Directory(p.join(backupContainerDir.path, "_ue4ss_mods"));
-                
+                final ue4ssBackupContainer = Directory(
+                  p.join(backupContainerDir.path, "_ue4ss_mods"),
+                );
+
                 for (final folderName in ue4ssFolders.cast<String>()) {
                   // Origen: .../_ue4ss_mods/<component_name>
-                  final ue4ssSourceDir = Directory(p.join(ue4ssBackupContainer.path, folderName));
+                  final ue4ssSourceDir = Directory(
+                    p.join(ue4ssBackupContainer.path, folderName),
+                  );
                   if (await ue4ssSourceDir.exists()) {
                     print("Restaurando componente UE4SS: $folderName");
                     // Mover de vuelta a .../ue4ss/Mods/
@@ -4697,16 +4777,17 @@ void _showFullPatcherLog(String logContent) {
                   }
                 }
                 // Limpiar la carpeta contenedora vacía
-                if (await ue4ssBackupContainer.list().isEmpty) await ue4ssBackupContainer.delete();
+                if (await ue4ssBackupContainer.list().isEmpty)
+                  await ue4ssBackupContainer.delete();
               }
             } catch (e) {
               print("Error al restaurar componentes de LogicMod: $e");
             }
           }
         }
-        
+
         String modType = modInfo.modType ?? 'cns'; // Usa el tipo del ModInfo
-        
+
         final String targetPath;
         if (modType == 'genericPak') {
           targetPath = _genericModsPath!;
@@ -4715,14 +4796,11 @@ void _showFullPatcherLog(String logContent) {
         } else {
           targetPath = _finalModsPath!; // Default a CNS
         }
-        
+
         final newDirectory = Directory(p.join(targetPath, modName));
         await _moveMod(backupContainerDir, targetPath);
-        
-        updatedMod = modInfo.copyWith(
-          directory: newDirectory,
-          isEnabled: true,
-        );
+
+        updatedMod = modInfo.copyWith(directory: newDirectory, isEnabled: true);
       }
       // --- FIN DE LÓGICA DE BIFURCACIÓN ---
 
@@ -4746,8 +4824,7 @@ void _showFullPatcherLog(String logContent) {
       });
       await _loadAllMods();
       return false;
-    }
-     finally {
+    } finally {
       //setState(() => _isLoading = false);
     }
   }
@@ -4770,7 +4847,9 @@ void _showFullPatcherLog(String logContent) {
       if (modInfo.modType == 'movies') {
         // LÓGICA DE REEMPLAZO (MOVIES)
         await _disableMovieMod(modInfo);
-        updatedMod = modInfo.copyWith(isEnabled: false); // Actualiza el estado local
+        updatedMod = modInfo.copyWith(
+          isEnabled: false,
+        ); // Actualiza el estado local
       } else {
         // LÓGICA DE MOVIMIENTO DE CARPETA (CNS/GENÉRICO)
         final modName = p.basename(modInfo.directory.path);
@@ -4786,15 +4865,20 @@ void _showFullPatcherLog(String logContent) {
           if (await infoFile.exists()) {
             try {
               final data = json.decode(await infoFile.readAsString());
-              
+
               // 3. Mover Parte C (~mods component)
               final String? tildeFolder = data['tildeModsComponentFolder'];
               if (tildeFolder != null && _genericModsPath != null) {
-                final tildeSourceDir = Directory(p.join(_genericModsPath!, tildeFolder));
+                final tildeSourceDir = Directory(
+                  p.join(_genericModsPath!, tildeFolder),
+                );
                 // Destino: __MOD_BACKUPS__/<mod_name>/_tilde_mods/
-                final tildeDestContainer = Directory(p.join(newDirectory.path, "_tilde_mods"));
-                if (!await tildeDestContainer.exists()) await tildeDestContainer.create();
-                
+                final tildeDestContainer = Directory(
+                  p.join(newDirectory.path, "_tilde_mods"),
+                );
+                if (!await tildeDestContainer.exists())
+                  await tildeDestContainer.create();
+
                 if (await tildeSourceDir.exists()) {
                   print("Archivando componente ~mods: $tildeFolder");
                   await _moveMod(tildeSourceDir, tildeDestContainer.path);
@@ -4805,11 +4889,16 @@ void _showFullPatcherLog(String logContent) {
               final List<dynamic>? ue4ssFolders = data['ue4ssComponents'];
               if (ue4ssFolders != null && _ue4ssModsPath != null) {
                 // Destino: __MOD_BACKUPS__/<mod_name>/_ue4ss_mods/
-                final ue4ssDestContainer = Directory(p.join(newDirectory.path, "_ue4ss_mods"));
-                if (!await ue4ssDestContainer.exists()) await ue4ssDestContainer.create();
+                final ue4ssDestContainer = Directory(
+                  p.join(newDirectory.path, "_ue4ss_mods"),
+                );
+                if (!await ue4ssDestContainer.exists())
+                  await ue4ssDestContainer.create();
 
                 for (final folderName in ue4ssFolders.cast<String>()) {
-                  final ue4ssSourceDir = Directory(p.join(_ue4ssModsPath!, folderName));
+                  final ue4ssSourceDir = Directory(
+                    p.join(_ue4ssModsPath!, folderName),
+                  );
                   if (await ue4ssSourceDir.exists()) {
                     print("Archivando componente UE4SS: $folderName");
                     await _moveMod(ue4ssSourceDir, ue4ssDestContainer.path);
@@ -4866,7 +4955,9 @@ void _showFullPatcherLog(String logContent) {
     }
 
     final data = json.decode(await infoFile.readAsString());
-    final List<String> replacedFiles = List<String>.from(data['replacedFiles'] ?? []);
+    final List<String> replacedFiles = List<String>.from(
+      data['replacedFiles'] ?? [],
+    );
 
     // ++ INICIO DE LA LÓGICA DE EXCLUSIVIDAD ++
     // 1. Deshabilitar otros mods que reemplacen los mismos archivos
@@ -4875,30 +4966,38 @@ void _showFullPatcherLog(String logContent) {
     for (final otherMod in allMods) {
       // Si es el mismo mod, o no está habilitado, o no es de películas, lo ignoramos
       // ++ LÓGICA REVERTIDA: solo nos importa si 'otherMod.isEnabled' es true ++
-      if (otherMod.directory.path == modInfo.directory.path || 
-          !otherMod.isEnabled || 
+      if (otherMod.directory.path == modInfo.directory.path ||
+          !otherMod.isEnabled ||
           otherMod.modType != 'movies') {
         continue;
       }
-      
+
       // Leemos los archivos del otro mod
-      final otherInfoFile = File(p.join(otherMod.directory.path, 'nexus_info.json'));
+      final otherInfoFile = File(
+        p.join(otherMod.directory.path, 'nexus_info.json'),
+      );
       if (!await otherInfoFile.exists()) continue;
-      
+
       try {
         final otherData = json.decode(await otherInfoFile.readAsString());
-        final List<String> otherReplacedFiles = List<String>.from(otherData['replacedFiles'] ?? []);
+        final List<String> otherReplacedFiles = List<String>.from(
+          otherData['replacedFiles'] ?? [],
+        );
 
         // Comprobamos si hay CUALQUIER solapamiento
-        bool hasConflict = otherReplacedFiles.any((file) => filesToReplace.contains(file));
+        bool hasConflict = otherReplacedFiles.any(
+          (file) => filesToReplace.contains(file),
+        );
 
         if (hasConflict) {
           print("Disabling conflicting movie mod: ${otherMod.customName}");
           // Deshabilitamos el mod conflictivo (esto restaura la original)
-          await _disableMovieMod(otherMod); 
-          
+          await _disableMovieMod(otherMod);
+
           // Actualizamos su estado en la lista principal (_allMods)
-          final modIndex = allMods.indexWhere((m) => m.directory.path == otherMod.directory.path);
+          final modIndex = allMods.indexWhere(
+            (m) => m.directory.path == otherMod.directory.path,
+          );
           if (modIndex != -1) {
             // Actualizamos la instancia en la lista que se está procesando
             allMods[modIndex] = otherMod.copyWith(isEnabled: false);
@@ -4934,7 +5033,7 @@ void _showFullPatcherLog(String logContent) {
     final encoder = JsonEncoder.withIndent('  ');
     await infoFile.writeAsString(encoder.convert(data));
   }
-  
+
   /// Lógica específica para DESHABILITAR un mod de tipo "Movies".
   Future<void> _disableMovieMod(ModInfo modInfo) async {
     if (_moviesPath == null || _moviesBackupPath == null) {
@@ -4947,7 +5046,9 @@ void _showFullPatcherLog(String logContent) {
     }
 
     final data = json.decode(await infoFile.readAsString());
-    final List<String> replacedFiles = List<String>.from(data['replacedFiles'] ?? []);
+    final List<String> replacedFiles = List<String>.from(
+      data['replacedFiles'] ?? [],
+    );
 
     for (final fileName in replacedFiles) {
       final gameFile = File(p.join(_moviesPath!, fileName));
@@ -5008,15 +5109,21 @@ void _showFullPatcherLog(String logContent) {
         if (modInfo.isEnabled) {
           await _disableMovieMod(modInfo);
         }
-        
+
         // 2. (Opcional pero recomendado) Borra los backups de los originales
-        final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
+        final infoFile = File(
+          p.join(modInfo.directory.path, 'nexus_info.json'),
+        );
         if (await infoFile.exists() && _moviesBackupPath != null) {
           try {
             final data = json.decode(await infoFile.readAsString());
-            final List<String> replacedFiles = List<String>.from(data['replacedFiles'] ?? []);
+            final List<String> replacedFiles = List<String>.from(
+              data['replacedFiles'] ?? [],
+            );
             for (final fileName in replacedFiles) {
-              final backupFile = File(p.join(_moviesBackupPath!, '$fileName.bak'));
+              final backupFile = File(
+                p.join(_moviesBackupPath!, '$fileName.bak'),
+              );
               if (await backupFile.exists()) {
                 await backupFile.delete();
               }
@@ -5030,7 +5137,7 @@ void _showFullPatcherLog(String logContent) {
 
       // La lógica de borrado de carpeta es la misma para todos
       final deleted = await _deleteDirectoryWithRetry(modInfo.directory);
-      
+
       if (deleted && mounted) {
         NotificationService.instance.show(
           context: context,
@@ -5056,7 +5163,9 @@ void _showFullPatcherLog(String logContent) {
 
     // ++ INICIO DE LA MODIFICACIÓN ++
     // 1. Obtenemos solo los mods deshabilitados QUE NO SEAN de tipo 'movies'.
-    final disabledMods = modsInView.where((mod) => !mod.isEnabled && mod.modType != 'movies').toList();
+    final disabledMods = modsInView
+        .where((mod) => !mod.isEnabled && mod.modType != 'movies')
+        .toList();
     // ++ FIN DE LA MODIFICACIÓN ++
 
     if (disabledMods.isEmpty) {
@@ -5107,28 +5216,28 @@ void _showFullPatcherLog(String logContent) {
       // ++ INICIO DE LA MODIFICACIÓN ++
       // 3. Eliminamos toda la lógica de 'movieFileOwnerMap'.
       // Iteramos directamente sobre 'disabledMods', que ya no contiene películas.
-      
+
       for (final mod in disabledMods) {
         // 4. El 'if (mod.modType == 'movies')' se ha ido.
         // Solo queda la lógica 'else' (CNS/Genérico).
-        
+
         // LÓGICA DE MOVIMIENTO DE CARPETA (CNS/GENÉRICO)
         final modName = p.basename(mod.directory.path);
         final modType = mod.modType ?? 'cns';
-        
-        final String targetPath = (modType == 'genericPak') 
-            ? _genericModsPath! 
+
+        final String targetPath = (modType == 'genericPak')
+            ? _genericModsPath!
             : _finalModsPath!;
-        
+
         await _moveMod(mod.directory, targetPath);
-        
+
         updatedModMap[mod.directory.path] = mod.copyWith(
           directory: Directory(p.join(targetPath, modName)),
           isEnabled: true,
         );
       }
       // ++ FIN DE LA MODIFICACIÓN ++
-      
+
       // 5. Actualizar la lista de estado (_allMods) usando el mapa
       final List<ModInfo> updatedModsList = _allMods.map((originalMod) {
         if (updatedModMap.containsKey(originalMod.directory.path)) {
@@ -5157,7 +5266,7 @@ void _showFullPatcherLog(String logContent) {
         )!.errorEnableMod(e.toString());
         _statusColor = Colors.redAccent;
       });
-      await _loadAllMods(); 
+      await _loadAllMods();
     } finally {
       setState(() => _isLoading = false);
     }
@@ -5234,7 +5343,7 @@ void _showFullPatcherLog(String logContent) {
         }
         // ++ FIN DE LA LÓGICA CORREGIDA ++
       }
-      
+
       // 2. Actualizar la lista de estado (_allMods) usando el mapa
       final List<ModInfo> updatedModsList = _allMods.map((originalMod) {
         // Comprueba si este mod es uno de los que acabamos de actualizar
@@ -5372,7 +5481,10 @@ void _showFullPatcherLog(String logContent) {
     }
   }
 
-  Future<void> _clearSelection({String? message, StateSetter? panelStateSetter}) async {
+  Future<void> _clearSelection({
+    String? message,
+    StateSetter? panelStateSetter,
+  }) async {
     final updateState = panelStateSetter ?? setState;
 
     await _cancelAndCleanInstallation();
@@ -5382,10 +5494,12 @@ void _showFullPatcherLog(String logContent) {
         _statusMessage =
             //message ?? AppLocalizations.of(context)!.statusSelectionCancelled;
             _statusMessage = '';
-            _statusColor = Colors.white;
+        _statusColor = Colors.white;
       }
       // ++ CAMBIO: Usa un color distintivo para que el mensaje sea visible. ++
-      _statusColor = message == null ? Colors.orangeAccent : Colors.orangeAccent;
+      _statusColor = message == null
+          ? Colors.orangeAccent
+          : Colors.orangeAccent;
     });
   }
 
@@ -5831,12 +5945,14 @@ void _showFullPatcherLog(String logContent) {
         // Extraemos la información que necesitamos SIN modificarla.
         // Se guarda el HTML/BBCode original para que la UI lo procese correctamente.
         final pictureUrl = modDetails['picture_url'] as String?;
-        String? summary = modDetails['summary'] as String?; // <-- SIN .replaceAll()
+        String? summary =
+            modDetails['summary'] as String?; // <-- SIN .replaceAll()
         if (summary != null) {
           // Replaces the HTML line break tag with a real newline character.
           summary = summary.replaceAll('<br />', '\n');
         }
-        String? description = modDetails['description'] as String?; // <-- SIN .replaceAll()
+        String? description =
+            modDetails['description'] as String?; // <-- SIN .replaceAll()
         if (description != null) {
           // Replaces the HTML line break tag with a real newline character.
           description = description.replaceAll('<br />', '\n');
@@ -5856,7 +5972,7 @@ void _showFullPatcherLog(String logContent) {
           'gallery': gallery,
           'summary': summary,
           'author': author,
-          'description': description
+          'description': description,
         };
       }
 
@@ -6313,9 +6429,16 @@ void _showFullPatcherLog(String logContent) {
     // Busca el nombre del mod para mostrarlo en la notificación.
     // Incluye un respaldo para el CNS, que no está en la lista general de mods.
     final modName = _allMods
-        .firstWhere((m) => m.nexusId == nexusId,
-            orElse: () =>
-                ModInfo(directory: Directory(''), customName: l10n.cnsCoreSystem, displayName: '', isEnabled: false, lastModified: DateTime.now()))
+        .firstWhere(
+          (m) => m.nexusId == nexusId,
+          orElse: () => ModInfo(
+            directory: Directory(''),
+            customName: l10n.cnsCoreSystem,
+            displayName: '',
+            isEnabled: false,
+            lastModified: DateTime.now(),
+          ),
+        )
         .customName;
 
     // El diálogo ahora devuelve un booleano: 'true' si la notificación se ocultó.
@@ -6840,14 +6963,16 @@ void _showFullPatcherLog(String logContent) {
           ),
         ],
       ),
-      
+
       // El body del Scaffold ahora es un Stack que contiene
       // el DropTarget (cuerpo principal) Y el nuevo Overlay de vista previa
       body: Stack(
         children: [
           DropTarget(
             onDragDone: (details) async {
-              final files = details.files.map((file) => File(file.path)).toList();
+              final files = details.files
+                  .map((file) => File(file.path))
+                  .toList();
               if (files.isNotEmpty) {
                 // En lugar de procesar, ahora abre el panel CON los archivos.
                 _showInstallationPanel(initialFiles: files);
@@ -6865,7 +6990,7 @@ void _showFullPatcherLog(String logContent) {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             if (_modsToInstallPreviewMap.isNotEmpty)
-                            const Divider(height: 30, thickness: 1),
+                              const Divider(height: 30, thickness: 1),
                             Expanded(
                               child: _buildModsListSection(
                                 l10n.installedMods,
@@ -6886,7 +7011,9 @@ void _showFullPatcherLog(String logContent) {
                                     child: Text(
                                       _metadataUpdateStatus,
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(color: Colors.white70),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                      ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
@@ -6894,9 +7021,11 @@ void _showFullPatcherLog(String logContent) {
                                   LinearProgressIndicator(
                                     value: _metadataUpdateProgress,
                                     backgroundColor: Colors.grey[800],
-                                    valueColor: const AlwaysStoppedAnimation<Color>(
-                                      Colors.lightBlueAccent, // Color distintivo
-                                    ),
+                                    valueColor:
+                                        const AlwaysStoppedAnimation<Color>(
+                                          Colors
+                                              .lightBlueAccent, // Color distintivo
+                                        ),
                                   ),
                                 ],
                               )
@@ -6910,7 +7039,9 @@ void _showFullPatcherLog(String logContent) {
                                     child: Text(
                                       l10n.statusCheckingUpdates,
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(color: Colors.white70),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                      ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
@@ -6918,9 +7049,10 @@ void _showFullPatcherLog(String logContent) {
                                   LinearProgressIndicator(
                                     value: null,
                                     backgroundColor: Colors.grey[800],
-                                    valueColor: const AlwaysStoppedAnimation<Color>(
-                                      Colors.tealAccent,
-                                    ),
+                                    valueColor:
+                                        const AlwaysStoppedAnimation<Color>(
+                                          Colors.tealAccent,
+                                        ),
                                   ),
                                 ],
                               )
@@ -7029,7 +7161,6 @@ void _showFullPatcherLog(String logContent) {
     );
   }
 
-
   // main.dart
 
   Widget _buildSelectionPreviewSection(
@@ -7059,12 +7190,17 @@ void _showFullPatcherLog(String logContent) {
             TextButton.icon(
               icon: const Icon(Icons.cancel_outlined, size: 20),
               label: Text(l10n.cancelSelection),
-              onPressed: _isInstalling ? null : () => _clearSelection(panelStateSetter: panelStateSetter),
+              onPressed: _isInstalling
+                  ? null
+                  : () => _clearSelection(panelStateSetter: panelStateSetter),
               style: TextButton.styleFrom(
                 // Un estilo visual para cuando el botón está deshabilitado.
                 disabledForegroundColor: Colors.redAccent.withOpacity(0.4),
                 foregroundColor: Colors.redAccent,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
             ),
           ],
@@ -7081,11 +7217,13 @@ void _showFullPatcherLog(String logContent) {
             color: Colors.black.withOpacity(0.2),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Scrollbar( // Añade una barra de scroll visible
-          controller: _scrollController,
-          thumbVisibility: true,
-            child: SingleChildScrollView( // Hace que el contenido sea desplazable
+          child: Scrollbar(
+            // Añade una barra de scroll visible
             controller: _scrollController,
+            thumbVisibility: true,
+            child: SingleChildScrollView(
+              // Hace que el contenido sea desplazable
+              controller: _scrollController,
               padding: const EdgeInsets.all(12.0),
               child: Column(
                 children: List.generate(modEntries.length, (index) {
@@ -7129,7 +7267,9 @@ void _showFullPatcherLog(String logContent) {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: files.map((file) {
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 3.0),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 3.0,
+                                ),
                                 child: Row(
                                   children: [
                                     Icon(
@@ -7154,7 +7294,7 @@ void _showFullPatcherLog(String logContent) {
                             }).toList(),
                           ),
                         ),
-                        
+
                         // -- Separador (ajustado para no tener padding extra al final) --
                         if (index < modEntries.length - 1)
                           const Divider(height: 24, color: Colors.white10),
@@ -7174,9 +7314,10 @@ void _showFullPatcherLog(String logContent) {
   Widget _buildModGridCard(ModInfo modInfo, AppLocalizations l10n) {
     String? coverImagePath;
     // 1. Prioriza la ruta de la portada personalizada (que ahora incluye nuestra imagen cacheada).
-    if (modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty) {
+    if (modInfo.customCoverPath != null &&
+        modInfo.customCoverPath!.isNotEmpty) {
       coverImagePath = p.join(modInfo.directory.path, modInfo.customCoverPath!);
-    } 
+    }
     // 2. Si no hay, recurre a la URL de internet de la galería.
     else if (modInfo.gallery != null && modInfo.gallery!.isNotEmpty) {
       coverImagePath = modInfo.gallery!.first['thumbnail'] as String?;
@@ -7197,11 +7338,14 @@ void _showFullPatcherLog(String logContent) {
       p.join(modInfo.directory.path, modInfo.customCoverPath!);
     }
     final displayVersion = modInfo.customVersion ?? modInfo.localVersion;
-    final bool isReplacement = modInfo.replacesOutfit != null && modInfo.replacesOutfit!.isNotEmpty;
+    final bool isReplacement =
+        modInfo.replacesOutfit != null && modInfo.replacesOutfit!.isNotEmpty;
     // La etiqueta ahora es el traje (si es un reemplazo) o la etiqueta personalizada/original (si no lo es)
-    final String displayTag = isReplacement 
-        ? modInfo.replacesOutfit! 
-        : (modInfo.customFitMeshType ?? modInfo.fitMeshType ?? l10n.modCategoryOther);
+    final String displayTag = isReplacement
+        ? modInfo.replacesOutfit!
+        : (modInfo.customFitMeshType ??
+              modInfo.fitMeshType ??
+              l10n.modCategoryOther);
 
     void _performSurgicalUpdate(ModInfo? updatedMod) {
       if (updatedMod == null) return;
@@ -7244,14 +7388,17 @@ void _showFullPatcherLog(String logContent) {
                       imageUrl: coverImagePath,
                       thumbnailService: _thumbnailService,
                       // La propiedad 'isLocal' se determina dinámicamente.
-                      isLocal: coverImagePath != null && !coverImagePath.startsWith('http'),
+                      isLocal:
+                          coverImagePath != null &&
+                          !coverImagePath.startsWith('http'),
                       fit: BoxFit.cover,
                       // La alineación se aplica aquí para las imágenes locales.
-                      alignment: modInfo.customCoverAlignment ?? Alignment.center,
+                      alignment:
+                          modInfo.customCoverAlignment ?? Alignment.center,
                     ),
                   ),
                   //if (!modInfo.isEnabled)
-                    Positioned(
+                  Positioned(
                     top: 8,
                     right: 8,
                     child: Column(
@@ -7277,14 +7424,12 @@ void _showFullPatcherLog(String logContent) {
                               ),
                             ),
                           ),
-                        
+
                         // 2. Muestra un espacio SÓLO si está deshabilitado (para separar las etiquetas)
-                        if (!modInfo.isEnabled)
-                          const SizedBox(height: 4),
+                        if (!modInfo.isEnabled) const SizedBox(height: 4),
 
                         // 3. Muestra SIEMPRE la etiqueta de Tipo (CNS/Genérico)
-                        if (_showModTypeTags)
-                          _buildModTypeBadge(modInfo, l10n),
+                        if (_showModTypeTags) _buildModTypeBadge(modInfo, l10n),
                       ],
                     ),
                   ),
@@ -7379,7 +7524,8 @@ void _showFullPatcherLog(String logContent) {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Flexible(
-                  child: Listener( // ++ 1. AÑADIR LISTENER ++
+                  child: Listener(
+                    // ++ 1. AÑADIR LISTENER ++
                     onPointerMove: (event) {
                       // Actualiza la posición del cursor continuamente
                       // Usamos la posición global para el Overlay
@@ -7394,16 +7540,19 @@ void _showFullPatcherLog(String logContent) {
                           // Cancela cualquier temporizador pendiente
                           _hoverTimer?.cancel();
                           // Inicia un nuevo temporizador de 800 milisegundos
-                          _hoverTimer = Timer(const Duration(milliseconds: 800), () {
-                            // Al completarse, muestra el overlay en la última posición guardada
-                            if (mounted) {
-                              _showPreviewOverlay(
-                                context,
-                                modInfo.replacesOutfit!,
-                                _cursorPosition,
-                              );
-                            }
-                          });
+                          _hoverTimer = Timer(
+                            const Duration(milliseconds: 800),
+                            () {
+                              // Al completarse, muestra el overlay en la última posición guardada
+                              if (mounted) {
+                                _showPreviewOverlay(
+                                  context,
+                                  modInfo.replacesOutfit!,
+                                  _cursorPosition,
+                                );
+                              }
+                            },
+                          );
                         }
                       },
                       // ++ 3. MODIFICAR onExit ++
@@ -7412,19 +7561,26 @@ void _showFullPatcherLog(String logContent) {
                         _hidePreviewOverlay();
                       },
                       child: InkWell(
-                        onTap: isReplacement ? null : () async {
-                          final updatedMod = await _showEditDialog(
-                            context: context,
-                            title: l10n.editTagText,
-                            label: l10n.customTagText,
-                            initialValue: displayTag, // 'displayTag' ya tiene el valor correcto
-                            defaultValue:
-                                modInfo.fitMeshType ?? l10n.modCategoryOther,
-                            onSave: (newValue) =>
-                                _updateModCustomProperty(modInfo, newTag: newValue),
-                          );
-                          _performSurgicalUpdate(updatedMod);
-                        },
+                        onTap: isReplacement
+                            ? null
+                            : () async {
+                                final updatedMod = await _showEditDialog(
+                                  context: context,
+                                  title: l10n.editTagText,
+                                  label: l10n.customTagText,
+                                  initialValue:
+                                      displayTag, // 'displayTag' ya tiene el valor correcto
+                                  defaultValue:
+                                      modInfo.fitMeshType ??
+                                      l10n.modCategoryOther,
+                                  onSave: (newValue) =>
+                                      _updateModCustomProperty(
+                                        modInfo,
+                                        newTag: newValue,
+                                      ),
+                                );
+                                _performSurgicalUpdate(updatedMod);
+                              },
                         borderRadius: BorderRadius.circular(8),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -7432,31 +7588,39 @@ void _showFullPatcherLog(String logContent) {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: isReplacement 
-                                ? Colors.black.withOpacity(0.4) 
+                            color: isReplacement
+                                ? Colors.black.withOpacity(0.4)
                                 : Colors.grey.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Row( 
-                            mainAxisSize: MainAxisSize.min, // Para que el icono no empuje el texto
+                          child: Row(
+                            mainAxisSize: MainAxisSize
+                                .min, // Para que el icono no empuje el texto
                             children: [
                               if (isReplacement)
                                 Icon(
-                                  Icons.checkroom_outlined, 
-                                  size: 10, 
-                                  color: Colors.purpleAccent.shade100, // Color distintivo
+                                  Icons.checkroom_outlined,
+                                  size: 10,
+                                  color: Colors
+                                      .purpleAccent
+                                      .shade100, // Color distintivo
                                 ),
-                              if (isReplacement)
-                                const SizedBox(width: 4),
-                              Flexible( // El texto debe ser flexible para los "..."
+                              if (isReplacement) const SizedBox(width: 4),
+                              Flexible(
+                                // El texto debe ser flexible para los "..."
                                 child: Text(
                                   displayTag, // 'displayTag' ya tiene el nombre del traje
                                   style: TextStyle(
                                     fontSize: 10,
                                     // (Opcional) Color diferente para el texto del traje
-                                    color: isReplacement 
-                                      ? const Color.fromARGB(255, 153, 151, 153) 
-                                      : Colors.white70,
+                                    color: isReplacement
+                                        ? const Color.fromARGB(
+                                            255,
+                                            153,
+                                            151,
+                                            153,
+                                          )
+                                        : Colors.white70,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                   maxLines: 1,
@@ -7648,17 +7812,37 @@ void _showFullPatcherLog(String logContent) {
 
     if (modType == 'replacement') {
       modTypeString = l10n.modTypeReplacement; // "Reemplazo"
-      modTypeColor = const Color.fromARGB(255, 182, 33, 135); // Color para "Reemplazo"
+      modTypeColor = const Color.fromARGB(
+        255,
+        182,
+        33,
+        135,
+      ); // Color para "Reemplazo"
     } else if (modType == 'genericPak') {
       modTypeString = l10n.modTypeGeneric; // "Genérico"
-      modTypeColor = const Color.fromARGB(255, 63, 63, 63); // Color para "Generic"
+      modTypeColor = const Color.fromARGB(
+        255,
+        63,
+        63,
+        63,
+      ); // Color para "Generic"
     } else if (modType == 'movies') {
       modTypeString = l10n.modTypeMovies; // "Películas"
-      modTypeColor = const Color.fromARGB(255, 153, 49, 49); // Color para "Movies"
+      modTypeColor = const Color.fromARGB(
+        255,
+        153,
+        49,
+        49,
+      ); // Color para "Movies"
     } else if (modType == 'logicMod') {
       modTypeString = l10n.modTypeLogic; // "Logic"
-      modTypeColor = const Color.fromARGB(255, 26, 99, 151); // Color para "Logic"
-    // ++ FIN DE LA MODIFICACIÓN ++
+      modTypeColor = const Color.fromARGB(
+        255,
+        26,
+        99,
+        151,
+      ); // Color para "Logic"
+      // ++ FIN DE LA MODIFICACIÓN ++
     } else {
       // Esto ahora solo se aplica a 'cns' y a mods antiguos (null)
       modTypeString = l10n.modTypeCNS; // "CNS"
@@ -7827,7 +8011,10 @@ void _showFullPatcherLog(String logContent) {
               ),
             if (modInfo.nexusId != null)
               IconButton(
-                icon: const Icon(Icons.open_in_browser_outlined, color: Colors.lightBlueAccent),
+                icon: const Icon(
+                  Icons.open_in_browser_outlined,
+                  color: Colors.lightBlueAccent,
+                ),
                 onPressed: () async {
                   final url = Uri.parse(
                     'https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}',
@@ -7880,10 +8067,16 @@ void _showFullPatcherLog(String logContent) {
           children: [
             ElevatedButton.icon(
               icon: const Icon(Icons.add_circle_outline_outlined),
-              label: Text(l10n.installNewMod), // Asegúrate de tener esta traducción
-              onPressed: _showInstallationPanel, // Este método lo crearemos a continuación
+              label: Text(
+                l10n.installNewMod,
+              ), // Asegúrate de tener esta traducción
+              onPressed:
+                  _showInstallationPanel, // Este método lo crearemos a continuación
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 16,
+                ),
                 backgroundColor: Colors.teal,
                 foregroundColor: Colors.white,
               ),
@@ -7990,7 +8183,7 @@ void _showFullPatcherLog(String logContent) {
                         'text': l10n.filterUpdatesAvailable,
                       },
                     ];
-                    
+
                     // ++ CONSTRUCTOR SIMPLIFICADO ++
                     return filterOptions.map((option) {
                       return PopupMenuItem<ModFilter>(
@@ -8102,39 +8295,43 @@ void _showFullPatcherLog(String logContent) {
           ],
         ),
         Padding(
-              padding: const EdgeInsets.only(top: 12.0),
-              child: Container(
-                width: double.infinity, // Ocupa todo el ancho
-                alignment: Alignment.center, // Centra los botones
-                child: SingleChildScrollView( // Permite scroll horizontal en ventanas pequeñas
-                  scrollDirection: Axis.horizontal,
-                  child: ToggleButtons(
-                    isSelected: ModTypeFilter.values
-                        .map((type) => type == _currentModTypeFilter)
-                        .toList(),
-                    onPressed: (index) async {
-                      final newTypeFilter = ModTypeFilter.values[index];
-                      final prefs = await SharedPreferences.getInstance();
-                      // Guardamos la nueva preferencia
-                      await prefs.setInt(AppPrefs.modTypeFilterMode, newTypeFilter.index); 
-                      setState(() {
-                        _currentModTypeFilter = newTypeFilter;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    constraints: const BoxConstraints(minHeight: 36), // Altura fija
-                    children: [
-                      _buildNavButton(l10n.filterAll),
-                      _buildNavButton(l10n.modTypeCNS),
-                      _buildNavButton(l10n.modTypeReplacement),
-                      _buildNavButton(l10n.modTypeMovies),
-                      _buildNavButton(l10n.modTypeLogic),
-                      _buildNavButton(l10n.modTypeGeneric),
-                    ],
-                  ),
-                ),
+          padding: const EdgeInsets.only(top: 12.0),
+          child: Container(
+            width: double.infinity, // Ocupa todo el ancho
+            alignment: Alignment.center, // Centra los botones
+            child: SingleChildScrollView(
+              // Permite scroll horizontal en ventanas pequeñas
+              scrollDirection: Axis.horizontal,
+              child: ToggleButtons(
+                isSelected: ModTypeFilter.values
+                    .map((type) => type == _currentModTypeFilter)
+                    .toList(),
+                onPressed: (index) async {
+                  final newTypeFilter = ModTypeFilter.values[index];
+                  final prefs = await SharedPreferences.getInstance();
+                  // Guardamos la nueva preferencia
+                  await prefs.setInt(
+                    AppPrefs.modTypeFilterMode,
+                    newTypeFilter.index,
+                  );
+                  setState(() {
+                    _currentModTypeFilter = newTypeFilter;
+                  });
+                },
+                borderRadius: BorderRadius.circular(8),
+                constraints: const BoxConstraints(minHeight: 36), // Altura fija
+                children: [
+                  _buildNavButton(l10n.filterAll),
+                  _buildNavButton(l10n.modTypeCNS),
+                  _buildNavButton(l10n.modTypeReplacement),
+                  _buildNavButton(l10n.modTypeMovies),
+                  _buildNavButton(l10n.modTypeLogic),
+                  _buildNavButton(l10n.modTypeGeneric),
+                ],
               ),
             ),
+          ),
+        ),
         const SizedBox(height: 8),
         Expanded(
           child: mods.isEmpty
@@ -8400,11 +8597,13 @@ void _showFullPatcherLog(String logContent) {
       // --- START: NEW SMART REVERT LOGIC ---
 
       // 1. Delete the current custom cover file, but ONLY if it's NOT the cached nexus file.
-      final currentCoverFile = File(p.join(mod.directory.path, mod.customCoverPath!));
+      final currentCoverFile = File(
+        p.join(mod.directory.path, mod.customCoverPath!),
+      );
       if (!p.basename(currentCoverFile.path).startsWith('_nexus_cover')) {
-          if (await currentCoverFile.exists()) {
-              await currentCoverFile.delete();
-          }
+        if (await currentCoverFile.exists()) {
+          await currentCoverFile.delete();
+        }
       }
 
       // 2. Read the JSON data.
@@ -8413,27 +8612,27 @@ void _showFullPatcherLog(String logContent) {
       // 3. Check if a cached nexus cover exists in the mod's folder.
       String? cachedNexusCoverName;
       await for (final file in mod.directory.list()) {
-          if (file is File && p.basename(file.path).startsWith('_nexus_cover')) {
-              cachedNexusCoverName = p.basename(file.path);
-              break;
-          }
+        if (file is File && p.basename(file.path).startsWith('_nexus_cover')) {
+          cachedNexusCoverName = p.basename(file.path);
+          break;
+        }
       }
 
       // 4. Update the JSON based on whether a cached cover was found.
       if (cachedNexusCoverName != null) {
-          // A cached version exists, so point the custom path to it.
-          data['customCoverPath'] = cachedNexusCoverName;
-          // Also set a default center alignment for it.
-          data['customCoverAlignmentX'] = 0.0;
-          data['customCoverAlignmentY'] = 0.0;
+        // A cached version exists, so point the custom path to it.
+        data['customCoverPath'] = cachedNexusCoverName;
+        // Also set a default center alignment for it.
+        data['customCoverAlignmentX'] = 0.0;
+        data['customCoverAlignmentY'] = 0.0;
       } else {
-          // No cached version was found, so remove the custom path and alignment completely.
-          // This will force the UI to fall back to the internet URL.
-          data.remove('customCoverPath');
-          data.remove('customCoverAlignmentX');
-          data.remove('customCoverAlignmentY');
+        // No cached version was found, so remove the custom path and alignment completely.
+        // This will force the UI to fall back to the internet URL.
+        data.remove('customCoverPath');
+        data.remove('customCoverAlignmentX');
+        data.remove('customCoverAlignmentY');
       }
-      
+
       // --- END: NEW SMART REVERT LOGIC ---
 
       // 5. Write the updated data back to the file.
@@ -8442,7 +8641,6 @@ void _showFullPatcherLog(String logContent) {
 
       // 6. Reload the mods list to reflect the changes in the UI.
       await _loadAllMods(clearHighlight: false);
-      
     } catch (e) {
       if (mounted) {
         final l10n = AppLocalizations.of(context)!;
@@ -8504,7 +8702,9 @@ void _showFullPatcherLog(String logContent) {
     // Obtenemos la información de actualización y el estado "ignorado" para este mod específico.
     final updateInfo = _modUpdates[modInfo.directory.path];
     final hasUpdate = updateInfo != null;
-    final updateIdentifier = hasUpdate ? modInfo.directory.path + (updateInfo['version'] as String) : '';
+    final updateIdentifier = hasUpdate
+        ? modInfo.directory.path + (updateInfo['version'] as String)
+        : '';
     final isIgnored = _ignoredUpdates.contains(updateIdentifier);
     // ++ FIN DE LA MODIFICACIÓN ++
 
@@ -8717,17 +8917,20 @@ void _showFullPatcherLog(String logContent) {
           if (conflictingMod != null && mod.isEnabled) {
             final String outfitName = newOutfit;
             final String modName = conflictingMod.customName;
-            
+
             // Obtenemos el texto completo de la localización
-            final String fullString = l10n.dialogContentOutfitConflict(outfitName, modName);
-            
+            final String fullString = l10n.dialogContentOutfitConflict(
+              outfitName,
+              modName,
+            );
+
             // Dividimos el texto usando los nombres como separadores
             final List<String> parts = fullString.split(outfitName);
             final String part1 = parts.isNotEmpty ? parts[0] : "";
-            
+
             String part2 = "";
             String part3 = "";
-            
+
             if (parts.length > 1) {
               // Buscamos el nombre del mod en la segunda parte del texto
               final List<String> parts2 = parts[1].split(modName);
@@ -8736,23 +8939,25 @@ void _showFullPatcherLog(String logContent) {
                 part3 = parts2[1];
               }
             }
-            
+
             final bool? forceActivate = await showDialog<bool>(
               context: context,
               barrierDismissible: false,
               builder: (context) => AlertDialog(
                 backgroundColor: const Color(0xFF2a2a2a),
                 title: Text(l10n.dialogTitleOutfitConflict),
-                
+
                 // Reemplazamos el 'content: Text(...)' por 'content: RichText(...)'
                 content: RichText(
                   text: TextSpan(
                     // Usar el estilo de texto por defecto del diálogo
-                    style: Theme.of(context).dialogTheme.contentTextStyle ?? const TextStyle(color: Colors.white, height: 1.5),
+                    style:
+                        Theme.of(context).dialogTheme.contentTextStyle ??
+                        const TextStyle(color: Colors.white, height: 1.5),
                     children: [
                       // Parte 1 del texto
                       TextSpan(text: part1),
-                      
+
                       // Widget 1: El nombre del traje (interactivo)
                       WidgetSpan(
                         alignment: PlaceholderAlignment.middle,
@@ -8760,15 +8965,18 @@ void _showFullPatcherLog(String logContent) {
                           onEnter: (event) {
                             _cursorPosition = event.position;
                             _hoverTimer?.cancel();
-                            _hoverTimer = Timer(const Duration(milliseconds: 800), () {
-                              if (mounted) {
-                                _showPreviewOverlay(
-                                  context,
-                                  outfitName, // El nombre del traje
-                                  _cursorPosition,
-                                );
-                              }
-                            });
+                            _hoverTimer = Timer(
+                              const Duration(milliseconds: 800),
+                              () {
+                                if (mounted) {
+                                  _showPreviewOverlay(
+                                    context,
+                                    outfitName, // El nombre del traje
+                                    _cursorPosition,
+                                  );
+                                }
+                              },
+                            );
                           },
                           onExit: (event) => _hidePreviewOverlay(),
                           onHover: (event) => _cursorPosition = event.position,
@@ -8781,10 +8989,10 @@ void _showFullPatcherLog(String logContent) {
                           ),
                         ),
                       ),
-                      
+
                       // Parte 2 del texto
                       TextSpan(text: part2),
-                      
+
                       // Widget 2: El nombre del mod (interactivo)
                       WidgetSpan(
                         alignment: PlaceholderAlignment.middle,
@@ -8792,7 +9000,7 @@ void _showFullPatcherLog(String logContent) {
                           onTap: () {
                             // ¡YA NO CERRAMOS LA ALERTA!
                             // Abre el panel de detalles del mod en conflicto
-                            _showDetailsPage(conflictingMod!); 
+                            _showDetailsPage(conflictingMod!);
                           },
                           child: Text(
                             modName, // El nombre resaltado
@@ -8804,13 +9012,13 @@ void _showFullPatcherLog(String logContent) {
                           ),
                         ),
                       ),
-                      
+
                       // Parte 3 del texto
                       TextSpan(text: part3),
                     ],
                   ),
                 ),
-                
+
                 actions: [
                   TextButton(
                     onPressed: () {
@@ -8828,7 +9036,9 @@ void _showFullPatcherLog(String logContent) {
                       backgroundColor: Colors.tealAccent,
                       foregroundColor: Colors.black,
                     ),
-                    child: Text(l10n.dialogActionActivateAndDisable), // Reutilizamos el l10n
+                    child: Text(
+                      l10n.dialogActionActivateAndDisable,
+                    ), // Reutilizamos el l10n
                   ),
                 ],
               ),
@@ -8852,7 +9062,8 @@ void _showFullPatcherLog(String logContent) {
         if (content.isNotEmpty) data = json.decode(content);
       }
 
-      String? newNexusId; // Para almacenar un nuevo ID y usarlo para cachear la miniatura
+      String?
+      newNexusId; // Para almacenar un nuevo ID y usarlo para cachear la miniatura
       if (newData.containsKey('customSourceUrl')) {
         final newUrl = newData['customSourceUrl'] as String;
         final potentialNexusId = _extractNexusIdFromUrl(newUrl);
@@ -8860,13 +9071,16 @@ void _showFullPatcherLog(String logContent) {
 
         // Comprueba si es una URL de Nexus válida, nueva y diferente a la que ya teníamos
         if (potentialNexusId != null && potentialNexusId != oldNexusId) {
-          print('Nuevo Nexus ID $potentialNexusId detectado. Obteniendo metadatos...');
+          print(
+            'Nuevo Nexus ID $potentialNexusId detectado. Obteniendo metadatos...',
+          );
           // Si es así, obtenemos los datos de la API
           final nexusData = await _fetchNexusModData(potentialNexusId);
 
           if (nexusData != null) {
-            newNexusId = potentialNexusId; // Guardamos el ID para cachear la miniatura más tarde
-            
+            newNexusId =
+                potentialNexusId; // Guardamos el ID para cachear la miniatura más tarde
+
             // Rellenamos el mapa 'data' con los nuevos metadatos
             data['nexusId'] = newNexusId;
             data['gallery'] = nexusData['gallery'];
@@ -8880,10 +9094,12 @@ void _showFullPatcherLog(String logContent) {
             data.remove('customSummary');
             data.remove('customAuthor');
             data.remove('customDescription');
-            
+
             // También eliminamos las claves de 'newData' para que no se procesen de nuevo más abajo
             newData.remove('customSourceUrl');
-            newData.remove('author'); // El diálogo 'General Edit' también envía 'author'
+            newData.remove(
+              'author',
+            ); // El diálogo 'General Edit' también envía 'author'
             // (No es necesario eliminar 'summary' o 'customDescription' ya que vienen de otros diálogos)
 
             print('Metadatos obtenidos y aplicados para $newNexusId.');
@@ -8932,8 +9148,9 @@ void _showFullPatcherLog(String logContent) {
       if (newData.containsKey('customDescription')) {
         final newCustomDescription = newData['customDescription'] as String;
         // Si la nueva descripción es igual a la original (sin HTML), la eliminamos para no guardar datos redundantes.
-        final originalDescriptionStripped =
-            _ModDetailsPanelState()._stripHtml(mod.description);
+        final originalDescriptionStripped = _ModDetailsPanelState()._stripHtml(
+          mod.description,
+        );
         if (newCustomDescription.isEmpty ||
             newCustomDescription == originalDescriptionStripped) {
           data.remove('customDescription');
@@ -8993,7 +9210,10 @@ void _showFullPatcherLog(String logContent) {
       // --- LÍNEA ELIMINADA ---
       // await _loadAllMods(clearHighlight: false);  <-- ESTO CAUSABA EL PARPADEO
       if (newNexusId != null) {
-        await _cacheNexusThumbnail(modDirectory: modDirectory, nexusId: newNexusId);
+        await _cacheNexusThumbnail(
+          modDirectory: modDirectory,
+          nexusId: newNexusId,
+        );
       }
       // Ahora, construimos y devolvemos un nuevo objeto ModInfo con los datos actualizados
       // para que el panel pueda refrescar su propia UI sin afectar el fondo.
@@ -9343,7 +9563,11 @@ void _showFullPatcherLog(String logContent) {
   }*/
 
   /// Muestra el overlay de vista previa del traje en la posición del cursor.
-  void _showPreviewOverlay(BuildContext context, String outfitName, Offset position) {
+  void _showPreviewOverlay(
+    BuildContext context,
+    String outfitName,
+    Offset position,
+  ) {
     // Oculta cualquier overlay anterior
     _hidePreviewOverlay();
 
@@ -9353,17 +9577,20 @@ void _showFullPatcherLog(String logContent) {
         // para que el cursor no lo tape.
         left: position.dx - 50,
         top: position.dy - 220,
-        child: IgnorePointer( // Evita que el overlay bloquee clics
+        child: IgnorePointer(
+          // Evita que el overlay bloquee clics
           child: Opacity(
             opacity: 1, // 100% de opacidad (totalmente visible)
             child: SizedBox(
               // Tamaño de la vista previa (sin borde)
-              width: 100, 
+              width: 100,
               height: 211,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8.0), // Un leve redondeo
                 child: Image.asset(
-                  _generateOutfitImagePath(outfitName), // Reutiliza la función existente
+                  _generateOutfitImagePath(
+                    outfitName,
+                  ), // Reutiliza la función existente
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => Container(
                     // Placeholder en caso de error
@@ -9394,7 +9621,6 @@ void _showFullPatcherLog(String logContent) {
     _previewOverlay?.remove(); // Elimina el overlay de la pantalla
     _previewOverlay = null; // Limpia la referencia
   }
-
 }
 
 class ModImage extends StatelessWidget {
@@ -9585,7 +9811,8 @@ class _ModDetailsPanel extends StatefulWidget {
     required String nexusId,
     required int fileId,
     required String uniqueIdentifier,
-  }) onShowUpdateDialog;
+  })
+  onShowUpdateDialog;
 
   const _ModDetailsPanel({
     required this.initialModInfo,
@@ -9619,7 +9846,8 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
     super.initState();
     currentModInfo = widget.initialModInfo;
     _isIgnored = widget.isIgnored;
-    _isReplacementMod = currentModInfo.modType == 'replacement' ||
+    _isReplacementMod =
+        currentModInfo.modType == 'replacement' ||
         (currentModInfo.modType == 'genericPak' &&
             (currentModInfo.replacesOutfit != null &&
                 currentModInfo.replacesOutfit!.isNotEmpty));
@@ -9628,6 +9856,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
       if (mounted) _updateTranslationButtonVisibility();
     });
   }
+
   /// Limpia una cadena de texto de las etiquetas HTML más comunes.
   String _stripHtml(String? htmlString) {
     if (htmlString == null) return '';
@@ -9638,7 +9867,9 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
         .replaceAll(RegExp(r'</p>', caseSensitive: false), '');
     // Reemplaza los elementos de lista por un guion.
     final withListItems = withLineBreaks.replaceAll(
-        RegExp(r'<li>', caseSensitive: false), '- ');
+      RegExp(r'<li>', caseSensitive: false),
+      '- ',
+    );
     // Elimina todas las demás etiquetas.
     final withoutTags = withListItems.replaceAll(RegExp(r'<[^>]*>'), '');
     // Decodifica las entidades HTML más comunes.
@@ -9649,7 +9880,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
         .replaceAll('&quot;', '"')
         .replaceAll('&#39;', "'")
         .replaceAll('&nbsp;', ' ');
-        
+
     // ++ LÍNEA AÑADIDA ++
     // Colapsa tres o más saltos de línea en solo dos, eliminando renglones vacíos excesivos.
     final cleanedNewlines = decoded.replaceAll(RegExp(r'(\n\s*){2,}'), '\n');
@@ -9679,10 +9910,12 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
       final snippet = text.length > 150 ? text.substring(0, 150) : text;
       const String pivotLocale = 'de'; // Idioma pivote para forzar la detección
       final translation = await translator.translate(snippet, to: pivotLocale);
-      final detectedLanguageCode = translation.sourceLanguage.code.toLowerCase();
+      final detectedLanguageCode = translation.sourceLanguage.code
+          .toLowerCase();
 
       // Necesita traducción si el idioma detectado no es el de la app y no es "auto"
-      return detectedLanguageCode != currentLocale && detectedLanguageCode != 'auto';
+      return detectedLanguageCode != currentLocale &&
+          detectedLanguageCode != 'auto';
     } catch (e) {
       print("Error detectando el idioma: $e");
       return false;
@@ -9693,28 +9926,36 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
   Future<void> _updateTranslationButtonVisibility() async {
     // --- Lógica para el botón del RESUMEN ---
     // Solo mostramos el botón si estamos viendo el resumen original (no uno personalizado).
-    final isShowingOriginalSummary = currentModInfo.customSummary == null || currentModInfo.customSummary!.isEmpty;
+    final isShowingOriginalSummary =
+        currentModInfo.customSummary == null ||
+        currentModInfo.customSummary!.isEmpty;
     if (isShowingOriginalSummary) {
-      final needsTranslation = await _checkIfTextNeedsTranslation(currentModInfo.summary);
+      final needsTranslation = await _checkIfTextNeedsTranslation(
+        currentModInfo.summary,
+      );
       if (mounted) {
         setState(() => _showTranslateSummaryButton = needsTranslation);
       }
     } else {
-       if (mounted) {
+      if (mounted) {
         setState(() => _showTranslateSummaryButton = false);
       }
     }
 
     // --- Lógica para el botón de la DESCRIPCIÓN ---
     // Solo mostramos el botón si estamos viendo la descripción original.
-    final isShowingOriginalDescription = currentModInfo.customDescription == null || currentModInfo.customDescription!.isEmpty;
-     if (isShowingOriginalDescription) {
-      final needsTranslation = await _checkIfTextNeedsTranslation(currentModInfo.description);
+    final isShowingOriginalDescription =
+        currentModInfo.customDescription == null ||
+        currentModInfo.customDescription!.isEmpty;
+    if (isShowingOriginalDescription) {
+      final needsTranslation = await _checkIfTextNeedsTranslation(
+        currentModInfo.description,
+      );
       if (mounted) {
         setState(() => _showTranslateDescriptionButton = needsTranslation);
       }
     } else {
-       if (mounted) {
+      if (mounted) {
         setState(() => _showTranslateDescriptionButton = false);
       }
     }
@@ -9723,7 +9964,9 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
   // Traduce el resumen
   Future<void> _translateSummary() async {
     final l10n = AppLocalizations.of(context)!;
-    if (currentModInfo.summary == null || currentModInfo.summary!.trim().isEmpty) return;
+    if (currentModInfo.summary == null ||
+        currentModInfo.summary!.trim().isEmpty)
+      return;
 
     setState(() => _isTranslating = true);
 
@@ -9731,7 +9974,9 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
       final translator = GoogleTranslator();
       final currentLocale = Localizations.localeOf(context).languageCode;
       final translation = await translator.translate(
-        _stripHtml(currentModInfo.summary!), // Limpiamos el HTML antes de traducir
+        _stripHtml(
+          currentModInfo.summary!,
+        ), // Limpiamos el HTML antes de traducir
         from: 'auto',
         to: currentLocale,
       );
@@ -9745,7 +9990,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
         setState(() {
           currentModInfo = updatedMod;
           // ++ CAMBIO 3: Ocultar solo el botón del resumen ++
-          _showTranslateSummaryButton = false; 
+          _showTranslateSummaryButton = false;
           _needsReloadOnClose = true;
         });
       }
@@ -9764,7 +10009,9 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
   // Traduce la descripción
   Future<void> _translateDescription() async {
     final l10n = AppLocalizations.of(context)!;
-    if (currentModInfo.description == null || currentModInfo.description!.trim().isEmpty) return;
+    if (currentModInfo.description == null ||
+        currentModInfo.description!.trim().isEmpty)
+      return;
 
     setState(() => _isTranslating = true);
 
@@ -9916,10 +10163,11 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                             onPressed: _translateSummary,
                             tooltip: l10n.translateSummary,
                           ),
-                  
+
                   // Botón para traducir la DESCRIPCIÓN
-                  if (title == l10n.modDescription && _showTranslateDescriptionButton)
-                     _isTranslating
+                  if (title == l10n.modDescription &&
+                      _showTranslateDescriptionButton)
+                    _isTranslating
                         ? const Padding(
                             padding: EdgeInsets.all(4.0),
                             child: SizedBox(
@@ -9978,7 +10226,9 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
   Future<void> _showOutfitSelectionDialog(AppLocalizations l10n) async {
     // --- CAMBIO 1: El Notifier ahora guarda el *nombre* del traje, no el índice ---
     // Esto soluciona la raíz de todos los errores.
-    final ValueNotifier<String?> hoveredOutfitNotifier = ValueNotifier<String?>(null);
+    final ValueNotifier<String?> hoveredOutfitNotifier = ValueNotifier<String?>(
+      null,
+    );
     String searchQuery = ''; // El estado de la búsqueda se manejará localmente
     bool isClosing = false;
 
@@ -9999,11 +10249,13 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
         // se reconstruya al escribir en el buscador.
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setDialogState) {
-            
             // La lista filtrada se calcula aquí, cada vez que el StatefulBuilder se reconstruye
-            final filteredOutfits = stellarBladeOutfits.where((outfit) => 
-              outfit.toLowerCase().contains(searchQuery.toLowerCase())
-            ).toList(); //
+            final filteredOutfits = stellarBladeOutfits
+                .where(
+                  (outfit) =>
+                      outfit.toLowerCase().contains(searchQuery.toLowerCase()),
+                )
+                .toList(); //
 
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -10040,7 +10292,9 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16)
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                            ),
                           ),
                         ),
                       ),
@@ -10079,21 +10333,21 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                                 },
                                 // -- Ya NO necesitamos onExit aquí --
                                 child: ListTile(
-                                title: Text(outfit),
-                                onTap: () {
-                                  isClosing = true;
-                                  Navigator.of(context).pop(outfit);
-                                },
-                              ),
-                            );
-                          },
+                                  title: Text(outfit),
+                                  onTap: () {
+                                    isClosing = true;
+                                    Navigator.of(context).pop(outfit);
+                                  },
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
-                      )
                     ],
                   ),
                 ),
-                
+
                 // --- LADO DERECHO: VISTA PREVIA (1/3 del espacio) ---
                 Expanded(
                   flex: 1,
@@ -10101,27 +10355,30 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                   child: ValueListenableBuilder<String?>(
                     valueListenable: hoveredOutfitNotifier,
                     builder: (context, hoveredOutfitName, child) {
-                      
                       return Container(
                         // Ocupa toda la altura del panel
-                        height: double.infinity, 
+                        height: double.infinity,
                         color: Colors.black.withOpacity(0.3),
                         padding: const EdgeInsets.all(16.0),
                         child: Center(
                           child: AnimatedCrossFade(
                             // 1. Estado: Muestra el placeholder (first) o la imagen (second)
-                            crossFadeState: hoveredOutfitName == null 
-                              ? CrossFadeState.showFirst 
-                              : CrossFadeState.showSecond,
-                            
+                            crossFadeState: hoveredOutfitName == null
+                                ? CrossFadeState.showFirst
+                                : CrossFadeState.showSecond,
+
                             duration: const Duration(milliseconds: 200),
-                            
+
                             // 2. Placeholder (Primer hijo)
                             firstChild: Column(
                               key: const ValueKey('outfit_placeholder'),
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.image_search_rounded, size: 60, color: Colors.grey[700]),
+                                Icon(
+                                  Icons.image_search_rounded,
+                                  size: 60,
+                                  color: Colors.grey[700],
+                                ),
                                 const SizedBox(height: 16),
                                 Text(
                                   l10n.replacesOutfitHover,
@@ -10130,7 +10387,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                                 ),
                               ],
                             ),
-                            
+
                             // 3. Imagen (Segundo hijo)
                             // La clave ValueKey(hoveredOutfitName) es crucial.
                             // Le dice al widget que cambie de imagen aunque el estado
@@ -10140,17 +10397,24 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                               child: Image.asset(
                                 // Usamos ?? '' para evitar errores si hoveredOutfitName es nulo
                                 // durante el primer frame de la transición.
-                                _generateOutfitImagePath(hoveredOutfitName ?? ''),
+                                _generateOutfitImagePath(
+                                  hoveredOutfitName ?? '',
+                                ),
                                 fit: BoxFit.contain,
                                 errorBuilder: (context, error, stackTrace) {
-                                  final path = _generateOutfitImagePath(hoveredOutfitName ?? '');
+                                  final path = _generateOutfitImagePath(
+                                    hoveredOutfitName ?? '',
+                                  );
                                   return Center(
                                     child: Padding(
                                       padding: const EdgeInsets.all(8.0),
                                       child: Text(
                                         "Preview not found at:\n$path",
                                         textAlign: TextAlign.center,
-                                        style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                                        style: TextStyle(
+                                          color: Colors.grey[500],
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ),
                                   );
@@ -10160,15 +10424,18 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
 
                             // 4. (Opcional pero recomendado) Esto evita que el panel "salte"
                             // de tamaño durante la animación de fundido.
-                            layoutBuilder: (topChild, topChildKey, bottomChild, bottomChildKey) {
-                              return Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  bottomChild,
+                            layoutBuilder:
+                                (
                                   topChild,
-                                ],
-                              );
-                            },
+                                  topChildKey,
+                                  bottomChild,
+                                  bottomChildKey,
+                                ) {
+                                  return Stack(
+                                    alignment: Alignment.center,
+                                    children: [bottomChild, topChild],
+                                  );
+                                },
                           ),
                         ),
                       );
@@ -10194,17 +10461,15 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
   /// Maneja el guardado del traje seleccionado.
   Future<void> _onOutfitSelected(String? outfitName) async {
     // Pasa los nuevos datos a la función de actualización del widget principal
-    final updatedMod = await widget.onUpdateDetails(
-      currentModInfo,
-      {
-        'replacesOutfit': outfitName, // Será nulo si se está limpiando
-      },
-    );
+    final updatedMod = await widget.onUpdateDetails(currentModInfo, {
+      'replacesOutfit': outfitName, // Será nulo si se está limpiando
+    });
 
     if (updatedMod != null && mounted) {
       setState(() {
         currentModInfo = updatedMod;
-        _needsReloadOnClose = true; // Marca que la lista principal necesita recargarse
+        _needsReloadOnClose =
+            true; // Marca que la lista principal necesita recargarse
       });
     }
   }
@@ -10261,26 +10526,30 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                   ),
                 ],
               ),
-              
+
               // --- BOTÓN DE EDITAR / LIMPIAR ---
               IconButton(
                 icon: Icon(
                   // Cambia el ícono si ya hay un traje seleccionado
-                  replacedOutfit != null ? Icons.cancel_outlined : Icons.checkroom_outlined,
-                  color: replacedOutfit != null ? Colors.redAccent : Colors.white70,
+                  replacedOutfit != null
+                      ? Icons.cancel_outlined
+                      : Icons.checkroom_outlined,
+                  color: replacedOutfit != null
+                      ? Colors.redAccent
+                      : Colors.white70,
                   size: 20,
                 ),
                 onPressed: () {
-                    if (replacedOutfit != null) {
-                      // Limpiar la selección
-                      _onOutfitSelected(null);
-                    } else {
-                      // Mostrar el diálogo de selección
-                      _showOutfitSelectionDialog(l10n);
-                    }
+                  if (replacedOutfit != null) {
+                    // Limpiar la selección
+                    _onOutfitSelected(null);
+                  } else {
+                    // Mostrar el diálogo de selección
+                    _showOutfitSelectionDialog(l10n);
+                  }
                 },
-                tooltip: replacedOutfit != null 
-                    ? l10n.replacesOutfitClearTooltip 
+                tooltip: replacedOutfit != null
+                    ? l10n.replacesOutfitClearTooltip
                     : l10n.replacesOutfitSelectTooltip, // Necesitarás estas traducciones
                 splashRadius: 20,
                 constraints: const BoxConstraints(),
@@ -10295,19 +10564,26 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
             // Mantenemos el contenedor original para el fondo y el borde
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12), // Un poco más de padding para la imagen
+              padding: const EdgeInsets.all(
+                12,
+              ), // Un poco más de padding para la imagen
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.4),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center, // Centra verticalmente
+                crossAxisAlignment:
+                    CrossAxisAlignment.center, // Centra verticalmente
                 children: [
                   // 1. Vista previa de la imagen
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(6.0), // Bordes redondeados más pequeños
+                    borderRadius: BorderRadius.circular(
+                      6.0,
+                    ), // Bordes redondeados más pequeños
                     child: Image.asset(
-                      _generateOutfitImagePath(replacedOutfit), // Usamos la función auxiliar
+                      _generateOutfitImagePath(
+                        replacedOutfit,
+                      ), // Usamos la función auxiliar
                       width: 92.5, // Proporción 3:4 (como 60x80)
                       height: 167,
                       fit: BoxFit.cover,
@@ -10317,13 +10593,16 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                           width: 52.5,
                           height: 70,
                           color: Colors.black.withOpacity(0.2),
-                          child: const Icon(Icons.hide_image_outlined, color: Colors.grey),
+                          child: const Icon(
+                            Icons.hide_image_outlined,
+                            color: Colors.grey,
+                          ),
                         );
                       },
                     ),
                   ),
                   const SizedBox(width: 12),
-                  
+
                   // 2. Nombre del traje
                   Expanded(
                     child: Text(
@@ -10351,7 +10630,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                 height: 1.5,
                 fontSize: 15,
               ),
-            )
+            ),
           ],
         ],
       ),
@@ -10365,8 +10644,8 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
         (currentModInfo.customSourceUrl ?? currentModInfo.sourceUrl)
             ?.isNotEmpty ??
         false;
-      // Determina el nombre del autor
-      final author = currentModInfo.customAuthor ?? currentModInfo.author;
+    // Determina el nombre del autor
+    final author = currentModInfo.customAuthor ?? currentModInfo.author;
     String? mainImagePath;
     // 1. PRIORITIZE the custom cover path. This now includes our cached '_nexus_cover.jpg'.
     if (currentModInfo.customCoverPath != null &&
@@ -10376,7 +10655,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
         currentModInfo.directory.path,
         currentModInfo.customCoverPath!,
       );
-    // 2. FALLBACK to the internet URL from the gallery only if no custom/cached cover exists.
+      // 2. FALLBACK to the internet URL from the gallery only if no custom/cached cover exists.
     } else if (currentModInfo.gallery != null &&
         currentModInfo.gallery!.isNotEmpty) {
       mainImagePath = currentModInfo.gallery!.first['image'];
@@ -10404,7 +10683,8 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
               elevation: 0,
               automaticallyImplyLeading: false,
               centerTitle: true,
-              leadingWidth: 200, // Aumenta el espacio disponible para el `leading`
+              leadingWidth:
+                  200, // Aumenta el espacio disponible para el `leading`
               leading: Padding(
                 padding: const EdgeInsets.only(left: 12.0),
                 child: Row(
@@ -10436,7 +10716,10 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                         },
                         borderRadius: BorderRadius.circular(4),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 4,
+                          ),
                           child: Text(
                             "${l10n.modVersion} $displayVersion",
                             style: TextStyle(
@@ -10447,7 +10730,7 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                           ),
                         ),
                       ),
-                    
+
                     if (displayVersion != null && displayVersion.isNotEmpty)
                       const SizedBox(width: 8),
 
@@ -10539,12 +10822,15 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                       Icons.notification_important_rounded,
                       color: Colors.yellowAccent,
                     ),
-                    tooltip: l10n.updateAvailable(widget.updateInfo!['version']),
+                    tooltip: l10n.updateAvailable(
+                      widget.updateInfo!['version'],
+                    ),
                     onPressed: () async {
                       if (currentModInfo.nexusId != null) {
                         final updateIdentifier =
-                            currentModInfo.directory.path + (widget.updateInfo!['version'] as String);
-                        
+                            currentModInfo.directory.path +
+                            (widget.updateInfo!['version'] as String);
+
                         // 1. Llamamos a la función y esperamos su resultado (true/false).
                         final bool wasHidden = await widget.onShowUpdateDialog(
                           newVersion: widget.updateInfo!['version'],
@@ -10654,19 +10940,19 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                   // ++ INICIO DE LA MODIFICACIÓN: AUTOR COMO SUBTÍTULO ++
                   const SizedBox(height: 4),
                   Text(
-                        // Verifica si el nombre del autor no es nulo ni está vacío
-                        (author?.isNotEmpty ?? false)
-                            // Si existe, usa la cadena localizada pasando el autor como argumento
-                            ? l10n.byText(author!)
-                            // De lo contrario, muestra una cadena vacía
-                            : "",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.grey[400],
-                        ),
-                      ),
+                    // Verifica si el nombre del autor no es nulo ni está vacío
+                    (author?.isNotEmpty ?? false)
+                        // Si existe, usa la cadena localizada pasando el autor como argumento
+                        ? l10n.byText(author!)
+                        // De lo contrario, muestra una cadena vacía
+                        : "",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey[400],
+                    ),
+                  ),
                   const SizedBox(height: 20),
                   // ++ FIN DE LA MODIFICACIÓN ++
                   Row(
@@ -10728,13 +11014,16 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                     ],
                   ),
                   if (currentModInfo.modType == 'genericPak' ||
-                    currentModInfo.modType == 'replacement' ||
-                    (currentModInfo.modType == null && currentModInfo.replacesOutfit != null) ) ...[
+                      currentModInfo.modType == 'replacement' ||
+                      (currentModInfo.modType == null &&
+                          currentModInfo.replacesOutfit != null)) ...[
                     const SizedBox(height: 20),
                     // --- Switch para Mod de Reemplazo ---
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 0,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(10),
@@ -10750,7 +11039,10 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                         ),
                         subtitle: Text(
                           l10n.replacementModSwitchDesc, // "Marca si este mod reemplaza un traje."
-                          style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 12,
+                          ),
                         ),
                         value: _isReplacementMod,
                         activeColor: Colors.tealAccent,
@@ -10758,8 +11050,10 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                         // ++ INICIO DE LA MODIFICACIÓN: onChanged ++
                         onChanged: (bool newValue) async {
                           // Define el nuevo tipo de mod basado en el switch
-                          final String newModType = newValue ? 'replacement' : 'genericPak';
-                          
+                          final String newModType = newValue
+                              ? 'replacement'
+                              : 'genericPak';
+
                           // Prepara los datos para guardar.
                           final Map<String, dynamic> dataToSave = {
                             'modType': newModType,
@@ -10781,7 +11075,8 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                           if (updatedMod != null && mounted) {
                             setState(() {
                               currentModInfo = updatedMod;
-                              _isReplacementMod = newValue; // Sincroniza el switch
+                              _isReplacementMod =
+                                  newValue; // Sincroniza el switch
                               _needsReloadOnClose = true;
                             });
                           } else {
@@ -10952,7 +11247,8 @@ class _ModDetailsPanelState extends State<_ModDetailsPanel> {
                         const SizedBox(height: 10),
                         // Aquí usamos el nuevo Widget
                         BBCodeRenderer(
-                          data: currentModInfo.customDescription ??
+                          data:
+                              currentModInfo.customDescription ??
                               currentModInfo.description ??
                               l10n.noDescriptionAvailable,
                           defaultStyle: TextStyle(
@@ -10982,23 +11278,23 @@ class BBCodeRenderer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final defaultTextStyle = defaultStyle ?? Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
+    final defaultTextStyle =
+        defaultStyle ??
+        Theme.of(context).textTheme.bodyMedium ??
+        const TextStyle();
     final decodedData = data
-      .replaceAll('&#92;', r'\')
-      .replaceAll('&gt;', '>')
-      .replaceAll('&lt;', '<')
-      .replaceAll('&amp;', '&');
-      
+        .replaceAll('&#92;', r'\')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&amp;', '&');
+
     final widgets = _parseBBCode(context, decodedData);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: widgets.map((widget) {
         if (widget is RichText) {
-          return DefaultTextStyle(
-            style: defaultTextStyle,
-            child: widget,
-          );
+          return DefaultTextStyle(style: defaultTextStyle, child: widget);
         }
         return widget;
       }).toList(),
@@ -11021,22 +11317,26 @@ class BBCodeRenderer extends StatelessWidget {
 
         if (lowerCaseMatch.startsWith('[center]')) {
           final content = matchText.substring(8, matchText.length - 9);
-          widgets.add(Center(child: Column(children: _parseBBCode(context, content))));
-        } 
-        else if (lowerCaseMatch.startsWith('[left]')) {
+          widgets.add(
+            Center(child: Column(children: _parseBBCode(context, content))),
+          );
+        } else if (lowerCaseMatch.startsWith('[left]')) {
           final content = matchText.substring(6, matchText.length - 7);
-          widgets.add(Align(
-            alignment: Alignment.centerLeft,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: _parseBBCode(context, content)),
-          ));
-        } 
-        else if (lowerCaseMatch.startsWith('[list')) {
+          widgets.add(
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _parseBBCode(context, content),
+              ),
+            ),
+          );
+        } else if (lowerCaseMatch.startsWith('[list')) {
           final bool isOrdered = lowerCaseMatch.startsWith('[list=1]');
           final int startIndex = matchText.indexOf(']') + 1;
           final content = matchText.substring(startIndex, matchText.length - 7);
           widgets.add(_buildList(context, content, isOrdered: isOrdered));
-        } 
-        else if (lowerCaseMatch.startsWith('[img]')) {
+        } else if (lowerCaseMatch.startsWith('[img]')) {
           final url = matchText.substring(5, matchText.length - 6).trim();
           widgets.add(
             Padding(
@@ -11044,7 +11344,7 @@ class BBCodeRenderer extends StatelessWidget {
               child: Image.network(
                 url,
                 errorBuilder: (context, error, stackTrace) =>
-                  const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                    const Icon(Icons.broken_image_outlined, color: Colors.grey),
               ),
             ),
           );
@@ -11057,7 +11357,7 @@ class BBCodeRenderer extends StatelessWidget {
 
         // Ahora, dividimos el texto sobrante por la etiqueta [*]
         final itemParts = text.split(RegExp(r'\[\*\]', caseSensitive: false));
-        
+
         // El primer fragmento es texto normal antes de la primera viñeta
         if (itemParts.first.trim().isNotEmpty) {
           widgets.add(_buildRichText(context, itemParts.first));
@@ -11078,9 +11378,13 @@ class BBCodeRenderer extends StatelessWidget {
 
     return widgets;
   }
-  
+
   /// Widget para construir listas.
-  Widget _buildList(BuildContext context, String content, {bool isOrdered = false}) {
+  Widget _buildList(
+    BuildContext context,
+    String content, {
+    bool isOrdered = false,
+  }) {
     final items = content.split(RegExp(r'\[\*\]', caseSensitive: false));
     if (items.isEmpty) return const SizedBox.shrink();
 
@@ -11100,7 +11404,10 @@ class BBCodeRenderer extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(right: 8.0, top: 2.0),
-                child: Text(bullet, style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(
+                  bullet,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
               Expanded(
                 child: Column(
@@ -11133,16 +11440,15 @@ class BBCodeRenderer extends StatelessWidget {
     );
   }
 
-
   /// Construye el RichText para estilos en línea (negrita, color, fuente, etc.).
   Widget _buildRichText(BuildContext context, String text) {
     final List<TextSpan> spans = [];
     final List<TextStyle> styleStack = [const TextStyle()];
     final List<GestureRecognizer?> recognizerStack = [null];
-    
+
     final regex = RegExp(
-        r'\[\/?(b|u|i|s|color|size|url|font)(?:=([^\]]*))?\]',
-        caseSensitive: false,
+      r'\[\/?(b|u|i|s|color|size|url|font)(?:=([^\]]*))?\]',
+      caseSensitive: false,
     );
 
     text.splitMapJoin(
@@ -11164,13 +11470,17 @@ class BBCodeRenderer extends StatelessWidget {
               currentStyle = currentStyle.copyWith(fontWeight: FontWeight.bold);
               break;
             case 'u':
-              currentStyle = currentStyle.copyWith(decoration: TextDecoration.underline);
+              currentStyle = currentStyle.copyWith(
+                decoration: TextDecoration.underline,
+              );
               break;
             case 'i':
               currentStyle = currentStyle.copyWith(fontStyle: FontStyle.italic);
               break;
             case 's':
-              currentStyle = currentStyle.copyWith(decoration: TextDecoration.lineThrough);
+              currentStyle = currentStyle.copyWith(
+                decoration: TextDecoration.lineThrough,
+              );
               break;
             case 'color':
               final color = _hexToColor(tagValue);
@@ -11197,15 +11507,17 @@ class BBCodeRenderer extends StatelessWidget {
                       print('Could not launch URL $tagValue: $e');
                     }
                   };
-                  currentStyle = currentStyle.copyWith(
-                    color: Colors.lightBlueAccent,
-                    decoration: TextDecoration.underline,
-                  );
+                currentStyle = currentStyle.copyWith(
+                  color: Colors.lightBlueAccent,
+                  decoration: TextDecoration.underline,
+                );
               }
               break;
             case 'font':
               if (tagValue != null) {
-                currentStyle = currentStyle.copyWith(fontFamily: tagValue.replaceAll("'", "").replaceAll('"', ""));
+                currentStyle = currentStyle.copyWith(
+                  fontFamily: tagValue.replaceAll("'", "").replaceAll('"', ""),
+                );
               }
               break;
           }
@@ -11227,7 +11539,7 @@ class BBCodeRenderer extends StatelessWidget {
         return '';
       },
     );
-    
+
     return RichText(
       text: TextSpan(
         children: spans,
@@ -11252,14 +11564,22 @@ class BBCodeRenderer extends StatelessWidget {
     final sizeNum = int.tryParse(size);
     if (sizeNum == null) return null;
     switch (sizeNum) {
-      case 1: return 10.0;
-      case 2: return 12.0;
-      case 3: return 14.0;
-      case 4: return 16.0;
-      case 5: return 20.0;
-      case 6: return 24.0;
-      case 7: return 32.0;
-      default: return 14.0;
+      case 1:
+        return 10.0;
+      case 2:
+        return 12.0;
+      case 3:
+        return 14.0;
+      case 4:
+        return 16.0;
+      case 5:
+        return 20.0;
+      case 6:
+        return 24.0;
+      case 7:
+        return 32.0;
+      default:
+        return 14.0;
     }
   }
 }
@@ -11369,12 +11689,8 @@ class _AnimatedModSwitchState extends State<AnimatedModSwitch> {
             },
     );
 
-    // Aplica el escalado solo si es diferente de 1.0
     if (widget.scale != 1.0) {
-      return Transform.scale(
-        scale: widget.scale,
-        child: switchWidget,
-      );
+      return Transform.scale(scale: widget.scale, child: switchWidget);
     }
 
     return switchWidget;

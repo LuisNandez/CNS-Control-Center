@@ -583,5 +583,169 @@
   "modTypeLogic": "Logic",
   "@modTypeLogic": {
     "description": "Description for the Logic mod type"
-  }
+  },
+  "patcherStarted": "=== StellarBlade Dart Patcher Started ===",
+  "workingDirectory": "Working directory: {path}",
+  "@workingDirectory": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "modsDirNotFound": "The ~mods directory does not exist at: {path}",
+  "@modsDirNotFound": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "warnCannotScanFolder": "\n  WARNING: Could not scan folder {path}. Skipping.",
+  "@warnCannotScanFolder": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "errorDetails": "  Error: {error}\n",
+  "@errorDetails": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "foundUtocFiles": "Found {count} .utoc files",
+  "@foundUtocFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noModsFound2": "No mods found to process.",
+  "patcherSummaryTitle": "\n=== Patcher Summary (Raw Data) ===",
+  "processedMods": "Processed {count} mods.",
+  "@processedMods": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fixedContainerIdConflicts": "Fixed {count} Container ID conflicts.",
+  "@fixedContainerIdConflicts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "foundPackageIdConflicts": "Found {count} Package ID conflicts.",
+  "@foundPackageIdConflicts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fatalErrorTitle": "\n=== FATAL ERROR ===",
+  "patcherServiceError": "Error in PatcherService: {error}",
+  "@patcherServiceError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "analyzingFile": "--- Analyzing: {fileName} ---",
+  "@analyzingFile": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
+  "warnUcasNotFound": "  WARNING: .ucas file not found. Skipping.",
+  "warnCorruptHeader": "  WARNING: Corrupt header, entry size exceeds file size. Skipping.",
+  "conflictContainerIdDetected": "  Container ID CONFLICT detected: {id}",
+  "@conflictContainerIdDetected": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "generatingNewId": "  Generating new ID: {id}",
+  "@generatingNewId": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "utocFilePatched": "  .utoc file patched.",
+  "patchingUcasFile": "  Patching .ucas file...",
+  "ucasReplacementsSuccess": "  Successful replacements in .ucas: {count}",
+  "@ucasReplacementsSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "patchComplete": "  Patch complete!",
+  "idRegisteredNoConflict": "  ID {id} registered. No conflicts.",
+  "@idRegisteredNoConflict": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "errorProcessingFile": "  ERROR processing {fileName}: {error}",
+  "@errorProcessingFile": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "statusRunningPatcher": "Running Conflict Patcher...",
+  "summarySuccessContainerIds": "✅ Success! Fixed {count} crash-causing Container ID conflicts.",
+  "@summarySuccessContainerIds": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "summaryNoContainerIdConflicts": "✅ No Container ID (crash) conflicts were found.",
+  "summaryNoPackageIdConflicts": "✅ Good news! No serious Package ID (overwrite) conflicts were found.",
+  "summaryFoundPackageIdConflicts": "⚠️ Warning! Found {count} groups of mods that cannot coexist:",
+  "@summaryFoundPackageIdConflicts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "summaryConflictGroupDetails": "  • This group of mods competes for {count} files:",
+  "@summaryConflictGroupDetails": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "patcherSummaryDialogTitle": "Patcher Summary",
+  "dialogActionShowFullLog": "Show Full Log",
+  "fullLogDialogTitle": "Conflict Patcher Log (Dart)",
+  "runConflictPatcherTitle": "Run Conflict Patcher",
+  "runConflictPatcherSubtitlePython": "Fixes Container_Id & Package_Id crashes"
 }

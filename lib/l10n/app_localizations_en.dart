@@ -1241,4 +1241,149 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modTypeLogic => 'Logic';
+
+  @override
+  String get patcherStarted => '=== StellarBlade Dart Patcher Started ===';
+
+  @override
+  String workingDirectory(String path) {
+    return 'Working directory: $path';
+  }
+
+  @override
+  String modsDirNotFound(String path) {
+    return 'The ~mods directory does not exist at: $path';
+  }
+
+  @override
+  String warnCannotScanFolder(String path) {
+    return '\n  WARNING: Could not scan folder $path. Skipping.';
+  }
+
+  @override
+  String errorDetails(String error) {
+    return '  Error: $error\n';
+  }
+
+  @override
+  String foundUtocFiles(int count) {
+    return 'Found $count .utoc files';
+  }
+
+  @override
+  String get noModsFound2 => 'No mods found to process.';
+
+  @override
+  String get patcherSummaryTitle => '\n=== Patcher Summary (Raw Data) ===';
+
+  @override
+  String processedMods(int count) {
+    return 'Processed $count mods.';
+  }
+
+  @override
+  String fixedContainerIdConflicts(int count) {
+    return 'Fixed $count Container ID conflicts.';
+  }
+
+  @override
+  String foundPackageIdConflicts(int count) {
+    return 'Found $count Package ID conflicts.';
+  }
+
+  @override
+  String get fatalErrorTitle => '\n=== FATAL ERROR ===';
+
+  @override
+  String patcherServiceError(String error) {
+    return 'Error in PatcherService: $error';
+  }
+
+  @override
+  String analyzingFile(String fileName) {
+    return '--- Analyzing: $fileName ---';
+  }
+
+  @override
+  String get warnUcasNotFound => '  WARNING: .ucas file not found. Skipping.';
+
+  @override
+  String get warnCorruptHeader =>
+      '  WARNING: Corrupt header, entry size exceeds file size. Skipping.';
+
+  @override
+  String conflictContainerIdDetected(int id) {
+    return '  Container ID CONFLICT detected: $id';
+  }
+
+  @override
+  String generatingNewId(int id) {
+    return '  Generating new ID: $id';
+  }
+
+  @override
+  String get utocFilePatched => '  .utoc file patched.';
+
+  @override
+  String get patchingUcasFile => '  Patching .ucas file...';
+
+  @override
+  String ucasReplacementsSuccess(int count) {
+    return '  Successful replacements in .ucas: $count';
+  }
+
+  @override
+  String get patchComplete => '  Patch complete!';
+
+  @override
+  String idRegisteredNoConflict(int id) {
+    return '  ID $id registered. No conflicts.';
+  }
+
+  @override
+  String errorProcessingFile(String fileName, String error) {
+    return '  ERROR processing $fileName: $error';
+  }
+
+  @override
+  String get statusRunningPatcher => 'Running Conflict Patcher...';
+
+  @override
+  String summarySuccessContainerIds(int count) {
+    return '✅ Success! Fixed $count crash-causing Container ID conflicts.';
+  }
+
+  @override
+  String get summaryNoContainerIdConflicts =>
+      '✅ No Container ID (crash) conflicts were found.';
+
+  @override
+  String get summaryNoPackageIdConflicts =>
+      '✅ Good news! No serious Package ID (overwrite) conflicts were found.';
+
+  @override
+  String summaryFoundPackageIdConflicts(int count) {
+    return '⚠️ Warning! Found $count groups of mods that cannot coexist:';
+  }
+
+  @override
+  String summaryConflictGroupDetails(int count) {
+    return '  • This group of mods competes for $count files:';
+  }
+
+  @override
+  String get patcherSummaryDialogTitle => 'Patcher Summary';
+
+  @override
+  String get dialogActionShowFullLog => 'Show Full Log';
+
+  @override
+  String get fullLogDialogTitle => 'Conflict Patcher Log (Dart)';
+
+  @override
+  String get runConflictPatcherTitle => 'Run Conflict Patcher';
+
+  @override
+  String get runConflictPatcherSubtitlePython =>
+      'Fixes Container_Id & Package_Id crashes';
 }

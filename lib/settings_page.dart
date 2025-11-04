@@ -145,8 +145,8 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           ListTile(
             leading: const Icon(Icons.electrical_services_outlined, color: Colors.orangeAccent),
-            title: const Text("Ejecutar Patcher de Conflictos"), // Texto nuevo
-            subtitle: const Text("Repara crasheos por Container_Id y Package_Id (requiere Python)"), // Texto nuevo
+            title: Text(l10n.runConflictPatcherTitle),
+            subtitle: Text(l10n.runConflictPatcherSubtitlePython),
             onTap: widget.onRunConflictPatcher,
           ),
           
