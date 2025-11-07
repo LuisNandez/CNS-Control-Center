@@ -8346,6 +8346,8 @@ Future<void> _deployScriptAssets() async {
                   child: _viewMode == ModListViewMode.grid
                       ? GridView.builder(
                           key: const ValueKey('grid'),
+                          cacheExtent:
+                              1000.0, // Mejora el rendimiento al hacer scroll
                           padding: const EdgeInsets.all(4),
                           gridDelegate:
                               const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -8361,6 +8363,8 @@ Future<void> _deployScriptAssets() async {
                         )
                       : ListView.builder(
                           key: const ValueKey('list'),
+                          cacheExtent:
+                              1000.0, // Mejora el rendimiento al hacer scroll
                           itemCount: mods.length,
                           itemBuilder: (context, index) {
                             return _buildModListTile(mods[index], l10n);
@@ -9725,7 +9729,18 @@ class _ModThumbnailImageState extends State<ModThumbnailImage> {
       return;
     }
 
-    // Si es de red, usamos el servicio de caché
+    final File? cachedFile =
+        widget.thumbnailService.getFromMemoryCache(widget.imageUrl!);
+    if (cachedFile != null && mounted) {
+      // Si está en memoria, la cargamos al instante, sin 'async' ni 'setState' de carga.
+      setState(() {
+        _imageFile = cachedFile;
+        _isLoading = false;
+      });
+      return; // ¡Listo!
+    }
+
+    // 2. Si no está en memoria, mostramos 'cargando' y la buscamos (asincrónico)
     setState(() => _isLoading = true);
     final file = await widget.thumbnailService.getThumbnail(widget.imageUrl!);
     if (mounted) {
