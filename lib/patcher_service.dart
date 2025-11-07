@@ -8,11 +8,20 @@ import 'dart:typed_data';
 // import 'package:uuid/uuid.dart'; // Ya no es necesario
 import 'package:path/path.dart' as p;
 import 'l10n/app_localizations.dart';
+import 'package:flutter/material.dart';
+
+enum LogEntryType { normal, success, error, info }
+
+class LogEntry {
+  final String text;
+  final LogEntryType type;
+  LogEntry(this.text, [this.type = LogEntryType.normal]);
+}
 
 // Usamos una clase para encapsular la lógica, tal como lo hacía el script de Python.
 class PatcherResult {
   /// El log de texto completo para depuración.
-  final String fullLog;
+  final List<LogEntry> logEntries;
   
   /// Cuántos conflictos de Container ID se corrigieron.
   final int containerIdsFixed;
@@ -22,7 +31,7 @@ class PatcherResult {
   final Map<int, List<String>> packageIdConflicts;
 
   PatcherResult({
-    required this.fullLog,
+    required this.logEntries,
     required this.containerIdsFixed,
     required this.packageIdConflicts,
   });
@@ -31,7 +40,7 @@ class PatcherResult {
 class PatcherService {
   final List<int> _containerIds = [];
   final Map<int, List<String>> _packageIds = {};
-  final StringBuffer _log = StringBuffer();
+  final List<LogEntry> _logEntries = [];
   // final Uuid _uuid = const Uuid(); // Ya no se usa
   
   // ++ USAMOS Random.secure() en lugar de UUID ++
@@ -45,8 +54,8 @@ class PatcherService {
     // Usamos un try-catch para devolver el log, ya sea de éxito o de error.
     // Observa que ahora devuelve un Future<PatcherResult>
     return _safeRun(() async {
-      _log.writeln(l10n.patcherStarted);
-      _log.writeln(l10n.workingDirectory(modsDirectoryPath));
+      _logEntries.add(LogEntry(l10n.patcherStarted));
+      _logEntries.add(LogEntry(l10n.workingDirectory(modsDirectoryPath)));
 
       final dir = Directory(modsDirectoryPath);
       if (!await dir.exists()) {
@@ -66,19 +75,22 @@ class PatcherService {
             }
           }
         } catch (e) {
-          _log.writeln(l10n.warnCannotScanFolder(currentDir.path));
-          _log.writeln(l10n.errorDetails(e.toString()));
+          _logEntries.add(LogEntry(
+              l10n.warnCannotScanFolder(currentDir.path), LogEntryType.error));
+          _logEntries.add(
+              LogEntry(l10n.errorDetails(e.toString()), LogEntryType.error));
         }
       }
 
       await findUtocFiles(dir);
 
-      _log.writeln(l10n.foundUtocFiles(utocFiles.length));
+      _logEntries.add(LogEntry(l10n.foundUtocFiles(utocFiles.length)));
       if (utocFiles.isEmpty) {
-        _log.writeln(l10n.noModsFound2);
+        _logEntries.add(LogEntry(l10n.noModsFound2));
         // Devolvemos un resultado vacío
         return PatcherResult(
-          fullLog: _log.toString(),
+          // -- MODIFICADO: --
+          logEntries: _logEntries,
           containerIdsFixed: 0,
           packageIdConflicts: {},
         );
@@ -103,14 +115,16 @@ class PatcherService {
       });
 
       // 3. Escribir el resumen final en el log (PARA EL LOG COMPLETO)
-      _log.writeln(l10n.patcherSummaryTitle);
-      _log.writeln(l10n.processedMods(utocFiles.length));
-      _log.writeln(l10n.fixedContainerIdConflicts(fixedContainerIdCount));
-      _log.writeln(l10n.foundPackageIdConflicts(allPackageIdConflicts.length));
+      _logEntries.add(LogEntry(l10n.patcherSummaryTitle));
+      _logEntries.add(LogEntry(l10n.processedMods(utocFiles.length)));
+      _logEntries.add(
+          LogEntry(l10n.fixedContainerIdConflicts(fixedContainerIdCount)));
+      _logEntries.add(
+          LogEntry(l10n.foundPackageIdConflicts(allPackageIdConflicts.length)));
 
       // 4. Devolver el objeto PatcherResult estructurado
       return PatcherResult(
-        fullLog: _log.toString(),
+        logEntries: _logEntries,
         containerIdsFixed: fixedContainerIdCount,
         packageIdConflicts: allPackageIdConflicts,
       );
@@ -122,13 +136,13 @@ class PatcherService {
     try {
       return await action();
     } catch (e, s) {
-      _log.writeln(l10n.fatalErrorTitle);
-      _log.writeln(e.toString());
-      _log.writeln(s.toString());
+      _logEntries.add(LogEntry(l10n.fatalErrorTitle, LogEntryType.error));
+      _logEntries.add(LogEntry(e.toString(), LogEntryType.error));
+      _logEntries.add(LogEntry(s.toString(), LogEntryType.error));
       print(l10n.patcherServiceError(e.toString()));
       // Devolver un PatcherResult con el log de error
       return PatcherResult(
-        fullLog: _log.toString(),
+        logEntries: _logEntries,
         containerIdsFixed: 0,
         packageIdConflicts: {},
       );
@@ -213,13 +227,13 @@ class PatcherService {
   // ++ FUNCIÓN COMPLETAMENTE REESCRITA (para evitar errores de RandomAccessFile) ++
   Future<bool> _parseUtoc(File utocFile) async {
     final String baseName = p.basename(utocFile.path);
-    _log.writeln(l10n.analyzingFile(baseName));
+    _logEntries.add(LogEntry(l10n.analyzingFile(baseName)));
 
     try {
       final String ucasPath = utocFile.path.replaceAll('.utoc', '.ucas');
       final File ucasFile = File(ucasPath);
       if (!await ucasFile.exists()) {
-        _log.writeln(l10n.warnUcasNotFound);
+        _logEntries.add(LogEntry(l10n.warnUcasNotFound, LogEntryType.error));
         return false;
       }
 
@@ -237,7 +251,7 @@ class PatcherService {
       for (int i = 0; i < tocEntryCount; i++) {
         final int offset = 144 + (i * 12); // Offset desde el inicio del archivo
         if (offset + 12 > utocData.length) {
-            _log.writeln(l10n.warnCorruptHeader);
+            //_logEntries.add(LogEntry(l10n.warnCorruptHeader, LogEntryType.error));
             break;
         }
         final int packageId = utocView.getUint64(offset, Endian.little);
@@ -254,36 +268,43 @@ class PatcherService {
       // --- Lógica de Conflicto de Container ID ---
       if (_containerIds.contains(oldContainerId)) {
         // ¡Conflicto detectado!
-        _log.writeln(l10n.conflictContainerIdDetected(oldContainerId));
+        _logEntries.add(LogEntry(
+            l10n.conflictContainerIdDetected(oldContainerId),
+            LogEntryType.error));
 
         // Generamos un nuevo ID
         final int newContainerId = _generateU64Id();
-        _log.writeln(l10n.generatingNewId(newContainerId));
+        _logEntries.add(
+            LogEntry(l10n.generatingNewId(newContainerId), LogEntryType.info));
 
         // 1. Modificar el encabezado en memoria (offset 56)
         utocView.setUint64(56, newContainerId, Endian.little);
 
         // 2. Escribir los bytes del .utoc modificados de vuelta al disco
         await utocFile.writeAsBytes(utocData);
-        _log.writeln(l10n.utocFilePatched);
+        _logEntries.add(LogEntry(l10n.utocFilePatched, LogEntryType.info));
 
         // 3. Parchear el archivo .ucas (usando la función que ya lee/escribe)
-        _log.writeln(l10n.patchingUcasFile);
+        _logEntries.add(LogEntry(l10n.patchingUcasFile, LogEntryType.info));
         final int replacements =
             await _findAndReplaceBytes(ucasFile, oldContainerId, newContainerId);
-        _log.writeln(l10n.ucasReplacementsSuccess(replacements));
+        _logEntries.add(LogEntry(
+            l10n.ucasReplacementsSuccess(replacements), LogEntryType.info));
 
-        _log.writeln(l10n.patchComplete);
+        _logEntries.add(LogEntry(l10n.patchComplete, LogEntryType.info));
         return true;
       } else {
         // No hay conflicto, solo registramos el ID
         _containerIds.add(oldContainerId);
-        _log.writeln(l10n.idRegisteredNoConflict(oldContainerId));
+        _logEntries.add(LogEntry(
+            l10n.idRegisteredNoConflict(oldContainerId), LogEntryType.success));
         return false;
       }
     } catch (e, s) {
-      _log.writeln(l10n.errorProcessingFile(baseName, e.toString()));
-      _log.writeln(s.toString());
+      _logEntries.add(LogEntry(
+          l10n.errorProcessingFile(baseName, e.toString()),
+          LogEntryType.error));
+      _logEntries.add(LogEntry(s.toString(), LogEntryType.error));
       return false; // Indica que no se arregló
     }
   }

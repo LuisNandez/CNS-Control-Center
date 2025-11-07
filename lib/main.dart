@@ -2439,7 +2439,7 @@ Future<void> _deployScriptAssets() async {
       _statusMessage = l10n.statusRunningPatcher;
     });
 
-    String fullLog = ""; // Para el botón "Mostrar Log Completo"
+    List<LogEntry> fullLog = []; // Para el botón "Mostrar Log Completo"
 
     try {
       // 1. Crear una instancia del servicio y ejecutar el parcheo
@@ -2448,7 +2448,7 @@ Future<void> _deployScriptAssets() async {
         _genericModsPath!,
       );
 
-      fullLog = result.fullLog; // Guardamos el log completo
+      fullLog = result.logEntries; // Guardamos el log completo
 
       // 2. Procesar los resultados para crear un resumen simple
       final StringBuffer summary = StringBuffer();
@@ -2548,7 +2548,13 @@ Future<void> _deployScriptAssets() async {
         description: e.toString(),
       );
       // Si falla, muestra el log que se haya acumulado
-      _showFullPatcherLog(fullLog.isEmpty ? e.toString() : fullLog);
+      if (fullLog.isEmpty) {
+        // Si el log está vacío pero hubo un error, crea una entrada de error
+        _showFullPatcherLog([LogEntry(e.toString(), LogEntryType.error)]);
+      } else {
+        // Si ya había log, muéstralo
+        _showFullPatcherLog(fullLog);
+      }
     } finally {
       setState(() {
         _isLoading = false;
@@ -2558,9 +2564,24 @@ Future<void> _deployScriptAssets() async {
   }
 
   // ++ AÑADE ESTA NUEVA FUNCIÓN DE AYUDA (para no repetir código) ++
-  // (Puedes ponerla justo después de la función _runConflictPatcher)
-  void _showFullPatcherLog(String logContent) {
+  void _showFullPatcherLog(List<LogEntry> logEntries) {
     final l10n = AppLocalizations.of(context)!;
+
+    // Función de ayuda para mapear el tipo a un color
+    Color _getLogColor(LogEntryType type) {
+      switch (type) {
+        case LogEntryType.success:
+          return Colors.greenAccent; // VERDE
+        case LogEntryType.error:
+          return Colors.redAccent; // ROJO
+        case LogEntryType.info:
+          return Colors.lightBlueAccent; // AZUL
+        case LogEntryType.normal:
+        default:
+          return Colors.white; // BLANCO
+      }
+    }
+
     showDialog(
       context: context,
       builder: (logContext) => AlertDialog(
@@ -2570,7 +2591,28 @@ Future<void> _deployScriptAssets() async {
         content: SizedBox(
           width: MediaQuery.of(context).size.width * 0.7,
           height: MediaQuery.of(context).size.height * 0.7,
-          child: SingleChildScrollView(child: SelectableText(logContent)),
+          child: SingleChildScrollView(
+            // Usamos SelectableText.rich para los TextSpans
+            child: SelectableText.rich(
+              TextSpan(
+                // Estilo por defecto
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontFamily:
+                      'Consolas', // Una fuente monoespaciada es mejor para logs
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+                children: logEntries.map((entry) {
+                  // Mapea cada LogEntry a un TextSpan con su color
+                  return TextSpan(
+                    text: "${entry.text}\n", // Añade el salto de línea
+                    style: TextStyle(color: _getLogColor(entry.type)),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
         ),
         actions: [
           TextButton(

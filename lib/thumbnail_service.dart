@@ -10,6 +10,7 @@ import 'package:crypto/crypto.dart';
 // ++ AÑADIDO: Import para 'compute' (Isolates) ++
 import 'package:flutter/foundation.dart';
 
+
 // ++ AÑADIDO: Clase de ayuda para pasar datos al Isolate ++
 // (Debe estar fuera de la clase ThumbnailService)
 class _ProcessImageRequest {
