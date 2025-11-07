@@ -747,5 +747,6 @@
   "dialogActionShowFullLog": "Show Full Log",
   "fullLogDialogTitle": "Conflict Patcher Log (Dart)",
   "runConflictPatcherTitle": "Run Conflict Patcher",
-  "runConflictPatcherSubtitlePython": "Fixes Container_Id & Package_Id crashes"
+  "runConflictPatcherSubtitlePython": "Fixes Container_Id & Package_Id crashes",
+  "processingCover": "Processing Cover..."
 }

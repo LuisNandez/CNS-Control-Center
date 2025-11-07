@@ -1848,10 +1848,19 @@ Future<void> _deployScriptAssets() async {
 
         try {
           final nexusData = await _fetchNexusModData(nexusId);
-          if (nexusData != null) {
-            final content = await infoFile.readAsString();
-            Map<String, dynamic> data = json.decode(content);
+          // 1. Leer el JSON
+          Map<String, dynamic> data = {};
+          if (await infoFile.exists()) {
+            try {
+              final content = await infoFile.readAsString();
+              data = json.decode(content);
+            } catch (e) {
+              print("Corrigiendo nexus_info.json corrupto para $displayName.");
+            }
+          }
 
+          // 2. Actualizar con datos de Nexus (si se obtuvieron)
+          if (nexusData != null) {
             data['summary'] ??= nexusData['summary'];
             data['author'] ??= nexusData['author'];
             data['gallery'] ??= nexusData['gallery'];
@@ -1862,9 +1871,43 @@ Future<void> _deployScriptAssets() async {
 
             final encoder = JsonEncoder.withIndent('  ');
             await infoFile.writeAsString(encoder.convert(data));
+            
+            // 3. Cachear la miniatura de Nexus (esto PUEDE modificar el JSON de nuevo)
             await _cacheNexusThumbnail(
               modDirectory: modDirectory,
               nexusId: nexusId,
+            );
+
+            // 4. Volver a leer el JSON para obtener la ruta de portada definitiva
+            //    (ya sea la que estaba o la que _cacheNexusThumbnail acaba de añadir)
+            if (await infoFile.exists()) {
+              data = json.decode(await infoFile.readAsString());
+            }
+          }
+
+          // 5. PROCESAR LA IMAGEN DE PORTADA (Reflejado en la barra de carga)
+          //    Esto se ejecuta después de que los datos de Nexus/portada se hayan guardado.
+          final String? customCoverPath = data['customCoverPath'];
+          if (customCoverPath != null && customCoverPath.isNotEmpty) {
+            
+            // Actualizamos el estado para que el usuario vea que se procesa la imagen
+            setState(() {
+              _metadataUpdateStatus = l10n.statusUpdatingMetadata(
+                displayName,
+                i + 1,
+                modsToUpdate.length,
+              ) + " (${l10n.processingCover})"; // <-- Añadimos el nuevo estado
+            });
+
+            final String sourcePath = p.join(modDirectory.path, customCoverPath);
+            // Usamos la clave estable que definimos antes
+            final String cacheKey = p.basename(modDirectory.path) + customCoverPath;
+
+            // Forzamos al servicio de miniaturas a procesar y cachear esta imagen
+            await _thumbnailService.getThumbnail(
+              cacheKey,
+              sourcePath,
+              isLocalFile: true,
             );
           }
         } catch (e) {
@@ -7312,15 +7355,30 @@ Future<void> _deployScriptAssets() async {
   }
 
   Widget _buildModGridCard(ModInfo modInfo, AppLocalizations l10n) {
-    String? coverImagePath;
-    // 1. Prioriza la ruta de la portada personalizada (que ahora incluye nuestra imagen cacheada).
+    String? coverImagePath; // Esta es la ruta real del archivo O la URL
+    String? cacheKey; // Esta es la clave estable para el caché
+    bool isLocalFile = false; // Para saber si es un archivo local
+
+    // 1. Prioriza la portada personalizada.
     if (modInfo.customCoverPath != null &&
         modInfo.customCoverPath!.isNotEmpty) {
+      
+      // La ruta real y volátil (cambia al activar/desactivar)
       coverImagePath = p.join(modInfo.directory.path, modInfo.customCoverPath!);
+      
+      // La clave estable (nombre de carpeta + nombre de archivo)
+      cacheKey = p.basename(modInfo.directory.path) + modInfo.customCoverPath!;
+      
+      isLocalFile = true;
     }
-    // 2. Si no hay, recurre a la URL de internet de la galería.
+    // 2. Si no hay, recurre a la URL de internet.
     else if (modInfo.gallery != null && modInfo.gallery!.isNotEmpty) {
+      
+      // Para imágenes de red, la URL es tanto la ruta como la clave
       coverImagePath = modInfo.gallery!.first['thumbnail'] as String?;
+      cacheKey = coverImagePath;
+      
+      isLocalFile = false;
     }
 
     final updateInfo = _modUpdates[modInfo.directory.path];
@@ -7385,14 +7443,11 @@ Future<void> _deployScriptAssets() async {
                     color: Colors.black.withOpacity(0.5),
                     // Ahora usamos un único widget que maneja tanto imágenes locales como de red.
                     child: ModThumbnailImage(
-                      imageUrl: coverImagePath,
+                      imageUrl: cacheKey, // La clave estable
+                      imagePathToProcess: coverImagePath, // La ruta real
                       thumbnailService: _thumbnailService,
-                      // La propiedad 'isLocal' se determina dinámicamente.
-                      isLocal:
-                          coverImagePath != null &&
-                          !coverImagePath.startsWith('http'),
+                      isLocal: isLocalFile, // El booleano correcto
                       fit: BoxFit.cover,
-                      // La alineación se aplica aquí para las imágenes locales.
                       alignment:
                           modInfo.customCoverAlignment ?? Alignment.center,
                     ),
@@ -8346,8 +8401,8 @@ Future<void> _deployScriptAssets() async {
                   child: _viewMode == ModListViewMode.grid
                       ? GridView.builder(
                           key: const ValueKey('grid'),
-                          cacheExtent:
-                              1000.0, // Mejora el rendimiento al hacer scroll
+                          //cacheExtent:
+                              //4000.0, // Mejora el rendimiento al hacer scroll
                           padding: const EdgeInsets.all(4),
                           gridDelegate:
                               const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -8363,8 +8418,8 @@ Future<void> _deployScriptAssets() async {
                         )
                       : ListView.builder(
                           key: const ValueKey('list'),
-                          cacheExtent:
-                              1000.0, // Mejora el rendimiento al hacer scroll
+                          //cacheExtent:
+                              //4000.0, // Mejora el rendimiento al hacer scroll
                           itemCount: mods.length,
                           itemBuilder: (context, index) {
                             return _buildModListTile(mods[index], l10n);
@@ -9676,6 +9731,7 @@ class ModImage extends StatelessWidget {
 // ++ NEW WIDGET FOR OPTIMIZED THUMBNAILS ++
 class ModThumbnailImage extends StatefulWidget {
   final String? imageUrl;
+  final String? imagePathToProcess;
   final ThumbnailService thumbnailService;
   final double? width;
   final double? height;
@@ -9686,6 +9742,7 @@ class ModThumbnailImage extends StatefulWidget {
   const ModThumbnailImage({
     super.key,
     required this.imageUrl,
+    this.imagePathToProcess,
     required this.thumbnailService,
     this.width,
     this.height,
@@ -9711,38 +9768,40 @@ class _ModThumbnailImageState extends State<ModThumbnailImage> {
   @override
   void didUpdateWidget(covariant ModThumbnailImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.imageUrl != oldWidget.imageUrl) {
+    if (widget.imageUrl != oldWidget.imageUrl ||
+        widget.imagePathToProcess != oldWidget.imagePathToProcess) {
       _loadImage();
     }
   }
 
   void _loadImage() async {
-    if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
+    final String? cacheKey = widget.imageUrl;
+    final String? sourcePath = widget.imagePathToProcess;
+
+    if (cacheKey == null || sourcePath == null) {
       if (mounted) setState(() => _isLoading = false);
       return;
     }
 
-    // Si es una imagen local, simplemente la usamos
-    if (widget.isLocal) {
-      _imageFile = File(widget.imageUrl!);
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
-
+    // 1. Comprobar la caché de memoria PRIMERO (sincrónico)
+    //    La 'key' es la URL o la ruta del archivo
     final File? cachedFile =
-        widget.thumbnailService.getFromMemoryCache(widget.imageUrl!);
+        widget.thumbnailService.getFromMemoryCache(cacheKey);
     if (cachedFile != null && mounted) {
-      // Si está en memoria, la cargamos al instante, sin 'async' ni 'setState' de carga.
       setState(() {
         _imageFile = cachedFile;
         _isLoading = false;
       });
-      return; // ¡Listo!
+      return;
     }
-
-    // 2. Si no está en memoria, mostramos 'cargando' y la buscamos (asincrónico)
+    // 2. Si no está en memoria, mostramos 'cargando' y
+    //    llamamos al servicio, indicando si es un archivo local o no.
     setState(() => _isLoading = true);
-    final file = await widget.thumbnailService.getThumbnail(widget.imageUrl!);
+    final file = await widget.thumbnailService.getThumbnail(
+      cacheKey, // La clave estable
+      sourcePath, // La ruta real
+      isLocalFile: widget.isLocal,
+    );
     if (mounted) {
       setState(() {
         _imageFile = file;

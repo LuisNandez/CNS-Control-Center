@@ -1363,4 +1363,7 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get runConflictPatcherSubtitlePython =>
       'Fixes Container_Id & Package_Id crashes';
+
+  @override
+  String get processingCover => 'Processing Cover...';
 }

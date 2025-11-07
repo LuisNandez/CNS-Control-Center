@@ -2391,6 +2391,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fixes Container_Id & Package_Id crashes'**
   String get runConflictPatcherSubtitlePython;
+
+  /// No description provided for @processingCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing Cover...'**
+  String get processingCover;
 }
 
 class _AppLocalizationsDelegate
