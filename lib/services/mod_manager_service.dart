@@ -280,6 +280,42 @@ class ModManagerService {
               else customName = displayName;
             }
 
+            String folderNameLower = folderName.toLowerCase();
+            // Verificamos si estamos leyendo la ruta de CNS y si es Animations o Cosmetics
+            if (path == finalModsPath && (folderNameLower == 'animations' || folderNameLower == 'cosmetics')) {
+              bool needsSave = false;
+              Map<String, dynamic> localData = {};
+              
+              if (await infoFile.exists()) {
+                try {
+                  localData = json.decode(await infoFile.readAsString());
+                } catch (_) {}
+              }
+
+              // Forzamos el ID de Nexus de CNS (1496)
+              if (nexusId != '1496') {
+                nexusId = '1496';
+                localData['nexusId'] = '1496';
+                needsSave = true;
+              }
+              
+              // Opcional: Le ponemos un nombre claro para que no se confundan
+              if (!displayName.startsWith('CNS')) {
+                displayName = 'CNS ${folderName[0].toUpperCase()}${folderName.substring(1)}';
+                customName = displayName;
+                localData['displayName'] = displayName;
+                localData['customName'] = customName;
+                needsSave = true;
+              }
+
+              // Si le faltaba el ID, guardamos el json y forzamos la descarga de la portada 1496
+              if (needsSave) {
+                final encoder = JsonEncoder.withIndent('  ');
+                await infoFile.writeAsString(encoder.convert(localData));
+                await cacheNexusThumbnail(modDirectory: entity, nexusId: '1496', apiKey: apiKey);
+              }
+            }
+
             if (modType == null && isEnabled) {
               if (path == genericModsPath) modType = 'genericPak';
               else if (path == finalModsPath) modType = 'cns';
@@ -348,6 +384,16 @@ class ModManagerService {
     final enabledCnsMods = await getModsFromDirectory(finalModsPath, true);
     final enabledGenericMods = await getModsFromDirectory(genericModsPath, true, logicModNamesToIgnore: logicModFolderNames);
 
+    final List<ModInfo> coreCnsAddons = [];
+    enabledCnsMods.removeWhere((mod) {
+      final name = p.basename(mod.directory.path).toLowerCase();
+      if (name == 'animations' || name == 'cosmetics') {
+        coreCnsAddons.add(mod);
+        return true; // Lo remueve de enabledCnsMods
+      }
+      return false;
+    });
+
     if (gameRootPath == null) {
       return [...enabledCnsMods, ...enabledGenericMods, ...enabledLogicMods];
     }
@@ -355,7 +401,18 @@ class ModManagerService {
     final backupDirPath = p.join(gameRootPath, 'SB', 'Content', '__MOD_BACKUPS__');
     final disabledMods = await getModsFromDirectory(backupDirPath, false);
 
-    return [...enabledCnsMods, ...enabledGenericMods, ...enabledLogicMods, ...disabledMods];
+    final List<ModInfo> disabledCoreCnsAddons = [];
+    disabledMods.removeWhere((mod) {
+      final name = p.basename(mod.directory.path).toLowerCase();
+      // Verificamos que sea el de CNS viendo que tenga el nexusId 1496
+      if ((name == 'animations' || name == 'cosmetics') && mod.nexusId == '1496') {
+        disabledCoreCnsAddons.add(mod);
+        return true;
+      }
+      return false;
+    });
+
+    return [...enabledCnsMods, ...enabledGenericMods, ...enabledLogicMods, ...disabledMods, ...coreCnsAddons, ...disabledCoreCnsAddons];
   }
 
   static Future<int> runSelfHealing({
