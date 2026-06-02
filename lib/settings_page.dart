@@ -1,3 +1,5 @@
+//Es puramente UI. Es la pantalla de ajustes donde el usuario configura las rutas del juego, 7-Zip, su API Key de Nexus, el 
+//idioma y desinstala componentes core (UE4SS/CNS).
 import 'package:flutter/material.dart';
 import 'l10n/app_localizations.dart';
 

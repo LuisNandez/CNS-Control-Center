@@ -6,11 +6,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:file_picker/file_picker.dart';
-import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:desktop_drop/desktop_drop.dart';
-import 'package:win32_registry/win32_registry.dart';
 import 'l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -18,155 +16,28 @@ import 'package:window_manager/window_manager.dart';
 import 'settings_page.dart';
 import 'thumbnail_service.dart';
 import 'notification_service.dart';
-import 'package:translator/translator.dart';
-import 'package:flutter/gestures.dart';
 import 'mod_classifier_service.dart';
-import 'outfit_data.dart';
 import 'dart:async';
 import 'patcher_service.dart';
 
-class AppPrefs {
-  static const String languageCode = 'languageCode';
-  static const String gameRootPath = 'gameRootPath';
-  static const String sevenZipPath = 'sevenZipPath';
-  static const String nexusApiKey = 'nexusApiKey';
-  static const String skippedVersions = 'skippedVersions';
-  static const String filterMode = 'filterMode';
-  static const String modTypeFilterMode = 'modTypeFilterMode';
-  static const String sortMode = 'sortMode';
-  static const String viewMode = 'viewMode';
-  static const String showModTypeTags =
-      'showModTypeTags';
-}
-
-// Data class to hold all information about a mod.
-class ModInfo {
-  final Directory directory;
-  final String? nexusId;
-  String? localVersion;
-  final DateTime lastModified;
-  final DateTime? installDate;
-  bool isEnabled;
-  final String? origin;
-  final String displayName;
-  String customName;
-  final List<dynamic>? gallery;
-  final String? fitMeshType;
-  final String? modType;
-  final String? customCoverPath;
-  final Alignment? customCoverAlignment;
-  final DateTime? customCoverLastModified;
-  final String? customVersion;
-  final String? customFitMeshType;
-  String? summary;
-  String? description;
-  final String? customSummary;
-  final String? customDescription;
-  final String? author;
-  final String? customAuthor;
-  String? userNotes;
-  final String? sourceUrl;
-  final String? customSourceUrl;
-  final String? replacesOutfit;
-
-  ModInfo({
-    required this.directory,
-    this.nexusId,
-    this.localVersion,
-    required this.lastModified,
-    this.installDate,
-    required this.isEnabled,
-    this.origin,
-    required this.displayName,
-    required this.customName,
-    this.gallery,
-    this.fitMeshType,
-    this.modType,
-    this.customCoverPath,
-    this.customCoverAlignment,
-    this.customCoverLastModified,
-    this.customVersion,
-    this.customFitMeshType,
-    this.summary,
-    this.customSummary,
-    this.description,
-    this.customDescription,
-    this.author,
-    this.customAuthor,
-    this.userNotes,
-    this.sourceUrl,
-    this.customSourceUrl,
-    this.replacesOutfit,
-  });
-
-  ModInfo copyWith({
-    Directory? directory,
-    String? nexusId,
-    String? localVersion,
-    DateTime? lastModified,
-    DateTime? installDate,
-    bool? isEnabled,
-    String? origin,
-    String? displayName,
-    String? customName,
-    List<dynamic>? gallery,
-    String? fitMeshType,
-    String? modType,
-    String? customCoverPath,
-    Alignment? customCoverAlignment,
-    DateTime? customCoverLastModified,
-    String? customVersion,
-    String? customFitMeshType,
-    String? summary,
-    String? customSummary,
-    String? description,
-    String? customDescription,
-    String? author,
-    String? customAuthor,
-    String? userNotes,
-    String? sourceUrl,
-    String? customSourceUrl,
-    String? replacesOutfit,
-  }) {
-    return ModInfo(
-      directory: directory ?? this.directory,
-      nexusId: nexusId ?? this.nexusId,
-      localVersion: localVersion ?? this.localVersion,
-      lastModified: lastModified ?? this.lastModified,
-      installDate: installDate ?? this.installDate,
-      isEnabled: isEnabled ?? this.isEnabled,
-      origin: origin ?? this.origin,
-      displayName: displayName ?? this.displayName,
-      customName: customName ?? this.customName,
-      gallery: gallery ?? this.gallery,
-      fitMeshType: fitMeshType ?? this.fitMeshType,
-      modType: modType ?? this.modType,
-      customCoverPath: customCoverPath ?? this.customCoverPath,
-      customCoverAlignment: customCoverAlignment ?? this.customCoverAlignment,
-      customCoverLastModified:
-          customCoverLastModified ?? this.customCoverLastModified,
-      customVersion: customVersion ?? this.customVersion,
-      customFitMeshType: customFitMeshType ?? this.customFitMeshType,
-      summary: summary ?? this.summary,
-      customSummary: customSummary ?? this.customSummary,
-      description: description ?? this.description,
-      customDescription: customDescription ?? this.customDescription,
-      author: author ?? this.author,
-      customAuthor: customAuthor ?? this.customAuthor,
-      userNotes: userNotes ?? this.userNotes,
-      sourceUrl: sourceUrl ?? this.sourceUrl,
-      customSourceUrl: customSourceUrl ?? this.customSourceUrl,
-      replacesOutfit: replacesOutfit ?? this.replacesOutfit,
-    );
-  }
-
-  static String? _extractVersionFromName(String name) {
-    // Extracts a version number (e.g., 1.0.0) from a file/folder name (e.g., ModName v1.0.0)
-    final regex = RegExp(r'\b[vV][\s-]?([0-9]+(\.[0-9a-zA-Z]+)*)');
-    final match = regex.firstMatch(name);
-    return match?.group(1);
-  }
-}
+import 'models/mod_info.dart';
+import 'config/app_prefs.dart';
+import 'models/app_enums.dart';
+import 'utils/version_utils.dart';
+import 'services/nexus_api_service.dart';
+import 'services/file_manager_service.dart';
+import 'services/game_locator_service.dart';
+import 'ui/widgets/mod_grid_card.dart';
+import 'ui/widgets/mod_list_tile.dart';
+import 'ui/widgets/mod_details_panel.dart';
+import 'utils/text_utils.dart';
+import 'ui/dialogs/edit_dialogs.dart';
+import 'ui/widgets/installation_panel.dart';
+import 'services/core_installer_service.dart';
+import 'models/installation_models.dart';
+import 'services/archive_service.dart';
+import 'services/mod_manager_service.dart';
+import 'services/update_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -265,56 +136,9 @@ class ModInstallerHomePage extends StatefulWidget {
   State<ModInstallerHomePage> createState() => _ModInstallerHomePageState();
 }
 
-class _UpdateCheckJob {
-  final ModInfo? mod;
-  final bool isCns;
-  _UpdateCheckJob({this.mod, this.isCns = false});
-}
-
-class _PreparedMod {
-  final Directory sourceDir;
-  final Directory? ue4ssDir;
-  final Directory? tildeModsDir;
-  final String? nexusId;
-  final String? nexusVersion;
-  final String archiveName;
-  final ModDirectoryType modType;
-  _PreparedMod({
-    required this.sourceDir,
-    this.ue4ssDir,
-    this.tildeModsDir,
-    this.nexusId,
-    this.nexusVersion,
-    required this.archiveName,
-    required this.modType,
-  });
-}
-
-class _PreparedUE4SS {
-  final Directory sourceDir;
-  _PreparedUE4SS({required this.sourceDir});
-}
-
-enum ModFilter { all, enabled, disabled, updatesAvailable }
-
-enum ModTypeFilter { all, cns, replacement, movies, logicMod, generic }
-
-enum ModSort { name, date }
-
-enum ModListViewMode { grid, list }
-
-enum _AlternativeVersionAction { cancel, replace, installAsNew }
-
 class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
-  static const String _defaultUe4ssManifestContent = r'''
-  ["dwmapi.dll","ue4ss","ue4ss/Default_UVTD_Configs","ue4ss/Default_UVTD_Configs/Config","ue4ss/Default_UVTD_Configs/Config/case_preserving_variants.json","ue4ss/Default_UVTD_Configs/Config/member_rename_map.json","ue4ss/Default_UVTD_Configs/Config/object_items.json","ue4ss/Default_UVTD_Configs/Config/pdbs_to_dump.json","ue4ss/Default_UVTD_Configs/Config/private_variables.json","ue4ss/Default_UVTD_Configs/Config/types_not_to_dump.json","ue4ss/Default_UVTD_Configs/Config/uprefix_to_fprefix.json","ue4ss/Default_UVTD_Configs/Config/valid_udt_names.json","ue4ss/Default_UVTD_Configs/Config/virtual_generator_includes.json","ue4ss/LICENSE","ue4ss/Mods","ue4ss/Mods/ActorDumperMod","ue4ss/Mods/ActorDumperMod/Scripts","ue4ss/Mods/ActorDumperMod/Scripts/main.lua","ue4ss/Mods/BPML_GenericFunctions","ue4ss/Mods/BPML_GenericFunctions/Scripts","ue4ss/Mods/BPML_GenericFunctions/Scripts/main.lua","ue4ss/Mods/BPModLoaderMod","ue4ss/Mods/BPModLoaderMod/load_order.txt","ue4ss/Mods/BPModLoaderMod/Scripts","ue4ss/Mods/BPModLoaderMod/Scripts/main.lua","ue4ss/Mods/CheatManagerEnablerMod","ue4ss/Mods/CheatManagerEnablerMod/Scripts","ue4ss/Mods/CheatManagerEnablerMod/Scripts/main.lua","ue4ss/Mods/ConsoleCommandsMod","ue4ss/Mods/ConsoleCommandsMod/Scripts","ue4ss/Mods/ConsoleCommandsMod/Scripts/dump_object.lua","ue4ss/Mods/ConsoleCommandsMod/Scripts/main.lua","ue4ss/Mods/ConsoleCommandsMod/Scripts/set.lua","ue4ss/Mods/ConsoleCommandsMod/Scripts/summon_unloaded_assets.lua","ue4ss/Mods/ConsoleEnablerMod","ue4ss/Mods/ConsoleEnablerMod/Scripts","ue4ss/Mods/ConsoleEnablerMod/Scripts/main.lua","ue4ss/Mods/jsbLuaProfilerMod","ue4ss/Mods/jsbLuaProfilerMod/Scripts","ue4ss/Mods/jsbLuaProfilerMod/Scripts/main.lua","ue4ss/Mods/Keybinds","ue4ss/Mods/Keybinds/Scripts","ue4ss/Mods/Keybinds/Scripts/main.lua","ue4ss/Mods/LineTraceMod","ue4ss/Mods/LineTraceMod/Scripts","ue4ss/Mods/LineTraceMod/Scripts/main.lua","ue4ss/Mods/mods.json","ue4ss/Mods/mods.txt","ue4ss/Mods/shared","ue4ss/Mods/shared/jsbProfiler","ue4ss/Mods/shared/jsbProfiler/jsbProfi.lua","ue4ss/Mods/shared/Types.lua","ue4ss/Mods/shared/UEHelpers","ue4ss/Mods/shared/UEHelpers/UEHelpers.lua","ue4ss/Mods/SplitScreenMod","ue4ss/Mods/SplitScreenMod/Scripts","ue4ss/Mods/SplitScreenMod/Scripts/main.lua","ue4ss/UE4SS-settings.ini","ue4ss/UE4SS.dll","ue4ss/UE4SS_Signatures","ue4ss/UE4SS_Signatures/FName_ToString.lua.example","ue4ss/UE4SS_Signatures/FText_Constructor.lua","ue4ss/UE4SS_Signatures/GNatives.lua","ue4ss/UE4SS_Signatures/GUObjectArray.lua","ue4ss/UE4SS_Signatures/GUObjectArray.lua.example","ue4ss/VTableLayout.ini"]
-  ''';
-
-  static const String _defaultCnsManifestContent = r'''
-  ["Binaries","Binaries/Win64","Binaries/Win64/ue4ss","Binaries/Win64/ue4ss/Mods","Binaries/Win64/ue4ss/Mods/DekCNS","Binaries/Win64/ue4ss/Mods/DekCNS/enabled.txt","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/config.lua","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/json.lua","Binaries/Win64/ue4ss/Mods/DekCNS/Scripts/main.lua","Binaries/Win64/ue4ss/nexus_info.json","Content","Content/Paks","Content/Paks/LogicMods","Content/Paks/LogicMods/DekCNS_P.pak","Content/Paks/LogicMods/DekCNS_P.ucas","Content/Paks/LogicMods/DekCNS_P.utoc","Content/Paks/~mods","Content/Paks/~mods/CustomNanosuitSystem","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultAccessories.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultEarrings.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultFaces.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultHairs.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfits.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsAdam.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsDrone.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultOutfitsLily.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-DefaultWeaponsTest.dekcns.json","Content/Paks/~mods/CustomNanosuitSystem/DekCNS-Defaults.dekcns.json"]
-  ''';
-  final List<_PreparedMod> _preparedMods = [];
-  _PreparedUE4SS? _preparedUE4SS;
+  final List<PreparedMod> _preparedMods = [];
+  PreparedUE4SS? _preparedUE4SS;
   Map<String, List<String>> _modsToInstallPreviewMap = {};
 
   String _statusMessage = '';
@@ -380,7 +204,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   OverlayEntry? _previewOverlay;
   Offset _cursorPosition = Offset.zero;
 
-  // ++ THUMBNAIL SERVICE INSTANCE ++
   final ThumbnailService _thumbnailService = ThumbnailService();
 
   @override
@@ -389,15 +212,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     if (_statusMessage.isEmpty && mounted) {
       _statusMessage = AppLocalizations.of(context)!.statusSearchingGame;
     }
-  }
-
-  String _normalizeName(String name) {
-    // Primero, elimina la extensión del archivo si existe (como .zip, .rar, etc.)
-    final withoutExtension = p.basenameWithoutExtension(name);
-    return withoutExtension.toLowerCase().replaceAll(
-      RegExp(r'[_ -]'),
-      '',
-    ); // Elimina guiones bajos, espacios y guiones
   }
 
   @override
@@ -432,8 +246,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
 
   Future<void> _initialize() async {
     await _getAppVersion();
-    await _thumbnailService.initialize(); // ++ INITIALIZE THUMBNAIL SERVICE ++
-    //await _deployScriptAssets();
+    await _thumbnailService.initialize();
     await _cleanUpOrphanedTempDirs();
     await _loadModDatabase();
     await _loadLogicModIds();
@@ -453,7 +266,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   }
 
   /*// Escribe los scripts empaquetados en el disco al iniciar la app.
-Future<void> _deployScriptAssets() async {
+  Future<void> _deployScriptAssets() async {
   final l10n = AppLocalizations.of(context)!;
   try {
     // 1. Obtener el directorio de la aplicación
@@ -485,9 +298,8 @@ Future<void> _deployScriptAssets() async {
       );
     }
   }
-}*/
+  }*/
 
-  /// Verifica la existencia de manifiestos para determinar si UE4SS y CNS están instalados.
   Future<void> _checkCoreInstallations() async {
     if (_gameRootPath == null) return;
     final l10n = AppLocalizations.of(context)!;
@@ -500,9 +312,7 @@ Future<void> _deployScriptAssets() async {
     final ue4ssManifest = File(p.join(metadataDir.path, 'ue4ss_manifest.json'));
     final cnsManifest = File(p.join(metadataDir.path, 'cns_manifest.json'));
 
-    // --- Lógica de Detección y Adopción ---
-
-    // 1. Adoptar UE4SS si no tiene manifiesto pero sí la carpeta clave.
+ 
     if (!await ue4ssManifest.exists()) {
       final ue4ssTriggerDir = Directory(
         p.join(win64Dir.path, 'ue4ss', 'Mods', 'ConsoleCommandsMod'),
@@ -511,7 +321,7 @@ Future<void> _deployScriptAssets() async {
         print("Adopting existing UE4SS installation...");
         if (!await metadataDir.exists())
           await metadataDir.create(recursive: true);
-        await ue4ssManifest.writeAsString(_defaultUe4ssManifestContent);
+        await ue4ssManifest.writeAsString(CoreInstallerService.defaultUe4ssManifestContent);
         if (mounted) {
           NotificationService.instance.show(
             context: context,
@@ -522,7 +332,6 @@ Future<void> _deployScriptAssets() async {
       }
     }
 
-    // 2. Adoptar CNS si no tiene manifiesto pero sí la carpeta clave.
     if (!await cnsManifest.exists()) {
       final cnsTriggerDir = Directory(
         p.join(win64Dir.path, 'ue4ss', 'Mods', 'DekCNS'),
@@ -531,7 +340,7 @@ Future<void> _deployScriptAssets() async {
         print("Adopting existing CNS installation...");
         if (!await metadataDir.exists())
           await metadataDir.create(recursive: true);
-        await cnsManifest.writeAsString(_defaultCnsManifestContent);
+        await cnsManifest.writeAsString(CoreInstallerService.defaultCnsManifestContent);
         if (mounted) {
           NotificationService.instance.show(
             context: context,
@@ -541,41 +350,19 @@ Future<void> _deployScriptAssets() async {
         }
       }
     }
-
-    // --- Lógica final para actualizar la UI ---
-    // Esto se ejecuta siempre, reflejando los manifiestos existentes o los que se acaban de crear.
     setState(() {
       _isUe4ssInstalled = ue4ssManifest.existsSync();
       _isCnsCoreInstalled = cnsManifest.existsSync();
     });
   }
 
-  /// Recorre un directorio de forma recursiva y devuelve una lista de rutas relativas.
-  Future<List<String>> _generateInstallManifest(
-    Directory sourceDir,
-    String basePath,
-  ) async {
-    final List<String> paths = [];
-    await for (final entity in sourceDir.list(
-      recursive: true,
-      followLinks: false,
-    )) {
-      final relativePath = p.relative(entity.path, from: basePath);
-      paths.add(relativePath.replaceAll(r'\', '/')); // Normalizar a slashes
-    }
-    return paths;
-  }
-
   Future<void> _showInstallationPanel({List<File>? initialFiles}) async {
-    // Limpia cualquier selección anterior al abrir el panel
     if (_preparedMods.isNotEmpty) {
       _clearSelection();
     }
 
     final l10n = AppLocalizations.of(context)!;
 
-    // El panel se reconstruirá internamente usando este StateSetter
-    // para no afectar a la pantalla principal.
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -583,361 +370,95 @@ Future<void> _deployScriptAssets() async {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      // Bloquea el cierre al tocar fuera del panel.
-      //isDismissible: false,
-      // Bloquea el cierre al deslizar el panel hacia abajo.
       enableDrag: false,
       builder: (context) {
         var hasProcessedInitialFiles = false;
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setPanelState) {
             if (initialFiles != null && !hasProcessedInitialFiles) {
-              // Usamos un post-frame callback para evitar errores de "setState durante el build".
               WidgetsBinding.instance.addPostFrameCallback((_) async {
                 final bool didInstall = await _processArchives(
-                  // <-- MODIFICADO
                   initialFiles,
                   panelStateSetter: setPanelState,
                 );
-                // Si se instaló algo, cierra el panel
                 if (didInstall && mounted) {
                   Navigator.pop(context);
                 }
               });
-              hasProcessedInitialFiles = true; // Marcamos como procesados.
+              hasProcessedInitialFiles = true;
             }
-            final canInstall =
-                _preparedMods.isNotEmpty &&
-                !_isLoading &&
-                !_isExtracting &&
-                !_isInstalling;
             return WillPopScope(
               onWillPop: () async {
-                // CASO 1: Si está ocupado (extrayendo/instalando), bloquea el cierre.
                 if (_isExtracting || _isLoading || _isInstalling) {
                   return false;
                 }
 
-                // CASO 2: Si hay mods listos, límpialo todo antes de cerrar.
                 if (_preparedMods.isNotEmpty) {
                   await _cancelAndCleanInstallation();
-                  // Actualiza el mensaje en la pantalla principal de forma segura.
                   setState(() {
-                    _statusMessage = AppLocalizations.of(
-                      context,
-                    )!.statusSelectionCancelled;
+                    _statusMessage = AppLocalizations.of(context)!.statusSelectionCancelled;
                     _statusColor = Colors.white;
                   });
                 }
-
-                // CASO 3: Si no está ocupado y no hay nada seleccionado, permite el cierre.
                 return true;
               },
-              child: DropTarget(
-                onDragDone: (details) async {
-                  final files = details.files.map((f) => File(f.path)).toList();
-                  if (files.isNotEmpty) {
-                    final bool didInstall = await _processArchives(
-                      // <-- MODIFICADO
-                      files,
-                      panelStateSetter: setPanelState,
-                    );
-                    if (didInstall && mounted) {
-                      Navigator.pop(context); // Cierra el panel
-                    } else {
-                      setPanelState(() {}); // Actualiza la UI si no se cerró
-                    }
+              child: InstallationPanelContent(
+                l10n: l10n,
+                isDragging: _isDragging,
+                isExtracting: _isExtracting,
+                isInstalling: _isInstalling,
+                isLoading: _isLoading,
+                extractionProgress: _extractionProgress,
+                extractionStatus: _extractionStatus,
+                installationProgress: _installationProgress,
+                installationStatus: _installationStatus,
+                statusMessage: _statusMessage,
+                statusColor: _statusColor,
+                hasPreparedMods: _preparedMods.isNotEmpty,
+                modsToInstallPreviewMap: _modsToInstallPreviewMap,
+                onFilesDropped: (files) async {
+                  final bool didInstall = await _processArchives(
+                    files,
+                    panelStateSetter: setPanelState,
+                  );
+                  if (didInstall && mounted) {
+                    Navigator.pop(context);
+                  } else {
+                    setPanelState(() {});
                   }
                 },
-                onDragEntered: (details) =>
-                    setPanelState(() => _isDragging = true),
-                onDragExited: (details) =>
-                    setPanelState(() => _isDragging = false),
-                child: Stack(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Barra superior para cerrar el panel
-                          Center(
-                            child: Container(
-                              height: 5,
-                              width: 40,
-                              margin: const EdgeInsets.only(bottom: 20),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[700],
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                            ),
-                          ),
-
-                          // Contenido del panel
-                          Text(
-                            l10n.installNewMod,
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Botones de selección e instalación
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  icon: const Icon(Icons.archive),
-                                  label: Text(l10n.selectModArchive),
-                                  onPressed:
-                                      (_isLoading ||
-                                          _isExtracting ||
-                                          _isInstalling)
-                                      ? null
-                                      : () async {
-                                          final bool didInstall =
-                                              await _pickArchive(
-                                                panelStateSetter: setPanelState,
-                                              ); // <-- MODIFICADO
-                                          if (didInstall && mounted) {
-                                            Navigator.pop(
-                                              context,
-                                            ); // Cierra el panel
-                                          } else {
-                                            setPanelState(
-                                              () {},
-                                            ); // Actualiza la UI si no se cerró
-                                          }
-                                        },
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  icon: const Icon(Icons.download_for_offline),
-                                  label: Text(l10n.installSelectedMod),
-                                  onPressed: canInstall
-                                      ? () async {
-                                          // ++ INICIO DE LA MODIFICACIÓN ++
-                                          // Pasa el setter a la función de instalación
-                                          await _installMod(
-                                            panelStateSetter: setPanelState,
-                                          );
-                                          if (mounted)
-                                            Navigator.pop(
-                                              context,
-                                            ); // Cierra el panel
-                                          // ++ FIN DE LA MODIFICACIÓN ++
-                                        }
-                                      : null,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: canInstall
-                                        ? Colors.tealAccent
-                                        : Colors.grey[700],
-                                    foregroundColor: Colors.black87,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          // Vista previa de la instalación
-                          if (_modsToInstallPreviewMap.isNotEmpty)
-                            _buildSelectionPreviewSection(
-                              l10n,
-                              panelStateSetter:
-                                  setPanelState, // <-- PASA EL SETTER AQUÍ
-                            ),
-
-                          const SizedBox(height: 20),
-
-                          // Indicadores de estado y progreso
-                          if (_isExtracting)
-                            Column(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8.0,
-                                  ),
-                                  child: Text(
-                                    _extractionStatus,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                LinearProgressIndicator(
-                                  value: _extractionProgress,
-                                  backgroundColor: Colors.grey[800],
-                                  valueColor:
-                                      const AlwaysStoppedAnimation<Color>(
-                                        Colors.tealAccent,
-                                      ),
-                                ),
-                              ],
-                            )
-                          else if (_isInstalling) // <-- AÑADIDO ESTE CASO
-                            Column(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8.0,
-                                  ),
-                                  child: Text(
-                                    _installationStatus, // Usa el nuevo estado
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                LinearProgressIndicator(
-                                  value:
-                                      _installationProgress, // Usa el nuevo progreso
-                                  backgroundColor: Colors.grey[800],
-                                  valueColor: const AlwaysStoppedAnimation<Color>(
-                                    Colors
-                                        .greenAccent, // Un color diferente para distinguirla
-                                  ),
-                                ),
-                              ],
-                            )
-                          else if (_preparedMods.isNotEmpty ||
-                              _statusColor != Colors.white)
-                            Text(
-                              _statusMessage,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: _statusColor,
-                              ),
-                            ),
-
-                          const SizedBox(height: 16),
-                        ],
-                      ),
-                    ),
-
-                    // Overlay de arrastrar y soltar
-                    if (_isDragging)
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(20),
-                          ),
-                          border: Border.all(
-                            color: Colors.tealAccent,
-                            width: 3,
-                          ),
-                        ),
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.download_for_offline,
-                                size: 80,
-                                color: Colors.tealAccent,
-                              ),
-                              const SizedBox(height: 20),
-                              Text(
-                                l10n.dropTargetOverlay,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                onDragUpdate: (isDragging) => setPanelState(() => _isDragging = isDragging),
+                onPickArchive: () async {
+                  final bool didInstall = await _pickArchive(
+                    panelStateSetter: setPanelState,
+                  );
+                  if (didInstall && mounted) {
+                    Navigator.pop(context);
+                  } else {
+                    setPanelState(() {});
+                  }
+                },
+                onInstallMod: () async {
+                  await _installMod(panelStateSetter: setPanelState);
+                  if (mounted) Navigator.pop(context);
+                },
+                onCancelSelection: () => _clearSelection(panelStateSetter: setPanelState),
               ),
             );
           },
         );
       },
     );
-
-    // Cuando el panel se cierra, recargamos la lista principal de mods.
     await _loadAllMods();
   }
 
-  /// Descarga la imagen principal de Nexus, la guarda localmente y actualiza el JSON del mod.
-  Future<void> _cacheNexusThumbnail({
-    required Directory modDirectory,
-    required String nexusId,
-  }) async {
-    final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
-    if (!await infoFile.exists())
-      return; // El archivo de información debe existir
-
-    try {
-      Map<String, dynamic> data = json.decode(await infoFile.readAsString());
-
-      // SI EL MOD YA TIENE UNA PORTADA PERSONALIZADA, NO HACEMOS NADA.
-      // Esto respeta la elección del usuario y evita descargas innecesarias.
-      if (data['customCoverPath'] != null &&
-          (data['customCoverPath'] as String).isNotEmpty) {
-        return;
-      }
-
-      // 1. Obtenemos la URL de la imagen desde la API de Nexus
-      final nexusData = await _fetchNexusModData(nexusId);
-      final gallery = nexusData?['gallery'] as List<dynamic>?;
-      if (gallery == null || gallery.isEmpty) return;
-
-      final imageUrl = gallery.first['image'] as String?;
-      if (imageUrl == null || imageUrl.isEmpty) return;
-
-      // 2. Descargamos la imagen
-      final response = await http.get(Uri.parse(imageUrl));
-      if (response.statusCode == 200) {
-        // 3. Guardamos la imagen en la carpeta del mod con un nombre estándar
-        final fileExtension = p.extension(imageUrl).isNotEmpty
-            ? p.extension(imageUrl)
-            : '.jpg';
-        const coverFileName = '_nexus_cover'; // Nombre base estándar
-        final finalFileName = '$coverFileName$fileExtension';
-
-        final coverFile = File(p.join(modDirectory.path, finalFileName));
-        await coverFile.writeAsBytes(response.bodyBytes);
-
-        // 4. Actualizamos el archivo nexus_info.json con la ruta local y una alineación por defecto
-        data['customCoverPath'] = finalFileName;
-        data['customCoverAlignmentX'] ??=
-            0.0; // Añade alineación por defecto si no existe
-        data['customCoverAlignmentY'] ??= 0.0;
-
-        final encoder = JsonEncoder.withIndent('  ');
-        await infoFile.writeAsString(encoder.convert(data));
-        print(
-          'Portada de Nexus cacheada para ${p.basename(modDirectory.path)}',
-        );
-      }
-    } catch (e) {
-      print(
-        'No se pudo cachear la portada de Nexus para ${p.basename(modDirectory.path)}: $e',
-      );
-    }
-  }
-
   Future<void> _cancelAndCleanInstallation() async {
-    // Limpia las listas de estado de la instalación.
     _preparedMods.clear();
     _modsToInstallPreviewMap.clear();
-
-    // Intenta eliminar de forma segura el directorio de extracción temporal.
     try {
       if (_tempExtractionDir != null && await _tempExtractionDir!.exists()) {
         await _tempExtractionDir!.delete(recursive: true);
-        _tempExtractionDir = null; // Libera la referencia
+        _tempExtractionDir = null;
         print('Temporary extraction directory cleaned up successfully.');
       }
     } catch (e) {
@@ -945,12 +466,10 @@ Future<void> _deployScriptAssets() async {
     }
   }
 
-  /// Desinstala un componente principal (UE4SS o CNS) leyendo su manifiesto.
   Future<bool> _uninstallCoreComponent({required bool isUe4ss}) async {
     final l10n = AppLocalizations.of(context)!;
     final componentName = isUe4ss ? "UE4SS" : "CNS";
 
-    // Si se intenta desinstalar UE4SS mientras CNS aún está instalado...
     if (isUe4ss && _isCnsCoreInstalled) {
       await showDialog(
         context: context,
@@ -966,7 +485,7 @@ Future<void> _deployScriptAssets() async {
           ],
         ),
       );
-      return false; // Detiene la desinstalación.
+      return false;
     }
 
     final confirm = await showDialog<bool>(
@@ -999,51 +518,13 @@ Future<void> _deployScriptAssets() async {
     try {
       if (_gameRootPath == null) throw Exception("Game path not found.");
 
-      final manifestName = isUe4ss
-          ? 'ue4ss_manifest.json'
-          : 'cns_manifest.json';
-      final manifestFile = File(
-        p.join(
-          _gameRootPath!,
-          'SB',
-          'Binaries',
-          'Win64',
-          '_manager_metadata',
-          manifestName,
-        ),
+      if (_gameRootPath == null) throw Exception("Game path not found.");
+
+      // Llama al nuevo servicio para hacer el trabajo sucio
+      await CoreInstallerService.uninstallCoreComponent(
+        isUe4ss: isUe4ss,
+        gameRootPath: _gameRootPath!,
       );
-
-      if (!await manifestFile.exists()) {
-        throw Exception("Installation manifest not found. Cannot uninstall.");
-      }
-
-      final content = await manifestFile.readAsString();
-      final List<String> relativePaths = List<String>.from(
-        json.decode(content),
-      );
-
-      final String baseDeletePath = isUe4ss
-          ? p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64')
-          : p.join(_gameRootPath!, 'SB');
-
-      for (final relativePath in relativePaths.reversed) {
-        final fullPath = p.join(baseDeletePath, relativePath);
-        try {
-          final entityType = await FileSystemEntity.type(
-            fullPath,
-            followLinks: false,
-          );
-          if (entityType == FileSystemEntityType.file) {
-            await File(fullPath).delete();
-          } else if (entityType == FileSystemEntityType.directory) {
-            await Directory(fullPath).delete();
-          }
-        } catch (e) {
-          print("Could not delete entity $fullPath: $e");
-        }
-      }
-
-      await manifestFile.delete();
 
       NotificationService.instance.show(
         context: context,
@@ -1068,26 +549,6 @@ Future<void> _deployScriptAssets() async {
         _statusMessage = "";
       });
     }
-  }
-
-  Future<List<File>> _findAllModFilesRecursive(Directory dir) async {
-    final List<File> foundFiles = [];
-    const validExtensions = [
-      '.json',
-      '.pak',
-      '.ucas',
-      '.utoc',
-      '.bk2',
-      '.lua',
-      '.txt',
-    ];
-    await for (final entity in dir.list(recursive: true, followLinks: false)) {
-      if (entity is File &&
-          validExtensions.contains(p.extension(entity.path).toLowerCase())) {
-        foundFiles.add(entity);
-      }
-    }
-    return foundFiles;
   }
 
   Future<void> _cleanUpOrphanedTempDirs() async {
@@ -1323,22 +784,6 @@ Future<void> _deployScriptAssets() async {
     }
   }
 
-  Future<bool> _validateApiKey(String apiKey) async {
-    if (apiKey.isEmpty) {
-      return false;
-    }
-    try {
-      final response = await http.get(
-        Uri.parse('https://api.nexusmods.com/v1/users/validate.json'),
-        headers: {'apikey': apiKey, 'accept': 'application/json'},
-      );
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Error validating API key: $e');
-      return false;
-    }
-  }
-
   Future<void> _getAppVersion() async {
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
     setState(() {
@@ -1426,7 +871,7 @@ Future<void> _deployScriptAssets() async {
         }
       }
 
-      gamePath ??= await _findSteamInstallation();
+      gamePath ??= await GameLocatorService.findSteamInstallation();
 
       if (gamePath != null && await Directory(gamePath).exists()) {
         final cnsModPath = p.join(
@@ -1444,16 +889,13 @@ Future<void> _deployScriptAssets() async {
           'Paks',
           '~mods',
         );
-        // Ruta de las películas del juego
         final moviesPath = p.join(gamePath, 'SB', 'Content', 'Movies');
-        // Ruta para guardar las películas ORIGINALES del juego
         final moviesBackupPath = p.join(
           gamePath,
           'SB',
           'Content',
           '__MOVIES_ORIGINALS__',
         );
-        // Ruta para los mods de Lógica (Paks)
         final logicModsPath = p.join(
           gamePath,
           'SB',
@@ -1461,7 +903,6 @@ Future<void> _deployScriptAssets() async {
           'Paks',
           'LogicMods',
         );
-        // Ruta para los mods de Lógica (UE4SS)
         final ue4ssModsPath = p.join(
           gamePath,
           'SB',
@@ -1470,7 +911,6 @@ Future<void> _deployScriptAssets() async {
           'ue4ss',
           'Mods',
         );
-        // Guarda la ruta encontrada
         final cnsDir = Directory(cnsModPath);
         final genericDir = Directory(genericModPath);
         final moviesBackupDir = Directory(moviesBackupPath);
@@ -1539,46 +979,6 @@ Future<void> _deployScriptAssets() async {
     } finally {
       setState(() => _isLoading = false);
     }
-  }
-
-  Future<String?> _findSteamInstallation() async {
-    if (!Platform.isWindows) return null;
-    try {
-      final key = Registry.openPath(
-        RegistryHive.currentUser,
-        path: r'Software\Valve\Steam',
-      );
-      final steamPath = key.getValueAsString('SteamPath');
-      key.close();
-
-      if (steamPath == null) return null;
-
-      final List<String> libraryPaths = [steamPath];
-      final libraryFoldersVdf = File(
-        p.join(steamPath, 'steamapps', 'libraryfolders.vdf'),
-      );
-
-      if (await libraryFoldersVdf.exists()) {
-        final content = await libraryFoldersVdf.readAsString();
-        final regex = RegExp(r'"path"\s+"(.+)"');
-        final matches = regex.allMatches(content);
-        for (final match in matches) {
-          final path = match.group(1)!.replaceAll(r'\\', r'\');
-          libraryPaths.add(path);
-        }
-      }
-
-      for (final libPath in libraryPaths.toSet()) {
-        final gamePath = p.join(libPath, 'steamapps', 'common', 'StellarBlade');
-        if (await Directory(gamePath).exists()) {
-          return gamePath;
-        }
-      }
-    } catch (e) {
-      print("Error searching Steam registry: $e");
-      return null;
-    }
-    return null;
   }
 
   Future<String?> _readCNSData() async {
@@ -1706,68 +1106,13 @@ Future<void> _deployScriptAssets() async {
     return null;
   }
 
-  Future<String?> _getVersionFromModJsonDescription(Directory modDir) async {
-    try {
-      await for (final file in modDir.list()) {
-        if (file is File && p.extension(file.path).toLowerCase() == '.json') {
-          final jsonString = await file.readAsString();
-          final jsonDecoded = json.decode(
-            jsonString.replaceAll(RegExp(r',\s*(?=[\}\]])'), ''),
-          );
-          if (jsonDecoded is List && jsonDecoded.isNotEmpty) {
-            final modInfo = jsonDecoded[0] as Map<String, dynamic>;
-            final description = modInfo['Description'] as String?;
-            if (description != null) {
-              return ModInfo._extractVersionFromName(description);
-            }
-          }
-          break;
-        }
-      }
-    } catch (e) {
-      print(
-        'Error reading version from JSON description for ${modDir.path}: $e',
-      );
-    }
-    return null;
-  }
-
-  String _stripVersionFromFolderName(String name) {
-    final regex = RegExp(
-      r'\s+[vV]?\d+(\.\d+)*(-[a-zA-Z0-9]+)?\s*$',
-      caseSensitive: false,
-    );
-    return name.replaceAll(regex, '').trim();
-  }
-
-  String _cleanNexusFileName(String fileName) {
-    // 1. Intenta encontrar un patrón de ID de Mod de Nexus (ej: -123-)
-    // Esta es la misma regex que se usa en _extractNexusInfoFromName
-    final nexusIdRegex = RegExp(r'-(\d{2,6})-');
-    final match = nexusIdRegex.firstMatch(fileName);
-
-    if (match != null) {
-      // ¡Encontrado! Devuelve todo lo que está ANTES del guion.
-      // ej: "AwesomeOutfit-123-1-0" -> match.start es el índice 14.
-      // substring(0, 14) devuelve "AwesomeOutfit".
-      return fileName.substring(0, match.start);
-    } else {
-      // 2. No se encontró el patrón de ID.
-      // Usa la lógica de limpieza antigua (para nombres como "MiMod v1.0").
-      return _stripVersionFromFolderName(fileName);
-    }
-  }
-
-  /// Escanea todos los mods y, si es necesario, actualiza sus metadatos mostrando una barra de progreso.
   Future<void> _runMetadataUpdateIfNeeded() async {
     if (_finalModsPath == null) return;
     final l10n = AppLocalizations.of(context)!;
 
-    // 1. Escanea en busca de mods que necesiten una actualización
     final List<Map<String, dynamic>> modsToUpdate = [];
     final List<String> modPaths = [];
 
-    // Escanea mods activados
     final enabledDir = Directory(_finalModsPath!);
     if (await enabledDir.exists()) {
       await for (var entity in enabledDir.list()) {
@@ -1775,7 +1120,6 @@ Future<void> _deployScriptAssets() async {
       }
     }
 
-    // Escanea mods desactivados
     if (_gameRootPath != null) {
       final backupDirPath = p.join(
         _gameRootPath!,
@@ -1803,7 +1147,7 @@ Future<void> _deployScriptAssets() async {
 
           bool needsUpdate =
               modManagerVersion == null ||
-              (_compareVersions(_appVersion, modManagerVersion) > 0);
+              (VersionUtils.compareVersions(_appVersion, modManagerVersion) > 0);
 
           if (needsUpdate &&
               nexusIdForCheck != null &&
@@ -1816,16 +1160,15 @@ Future<void> _deployScriptAssets() async {
           }
         } catch (e) {
           print(
-            'No se pudo analizar nexus_info.json para la comprobación de actualización de metadatos en ${modPath}: $e',
+            'No se pudo analizar nexus_info.json para la comprobación de actualización de metadatos en $modPath: $e',
           );
         }
       }
     }
 
-    // 2. Si se encuentran actualizaciones, ejecuta el proceso
     if (modsToUpdate.isNotEmpty) {
       setState(() {
-        _isLoading = false; // Detiene el spinner de carga principal
+        _isLoading = false;
         _isUpdatingMetadata = true;
         _metadataUpdateProgress = 0.0;
       });
@@ -1847,8 +1190,7 @@ Future<void> _deployScriptAssets() async {
         });
 
         try {
-          final nexusData = await _fetchNexusModData(nexusId);
-          // 1. Leer el JSON
+          final nexusData = await NexusApiService.fetchNexusModData(nexusId, _apiKey);
           Map<String, dynamic> data = {};
           if (await infoFile.exists()) {
             try {
@@ -1859,7 +1201,6 @@ Future<void> _deployScriptAssets() async {
             }
           }
 
-          // 2. Actualizar con datos de Nexus (si se obtuvieron)
           if (nexusData != null) {
             data['summary'] ??= nexusData['summary'];
             data['author'] ??= nexusData['author'];
@@ -1872,38 +1213,30 @@ Future<void> _deployScriptAssets() async {
             final encoder = JsonEncoder.withIndent('  ');
             await infoFile.writeAsString(encoder.convert(data));
             
-            // 3. Cachear la miniatura de Nexus (esto PUEDE modificar el JSON de nuevo)
-            await _cacheNexusThumbnail(
+            await ModManagerService.cacheNexusThumbnail(apiKey: _apiKey,
               modDirectory: modDirectory,
               nexusId: nexusId,
             );
 
-            // 4. Volver a leer el JSON para obtener la ruta de portada definitiva
-            //    (ya sea la que estaba o la que _cacheNexusThumbnail acaba de añadir)
             if (await infoFile.exists()) {
               data = json.decode(await infoFile.readAsString());
             }
           }
 
-          // 5. PROCESAR LA IMAGEN DE PORTADA (Reflejado en la barra de carga)
-          //    Esto se ejecuta después de que los datos de Nexus/portada se hayan guardado.
           final String? customCoverPath = data['customCoverPath'];
           if (customCoverPath != null && customCoverPath.isNotEmpty) {
             
-            // Actualizamos el estado para que el usuario vea que se procesa la imagen
             setState(() {
               _metadataUpdateStatus = l10n.statusUpdatingMetadata(
                 displayName,
                 i + 1,
                 modsToUpdate.length,
-              ) + " (${l10n.processingCover})"; // <-- Añadimos el nuevo estado
+              ) + " (${l10n.processingCover})";
             });
 
             final String sourcePath = p.join(modDirectory.path, customCoverPath);
-            // Usamos la clave estable que definimos antes
             final String cacheKey = p.basename(modDirectory.path) + customCoverPath;
 
-            // Forzamos al servicio de miniaturas a procesar y cachear esta imagen
             await _thumbnailService.getThumbnail(
               cacheKey,
               sourcePath,
@@ -1931,310 +1264,29 @@ Future<void> _deployScriptAssets() async {
       }
     });
 
-    // Esta función interna procesa un directorio (mods activados o desactivados)
-    Future<List<ModInfo>> getModsFromDirectory(
-      String path,
-      bool isEnabled, {
-      Set<String> logicModNamesToIgnore = const {},
-    }) async {
-      final dir = Directory(path);
-      if (!await dir.exists()) return [];
-
-      final List<ModInfo> mods = [];
-      await for (var entity in dir.list()) {
-        if (entity is Directory) {
-          final basename = p.basename(entity.path);
-
-          // Si estamos escaneando la carpeta genérica (~mods) Y
-          // el nombre de esta carpeta coincide con un LogicMod ya cargado,
-          // sáltatela, porque es un componente, no un mod independiente.
-          if (path == _genericModsPath &&
-              logicModNamesToIgnore.contains(basename)) {
-            print(
-              "Omitiendo carpeta genérica (es un componente de LogicMod): $basename",
-            );
-            continue;
-          }
-
-          // Si estamos escaneando la carpeta genérica, omitimos la carpeta CNS.
-          final basenameLower = basename.toLowerCase();
-          if (path == _genericModsPath &&
-              (basenameLower == 'customnanosuitsystem' ||
-                  basenameLower == 'logicmods')) {
-            continue;
-          }
-          if (basename == '__mod_backups__') continue;
-          try {
-            // Inicializa todas las variables que vamos a leer.
-            String? nexusId;
-            String? installedVersion;
-            String? origin;
-            List<dynamic>? gallery;
-            String? fitMeshType;
-            String? modType;
-            String? customCoverPath;
-            Alignment? customCoverAlignment;
-            DateTime? customCoverLastModified;
-            String folderName = p.basename(entity.path);
-            String displayName = _stripVersionFromFolderName(folderName);
-            String customName = folderName;
-            DateTime modLastModified = DateTime.now();
-            String? customVersion;
-            String? customFitMeshType;
-            String? summary;
-            String? customSummary;
-            String? description;
-            String? customDescription;
-            String? author;
-            String? customAuthor;
-            String? userNotes;
-            String? sourceUrl;
-            String? customSourceUrl;
-            String? replacesOutfit;
-
-            bool isEnabledForMod = isEnabled;
-            DateTime? installDate;
-
-            final infoFile = File(p.join(entity.path, 'nexus_info.json'));
-            final fileStat = await entity.stat();
-            if (await infoFile.exists()) {
-              final content = await infoFile.readAsString();
-              Map<String, dynamic> data = json.decode(content);
-
-              // --- INICIO DE LA LÓGICA DE ACTUALIZACIÓN AUTOMÁTICA ---
-              final String? modManagerVersion = data['managerVersion'];
-              final String? nexusIdForCheck = data['nexusId'];
-
-              bool needsMetadataUpdate =
-                  modManagerVersion == null ||
-                  (_compareVersions(_appVersion, modManagerVersion) > 0);
-
-              if (needsMetadataUpdate && nexusIdForCheck != null) {
-                print('Auto-updating metadata for mod: ${data['displayName']}');
-                final nexusData = await _fetchNexusModData(nexusIdForCheck);
-
-                if (nexusData != null) {
-                  data['summary'] ??= nexusData['summary'];
-                  data['author'] ??= nexusData['author'];
-                  data['gallery'] ??= nexusData['gallery'];
-                  data['description'] ??= nexusData['description'];
-                  data['sourceUrl'] ??=
-                      'https://www.nexusmods.com/stellarblade/mods/$nexusIdForCheck';
-                  data['managerVersion'] = _appVersion;
-
-                  final encoder = JsonEncoder.withIndent('  ');
-                  await infoFile.writeAsString(encoder.convert(data));
-                  print(
-                    '...metadata for ${data['displayName']} updated successfully.',
-                  );
-                  await _cacheNexusThumbnail(
-                    modDirectory: entity,
-                    nexusId: nexusIdForCheck,
-                  );
-                }
-              }
-              // --- FIN DE LA LÓGICA DE ACTUALIZACIÓN ---
-              DateTime? installDate;
-              if (data['installDate'] != null) {
-                installDate = DateTime.tryParse(data['installDate']);
-              }
-              // Usa la fecha de instalación si existe, si no, usa la fecha de modificación de la carpeta
-              modLastModified = installDate ?? fileStat.modified;
-              // Leemos los datos del mapa 'data' (que ahora puede estar actualizado)
-              nexusId = data['nexusId'];
-              installedVersion = data['installedVersion'];
-              origin = data['origin'];
-              gallery = data['gallery'];
-              fitMeshType = data['fitMeshType'];
-              modType = data['modType'] as String?;
-              summary = data['summary'];
-              customSummary = data['customSummary'];
-              description = data['description'];
-              customDescription = data['customDescription'];
-              author = data['author'];
-              customAuthor = data['customAuthor'];
-              userNotes = data['userNotes'];
-              sourceUrl = data['sourceUrl'];
-              customSourceUrl = data['customSourceUrl'];
-              replacesOutfit = data['replacesOutfit'] as String?;
-
-              if (installedVersion != null &&
-                  installedVersion.toLowerCase().startsWith('v')) {
-                installedVersion = installedVersion.substring(1);
-              }
-
-              customCoverPath = data['customCoverPath'];
-              if (customCoverPath != null) {
-                final coverFile = File(p.join(entity.path, customCoverPath));
-                if (await coverFile.exists()) {
-                  customCoverLastModified = await coverFile.lastModified();
-                }
-              }
-              if (data['customCoverAlignmentX'] != null &&
-                  data['customCoverAlignmentY'] != null) {
-                customCoverAlignment = Alignment(
-                  data['customCoverAlignmentX'].toDouble(),
-                  data['customCoverAlignmentY'].toDouble(),
-                );
-              }
-              customVersion = data['customVersion'] as String?;
-              customFitMeshType = data['customFitMeshType'] as String?;
-
-              if (data['displayName'] != null) {
-                displayName = data['displayName'];
-              }
-              if (data['customName'] != null) {
-                customName = data['customName'];
-              } else {
-                customName = displayName;
-              }
-            }
-            // Si el JSON no existía (modType sigue null) y el mod está HABILITADO
-            // inferimos el tipo basado en la carpeta que estamos escaneando.
-            if (modType == null && isEnabled) {
-              if (path == _genericModsPath) {
-                modType = 'genericPak';
-              } else if (path == _finalModsPath) {
-                modType = 'cns';
-              }
-              // Si está deshabilitado (isEnabled = false), lo dejamos como null
-              // y la UI lo tratará como 'cns' por defecto (comportamiento antiguo).
-            }
-
-            if (modType == 'movies' && await infoFile.exists()) {
-              final content = await infoFile.readAsString();
-              final data = json.decode(content);
-              isEnabledForMod = data['isEnabled'] as bool? ?? false;
-            }
-            // Lógica de fallback si el nexus_info.json no existe o está incompleto
-            if (fitMeshType == null && modType != 'movies') {
-              fitMeshType = await _getFitMeshTypeForMod(entity);
-              if (fitMeshType != null && await infoFile.exists()) {
-                try {
-                  final content = await infoFile.readAsString();
-                  Map<String, dynamic> data = json.decode(content);
-                  data['fitMeshType'] = fitMeshType;
-                  final encoder = JsonEncoder.withIndent('  ');
-                  await infoFile.writeAsString(encoder.convert(data));
-                } catch (e) {
-                  print(
-                    "Could not update nexus_info.json with FitMeshType for ${entity.path}: $e",
-                  );
-                }
-              }
-            }
-            installedVersion ??= ModInfo._extractVersionFromName(folderName);
-
-            // final fileStat = await entity.stat(); <-- Already declared above
-
-            // Añade el mod a la lista con toda la información cargada (y potencialmente actualizada)
-            mods.add(
-              ModInfo(
-                directory: entity,
-                nexusId: nexusId,
-                localVersion: installedVersion,
-                lastModified: modLastModified,
-                installDate: installDate,
-                isEnabled: isEnabledForMod,
-                origin: origin,
-                displayName: displayName,
-                customName: customName,
-                gallery: gallery,
-                fitMeshType: fitMeshType,
-                modType: modType,
-                customCoverPath: customCoverPath,
-                customCoverAlignment: customCoverAlignment,
-                customCoverLastModified: customCoverLastModified,
-                customVersion: customVersion,
-                customFitMeshType: customFitMeshType,
-                summary: summary,
-                customSummary: customSummary,
-                description: description,
-                customDescription: customDescription,
-                author: author,
-                customAuthor: customAuthor,
-                userNotes: userNotes,
-                sourceUrl: sourceUrl,
-                customSourceUrl: customSourceUrl,
-                replacesOutfit: replacesOutfit,
-              ),
-            );
-          } catch (e) {
-            print("Error processing directory ${entity.path}: $e");
-          }
-        }
-      }
-      return mods;
-    }
-
     try {
-      // 1. Cargamos los LogicMods PRIMERO
-      final enabledLogicMods = await getModsFromDirectory(
-        _logicModsPath!,
-        true,
+      final mods = await ModManagerService.loadMods(
+        gameRootPath: _gameRootPath,
+        finalModsPath: _finalModsPath!,
+        genericModsPath: _genericModsPath!,
+        logicModsPath: _logicModsPath!,
+        appVersion: _appVersion,
+        apiKey: _apiKey,
       );
 
-      // 2. Extraemos sus nombres de carpeta (ej: "SpeedMasterEve")
-      final Set<String> logicModFolderNames = enabledLogicMods
-          .map((mod) => p.basename(mod.directory.path))
-          .toSet();
-
-      // 3. Cargamos los mods CNS
-      final enabledCnsMods = await getModsFromDirectory(_finalModsPath!, true);
-
-      // 4. Cargamos los mods Genéricos, pero les pasamos la lista de
-      //    nombres de LogicMods para que los ignoren.
-      final enabledGenericMods = await getModsFromDirectory(
-        _genericModsPath!,
-        true,
-        logicModNamesToIgnore: logicModFolderNames, // <-- Parámetro añadido
-      );
-
-      if (_gameRootPath == null) {
-        final disabledMods = <ModInfo>[];
-        setState(() {
-          _allMods = [
-            ...enabledCnsMods,
-            ...enabledGenericMods,
-            ...enabledLogicMods,
-            ...disabledMods,
-          ];
-        });
-        return;
-      }
-      final backupDirPath = p.join(
-        _gameRootPath!,
-        'SB',
-        'Content',
-        '__MOD_BACKUPS__',
-      );
-      final disabledMods = await getModsFromDirectory(backupDirPath, false);
-
-      // Combina todas las listas
       setState(() {
-        _allMods = [
-          ...enabledCnsMods,
-          ...enabledGenericMods,
-          ...enabledLogicMods,
-          ...disabledMods,
-        ];
+        _allMods = mods;
         if (clearHighlight && mounted) {
-          final totalEnabled =
-              enabledCnsMods.length +
-              enabledGenericMods.length +
-              enabledLogicMods.length; // Suma
-          _statusMessage = AppLocalizations.of(
-            context,
-          )!.statusModsFound(disabledMods.length, totalEnabled); // Usa la suma
+          final totalEnabled = _allMods.where((m) => m.isEnabled).length;
+          final totalDisabled = _allMods.length - totalEnabled;
+          _statusMessage = AppLocalizations.of(context)!.statusModsFound(totalDisabled, totalEnabled);
           _statusColor = Colors.white;
         }
       });
     } catch (e) {
       setState(() {
         if (mounted) {
-          _statusMessage = AppLocalizations.of(
-            context,
-          )!.statusErrorReadingMods(e.toString());
+          _statusMessage = AppLocalizations.of(context)!.statusErrorReadingMods(e.toString());
         }
         _statusColor = Colors.redAccent;
       });
@@ -2281,123 +1333,11 @@ Future<void> _deployScriptAssets() async {
 
     setState(() => _isLoading = true);
 
-    int repairedCount = 0;
-    for (final mod in List.from(_allMods)) {
-      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
-
-      // --- INICIO DE LA LÓGICA MEJORADA ---
-      bool needsRepair = false;
-      if (await infoFile.exists()) {
-        try {
-          final content = await infoFile.readAsString();
-          // Si el archivo está vacío o no es un JSON válido, necesita reparación.
-          if (content.trim().isEmpty) {
-            needsRepair = true;
-          } else {
-            final data = json.decode(content) as Map<String, dynamic>;
-            final nexusId = data['nexusId'] as String?;
-            // Si el nexusId es nulo o una cadena vacía, necesita reparación.
-            if (nexusId == null || nexusId.isEmpty) {
-              needsRepair = true;
-            }
-          }
-        } catch (e) {
-          // Si el JSON está mal formado, también necesita reparación.
-          print(
-            'Found malformed nexus_info.json for ${mod.customName}, scheduling for repair. Error: $e',
-          );
-          needsRepair = true;
-        }
-      } else {
-        // Si el archivo no existe, definitivamente necesita reparación.
-        needsRepair = true;
-      }
-
-      // Si después de todas las comprobaciones no necesita reparación, pasa al siguiente mod.
-      if (!needsRepair) {
-        continue;
-      }
-      // --- FIN DE LA LÓGICA MEJORADA ---
-
-      final primaryDisplayName = await _getDisplayNameForMod(mod.directory);
-      if (primaryDisplayName != null &&
-          _modDatabase.containsKey(primaryDisplayName)) {
-        final dbEntry =
-            _modDatabase[primaryDisplayName] as Map<String, dynamic>;
-        final nexusId = dbEntry['nexusId'] as String?;
-
-        if (nexusId == null) continue;
-
-        String? version = ModInfo._extractVersionFromName(
-          p.basename(mod.directory.path),
-        );
-        version ??= await _getVersionFromModJsonDescription(mod.directory);
-
-        if (version == null) {
-          if (_apiKey == null || _apiKey!.isEmpty) {
-            if (mounted) {
-              NotificationService.instance.show(
-                context: context,
-                type: NotificationType.error,
-                title: l10n.errorApiRequiredForRepair,
-              );
-            }
-            break;
-          }
-          version = await _fetchLatestModVersion(nexusId);
-        }
-
-        final compositeDisplayName =
-            await _getCompositeDisplayName(mod.directory) ?? primaryDisplayName;
-        final currentFolderName = p.basename(mod.directory.path);
-
-        try {
-          // Lee los datos existentes para no perder información como el 'customName'.
-          Map<String, dynamic> modData = {};
-          if (await infoFile.exists()) {
-            try {
-              final content = await infoFile.readAsString();
-              if (content.trim().isNotEmpty) {
-                modData = json.decode(content);
-              }
-            } catch (e) {
-              // Si está mal formado, empezamos de cero pero lo registramos.
-              print(
-                'Could not parse existing nexus_info.json for ${mod.customName}. A new one will be created.',
-              );
-            }
-          }
-
-          // Actualiza o añade los campos necesarios.
-          modData['nexusId'] = nexusId;
-          modData['displayName'] = compositeDisplayName;
-          modData['customName'] ??=
-              currentFolderName; // Si no tenía customName, usa el de la carpeta.
-          modData['installedVersion'] = version;
-          modData['installDate'] ??= DateTime.now()
-              .toIso8601String(); // Si no tenía fecha, la añade.
-          modData['origin'] = 'repaired';
-
-          final nexusData = await _fetchNexusModData(nexusId);
-          if (nexusData != null) {
-            modData['gallery'] = nexusData['gallery'];
-            modData['summary'] = nexusData['summary'];
-            modData['author'] = nexusData['author'];
-            modData['description'] = nexusData['description'];
-          }
-
-          final encoder = JsonEncoder.withIndent('  ');
-          await infoFile.writeAsString(encoder.convert(modData));
-          await _cacheNexusThumbnail(
-            modDirectory: mod.directory,
-            nexusId: nexusId,
-          );
-          repairedCount++;
-        } catch (e) {
-          print('Could not self-repair mod "$primaryDisplayName": $e');
-        }
-      }
-    }
+    int repairedCount = await ModManagerService.runSelfHealing(
+      allMods: _allMods,
+      modDatabase: _modDatabase,
+      apiKey: _apiKey,
+    );
 
     if (mounted) {
       if (repairedCount > 0) {
@@ -2624,37 +1564,6 @@ Future<void> _deployScriptAssets() async {
     );
   }
 
-  Future<String?> _fetchLatestModVersion(String nexusId) async {
-    try {
-      if (_apiKey == null || _apiKey!.isEmpty) return null;
-      final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
-      final url = Uri.parse(
-        'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId/files.json',
-      );
-      final response = await http.get(url, headers: headers);
-
-      if (response.statusCode != 200) return null;
-
-      final jsonResponse = json.decode(response.body);
-      final allFiles = jsonResponse['files'] as List;
-
-      dynamic highestVersionFile;
-      String highestVersion = "0";
-      for (final file in allFiles) {
-        final currentVersion = file['version'] as String?;
-        if (currentVersion != null &&
-            _compareVersions(currentVersion, highestVersion) > 0) {
-          highestVersion = currentVersion;
-          highestVersionFile = file;
-        }
-      }
-      return highestVersionFile?['version'];
-    } catch (e) {
-      print('Error fetching latest version for mod $nexusId: $e');
-      return null;
-    }
-  }
-
   Future<bool> _pickArchive({StateSetter? panelStateSetter}) async {
     // <-- AÑADE EL PARÁMETRO AQUÍ
     try {
@@ -2683,71 +1592,6 @@ Future<void> _deployScriptAssets() async {
     return false;
   }
   
-  Future<Map<String, String>?> _extractNexusInfoFromName(String name) async {
-    if (_apiKey == null || _apiKey!.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Se necesita una API Key para identificar mods con nombres complejos.',
-            ),
-            backgroundColor: Colors.orangeAccent,
-          ),
-        );
-      }
-      return null;
-    }
-
-    try {
-      // Busca todos los números de 2 a 6 dígitos que estén entre guiones.
-      final potentialIdsRegex = RegExp(r'-(\d{2,6})-');
-      final matches = potentialIdsRegex.allMatches(name);
-
-      for (final match in matches) {
-        final potentialId = match.group(1);
-        if (potentialId == null) continue;
-
-        // Valida cada ID potencial con la API de Nexus.
-        if (await _isValidNexusId(potentialId)) {
-          // ¡ID VÁLIDO ENCONTRADO! Este es nuestro mod.
-          final validId = potentialId;
-
-          // Lo que queda del nombre después del ID válido.
-          // ej: "v01-1757576128.zip"
-          final remainingString = name.substring(match.end);
-
-          // Busca el último guion para separar la versión del ID de descarga.
-          final lastHyphenIndex = remainingString.lastIndexOf('-');
-
-          if (lastHyphenIndex != -1) {
-            // La versión es todo lo que está entre el ID del mod y el último guion.
-            String version = remainingString.substring(0, lastHyphenIndex);
-
-            // Limpia la cadena de la versión.
-            version = version.replaceAll('-', '.');
-            if (version.toLowerCase().startsWith('v')) {
-              version = version.substring(1);
-            }
-            if (version.toLowerCase().startsWith('cns.')) {
-              version = version.substring(4);
-            }
-
-            print(
-              'API Validation successful: Found mod ID $validId with version $version',
-            );
-            return {'id': validId, 'version': version};
-          }
-        }
-      }
-    } catch (e) {
-      print('An error occurred during smart Nexus info extraction: $e');
-    }
-
-    // Si la lógica de validación con API falla, no se encontró nada.
-    print('Could not validate any potential mod ID from filename: $name');
-    return null;
-  }
-
   Future<bool> _show7zipRequiredDialog() async {
     bool isInstalled = false;
     await showDialog(
@@ -2874,48 +1718,13 @@ Future<void> _deployScriptAssets() async {
     try {
       if (_gameRootPath == null) throw Exception(l10n.errorGamePathUndefined);
 
-      final manifestDir = Directory(
-        p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', '_manager_metadata'),
-      );
-      if (!await manifestDir.exists())
-        await manifestDir.create(recursive: true);
-      final manifestFile = File(
-        p.join(manifestDir.path, 'ue4ss_manifest.json'),
-      );
+      if (_gameRootPath == null) throw Exception(l10n.errorGamePathUndefined);
 
-      // ++ INICIO DE LA NUEVA LÓGICA DE COMBINACIÓN ++
-      // 1. Generar la lista de archivos de la NUEVA instalación.
-      final newPaths = await _generateInstallManifest(
-        sourceDir,
-        sourceDir.path,
-      );
-
-      // 2. Cargar la lista de archivos del manifiesto ANTIGUO, si existe.
-      Set<String> finalPaths = newPaths
-          .toSet(); // Usamos un Set para evitar duplicados.
-      if (await manifestFile.exists()) {
-        try {
-          final oldContent = await manifestFile.readAsString();
-          final List<String> oldPaths = List<String>.from(
-            json.decode(oldContent),
-          );
-          // 3. Añadir los archivos antiguos a la lista final.
-          finalPaths.addAll(oldPaths);
-        } catch (e) {
-          print(
-            "No se pudo leer el manifiesto antiguo de UE4SS, será reemplazado. Error: $e",
-          );
-        }
-      }
-
-      // 4. Escribir la lista combinada y final en el manifiesto.
-      await manifestFile.writeAsString(json.encode(finalPaths.toList()));
-      // ++ FIN DE LA NUEVA LÓGICA DE COMBINACIÓN ++
-
-      final destinationDir = Directory(
-        p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64'),
-      );
-      await _copyDirectory(sourceDir, destinationDir);
+   // Llama al nuevo servicio
+   await CoreInstallerService.installUE4SS(
+     sourceDir: sourceDir,
+     gameRootPath: _gameRootPath!,
+   );
 
       NotificationService.instance.show(
         context: context,
@@ -2940,449 +1749,75 @@ Future<void> _deployScriptAssets() async {
     }
   }
 
-  Future<Directory?> _findSubFolder(Directory root, String folderName) async {
-    final targetName = folderName.toLowerCase();
-
-    // Comprueba si alguna de las carpetas en la raíz es la que buscamos
-    try {
-      await for (final entity in root.list(
-        recursive: false,
-        followLinks: false,
-      )) {
-        if (entity is Directory) {
-          if (p.basename(entity.path).toLowerCase() == targetName) {
-            return entity; // Encontrada
-          }
-        }
-      }
-    } catch (e) {
-      print("Error listando directorio raíz ($root): $e");
-    }
-
-    // Si no está en la raíz, busca recursivamente en las subcarpetas
-    try {
-      await for (final entity in root.list(
-        recursive: false,
-        followLinks: false,
-      )) {
-        if (entity is Directory) {
-          final found = await _findSubFolder(entity, folderName);
-          if (found != null) {
-            return found; // Encontrada en subcarpeta
-          }
-        }
-      }
-    } catch (e) {
-      print("Error buscando recursivamente en ($root): $e");
-    }
-
-    return null; // No encontrada
-  }
-
   Future<bool> _processArchives(
-    List<File> archives, {
-    StateSetter? panelStateSetter,
-  }) async {
-    final l10n = AppLocalizations.of(context)!;
-    final updateState = panelStateSetter ?? setState;
-    updateState(() {
-      _isExtracting = true;
-      _extractionProgress = 0.0;
-      _extractionStatus = '';
-    });
+  List<File> archives, {
+  StateSetter? panelStateSetter,
+}) async {
+  final l10n = AppLocalizations.of(context)!;
+  final updateState = panelStateSetter ?? setState;
+  updateState(() {
+    _isExtracting = true;
+    _extractionProgress = 0.0;
+    _extractionStatus = '';
+  });
 
-    _preparedUE4SS = null;
+  try {
+    if (_tempExtractionDir != null && await _tempExtractionDir!.exists()) {
+      await _tempExtractionDir!.delete(recursive: true);
+    }
+    _tempExtractionDir = Directory.systemTemp.createTempSync('mod_manager_');
 
-    try {
-      try {
-        if (_tempExtractionDir != null && await _tempExtractionDir!.exists()) {
-          await _tempExtractionDir!.delete(recursive: true);
-        }
-      } catch (e) {
-        print('Could not clean up previous temporary directory: $e');
-      }
-      _tempExtractionDir = Directory.systemTemp.createTempSync('mod_manager_');
-
-      _preparedMods.clear();
-
-      for (int i = 0; i < archives.length; i++) {
-        final archiveFile = archives[i];
-        final fileName = p.basename(archiveFile.path);
-
+    final result = await ArchiveService.processArchives(
+      archives: archives,
+      tempExtractionDir: _tempExtractionDir!,
+      sevenZipPath: _7zipPath,
+      apiKey: _apiKey,
+      logicModIds: _logicModIds,
+      l10n: l10n,
+      onProgress: (progress, status) {
         updateState(() {
-          _extractionProgress = (i + 1) / archives.length;
-          _extractionStatus = l10n.statusExtractingMultipleFiles(
-            i + 1,
-            fileName,
-            archives.length,
-          );
+          _extractionProgress = progress;
+          _extractionStatus = status;
         });
-
-        final nexusInfo = await _extractNexusInfoFromName(fileName);
-        final String? nexusId = nexusInfo?['id'];
-        final bool isLogicModById =
-            (nexusId != null && _logicModIds.contains(nexusId));
-        final archiveTempDir = Directory(
-          p.join(_tempExtractionDir!.path, i.toString()),
-        );
-        await archiveTempDir.create();
-
-        final extension = p.extension(archiveFile.path).toLowerCase();
-
-        if (['.zip', '.rar', '.7z'].contains(extension)) {
-          if (_7zipPath == null || !await File(_7zipPath!).exists()) {
-            final installed = await _show7zipRequiredDialog();
-            if (!installed) {
-              throw Exception(l10n.error7zipRequired);
-            }
-          }
-          final result = await Process.run(_7zipPath!, [
-            'x',
-            archiveFile.path,
-            '-o${archiveTempDir.path}',
-            '-y',
-          ]);
-          if (result.exitCode != 0) {
-            throw Exception(
-              l10n.error7zipDecompression(result.stderr.toString()),
-            );
-          }
-        } else {
-          throw Exception(l10n.errorUnsupportedFormat(extension));
-        }
-
-        final baseArchiveName = p.basenameWithoutExtension(archiveFile.path);
-        final archiveName = _cleanNexusFileName(baseArchiveName);
-
-        // 1. Comprobar UE4SS (Prioridad 1)
-        final ue4ssRoot = await _findUE4SSRoot(archiveTempDir);
-        if (ue4ssRoot != null) {
-          _preparedUE4SS = _PreparedUE4SS(sourceDir: ue4ssRoot);
-          continue; // Es UE4SS, pasa al siguiente archivo
-        }
-
-        // 2. Comprobar Actualización CNS
-        final sbDir = Directory(p.join(archiveTempDir.path, 'SB'));
-
-        // 1. Primero comprueba si la carpeta 'SB' existe
-        if (await sbDir.exists()) {
-          // 2. Ahora, comprueba si el archivo LUA específico de CNS existe
-          final cnsLuaFile = File(
-            p.join(
-              sbDir.path,
-              'Binaries',
-              'Win64',
-              'ue4ss',
-              'Mods',
-              'DekCNS',
-              'Scripts',
-              'main.lua',
-            ),
-          );
-
-          if (await cnsLuaFile.exists()) {
-            // 3. Si existe, ES el mod CNS principal
-            print(
-              "Paquete CNS Principal detectado. Iniciando proceso de actualización...",
-            );
-            return await _promptAndUpdateCNS(sbDir);
-          }
-        }
-
-        // 3. Comprobar LogicMod (Prioridad 3)
-        final logicSourceDir = Directory(
-          p.join(archiveTempDir.path, 'SB', 'Content', 'Paks', 'LogicMods'),
-        );
-        final ue4ssSourceDir = Directory(
-          p.join(
-            archiveTempDir.path,
-            'SB',
-            'Binaries',
-            'Win64',
-            'ue4ss',
-            'Mods',
-          ),
-        );
-
-        // Comprobamos si AMBAS carpetas existen en esa ruta exacta
-        if (await logicSourceDir.exists() && await ue4ssSourceDir.exists()) {
-          final tildeModsSourceDir = Directory(
-            p.join(archiveTempDir.path, 'SB', 'Content', 'Paks', '~mods'),
-          );
-
-          // Comprueba si el directorio existe antes de pasarlo
-          final bool tildeModsExists = await tildeModsSourceDir.exists();
-          // ¡LogicMod detectado!
-
-          print('LogicMod detectado (estructura SB completa): $fileName');
-          _preparedMods.add(
-            _PreparedMod(
-              sourceDir: logicSourceDir, // Pasa la carpeta .../Paks/LogicMods
-              ue4ssDir: ue4ssSourceDir, // Pasa la carpeta .../ue4ss/Mods
-              tildeModsDir: tildeModsExists
-                  ? tildeModsSourceDir
-                  : null, // ++ AÑADIDO ++
-              nexusId: nexusInfo?['id'],
-              nexusVersion: nexusInfo?['version'],
-              archiveName: archiveName,
-              modType: ModDirectoryType.logicMod,
-            ),
-          );
-          continue; // Es LogicMod, pasa al siguiente archivo
-        }
-
-        // 3. NUEVO CHECK: Comprobar LogicMod anidado (ej: <ModName>/LogicMods/...)
-        // Esto captura mods que no tienen la estructura SB/ completa.
-        Directory? nestedLogicModDir;
-
-        // Listamos las entidades en la raíz del zip extraído
-        final List<FileSystemEntity> rootEntities = await archiveTempDir
-            .list()
-            .toList();
-
-        // Filtramos para encontrar solo directorios
-        final rootDirs = rootEntities.whereType<Directory>().toList();
-
-        if (rootDirs.length == 1) {
-          // Si solo hay UNA carpeta en la raíz (ej: V1-3SloMoWidget_P)
-          final potentialModRoot = rootDirs.first;
-          final potentialLogicModsDir = Directory(
-            p.join(potentialModRoot.path, 'LogicMods'),
-          );
-
-          if (await potentialLogicModsDir.exists()) {
-            // ¡Encontrado! Esta es la carpeta que queremos.
-            nestedLogicModDir = potentialLogicModsDir;
-          }
-        } else {
-          // Si hay varias carpetas, o ninguna, comprobamos si 'LogicMods'
-          // está directamente en la raíz (ej: LogicMods/...).
-          final rootLogicModsDir = Directory(
-            p.join(archiveTempDir.path, 'LogicMods'),
-          );
-          if (await rootLogicModsDir.exists()) {
-            nestedLogicModDir = rootLogicModsDir;
-          }
-        }
-
-        // Si encontramos un 'LogicMods' anidado o en la raíz...
-        if (nestedLogicModDir != null) {
-          print('LogicMod anidado detectado: $fileName');
-          _preparedMods.add(
-            _PreparedMod(
-              sourceDir: nestedLogicModDir, // <--- Pasamos la carpeta INTERNA
-              ue4ssDir: null, // No hay componente ue4ss en esta estructura
-              tildeModsDir: null, // No hay componente ~mods
-              nexusId: nexusInfo?['id'],
-              nexusVersion: nexusInfo?['version'],
-              archiveName: archiveName,
-              modType: ModDirectoryType.logicMod,
-            ),
-          );
-          continue; // Es LogicMod, pasa al siguiente archivo
-        }
-
-        // 4. Comprobar Subdirectorios de Mods (Prioridad 4)
-        final foundModDirs = await _findValidModDirectories(archiveTempDir);
-        if (foundModDirs.isNotEmpty) {
-          for (final modDir in foundModDirs) {
-            var modType = await ModClassifierService.classifyModDirectory(
-              modDir,
-            ); // Clasifica el directorio extraído
-            if (isLogicModById && modType != ModDirectoryType.unknown) {
-              print("Overriding mod type to 'logicMod' based on ID: $nexusId");
-              modType = ModDirectoryType.logicMod;
-            }
-            if (modType != ModDirectoryType.unknown) {
-              _preparedMods.add(
-                _PreparedMod(
-                  sourceDir: modDir,
-                  ue4ssDir: null,
-                  nexusId: nexusInfo?['id'],
-                  nexusVersion: nexusInfo?['version'],
-                  archiveName: archiveName,
-                  modType: modType, // <-- Asigna el tipo clasificado
-                ),
-              );
-            }
-          }
-          continue; // Mods encontrados, pasa al siguiente archivo
-        }
-
-        // 5. Comprobar Archivos Sueltos (Prioridad 5)
-        final allModFiles = await _findAllModFilesRecursive(archiveTempDir);
-        final jsonFiles = allModFiles
-            .where((f) => p.extension(f.path).toLowerCase() == '.json')
-            .toList();
-        final pakFiles = allModFiles
-            .where(
-              (f) => [
-                '.pak',
-                '.ucas',
-                '.utoc',
-              ].contains(p.extension(f.path).toLowerCase()),
-            )
-            .toList();
-        // ++ AÑADIDO: Buscar archivos .bk2 sueltos ++
-        final bk2Files = allModFiles
-            .where((f) => p.extension(f.path).toLowerCase() == '.bk2')
-            .toList();
-
-        // CASO A: Archivos sueltos de un mod CNS
-        if (jsonFiles.isNotEmpty && pakFiles.isNotEmpty) {
-          final consolidatedDir = await Directory(
-            p.join(archiveTempDir.path, '_consolidated_'),
-          ).create();
-
-          for (final modFile in allModFiles) {
-            final ext = p.extension(modFile.path).toLowerCase();
-            if (ext == '.json' ||
-                ext == '.pak' ||
-                ext == '.ucas' ||
-                ext == '.utoc') {
-              final newPath = p.join(
-                consolidatedDir.path,
-                p.basename(modFile.path),
-              );
-              await modFile.copy(newPath);
-            }
-          }
-
-          _preparedMods.add(
-            _PreparedMod(
-              sourceDir: consolidatedDir,
-              ue4ssDir: null, // No es un LogicMod
-              nexusId: nexusInfo?['id'],
-              nexusVersion: nexusInfo?['version'],
-              archiveName: archiveName,
-              modType: ModDirectoryType.cns, // <-- Asignar tipo
-            ),
-          );
-        }
-        // CASO B: Archivos sueltos de un mod Genérico
-        else if (jsonFiles.isEmpty && pakFiles.isNotEmpty) {
-          final consolidatedDir = await Directory(
-            p.join(archiveTempDir.path, '_consolidated_'),
-          ).create();
-
-          for (final modFile in pakFiles) {
-            final newPath = p.join(
-              consolidatedDir.path,
-              p.basename(modFile.path),
-            );
-            await modFile.copy(newPath);
-          }
-
-          /*ModDirectoryType modType =
-              ModDirectoryType.genericPak;
-          if (isLogicModById) {
-            print("Overriding mod type to 'logicMod' based on ID: $nexusId");
-            modType = ModDirectoryType.logicMod;
-          }*/
-
-          _preparedMods.add(
-            _PreparedMod(
-              sourceDir: consolidatedDir,
-              ue4ssDir: null, // No es un LogicMod
-              nexusId: nexusInfo?['id'],
-              nexusVersion: nexusInfo?['version'],
-              archiveName: archiveName,
-              modType: ModDirectoryType.genericPak, // <-- Asignar tipo
-            ),
-          );
-        }
-        // ++ AÑADIDO: CASO D: Archivos sueltos de un mod de Películas ++
-        else if (jsonFiles.isEmpty && pakFiles.isEmpty && bk2Files.isNotEmpty) {
-          final consolidatedDir = await Directory(
-            p.join(archiveTempDir.path, '_consolidated_'),
-          ).create();
-
-          for (final modFile in bk2Files) {
-            // Solo copia los bk2
-            final newPath = p.join(
-              consolidatedDir.path,
-              p.basename(modFile.path),
-            );
-            await modFile.copy(newPath);
-          }
-
-          _preparedMods.add(
-            _PreparedMod(
-              sourceDir: consolidatedDir,
-              ue4ssDir: null, // No es un LogicMod
-              nexusId: nexusInfo?['id'],
-              nexusVersion: nexusInfo?['version'],
-              archiveName: archiveName,
-              modType: ModDirectoryType.movies, // <-- Asignar tipo
-            ),
-          );
-        }
       }
+    );
 
-      if (_preparedUE4SS != null) {
-        _preparedMods.clear();
-        return await _promptAndInstallUE4SS(_preparedUE4SS!.sourceDir);
-      } else {
-        await _prepareInstallationPreview(panelStateSetter: panelStateSetter);
+    _preparedMods.clear();
+    _preparedMods.addAll(result.preparedMods);
+    _preparedUE4SS = result.preparedUE4SS;
+
+    if (result.cnsUpdateDir != null) {
+      return await _promptAndUpdateCNS(result.cnsUpdateDir!);
+    } else if (_preparedUE4SS != null) {
+      _preparedMods.clear();
+      return await _promptAndInstallUE4SS(_preparedUE4SS!.sourceDir);
+    } else {
+      await _prepareInstallationPreview(panelStateSetter: panelStateSetter);
+    }
+    return false;
+  } catch (e) {
+    if (e.toString().contains('7ZIP_MISSING')) {
+      final installed = await _show7zipRequiredDialog();
+      if (!installed) {
+        updateState(() {
+          _statusMessage = l10n.statusError(l10n.error7zipRequired);
+          _statusColor = Colors.redAccent;
+        });
       }
       return false;
-    } catch (e) {
-      updateState(() {
-        _statusMessage = l10n.statusError(e.toString());
-        _statusColor = Colors.redAccent;
-      });
-      return false;
-    } finally {
-      updateState(() {
-        _isExtracting = false;
-      });
     }
+
+    updateState(() {
+      _statusMessage = l10n.statusError(e.toString());
+      _statusColor = Colors.redAccent;
+    });
+    return false;
+  } finally {
+    updateState(() {
+      _isExtracting = false;
+    });
   }
-
-  Future<List<Directory>> _findValidModDirectories(Directory root) async {
-    final List<Directory> found = [];
-
-    // 1. Comprueba si la propia raíz es un mod.
-    final rootModType = await ModClassifierService.classifyModDirectory(root);
-    if (rootModType != ModDirectoryType.unknown) {
-      found.add(root);
-      // Si la raíz es un mod, no escaneamos sus subcarpetas.
-      return found;
-    }
-
-    // 2. Si la raíz no es un mod, escanea sus subdirectorios.
-    await for (final entity in root.list(followLinks: false)) {
-      if (entity is Directory) {
-        final basename = p.basename(entity.path);
-        // Ignora carpetas de sistema o de "basura"
-        if (basename.startsWith('__') || basename.startsWith('.')) continue;
-
-        // Llama recursivamente
-        final nestedMods = await _findValidModDirectories(entity);
-        found.addAll(nestedMods);
-      }
-    }
-    return found;
-  }
-
-  Future<Directory?> _findUE4SSRoot(Directory root) async {
-    final ue4ssDir = Directory(p.join(root.path, 'ue4ss'));
-    final dwmapiFile = File(p.join(root.path, 'dwmapi.dll'));
-    if (await ue4ssDir.exists() && await dwmapiFile.exists()) {
-      return root;
-    }
-
-    await for (final entity in root.list(followLinks: false)) {
-      if (entity is Directory) {
-        final found = await _findUE4SSRoot(entity);
-        if (found != null) {
-          return found;
-        }
-      }
-    }
-
-    return null;
-  }
+}
 
   Future<void> _prepareInstallationPreview({
     StateSetter? panelStateSetter,
@@ -3409,7 +1844,7 @@ Future<void> _deployScriptAssets() async {
 
     for (final preparedMod in _preparedMods) {
       // 1. Intenta obtener el nombre del .json (para mods CNS)
-      String? displayName = await _getDisplayNameForMod(preparedMod.sourceDir);
+      String? displayName = await ModManagerService.getDisplayNameForMod(preparedMod.sourceDir);
 
       // 2. Si falla (es null), usa el nombre del zip (para mods Genéricos)
       displayName ??= preparedMod.archiveName;
@@ -3427,7 +1862,7 @@ Future<void> _deployScriptAssets() async {
         // 4a. Archivos del sourceDir (LogicMods, CNS, Genérico, etc.)
         // Estos solo mostrarán el nombre del archivo, ya que van a la carpeta principal del mod.
         if (await preparedMod.sourceDir.exists()) {
-          final sourceFiles = await _findAllModFilesRecursive(
+          final sourceFiles = await FileManagerService.findAllModFilesRecursive(
             preparedMod.sourceDir,
           );
           allFileDisplayPaths.addAll(
@@ -3438,7 +1873,7 @@ Future<void> _deployScriptAssets() async {
         // 4b. Archivos del ue4ssDir (si existen)
         if (preparedMod.ue4ssDir != null &&
             await preparedMod.ue4ssDir!.exists()) {
-          final ue4ssFiles = await _findAllModFilesRecursive(
+          final ue4ssFiles = await FileManagerService.findAllModFilesRecursive(
             preparedMod.ue4ssDir!,
           );
           for (final file in ue4ssFiles) {
@@ -3457,7 +1892,7 @@ Future<void> _deployScriptAssets() async {
         // 4c. Archivos del tildeModsDir (si existen)
         if (preparedMod.tildeModsDir != null &&
             await preparedMod.tildeModsDir!.exists()) {
-          final tildeFiles = await _findAllModFilesRecursive(
+          final tildeFiles = await FileManagerService.findAllModFilesRecursive(
             preparedMod.tildeModsDir!,
           );
           for (final file in tildeFiles) {
@@ -3528,7 +1963,7 @@ Future<void> _deployScriptAssets() async {
       return false; // Detiene la instalación si UE4SS no está presente.
     }
 
-    final newVersion = await _getVersionFromCnsPackage(sourceSBDir);
+    final newVersion = await CoreInstallerService.getVersionFromCnsPackage(sourceSBDir);
 
     if (_isCnsCoreInstalled) {
       // CASO: YA HAY UNA VERSIÓN INSTALADA (Actualizar, Reinstalar o Revertir)
@@ -3536,7 +1971,7 @@ Future<void> _deployScriptAssets() async {
 
       // Comparamos la nueva versión con la antigua.
       final comparison = (newVersion != null && _cnsVersion != null)
-          ? _compareVersions(newVersion, _cnsVersion!)
+          ? VersionUtils.compareVersions(newVersion, _cnsVersion!)
           : 1; // Si no podemos comparar, asumimos que es una actualización.
 
       String title, content, actionText;
@@ -3617,43 +2052,13 @@ Future<void> _deployScriptAssets() async {
     try {
       if (_gameRootPath == null) throw Exception(l10n.errorGamePathUndefined);
 
-      final manifestDir = Directory(
-        p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', '_manager_metadata'),
+      if (_gameRootPath == null) throw Exception(l10n.errorGamePathUndefined);
+
+      // Llama al nuevo servicio
+      await CoreInstallerService.installCNS(
+        sourceSBDir: sourceSBDir,
+        gameRootPath: _gameRootPath!,
       );
-      if (!await manifestDir.exists())
-        await manifestDir.create(recursive: true);
-      final manifestFile = File(p.join(manifestDir.path, 'cns_manifest.json'));
-
-      // ++ INICIO DE LA NUEVA LÓGICA DE COMBINACIÓN ++
-      // 1. Generar la lista de archivos de la NUEVA instalación.
-      final newPaths = await _generateInstallManifest(
-        sourceSBDir,
-        sourceSBDir.path,
-      );
-
-      // 2. Cargar la lista de archivos del manifiesto ANTIGUO, si existe.
-      Set<String> finalPaths = newPaths.toSet();
-      if (await manifestFile.exists()) {
-        try {
-          final oldContent = await manifestFile.readAsString();
-          final List<String> oldPaths = List<String>.from(
-            json.decode(oldContent),
-          );
-          // 3. Añadir los archivos antiguos a la lista final.
-          finalPaths.addAll(oldPaths);
-        } catch (e) {
-          print(
-            "No se pudo leer el manifiesto antiguo de CNS, será reemplazado. Error: $e",
-          );
-        }
-      }
-
-      // 4. Escribir la lista combinada y final en el manifiesto.
-      await manifestFile.writeAsString(json.encode(finalPaths.toList()));
-      // ++ FIN DE LA NUEVA LÓGICA DE COMBINACIÓN ++
-
-      final destinationSBDir = Directory(p.join(_gameRootPath!, 'SB'));
-      await _copyDirectory(sourceSBDir, destinationSBDir);
 
       // ignore: unused_local_variable
       String? versionFromLua;
@@ -3706,20 +2111,6 @@ Future<void> _deployScriptAssets() async {
       return false;
     } finally {
       setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _copyDirectory(Directory source, Directory destination) async {
-    await for (var entity in source.list(recursive: false)) {
-      if (entity is Directory) {
-        var newDirectory = Directory(
-          p.join(destination.absolute.path, p.basename(entity.path)),
-        );
-        await newDirectory.create();
-        await _copyDirectory(entity.absolute, newDirectory.absolute);
-      } else if (entity is File) {
-        await entity.copy(p.join(destination.path, p.basename(entity.path)));
-      }
     }
   }
 
@@ -3856,103 +2247,11 @@ Future<void> _deployScriptAssets() async {
     return 'assets/images/outfits/$safeName.webp'; // Asume .webp
   }
 
-  Future<String?> _getCompositeDisplayName(Directory modDir) async {
-    final List<File> jsonFiles = [];
-    await for (final entity in modDir.list()) {
-      if (entity is File && p.extension(entity.path).toLowerCase() == '.json') {
-        jsonFiles.add(entity);
-      }
-    }
-
-    if (jsonFiles.isEmpty) {
-      return null;
-    }
-
-    List<String> displayNames = [];
-    for (final jsonFile in jsonFiles) {
-      try {
-        var jsonString = await jsonFile.readAsString();
-        jsonString = jsonString.replaceAll(RegExp(r',\s*(?=[\}\]])'), '');
-        final jsonDecoded = json.decode(jsonString);
-        if (jsonDecoded is List && jsonDecoded.isNotEmpty) {
-          final modInfo = jsonDecoded[0] as Map<String, dynamic>;
-          final displayName = modInfo['DisplayName'] as String?;
-          if (displayName != null && displayName.trim().isNotEmpty) {
-            final sanitizedDisplayName = displayName.trim().replaceAll(
-              RegExp(r'[\\/:*?"<>|]'),
-              '-',
-            );
-            displayNames.add(sanitizedDisplayName);
-          }
-        }
-      } catch (e) {
-        print('Could not parse display name from ${jsonFile.path}: $e');
-      }
-    }
-
-    if (displayNames.isEmpty) {
-      return null;
-    }
-
-    return displayNames.join(' ~ ');
-  }
-
-  Future<String?> _getFitMeshTypeForMod(Directory modDir) async {
-    try {
-      await for (final entity in modDir.list()) {
-        if (entity is File &&
-            p.extension(entity.path).toLowerCase() == '.json') {
-          var jsonString = await entity.readAsString();
-          jsonString = jsonString.replaceAll(RegExp(r',\s*(?=[\}\]])'), '');
-          final jsonDecoded = json.decode(jsonString);
-          if (jsonDecoded is List && jsonDecoded.isNotEmpty) {
-            final modInfo = jsonDecoded[0] as Map<String, dynamic>;
-            final fitMeshType = modInfo['FitMeshType'] as String?;
-            if (fitMeshType != null && fitMeshType.trim().isNotEmpty) {
-              // Return the first one found.
-              return fitMeshType.trim();
-            }
-          }
-        }
-      }
-    } catch (e) {
-      print("Could not read FitMeshType from ${modDir.path}: $e");
-    }
-    return null;
-  }
-
-  Future<String?> _getDisplayNameForMod(Directory modDir) async {
-    try {
-      await for (final entity in modDir.list()) {
-        if (entity is File &&
-            p.extension(entity.path).toLowerCase() == '.json') {
-          var jsonString = await entity.readAsString();
-          jsonString = jsonString.replaceAll(RegExp(r',\s*(?=[\}\]])'), '');
-          final jsonDecoded = json.decode(jsonString);
-          if (jsonDecoded is List && jsonDecoded.isNotEmpty) {
-            final modInfo = jsonDecoded[0] as Map<String, dynamic>;
-            final displayName = modInfo['DisplayName'] as String?;
-            if (displayName != null && displayName.trim().isNotEmpty) {
-              return displayName.trim().replaceAll(
-                RegExp(r'[\\/:*?"<>|]'),
-                '-',
-              );
-            }
-          }
-          break;
-        }
-      }
-    } catch (e) {
-      print("Could not read DisplayName from ${modDir.path}: $e");
-    }
-    return null;
-  }
-
   Future<String> _getComparableNameForMod(ModInfo mod) async {
     return mod.displayName;
   }
 
-  Future<_AlternativeVersionAction?> _showSmartInstallDialog({
+  Future<AlternativeVersionAction?> _showSmartInstallDialog({
     required ModInfo oldVersionMod,
     required String baseDisplayName,
     required String? newVersion,
@@ -3967,7 +2266,7 @@ Future<void> _deployScriptAssets() async {
     String replaceActionText = l10n.dialogActionReplace;
 
     if (oldVersionMod.localVersion != null && newVersion != null) {
-      final comparison = _compareVersions(
+      final comparison = VersionUtils.compareVersions(
         newVersion,
         oldVersionMod.localVersion!,
       );
@@ -3997,7 +2296,7 @@ Future<void> _deployScriptAssets() async {
       );
     }
 
-    return showDialog<_AlternativeVersionAction>(
+    return showDialog<AlternativeVersionAction>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
@@ -4007,12 +2306,12 @@ Future<void> _deployScriptAssets() async {
         actions: <Widget>[
           TextButton(
             onPressed: () =>
-                Navigator.of(context).pop(_AlternativeVersionAction.cancel),
+                Navigator.of(context).pop(AlternativeVersionAction.cancel),
             child: Text(l10n.dialogActionCancel),
           ),
           ElevatedButton(
             onPressed: () =>
-                Navigator.of(context).pop(_AlternativeVersionAction.replace),
+                Navigator.of(context).pop(AlternativeVersionAction.replace),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.tealAccent,
               foregroundColor: Colors.black,
@@ -4025,8 +2324,8 @@ Future<void> _deployScriptAssets() async {
   }
 
   Future<String?> _installSingleMod(
-    _PreparedMod preparedMod, {
-    required AppLocalizations l10n,
+  PreparedMod preparedMod, {
+  required AppLocalizations l10n,
   }) async {
     final modDir = preparedMod.sourceDir;
     final nexusId = preparedMod.nexusId;
@@ -4111,7 +2410,7 @@ Future<void> _deployScriptAssets() async {
         oldVersionMod = null; // No se encontró
       }
 
-      _AlternativeVersionAction? action;
+      AlternativeVersionAction? action;
       if (oldVersionMod != null) {
         // Ya existe un mod con este nombre.
         action = await _showSmartInstallDialog(
@@ -4123,7 +2422,7 @@ Future<void> _deployScriptAssets() async {
 
       if (action != null) {
         switch (action) {
-          case _AlternativeVersionAction.replace:
+          case AlternativeVersionAction.replace:
             if (oldVersionMod == null) {
               // Comprobación de seguridad
               throw Exception(
@@ -4145,7 +2444,7 @@ Future<void> _deployScriptAssets() async {
               }
             }
             // Borramos la carpeta de LogicMods antigua
-            final deleted = await _deleteDirectoryWithRetry(
+            final deleted = await FileManagerService.deleteDirectoryWithRetry(
               oldVersionMod.directory,
             );
             if (!deleted) {
@@ -4155,9 +2454,9 @@ Future<void> _deployScriptAssets() async {
             }
             // NOTA: No podemos desinstalar la parte de UE4SS. El usuario es responsable.
             break;
-          case _AlternativeVersionAction.installAsNew:
+          case AlternativeVersionAction.installAsNew:
             break; // No hacer nada
-          case _AlternativeVersionAction.cancel:
+          case AlternativeVersionAction.cancel:
           case null:
           default:
             throw Exception(l10n.statusInstallationCancelledByUser);
@@ -4201,7 +2500,7 @@ Future<void> _deployScriptAssets() async {
               print('Could not read old custom name. Error: $e');
             }
           }
-          final deleted = await _deleteDirectoryWithRetry(
+          final deleted = await FileManagerService.deleteDirectoryWithRetry(
             Directory(logicModDestPath),
           );
           if (!deleted) {
@@ -4217,10 +2516,10 @@ Future<void> _deployScriptAssets() async {
       // Parte A: Copiar .../zip/LogicMods/* A .../Paks/LogicMods/<mod_name>/
       await Directory(logicModDestPath).create(recursive: true);
       // Comprobamos si la fuente existe (aunque la detección ya lo hizo)
-      await _copyDirectory(logicSourceDir, Directory(logicModDestPath));
+      await FileManagerService.copyDirectory(logicSourceDir, Directory(logicModDestPath));
       // Parte B: Copiar .../zip/Mods/* A .../ue4ss/Mods/ (Fusionar)
       if (ue4ssSourceDir != null && await ue4ssSourceDir.exists()) {
-        await _copyDirectory(ue4ssSourceDir, Directory(ue4ssDestPath));
+        await FileManagerService.copyDirectory(ue4ssSourceDir, Directory(ue4ssDestPath));
       } else {
         // (Opcional) Informar que no se copió nada de UE4SS
         print(
@@ -4247,7 +2546,7 @@ Future<void> _deployScriptAssets() async {
         }
 
         // 3. Copiar el contenido de la fuente (~mods/*) a la nueva carpeta de destino
-        await _copyDirectory(tildeModsSourceDir, destDir);
+        await FileManagerService.copyDirectory(tildeModsSourceDir, destDir);
       }
 
       // Obtener la lista de carpetas de componentes de UE4SS
@@ -4286,7 +2585,7 @@ Future<void> _deployScriptAssets() async {
       modData.removeWhere((key, value) => value == null); // Limpia nulos
 
       if (nexusId != null) {
-        final nexusData = await _fetchNexusModData(nexusId);
+        final nexusData = await NexusApiService.fetchNexusModData(nexusId, _apiKey);
         if (nexusData != null) {
           modData['gallery'] = nexusData['gallery'];
           modData['summary'] = nexusData['summary'];
@@ -4300,7 +2599,7 @@ Future<void> _deployScriptAssets() async {
 
       // --- 6. Copiar miniatura (igual que antes) ---
       if (nexusId != null) {
-        await _cacheNexusThumbnail(
+        await ModManagerService.cacheNexusThumbnail(apiKey: _apiKey,
           modDirectory: Directory(logicModDestPath),
           nexusId: nexusId,
         );
@@ -4308,8 +2607,8 @@ Future<void> _deployScriptAssets() async {
       return finalFolderName; // Devuelve el nombre para el snackbar
     } else if (modType == ModDirectoryType.cns) {
       // Es un mod CNS: obtenemos el nombre y la etiqueta desde sus .json
-      baseDisplayName = await _getCompositeDisplayName(modDir);
-      fitMeshType = await _getFitMeshTypeForMod(modDir);
+      baseDisplayName = await ModManagerService.getCompositeDisplayName(modDir);
+      fitMeshType = await ModManagerService.getFitMeshTypeForMod(modDir);
       installPath = _finalModsPath; // Se instala en la carpeta CNS
     } else if (modType == ModDirectoryType.genericPak) {
       // Es un mod Genérico: usamos el nombre del ZIP y la etiqueta "Generic"
@@ -4348,7 +2647,7 @@ Future<void> _deployScriptAssets() async {
 
     // 2. LÓGICA DE REEMPLAZO/ACTUALIZACIÓN (Esto permanece igual que antes)
     ModInfo? oldVersionMod;
-    _AlternativeVersionAction? action;
+    AlternativeVersionAction? action;
 
     List<ModInfo> nexusIdMatches = [];
     if (nexusId != null) {
@@ -4374,7 +2673,7 @@ Future<void> _deployScriptAssets() async {
         );
       } else {
         final existingModExample = nexusIdMatches.first.customName;
-        action = await showDialog<_AlternativeVersionAction>(
+        action = await showDialog<AlternativeVersionAction>(
           context: context,
           barrierDismissible: false,
           builder: (context) => AlertDialog(
@@ -4390,13 +2689,13 @@ Future<void> _deployScriptAssets() async {
             actions: <Widget>[
               TextButton(
                 onPressed: () =>
-                    Navigator.of(context).pop(_AlternativeVersionAction.cancel),
+                    Navigator.of(context).pop(AlternativeVersionAction.cancel),
                 child: Text(l10n.dialogActionCancel),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.of(
                   context,
-                ).pop(_AlternativeVersionAction.installAsNew),
+                ).pop(AlternativeVersionAction.installAsNew),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.tealAccent,
                   foregroundColor: Colors.black,
@@ -4425,7 +2724,7 @@ Future<void> _deployScriptAssets() async {
 
     if (action != null) {
       switch (action) {
-        case _AlternativeVersionAction.replace:
+        case AlternativeVersionAction.replace:
           if (oldVersionMod == null) {
             throw Exception(
               "Attempted to replace a mod but no old version was identified.",
@@ -4451,16 +2750,16 @@ Future<void> _deployScriptAssets() async {
           if (oldVersionMod.modType == 'movies' && oldVersionMod.isEnabled) {
             await _disableMod(oldVersionMod);
           }
-          final deleted = await _deleteDirectoryWithRetry(
+          final deleted = await FileManagerService.deleteDirectoryWithRetry(
             oldVersionMod.directory,
           );
           if (!deleted) {
             throw Exception('Could not delete old mod version ($oldModName).');
           }
           break;
-        case _AlternativeVersionAction.installAsNew:
+        case AlternativeVersionAction.installAsNew:
           break;
-        case _AlternativeVersionAction.cancel:
+        case AlternativeVersionAction.cancel:
         case null:
         default:
           throw Exception(l10n.statusInstallationCancelledByUser);
@@ -4523,7 +2822,7 @@ Future<void> _deployScriptAssets() async {
           await _disableMod(modToReinstall);
         }
 
-        final deleted = await _deleteDirectoryWithRetry(Directory(newModPath));
+        final deleted = await FileManagerService.deleteDirectoryWithRetry(Directory(newModPath));
         if (!deleted) {
           throw Exception(
             'Could not delete existing mod ($finalFolderName) to reinstall after several attempts.',
@@ -4563,7 +2862,7 @@ Future<void> _deployScriptAssets() async {
     modData.removeWhere((key, value) => value == null);
 
     if (nexusId != null) {
-      final nexusData = await _fetchNexusModData(nexusId);
+      final nexusData = await NexusApiService.fetchNexusModData(nexusId, _apiKey);
       if (nexusData != null) {
         modData['gallery'] = nexusData['gallery'];
         modData['summary'] = nexusData['summary'];
@@ -4584,7 +2883,7 @@ Future<void> _deployScriptAssets() async {
       }
     } else {
       // Lógica anterior para CNS/Genéricos
-      filesToInstall = await _findAllModFilesRecursive(modDir);
+      filesToInstall = await FileManagerService.findAllModFilesRecursive(modDir);
     }
 
     for (final file in filesToInstall) {
@@ -4594,18 +2893,12 @@ Future<void> _deployScriptAssets() async {
     }
 
     if (nexusId != null) {
-      await _cacheNexusThumbnail(
+      await ModManagerService.cacheNexusThumbnail(apiKey: _apiKey,
         modDirectory: Directory(newModPath),
         nexusId: nexusId,
       );
     }
     return finalFolderName;
-  }
-
-  Future<void> _moveMod(Directory modDir, String toPath) async {
-    final modName = p.basename(modDir.path);
-    final destinationPath = p.join(toPath, modName);
-    await modDir.rename(destinationPath);
   }
 
   Future<bool> _enableMod(ModInfo modInfo) async {
@@ -4835,7 +3128,7 @@ Future<void> _deployScriptAssets() async {
                 if (await tildeSourceDir.exists()) {
                   print("Restaurando componente ~mods: $tildeFolder");
                   // Mover de vuelta a .../Paks/~mods/
-                  await _moveMod(tildeSourceDir, _genericModsPath!);
+                  await FileManagerService.moveMod(tildeSourceDir, _genericModsPath!);
                   // Limpiar la carpeta contenedora vacía
                   if (await tildeBackupContainer.list().isEmpty)
                     await tildeBackupContainer.delete();
@@ -4858,7 +3151,7 @@ Future<void> _deployScriptAssets() async {
                   if (await ue4ssSourceDir.exists()) {
                     print("Restaurando componente UE4SS: $folderName");
                     // Mover de vuelta a .../ue4ss/Mods/
-                    await _moveMod(ue4ssSourceDir, _ue4ssModsPath!);
+                    await FileManagerService.moveMod(ue4ssSourceDir, _ue4ssModsPath!);
                   }
                 }
                 // Limpiar la carpeta contenedora vacía
@@ -4883,7 +3176,7 @@ Future<void> _deployScriptAssets() async {
         }
 
         final newDirectory = Directory(p.join(targetPath, modName));
-        await _moveMod(backupContainerDir, targetPath);
+        await FileManagerService.moveMod(backupContainerDir, targetPath);
 
         updatedMod = modInfo.copyWith(directory: newDirectory, isEnabled: true);
       }
@@ -4940,7 +3233,7 @@ Future<void> _deployScriptAssets() async {
         final modName = p.basename(modInfo.directory.path);
         final newDirectory = Directory(p.join(backupDir.path, modName));
         // 1. Mover Parte A (La carpeta principal, ej: LogicMods/<mod_name>)
-        await _moveMod(modInfo.directory, backupDir.path);
+        await FileManagerService.moveMod(modInfo.directory, backupDir.path);
 
         // ++ INICIO DE LA MODIFICACIÓN ++
         // 2. Mover componentes adicionales si es un LogicMod
@@ -4966,7 +3259,7 @@ Future<void> _deployScriptAssets() async {
 
                 if (await tildeSourceDir.exists()) {
                   print("Archivando componente ~mods: $tildeFolder");
-                  await _moveMod(tildeSourceDir, tildeDestContainer.path);
+                  await FileManagerService.moveMod(tildeSourceDir, tildeDestContainer.path);
                 }
               }
 
@@ -4986,7 +3279,7 @@ Future<void> _deployScriptAssets() async {
                   );
                   if (await ue4ssSourceDir.exists()) {
                     print("Archivando componente UE4SS: $folderName");
-                    await _moveMod(ue4ssSourceDir, ue4ssDestContainer.path);
+                    await FileManagerService.moveMod(ue4ssSourceDir, ue4ssDestContainer.path);
                   }
                 }
               }
@@ -5221,7 +3514,7 @@ Future<void> _deployScriptAssets() async {
       // --- FIN DE LÓGICA DE BIFURCACIÓN ---
 
       // La lógica de borrado de carpeta es la misma para todos
-      final deleted = await _deleteDirectoryWithRetry(modInfo.directory);
+      final deleted = await FileManagerService.deleteDirectoryWithRetry(modInfo.directory);
 
       if (deleted && mounted) {
         NotificationService.instance.show(
@@ -5314,7 +3607,7 @@ Future<void> _deployScriptAssets() async {
             ? _genericModsPath!
             : _finalModsPath!;
 
-        await _moveMod(mod.directory, targetPath);
+        await FileManagerService.moveMod(mod.directory, targetPath);
 
         updatedModMap[mod.directory.path] = mod.copyWith(
           directory: Directory(p.join(targetPath, modName)),
@@ -5419,7 +3712,7 @@ Future<void> _deployScriptAssets() async {
         } else {
           // LÓGICA DE MOVIMIENTO DE CARPETA (CNS/GENÉRICO)
           final modName = p.basename(mod.directory.path);
-          await _moveMod(mod.directory, backupDir.path);
+          await FileManagerService.moveMod(mod.directory, backupDir.path);
           // Prepara la actualización para el mapa, con la nueva ruta.
           updatedModMap[mod.directory.path] = mod.copyWith(
             directory: Directory(p.join(backupDir.path, modName)),
@@ -5504,7 +3797,7 @@ Future<void> _deployScriptAssets() async {
     try {
       int deletedCount = 0;
       for (final mod in disabledMods) {
-        if (await _deleteDirectoryWithRetry(mod.directory)) {
+        if (await FileManagerService.deleteDirectoryWithRetry(mod.directory)) {
           deletedCount++;
         }
       }
@@ -5527,29 +3820,6 @@ Future<void> _deployScriptAssets() async {
       await _loadAllMods();
       setState(() => _isLoading = false);
     }
-  }
-
-  Future<bool> _deleteDirectoryWithRetry(
-    Directory dir, {
-    int retries = 3,
-  }) async {
-    for (int i = 0; i < retries; i++) {
-      try {
-        if (await dir.exists()) {
-          await dir.delete(recursive: true);
-        }
-        return true;
-      } on PathAccessException {
-        print(
-          'Access denied while deleting ${dir.path}. Retrying (${i + 1}/$retries)...',
-        );
-        await Future.delayed(const Duration(milliseconds: 300));
-      } catch (e) {
-        rethrow;
-      }
-    }
-    print('Could not delete directory ${dir.path} after $retries attempts.');
-    return false;
   }
 
   Future<void> _showInExplorer(Directory modDirectory) async {
@@ -5784,9 +4054,7 @@ Future<void> _deployScriptAssets() async {
                             errorMessage = null;
                           });
 
-                          final bool isValid = await _validateApiKey(
-                            keyToValidate,
-                          );
+                          final bool isValid = await NexusApiService.validateApiKey(keyToValidate);
 
                           if (mounted) {
                             if (isValid) {
@@ -5878,230 +4146,6 @@ Future<void> _deployScriptAssets() async {
     }
   }
 
-  // main.dart
-
-  Future<ModInfo?> _showEditModNameDialog(ModInfo modInfo) async {
-    final nameController = TextEditingController(text: modInfo.customName);
-    final l10n = AppLocalizations.of(context)!;
-
-    final newName = await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          // Use StatefulBuilder to manage dialog state
-          builder: (context, setDialogState) {
-            return Dialog(
-              backgroundColor: const Color(0xFF2a2a2a),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    Text(
-                      l10n.dialogTitleEditModName,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: nameController,
-                      autofocus: true,
-                      // Add onChanged to rebuild the dialog and update button states
-                      onChanged: (value) => setDialogState(() {}),
-                      decoration: InputDecoration(
-                        labelText: l10n.dialogLabelNewName,
-                        hintText: modInfo.customName,
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        TextButton(
-                          // The button is disabled if the name is already the default
-                          onPressed: nameController.text == modInfo.displayName
-                              ? null
-                              : () {
-                                  // ++ LÍNEA CORREGIDA ++
-                                  // This now updates the text and rebuilds the dialog
-                                  setDialogState(
-                                    () => nameController.text =
-                                        modInfo.displayName,
-                                  );
-                                },
-                          child: Text(l10n.dialogActionResetToDefault),
-                        ),
-                        Row(
-                          children: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: Text(l10n.dialogActionCancel),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              onPressed: () => Navigator.of(
-                                context,
-                              ).pop(nameController.text),
-                              child: Text(l10n.dialogActionSave),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-
-    if (newName != null && newName.trim().isNotEmpty) {
-      return await _updateModCustomName(modInfo, newName.trim());
-    }
-
-    return null;
-  }
-
-  int _compareVersions(String v1, String v2) {
-    try {
-      final cleanV1 = v1.toLowerCase().replaceAll(RegExp(r'^[vV]'), '');
-      final cleanV2 = v2.toLowerCase().replaceAll(RegExp(r'^[vV]'), '');
-
-      List<String> parts1 = cleanV1.split('.');
-      List<String> parts2 = cleanV2.split('.');
-
-      int length = parts1.length > parts2.length
-          ? parts1.length
-          : parts2.length;
-
-      for (int i = 0; i < length; i++) {
-        String p1Str = i < parts1.length ? parts1[i] : '0';
-        String p2Str = i < parts2.length ? parts2[i] : '0';
-
-        bool p1IsNum = int.tryParse(p1Str) != null;
-        bool p2IsNum = int.tryParse(p2Str) != null;
-
-        if (p1IsNum && p2IsNum) {
-          int p1Num = int.parse(p1Str);
-          int p2Num = int.parse(p2Str);
-          if (p1Num > p2Num) return 1;
-          if (p1Num < p2Num) return -1;
-        } else if (p1IsNum && !p2IsNum) {
-          return 1;
-        } else if (!p1IsNum && p2IsNum) {
-          return -1;
-        } else {
-          int comparison = p1Str.compareTo(p2Str);
-          if (comparison != 0) {
-            return comparison;
-          }
-        }
-      }
-      return 0;
-    } catch (e) {
-      print('Error comparing versions "$v1" and "$v2": $e');
-      return v1.compareTo(v2);
-    }
-  }
-
-  Future<Map<String, dynamic>?> _fetchNexusModData(String nexusId) async {
-    if (_apiKey == null || _apiKey!.isEmpty) {
-      print("API Key not configured, not fetching Nexus data.");
-      return null;
-    }
-    final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
-
-    try {
-      final modDetailsUrl = Uri.parse(
-        'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId.json',
-      );
-      var response = await http.get(modDetailsUrl, headers: headers);
-
-      if (response.statusCode == 200) {
-        final modDetails = json.decode(response.body);
-
-        // --- INICIO DE LA CORRECCIÓN ---
-        // Extraemos la información que necesitamos SIN modificarla.
-        // Se guarda el HTML/BBCode original para que la UI lo procese correctamente.
-        final pictureUrl = modDetails['picture_url'] as String?;
-        String? summary =
-            modDetails['summary'] as String?; // <-- SIN .replaceAll()
-        if (summary != null) {
-          // Replaces the HTML line break tag with a real newline character.
-          summary = summary.replaceAll('<br />', '\n');
-        }
-        String? description =
-            modDetails['description'] as String?; // <-- SIN .replaceAll()
-        if (description != null) {
-          // Replaces the HTML line break tag with a real newline character.
-          description = description.replaceAll('<br />', '\n');
-        }
-        final author = modDetails['author'] as String?;
-        // --- FIN DE LA CORRECCIÓN ---
-
-        List<Map<String, dynamic>>? gallery;
-        if (pictureUrl != null && pictureUrl.isNotEmpty) {
-          gallery = [
-            {"image": pictureUrl, "thumbnail": pictureUrl},
-          ];
-        }
-
-        // Devolvemos un mapa con todos los datos en crudo.
-        return {
-          'gallery': gallery,
-          'summary': summary,
-          'author': author,
-          'description': description,
-        };
-      }
-
-      print(
-        "Failed to fetch Nexus data for mod $nexusId (code: ${response.statusCode}).",
-      );
-      return null;
-    } catch (e) {
-      print(
-        "An exception occurred while fetching Nexus data for mod $nexusId: $e",
-      );
-      return null;
-    }
-  }
-
-  Future<void> _updateNexusInfoFile(
-    Directory modDirectory, {
-    Map<String, dynamic>? updateCheckData,
-    List<Map<String, dynamic>>? galleryData,
-  }) async {
-    final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
-    Map<String, dynamic> modData = {};
-    if (galleryData != null) {
-      modData['gallery'] = galleryData;
-    }
-
-    try {
-      if (await infoFile.exists()) {
-        modData = json.decode(await infoFile.readAsString());
-      }
-    } catch (e) {
-      print(
-        "Could not read existing nexus_info.json, creating a new one. Error: $e",
-      );
-    }
-
-    if (updateCheckData != null) {
-      modData['lastUpdateCheck'] = updateCheckData;
-    }
-
-    final encoder = JsonEncoder.withIndent('  ');
-    await infoFile.writeAsString(encoder.convert(modData));
-  }
-
   Future<void> _checkForUpdates() async {
     final l10n = AppLocalizations.of(context)!;
 
@@ -6116,28 +4160,6 @@ Future<void> _deployScriptAssets() async {
       }
     }
 
-    final List<_UpdateCheckJob> jobs = [];
-
-    final cnsHasNexusId = _cnsNexusId != null && _cnsNexusId!.isNotEmpty;
-    if (cnsHasNexusId) {
-      jobs.add(_UpdateCheckJob(isCns: true));
-    }
-
-    final allModsWithNexusId = _allMods
-        .where((mod) => mod.nexusId != null && mod.nexusId!.isNotEmpty)
-        .toList();
-    for (final mod in allModsWithNexusId) {
-      jobs.add(_UpdateCheckJob(mod: mod));
-    }
-
-    if (jobs.isEmpty) {
-      setState(() {
-        _statusMessage = l10n.statusNoUpdates;
-        _statusColor = Colors.white;
-      });
-      return;
-    }
-
     setState(() {
       _isCheckingForUpdates = true;
       _statusMessage = l10n.statusCheckingUpdates;
@@ -6146,83 +4168,24 @@ Future<void> _deployScriptAssets() async {
       _ignoredUpdates.clear();
     });
 
-    final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
-    final List<Future<Map<String, dynamic>?>> futures = [];
-
-    for (final job in jobs) {
-      if (job.isCns) {
-        futures.add(
-          _checkSingleModUpdate(
-            headers: headers,
-            nexusId: _cnsNexusId!,
-            localVersion: _cnsVersion ?? '0',
-            hasLocalVersion: _cnsVersion != null,
-            modName: "Custom Nanosuit System",
-            modDirectory: Directory(
-              p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss'),
-            ),
-            displayName: '',
-          ),
-        );
-      } else if (job.mod != null) {
-        // Determina qué versión usar para la comprobación de actualizaciones.
-        // Prioriza la 'customVersion' definida por el usuario.
-        final String versionForCheck =
-            job.mod!.customVersion != null && job.mod!.customVersion!.isNotEmpty
-            ? job.mod!.customVersion!
-            : job.mod!.localVersion ?? '0';
-
-        // Se considera que una versión existe si la versión personalizada o la local están presentes.
-        final bool hasVersionForCheck =
-            (job.mod!.customVersion != null &&
-                job.mod!.customVersion!.isNotEmpty) ||
-            (job.mod!.localVersion != null &&
-                job.mod!.localVersion!.isNotEmpty);
-
-        futures.add(
-          _checkSingleModUpdate(
-            headers: headers,
-            nexusId: job.mod!.nexusId!,
-            localVersion: versionForCheck, // Usar la versión determinada
-            hasLocalVersion: hasVersionForCheck, // Usar el nuevo booleano
-            modName: job.mod!.customName,
-            displayName: job.mod!.displayName,
-            modDirectory: job.mod!.directory,
-          ),
-        );
-      }
-    }
-
-    String? detailedError;
-    List<Map<String, dynamic>?> results = [];
-    try {
-      results = await Future.wait(futures);
-    } catch (e) {
-      detailedError = e.toString();
-    }
-
-    int updatesFound = 0;
-    for (int i = 0; i < results.length; i++) {
-      final result = results[i];
-      final job = jobs[i];
-
-      if (result != null) {
-        updatesFound++;
-        if (job.isCns) {
-          _cnsUpdateInfo = result;
-        } else if (job.mod != null) {
-          _modUpdates[job.mod!.directory.path] = result;
-        }
-      }
-    }
+    final result = await UpdateService.checkForAllUpdates(
+      apiKey: _apiKey!,
+      cnsNexusId: _cnsNexusId,
+      cnsVersion: _cnsVersion,
+      gameRootPath: _gameRootPath,
+      allMods: _allMods,
+      skippedVersions: _skippedVersions,
+    );
 
     setState(() {
-      if (detailedError != null) {
-        _statusMessage = l10n.statusError(detailedError);
+      if (result.error != null) {
+        _statusMessage = l10n.statusError(result.error!);
         _statusColor = Colors.redAccent;
-      } else if (updatesFound > 0) {
-        _statusMessage = l10n.statusUpdatesFound(updatesFound);
+      } else if (result.updatesFound > 0) {
+        _statusMessage = l10n.statusUpdatesFound(result.updatesFound);
         _statusColor = Colors.yellowAccent;
+        _cnsUpdateInfo = result.cnsUpdateInfo;
+        _modUpdates.addAll(result.modUpdates);
       } else {
         _statusMessage = l10n.statusNoUpdates;
         _statusColor = Colors.greenAccent;
@@ -6230,194 +4193,6 @@ Future<void> _deployScriptAssets() async {
       _isCheckingForUpdates = false;
     });
   }
-
-  Future<Map<String, dynamic>?> _checkSingleModUpdate({
-    required Map<String, String> headers,
-    required String nexusId,
-    required String localVersion,
-    required bool hasLocalVersion,
-    required String modName,
-    required String displayName,
-    required Directory modDirectory,
-  }) async {
-    final url = Uri.parse(
-      'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId/files.json',
-    );
-    final response = await http.get(url, headers: headers);
-
-    try {
-      final updateCheckData = {
-        'timestamp': DateTime.now().toIso8601String(),
-        'statusCode': response.statusCode,
-      };
-      await _updateNexusInfoFile(
-        modDirectory,
-        updateCheckData: updateCheckData,
-      );
-    } catch (e) {
-      print('Could not update nexus_info.json file for $modName: $e');
-    }
-
-    if (response.statusCode != 200) {
-      print(
-        'Error for mod $nexusId: ${response.statusCode} - ${response.body}',
-      );
-      return null;
-    }
-
-    final jsonResponse = json.decode(response.body);
-    final allFiles = jsonResponse['files'] as List;
-    final potentialFiles = allFiles
-        .where(
-          (file) =>
-              file['category_name'] == 'MAIN' ||
-              file['category_name'] == 'OPTIONAL',
-        )
-        .toList();
-
-    final compatibleFiles = potentialFiles.where((file) {
-      final fileName = (file['file_name'] as String).toLowerCase();
-      return !fileName.contains('not cns') &&
-          !fileName.contains('without cns') &&
-          !fileName.contains('non cns');
-    }).toList();
-
-    if (compatibleFiles.isNotEmpty) {
-      List<dynamic> filesToConsider;
-      final cnsFiles = compatibleFiles
-          .where(
-            (file) =>
-                (file['file_name'] as String).toLowerCase().contains('cns'),
-          )
-          .toList();
-
-      filesToConsider = cnsFiles.isNotEmpty ? cnsFiles : compatibleFiles;
-      dynamic bestMatchFile;
-
-      //final modsWithSameId = _allMods.where((m) => m.nexusId == nexusId).length;
-      if (filesToConsider.length == 1) {
-        // Si solo hay un archivo candidato, lo tomamos directamente.
-        bestMatchFile = filesToConsider.first;
-      } else {
-        // Si hay múltiples candidatos, usamos el sistema de puntuación para decidir.
-        final normalizedDisplayName = _normalizeName(displayName);
-        final keywords = displayName
-            .toLowerCase()
-            .split(RegExp(r'[_ -]'))
-            .where((s) => s.isNotEmpty)
-            .toList();
-
-        final fileScores = filesToConsider.map((file) {
-          final rawFileName = file['file_name'] as String;
-          final normalizedFileName = _normalizeName(rawFileName);
-          int score = 0;
-
-          if (normalizedFileName.contains(normalizedDisplayName)) {
-            score = 100;
-          } else {
-            for (final keyword in keywords) {
-              if (normalizedFileName.contains(keyword)) {
-                score++;
-              }
-            }
-          }
-          return {'file': file, 'score': score};
-        }).toList();
-
-        // Ordenamos la lista para que el archivo con la puntuación más alta quede primero.
-        fileScores.sort(
-          (a, b) => (b['score'] as int).compareTo(a['score'] as int),
-        );
-
-        // Tomamos el mejor candidato, pero solo si su puntuación es mayor que cero.
-        if (fileScores.isNotEmpty && fileScores.first['score'] as int > 0) {
-          bestMatchFile = fileScores.first['file'];
-        }
-      }
-      // ++ FIN DE LA LÓGICA CORREGIDA ++
-
-      // Ahora, solo si hemos encontrado un candidato válido, procedemos a la comprobación de versión.
-      if (bestMatchFile != null) {
-        final latestVersion = bestMatchFile['version'] as String;
-
-        final skippedVersion = _skippedVersions[nexusId];
-        final isSkipped =
-            skippedVersion != null &&
-            _compareVersions(latestVersion, skippedVersion) <= 0;
-
-        // Comparamos la versión del MEJOR CANDIDATO con la versión local.
-        if (hasLocalVersion &&
-            !isSkipped &&
-            _compareVersions(latestVersion, localVersion) > 0) {
-          return {
-            'version': latestVersion,
-            'fileId': bestMatchFile['file_id'] as int,
-          };
-        }
-      }
-    }
-    return null;
-  }
-  //Funcion comentada por el momento, puede ser util en un futuro.
-  /*Future<void> _recheckSpecificMod(String nexusId, {String? newVersion}) async {
-    if (_apiKey == null || _apiKey!.isEmpty) {
-      print("API Key not configured, cannot re-check mod.");
-      return;
-    }
-    final headers = {'apikey': _apiKey!, 'accept': 'application/json'};
-
-    if (_cnsNexusId == nexusId) {
-      final versionToCheck = newVersion ?? _cnsVersion;
-      if (versionToCheck == null) return;
-      final updateInfo = await _checkSingleModUpdate(
-        headers: headers,
-        nexusId: _cnsNexusId!,
-        localVersion: versionToCheck,
-        hasLocalVersion: true,
-        modName: "Custom Nanosuit System",
-        modDirectory: Directory(
-          p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'ue4ss'),
-        ),
-        displayName: '',
-      );
-      setState(() => _cnsUpdateInfo = updateInfo);
-    } else {
-      try {
-        final modToRecheck = _allMods.firstWhere((m) => m.nexusId == nexusId);
-        // Prioriza la versión para la nueva comprobación en este orden:
-        // 1. Una nueva versión pasada explícitamente a la función.
-        // 2. La versión personalizada del mod si existe.
-        // 3. La versión local (automática) del mod.
-        final versionToCheck =
-            newVersion ??
-            (modToRecheck.customVersion?.isNotEmpty == true
-                ? modToRecheck.customVersion
-                : modToRecheck.localVersion);
-
-        if (versionToCheck != null) {
-          final hasVersionForCheck = versionToCheck.isNotEmpty;
-          final updateInfo = await _checkSingleModUpdate(
-            headers: headers,
-            nexusId: modToRecheck.nexusId!,
-            localVersion: versionToCheck,
-            hasLocalVersion: hasVersionForCheck,
-            modName: modToRecheck.customName,
-            modDirectory: modToRecheck.directory,
-            displayName: modToRecheck.displayName,
-          ); // Pasar el displayName
-          setState(() {
-            if (updateInfo == null) {
-              _modUpdates.remove(modToRecheck.directory.path);
-            } else {
-              _modUpdates[modToRecheck.directory.path] = updateInfo;
-            }
-          });
-        }
-      } catch (e) {
-        print("Mod with nexusId $nexusId not found for re-check: $e");
-      }
-    }
-  }*/
 
   void _showImageGalleryDialog(
     ModInfo modInfo, {
@@ -6762,191 +4537,7 @@ Future<void> _deployScriptAssets() async {
         });
         break;
     }
-
     return mods;
-  }
-
-  Future<Map<String, dynamic>?> _showGeneralEditDialog(
-    ModInfo modInfo,
-    BuildContext context,
-  ) async {
-    final l10n = AppLocalizations.of(context)!;
-
-    final nameController = TextEditingController(text: modInfo.customName);
-    final authorController = TextEditingController(
-      text: modInfo.customAuthor ?? modInfo.author ?? '',
-    );
-    final String defaultUrl =
-        modInfo.sourceUrl ??
-        (modInfo.nexusId != null
-            ? 'https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}'
-            : '');
-    final urlController = TextEditingController(
-      text: modInfo.customSourceUrl ?? defaultUrl,
-    );
-
-    File? newCoverFile;
-    Alignment? newCoverAlignment;
-
-    final updatedData = await showDialog<Map<String, dynamic>>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final bool canResetName =
-                nameController.text != modInfo.displayName;
-            final bool canResetAuthor =
-                authorController.text != (modInfo.author ?? '');
-            final bool canResetUrl =
-                urlController.text != (modInfo.sourceUrl ?? '');
-
-            return AlertDialog(
-              title: Text(l10n.editModTitle),
-              content: SizedBox(
-                width: 500,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: nameController,
-                              onChanged: (v) => setDialogState(() {}),
-                              decoration: InputDecoration(
-                                labelText: l10n.modNameLabel,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: !canResetName
-                                ? null
-                                : () => setDialogState(
-                                    () => nameController.text =
-                                        modInfo.displayName,
-                                  ),
-                            child: Text(l10n.dialogActionResetToDefault),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: authorController,
-                              onChanged: (v) => setDialogState(() {}),
-                              decoration: InputDecoration(
-                                labelText: l10n.authorLabel,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: !canResetAuthor
-                                ? null
-                                : () => setDialogState(
-                                    () => authorController.text =
-                                        modInfo.author ?? '',
-                                  ),
-                            child: Text(l10n.dialogActionResetToDefault),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: urlController,
-                              onChanged: (v) => setDialogState(() {}),
-                              decoration: InputDecoration(
-                                labelText: l10n.urlLabel,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: !canResetUrl
-                                ? null
-                                : () => setDialogState(
-                                    () => urlController.text = defaultUrl,
-                                  ),
-                            child: Text(l10n.dialogActionResetToDefault),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      if (newCoverFile != null)
-                        Image.file(newCoverFile!, height: 100),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.image_search),
-                        label: Text(l10n.changeCoverButton),
-                        onPressed: () async {
-                          FilePickerResult? result = await FilePicker.platform
-                              .pickFiles(
-                                type: FileType.custom,
-                                allowedExtensions: [
-                                  'png',
-                                  'jpg',
-                                  'jpeg',
-                                  'webp',
-                                  'bmp',
-                                  'pwebp',
-                                  'tiff',
-                                ],
-                              );
-                          if (result != null &&
-                              result.files.single.path != null) {
-                            final pickedFile = File(result.files.single.path!);
-                            final alignment = await _showCoverAlignmentDialog(
-                              pickedFile,
-                            );
-                            if (alignment != null) {
-                              setDialogState(() {
-                                newCoverFile = pickedFile;
-                                newCoverAlignment = alignment;
-                              });
-                            }
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.dialogActionCancel),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final Map<String, dynamic> dataToSave = {
-                      'customName': nameController.text,
-                      'author': authorController.text,
-                      'customSourceUrl': urlController.text,
-                    };
-                    if (newCoverFile != null) {
-                      dataToSave['newCoverFile'] = newCoverFile;
-                      dataToSave['newCoverAlignment'] = newCoverAlignment;
-                    }
-                    Navigator.of(context).pop(dataToSave);
-                  },
-                  child: Text(l10n.dialogActionSave),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    nameController.dispose();
-    authorController.dispose();
-    urlController.dispose();
-
-    return updatedData;
   }
 
   @override
@@ -7246,905 +4837,160 @@ Future<void> _deployScriptAssets() async {
     );
   }
 
-  // main.dart
-
-  Widget _buildSelectionPreviewSection(
-    AppLocalizations l10n, {
-    required StateSetter panelStateSetter,
-  }) {
-    final modEntries = _modsToInstallPreviewMap.entries.toList();
-    final _scrollController = ScrollController();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 24),
-        // --- CABECERA DE LA SECCIÓN ---
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              l10n.previewInstallTitle,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            TextButton.icon(
-              icon: const Icon(Icons.cancel_outlined, size: 20),
-              label: Text(l10n.cancelSelection),
-              onPressed: _isInstalling
-                  ? null
-                  : () => _clearSelection(panelStateSetter: panelStateSetter),
-              style: TextButton.styleFrom(
-                // Un estilo visual para cuando el botón está deshabilitado.
-                disabledForegroundColor: Colors.redAccent.withOpacity(0.4),
-                foregroundColor: Colors.redAccent,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const Divider(height: 20, color: Colors.white24),
-
-        // ++ INICIO DE LA MODIFICACIÓN ++
-        // Contenedor que limita la altura máxima de la lista y le da un estilo.
-        Container(
-          constraints: const BoxConstraints(
-            maxHeight: 280, // Altura máxima antes de que aparezca el scroll
-          ),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Scrollbar(
-            // Añade una barra de scroll visible
-            controller: _scrollController,
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              // Hace que el contenido sea desplazable
-              controller: _scrollController,
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                children: List.generate(modEntries.length, (index) {
-                  final entry = modEntries[index];
-                  final folderName = entry.key;
-                  final files = entry.value;
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // -- Nombre del Mod --
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.folder_zip_outlined,
-                              size: 20,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                folderName,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-
-                        // -- Lista de Archivos Anidada --
-                        Padding(
-                          padding: const EdgeInsets.only(left: 30.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: files.map((file) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 3.0,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.insert_drive_file_outlined,
-                                      size: 14,
-                                      color: Colors.grey[400],
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        file,
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.grey[300],
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-
-                        // -- Separador (ajustado para no tener padding extra al final) --
-                        if (index < modEntries.length - 1)
-                          const Divider(height: 24, color: Colors.white10),
-                      ],
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ),
-        ),
-        // ++ FIN DE LA MODIFICACIÓN ++
-      ],
-    );
-  }
-
   Widget _buildModGridCard(ModInfo modInfo, AppLocalizations l10n) {
-    String? coverImagePath; // Esta es la ruta real del archivo O la URL
-    String? cacheKey; // Esta es la clave estable para el caché
-    bool isLocalFile = false; // Para saber si es un archivo local
+  final updateInfo = _modUpdates[modInfo.directory.path];
+  final hasUpdate = updateInfo != null;
+  final updateIdentifier = hasUpdate ? modInfo.directory.path + updateInfo['version'] : '';
+  final isIgnored = _ignoredUpdates.contains(updateIdentifier);
+  final isHighlighted = _lastInstalledModNames.contains(p.basename(modInfo.directory.path));
+  final displayVersion = modInfo.customVersion ?? modInfo.localVersion;
+  final bool isReplacement = modInfo.replacesOutfit != null && modInfo.replacesOutfit!.isNotEmpty;
+  final String displayTag = isReplacement
+      ? modInfo.replacesOutfit!
+      : (modInfo.customFitMeshType ?? modInfo.fitMeshType ?? l10n.modCategoryOther);
 
-    // 1. Prioriza la portada personalizada.
-    if (modInfo.customCoverPath != null &&
-        modInfo.customCoverPath!.isNotEmpty) {
-      
-      // La ruta real y volátil (cambia al activar/desactivar)
-      coverImagePath = p.join(modInfo.directory.path, modInfo.customCoverPath!);
-      
-      // La clave estable (nombre de carpeta + nombre de archivo)
-      cacheKey = p.basename(modInfo.directory.path) + modInfo.customCoverPath!;
-      
-      isLocalFile = true;
+  void _performSurgicalUpdate(ModInfo? updatedMod) {
+    if (updatedMod == null) return;
+    final modIndex = _allMods.indexWhere((m) => m.directory.path == updatedMod.directory.path);
+    if (modIndex != -1) {
+      setState(() {
+        _allMods[modIndex] = updatedMod;
+      });
     }
-    // 2. Si no hay, recurre a la URL de internet.
-    else if (modInfo.gallery != null && modInfo.gallery!.isNotEmpty) {
-      
-      // Para imágenes de red, la URL es tanto la ruta como la clave
-      coverImagePath = modInfo.gallery!.first['thumbnail'] as String?;
-      cacheKey = coverImagePath;
-      
-      isLocalFile = false;
-    }
+  }
 
-    final updateInfo = _modUpdates[modInfo.directory.path];
-    final hasUpdate = updateInfo != null;
-    final updateIdentifier = hasUpdate
-        ? modInfo.directory.path + updateInfo['version']
-        : '';
-    final isIgnored = _ignoredUpdates.contains(updateIdentifier);
-    final isHighlighted = _lastInstalledModNames.contains(
-      p.basename(modInfo.directory.path),
-    );
-    final hasCustomCover =
-        modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty;
-    if (hasCustomCover) {
-      p.join(modInfo.directory.path, modInfo.customCoverPath!);
-    }
-    final displayVersion = modInfo.customVersion ?? modInfo.localVersion;
-    final bool isReplacement =
-        modInfo.replacesOutfit != null && modInfo.replacesOutfit!.isNotEmpty;
-    // La etiqueta ahora es el traje (si es un reemplazo) o la etiqueta personalizada/original (si no lo es)
-    final String displayTag = isReplacement
-        ? modInfo.replacesOutfit!
-        : (modInfo.customFitMeshType ??
-              modInfo.fitMeshType ??
-              l10n.modCategoryOther);
-
-    void _performSurgicalUpdate(ModInfo? updatedMod) {
-      if (updatedMod == null) return;
-      final modIndex = _allMods.indexWhere(
-        (m) => m.directory.path == updatedMod.directory.path,
-      );
-      if (modIndex != -1) {
-        setState(() {
-          _allMods[modIndex] = updatedMod;
-        });
+  return ModGridCard(
+    modInfo: modInfo,
+    l10n: l10n,
+    thumbnailService: _thumbnailService,
+    updateInfo: updateInfo,
+    isIgnored: isIgnored,
+    isHighlighted: isHighlighted,
+    showModTypeTags: _showModTypeTags,
+    isLoading: _isLoading,
+    onTapDetails: () => _showDetailsPage(modInfo),
+    onUpdateAvailableTap: () {
+      if (modInfo.nexusId != null) {
+        _showUpdateOptionsDialog(
+          newVersion: updateInfo!['version'],
+          nexusId: modInfo.nexusId!,
+          fileId: updateInfo['fileId'],
+          uniqueIdentifier: updateIdentifier,
+        );
       }
-    }
-
-    return Card(
-      key: ValueKey(modInfo.directory.path), // Usa una clave consistente
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(
-          color: hasUpdate && !isIgnored
-              ? Colors.yellowAccent
-              : (isHighlighted ? Colors.tealAccent : Colors.transparent),
-          width: 1.5,
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      elevation: 4,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: () => _showDetailsPage(modInfo),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Container(
-                    color: Colors.black.withOpacity(0.5),
-                    // Ahora usamos un único widget que maneja tanto imágenes locales como de red.
-                    child: ModThumbnailImage(
-                      imageUrl: cacheKey, // La clave estable
-                      imagePathToProcess: coverImagePath, // La ruta real
-                      thumbnailService: _thumbnailService,
-                      isLocal: isLocalFile, // El booleano correcto
-                      fit: BoxFit.cover,
-                      alignment:
-                          modInfo.customCoverAlignment ?? Alignment.center,
-                    ),
-                  ),
-                  //if (!modInfo.isEnabled)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        // 1. Muestra "Disabled" SÓLO si está deshabilitado
-                        if (!modInfo.isEnabled)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.orangeAccent.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              l10n.modDisabledBadge,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-
-                        // 2. Muestra un espacio SÓLO si está deshabilitado (para separar las etiquetas)
-                        if (!modInfo.isEnabled) const SizedBox(height: 4),
-
-                        // 3. Muestra SIEMPRE la etiqueta de Tipo (CNS/Genérico)
-                        if (_showModTypeTags) _buildModTypeBadge(modInfo, l10n),
-                      ],
-                    ),
-                  ),
-                  if (hasUpdate && !isIgnored)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.notification_important_rounded,
-                          color: Colors.yellowAccent,
-                        ),
-                        tooltip: l10n.updateAvailable(
-                          (updateInfo['version'] as String)
-                                  .toLowerCase()
-                                  .startsWith('v')
-                              ? (updateInfo['version'] as String).substring(1)
-                              : updateInfo['version'],
-                        ),
-                        onPressed: () {
-                          if (modInfo.nexusId != null) {
-                            _showUpdateOptionsDialog(
-                              newVersion: updateInfo['version'],
-                              nexusId: modInfo.nexusId!,
-                              fileId: updateInfo['fileId'],
-                              uniqueIdentifier: updateIdentifier,
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Tooltip(
-                    message: modInfo.customName,
-                    child: Text(
-                      modInfo.customName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-                if (displayVersion != null)
-                  InkWell(
-                    onTap: () async {
-                      final updatedMod = await _showEditDialog(
-                        context: context,
-                        title: l10n.editVersionText,
-                        label: l10n.customVersionText,
-                        initialValue: displayVersion,
-                        defaultValue: modInfo.localVersion ?? '',
-                        maxLength: 15,
-                        onSave: (newValue) => _updateModCustomProperty(
-                          modInfo,
-                          newVersion: newValue,
-                        ),
-                      );
-                      _performSurgicalUpdate(updatedMod);
-                    },
-                    borderRadius: BorderRadius.circular(4),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4.0,
-                        vertical: 2.0,
-                      ),
-                      child: Text(
-                        'v$displayVersion',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 0, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Listener(
-                    // ++ 1. AÑADIR LISTENER ++
-                    onPointerMove: (event) {
-                      // Actualiza la posición del cursor continuamente
-                      // Usamos la posición global para el Overlay
-                      _cursorPosition = event.position;
-                    },
-                    child: MouseRegion(
-                      // ++ 2. MODIFICAR onEnter ++
-                      onEnter: (event) {
-                        if (isReplacement) {
-                          // Guarda la posición inicial
-                          _cursorPosition = event.position;
-                          // Cancela cualquier temporizador pendiente
-                          _hoverTimer?.cancel();
-                          // Inicia un nuevo temporizador de 800 milisegundos
-                          _hoverTimer = Timer(
-                            const Duration(milliseconds: 800),
-                            () {
-                              // Al completarse, muestra el overlay en la última posición guardada
-                              if (mounted) {
-                                _showPreviewOverlay(
-                                  context,
-                                  modInfo.replacesOutfit!,
-                                  _cursorPosition,
-                                );
-                              }
-                            },
-                          );
-                        }
-                      },
-                      // ++ 3. MODIFICAR onExit ++
-                      onExit: (_) {
-                        // Al salir, oculta todo (cancela el temporizador y quita el overlay)
-                        _hidePreviewOverlay();
-                      },
-                      child: InkWell(
-                        onTap: isReplacement
-                            ? null
-                            : () async {
-                                final updatedMod = await _showEditDialog(
-                                  context: context,
-                                  title: l10n.editTagText,
-                                  label: l10n.customTagText,
-                                  initialValue:
-                                      displayTag, // 'displayTag' ya tiene el valor correcto
-                                  defaultValue:
-                                      modInfo.fitMeshType ??
-                                      l10n.modCategoryOther,
-                                  onSave: (newValue) =>
-                                      _updateModCustomProperty(
-                                        modInfo,
-                                        newTag: newValue,
-                                      ),
-                                );
-                                _performSurgicalUpdate(updatedMod);
-                              },
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isReplacement
-                                ? Colors.black.withOpacity(0.4)
-                                : Colors.grey.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize
-                                .min, // Para que el icono no empuje el texto
-                            children: [
-                              if (isReplacement)
-                                Icon(
-                                  Icons.checkroom_outlined,
-                                  size: 10,
-                                  color: Colors
-                                      .purpleAccent
-                                      .shade100, // Color distintivo
-                                ),
-                              if (isReplacement) const SizedBox(width: 4),
-                              Flexible(
-                                // El texto debe ser flexible para los "..."
-                                child: Text(
-                                  displayTag, // 'displayTag' ya tiene el nombre del traje
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    // (Opcional) Color diferente para el texto del traje
-                                    color: isReplacement
-                                        ? const Color.fromARGB(
-                                            255,
-                                            153,
-                                            151,
-                                            153,
-                                          )
-                                        : Colors.white70,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Row(
-                  children: [
-                    AnimatedModSwitch(
-                      // Usamos una Key única para que Flutter sepa qué widget persistir
-                      key: ValueKey('switch-grid-${modInfo.directory.path}'),
-                      modInfo: modInfo,
-                      isLoading: _isLoading,
-                      onEnable: _enableMod,
-                      onDisable: _disableMod,
-                      scale: 0.6, // Mantenemos el escalado
-                    ),
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert, size: 20),
-                      onSelected: (value) async {
-                        if (value == 'edit') {
-                          final updatedMod = await _showEditModNameDialog(
-                            modInfo,
-                          );
-                          // ++ LÓGICA DE ACTUALIZACIÓN AQUÍ ++
-                          _performSurgicalUpdate(updatedMod);
-                        } else {
-                          switch (value) {
-                            case 'edit':
-                              _showEditModNameDialog(modInfo);
-                              break;
-                            case 'set_cover':
-                              _setCustomCover(modInfo);
-                              break;
-                            case 'revert_cover':
-                              _revertToDefaultCover(modInfo);
-                              break;
-                            case 'folder':
-                              _showInExplorer(modInfo.directory);
-                              break;
-                            case 'gallery':
-                              _showImageGalleryDialog(modInfo);
-                              break;
-                            case 'nexus':
-                              if (modInfo.nexusId != null) {
-                                final url = Uri.parse(
-                                  'https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}',
-                                );
-                                if (await canLaunchUrl(url)) {
-                                  await launchUrl(url);
-                                }
-                              }
-                              break;
-                            case 'delete':
-                              _deleteModPermanently(modInfo);
-                              break;
-                          }
-                        }
-                      },
-                      // ++ INICIO DE LA CORRECCIÓN ++
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.edit_outlined, size: 20),
-                              const SizedBox(width: 12),
-                              Flexible(child: Text(l10n.editModNameTooltip)),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'set_cover',
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.add_photo_alternate_outlined,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 12),
-                              Flexible(child: Text(l10n.setCoverTooltip)),
-                            ],
-                          ),
-                        ),
-                        if (modInfo.customCoverPath != null &&
-                            modInfo.customCoverPath!.isNotEmpty)
-                          PopupMenuItem(
-                            value: 'revert_cover',
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.photo_filter_outlined,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 12),
-                                Flexible(
-                                  child: Text(l10n.restoreOriginalCoverText),
-                                ),
-                              ],
-                            ),
-                          ),
-                        PopupMenuItem(
-                          value: 'folder',
-                          child: Row(
-                            children: [
-                              const Icon(Icons.folder_open_outlined, size: 20),
-                              const SizedBox(width: 12),
-                              Flexible(child: Text(l10n.showInFolder)),
-                            ],
-                          ),
-                        ),
-                        if (modInfo.nexusId != null)
-                          PopupMenuItem(
-                            value: 'gallery',
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.photo_library_outlined,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 12),
-                                Flexible(child: Text(l10n.viewImageGallery)),
-                              ],
-                            ),
-                          ),
-                        if (modInfo.nexusId != null)
-                          PopupMenuItem(
-                            value: 'nexus',
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.open_in_browser_outlined,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 12),
-                                Flexible(child: Text(l10n.openInNexusMods)),
-                              ],
-                            ),
-                          ),
-                        if (!modInfo.isEnabled) const PopupMenuDivider(),
-                        if (!modInfo.isEnabled)
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.delete_forever_outlined,
-                                  size: 20,
-                                  color: Colors.redAccent,
-                                ),
-                                const SizedBox(width: 12),
-                                Flexible(
-                                  child: Text(
-                                    l10n.deletePermanently,
-                                    style: const TextStyle(
-                                      color: Colors.redAccent,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                      // ++ FIN DE LA CORRECCIÓN ++
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Construye el widget de la etiqueta de Tipo de Mod (CNS, Genérico o Movies).
-  Widget _buildModTypeBadge(ModInfo mod, AppLocalizations l10n) {
-    final String modTypeString;
-    final Color modTypeColor;
-
-    // 2. LÓGICA MEJORADA
-    final String? modType = mod.modType;
-
-    if (modType == 'replacement') {
-      modTypeString = l10n.modTypeReplacement; // "Reemplazo"
-      modTypeColor = const Color.fromARGB(
-        255,
-        182,
-        33,
-        135,
-      ); // Color para "Reemplazo"
-    } else if (modType == 'genericPak') {
-      modTypeString = l10n.modTypeGeneric; // "Genérico"
-      modTypeColor = const Color.fromARGB(
-        255,
-        63,
-        63,
-        63,
-      ); // Color para "Generic"
-    } else if (modType == 'movies') {
-      modTypeString = l10n.modTypeMovies; // "Películas"
-      modTypeColor = const Color.fromARGB(
-        255,
-        153,
-        49,
-        49,
-      ); // Color para "Movies"
-    } else if (modType == 'logicMod') {
-      modTypeString = l10n.modTypeLogic; // "Logic"
-      modTypeColor = const Color.fromARGB(
-        255,
-        26,
-        99,
-        151,
-      ); // Color para "Logic"
-      // ++ FIN DE LA MODIFICACIÓN ++
-    } else {
-      // Esto ahora solo se aplica a 'cns' y a mods antiguos (null)
-      modTypeString = l10n.modTypeCNS; // "CNS"
-      modTypeColor = Colors.teal.shade600; // Color para "CNS"
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: modTypeColor.withOpacity(0.9), // Usar el color dinámico
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        modTypeString, // Usar el texto dinámico
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
+    },
+    onEditVersionTap: () async {
+      final updatedMod = await EditDialogs.showEditDialog(
+        context: context,
+        title: l10n.editVersionText,
+        label: l10n.customVersionText,
+        initialValue: displayVersion ?? '',
+        defaultValue: modInfo.localVersion ?? '',
+        maxLength: 15,
+        onSave: (newValue) => _updateModCustomProperty(modInfo, newVersion: newValue),
+      );
+      _performSurgicalUpdate(updatedMod);
+    },
+    onEditTagTap: () async {
+      final updatedMod = await EditDialogs.showEditDialog(
+        context: context,
+        title: l10n.editTagText,
+        label: l10n.customTagText,
+        initialValue: displayTag,
+        defaultValue: modInfo.fitMeshType ?? l10n.modCategoryOther,
+        onSave: (newValue) => _updateModCustomProperty(modInfo, newTag: newValue),
+      );
+      _performSurgicalUpdate(updatedMod);
+    },
+    onHoverEnter: (position, outfitName) {
+      _cursorPosition = position;
+      _hoverTimer?.cancel();
+      _hoverTimer = Timer(const Duration(milliseconds: 800), () {
+        if (mounted) {
+          _showPreviewOverlay(context, outfitName, _cursorPosition);
+        }
+      });
+    },
+    onHoverMove: (position) => _cursorPosition = position,
+    onHoverExit: () => _hidePreviewOverlay(),
+    onEnable: _enableMod,
+    onDisable: _disableMod,
+    onEditNameTap: () async {
+      final newName = await EditDialogs.showEditModNameDialog(context, modInfo);
+      if (newName != null && newName.trim().isNotEmpty) {
+        final updatedMod = await _updateModCustomName(modInfo, newName.trim());
+        _performSurgicalUpdate(updatedMod);
+      }
+    },
+    onSetCoverTap: () => _setCustomCover(modInfo),
+    onRevertCoverTap: () => _revertToDefaultCover(modInfo),
+    onShowFolderTap: () => _showInExplorer(modInfo.directory),
+    onShowGalleryTap: () => _showImageGalleryDialog(modInfo),
+    onOpenNexusTap: () async {
+      if (modInfo.nexusId != null) {
+        final url = Uri.parse('https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}');
+        if (await canLaunchUrl(url)) await launchUrl(url);
+      }
+    },
+    onDeleteTap: () => _deleteModPermanently(modInfo),
+  );
+}
 
   Widget _buildModListTile(ModInfo modInfo, AppLocalizations l10n) {
-    final isHighlighted = _lastInstalledModNames.contains(
-      p.basename(modInfo.directory.path),
-    );
-    final updateInfo = _modUpdates[modInfo.directory.path];
-    final hasUpdate = updateInfo != null;
-    final updateIdentifier = hasUpdate
-        ? modInfo.directory.path + updateInfo['version']
-        : '';
-    final isIgnored = _ignoredUpdates.contains(updateIdentifier);
+  final isHighlighted = _lastInstalledModNames.contains(p.basename(modInfo.directory.path));
+  final updateInfo = _modUpdates[modInfo.directory.path];
+  final hasUpdate = updateInfo != null;
+  final updateIdentifier = hasUpdate ? modInfo.directory.path + updateInfo['version'] : '';
+  final isIgnored = _ignoredUpdates.contains(updateIdentifier);
 
-    return Card(
-      key: UniqueKey(),
-      margin: const EdgeInsets.symmetric(vertical: 4.0),
-      color: isHighlighted
-          ? Colors.teal.withOpacity(0.3)
-          : (modInfo.isEnabled
-                ? Colors.grey[850]
-                : Colors.orange[900]?.withOpacity(0.2)),
-      shape: RoundedRectangleBorder(
-        side: BorderSide(
-          color: hasUpdate && !isIgnored
-              ? Colors.yellowAccent
-              : (isHighlighted ? Colors.tealAccent : Colors.transparent),
-          width: hasUpdate && !isIgnored ? 2.0 : 1.5,
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ListTile(
-        dense: true,
-        visualDensity: VisualDensity.compact,
-        leading: Icon(
-          Icons.extension,
-          color: modInfo.isEnabled ? Colors.tealAccent : Colors.grey,
-        ),
-        title: Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Flexible(
-              child: Text(
-                modInfo.customName,
-                style: TextStyle(
-                  color: modInfo.isEnabled ? Colors.white : Colors.grey,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (modInfo.localVersion != null &&
-                modInfo.localVersion!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 8.0),
-                child: Text(
-                  'v${modInfo.localVersion}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        subtitle: Row(
-          children: [
-            if (isHighlighted)
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: Icon(
-                  Icons.new_releases,
-                  color: Colors.yellow[700],
-                  size: 18,
-                ),
-              ),
-            if (modInfo.origin == 'repaired')
-              IconButton(
-                padding: const EdgeInsets.only(right: 8.0),
-                constraints: const BoxConstraints(),
-                icon: Icon(Icons.build, color: Colors.amber[700], size: 16),
-                onPressed: _showRepairedModInfoDialog,
-                tooltip: l10n.repairedModTooltip,
-                splashRadius: 16,
-              ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!modInfo.isEnabled)
-              IconButton(
-                icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
-                onPressed: _isLoading
-                    ? null
-                    : () => _deleteModPermanently(modInfo),
-                tooltip: l10n.deletePermanently,
-              ),
-            if (hasUpdate && !isIgnored)
-              IconButton(
-                icon: const Icon(
-                  Icons.notification_important,
-                  color: Colors.yellowAccent,
-                ),
-                tooltip: l10n.updateAvailable(
-                  (updateInfo['version'] as String).toLowerCase().startsWith(
-                        'v',
-                      )
-                      ? (updateInfo['version'] as String).substring(1)
-                      : updateInfo['version'],
-                ),
-                onPressed: () {
-                  if (modInfo.nexusId != null) {
-                    _showUpdateOptionsDialog(
-                      newVersion: updateInfo['version'],
-                      nexusId: modInfo.nexusId!,
-                      fileId: updateInfo['fileId'],
-                      uniqueIdentifier: updateIdentifier,
-                    );
-                  }
-                },
-              ),
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.white70),
-              onPressed: _isLoading
-                  ? null
-                  : () => _showEditModNameDialog(modInfo),
-              tooltip: l10n.editModNameTooltip,
-            ),
-            IconButton(
-              icon: const Icon(Icons.folder_open, color: Colors.white70),
-              onPressed: _isLoading
-                  ? null
-                  : () => _showInExplorer(modInfo.directory),
-              tooltip: l10n.showInFolder,
-            ),
-            if (modInfo.nexusId != null)
-              IconButton(
-                icon: const Icon(
-                  Icons.photo_library_outlined,
-                  color: Colors.purpleAccent,
-                ),
-                onPressed: () => _showImageGalleryDialog(modInfo),
-                tooltip: l10n.viewImageGallery,
-              ),
-            if (modInfo.nexusId != null)
-              IconButton(
-                icon: const Icon(
-                  Icons.open_in_browser_outlined,
-                  color: Colors.lightBlueAccent,
-                ),
-                onPressed: () async {
-                  final url = Uri.parse(
-                    'https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}',
-                  );
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url);
-                  }
-                },
-                tooltip: l10n.openInNexusMods,
-              ),
-            if (modInfo.isEnabled)
-              IconButton(
-                icon: const Icon(
-                  Icons.power_settings_new,
-                  color: Colors.orangeAccent,
-                ),
-                onPressed: _isLoading ? null : () => _disableMod(modInfo),
-                tooltip: l10n.disableMod,
-              )
-            else
-              IconButton(
-                icon: const Icon(
-                  Icons.power_settings_new,
-                  color: Colors.greenAccent,
-                ),
-                onPressed: _isLoading ? null : () => _enableMod(modInfo),
-                tooltip: l10n.enableMod,
-              ),
-          ],
-        ),
-      ),
-    );
+  void _performSurgicalUpdate(ModInfo? updatedMod) {
+    if (updatedMod == null) return;
+    final modIndex = _allMods.indexWhere((m) => m.directory.path == updatedMod.directory.path);
+    if (modIndex != -1) {
+      setState(() {
+        _allMods[modIndex] = updatedMod;
+      });
+    }
   }
+
+  return ModListTile(
+    modInfo: modInfo,
+    l10n: l10n,
+    updateInfo: updateInfo,
+    isIgnored: isIgnored,
+    isHighlighted: isHighlighted,
+    isLoading: _isLoading,
+    onRepairedInfoTap: _showRepairedModInfoDialog,
+    onDeleteTap: () => _deleteModPermanently(modInfo),
+    onUpdateAvailableTap: () {
+      if (modInfo.nexusId != null) {
+        _showUpdateOptionsDialog(
+          newVersion: updateInfo!['version'],
+          nexusId: modInfo.nexusId!,
+          fileId: updateInfo['fileId'],
+          uniqueIdentifier: updateIdentifier,
+        );
+      }
+    },
+    onEditNameTap: () async {
+      final newName = await EditDialogs.showEditModNameDialog(context, modInfo);
+      if (newName != null && newName.trim().isNotEmpty) {
+        final updatedMod = await _updateModCustomName(modInfo, newName.trim());
+        _performSurgicalUpdate(updatedMod);
+      }
+    },
+    onShowFolderTap: () => _showInExplorer(modInfo.directory),
+    onShowGalleryTap: () => _showImageGalleryDialog(modInfo),
+    onOpenNexusTap: () async {
+      if (modInfo.nexusId != null) {
+        final url = Uri.parse('https://www.nexusmods.com/stellarblade/mods/${modInfo.nexusId}');
+        if (await canLaunchUrl(url)) await launchUrl(url);
+      }
+    },
+    onEnable: _enableMod,
+    onDisable: _disableMod,
+  );
+}
 
   Widget _buildModsListSection(
     String title,
@@ -8482,7 +5328,7 @@ Future<void> _deployScriptAssets() async {
 
     if (result != null && result.files.single.path != null) {
       final imageFile = File(result.files.single.path!);
-      final Alignment? alignment = await _showCoverAlignmentDialog(imageFile);
+      final Alignment? alignment = await EditDialogs.showCoverAlignmentDialog(context,imageFile);
 
       if (alignment == null) return;
 
@@ -8524,165 +5370,6 @@ Future<void> _deployScriptAssets() async {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  Future<Alignment?> _showCoverAlignmentDialog(File imageFile) async {
-    final image = await decodeImageFromList(imageFile.readAsBytesSync());
-    final imageSize = Size(image.width.toDouble(), image.height.toDouble());
-
-    final l10n = AppLocalizations.of(context)!;
-    Offset offset = Offset.zero;
-
-    return showDialog<Alignment>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            // ✅ SOLUCIÓN: Declaramos todas las variables necesarias aquí.
-            Size? containerSize;
-            Size? scaledImageSize;
-            Rect? initialImageRect;
-            double? cropWidth;
-            double? cropHeight;
-
-            return AlertDialog(
-              title: Text(l10n.setCoverText),
-              contentPadding: EdgeInsets.zero,
-              backgroundColor: const Color(0xFF2d2d2d),
-              content: SizedBox(
-                width: 500,
-                height: 600,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    containerSize = Size(
-                      constraints.maxWidth,
-                      constraints.maxHeight,
-                    );
-
-                    final fittedSizes = applyBoxFit(
-                      BoxFit.contain,
-                      imageSize,
-                      containerSize!,
-                    );
-                    scaledImageSize = fittedSizes.destination;
-
-                    const cardAspectRatio =
-                        3 / 4.2; // La proporción que ajustaste
-
-                    // ✅ SOLUCIÓN: Asignamos valores a las variables superiores (sin 'double' al inicio).
-                    if ((scaledImageSize!.width / scaledImageSize!.height) >
-                        cardAspectRatio) {
-                      cropHeight = scaledImageSize!.height;
-                      cropWidth = cropHeight! * cardAspectRatio;
-                    } else {
-                      cropWidth = scaledImageSize!.width;
-                      cropHeight = cropWidth! / cardAspectRatio;
-                    }
-
-                    final cropRect = Rect.fromCenter(
-                      center: containerSize!.center(Offset.zero),
-                      width: cropWidth!,
-                      height: cropHeight!,
-                    );
-
-                    initialImageRect = Alignment.center.inscribe(
-                      scaledImageSize!,
-                      Rect.fromLTWH(
-                        0,
-                        0,
-                        containerSize!.width,
-                        containerSize!.height,
-                      ),
-                    );
-
-                    final minDx =
-                        cropRect.right -
-                        (initialImageRect!.left + scaledImageSize!.width);
-                    final maxDx = cropRect.left - initialImageRect!.left;
-                    final minDy =
-                        cropRect.bottom -
-                        (initialImageRect!.top + scaledImageSize!.height);
-                    final maxDy = cropRect.top - initialImageRect!.top;
-
-                    return GestureDetector(
-                      onPanUpdate: (details) {
-                        setDialogState(() {
-                          offset = Offset(
-                            (offset.dx + details.delta.dx).clamp(
-                              min(minDx, maxDx),
-                              max(minDx, maxDx),
-                            ),
-                            (offset.dy + details.delta.dy).clamp(
-                              min(minDy, maxDy),
-                              max(minDy, maxDy),
-                            ),
-                          );
-                        });
-                      },
-                      child: ClipRect(
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Positioned(
-                              left: initialImageRect!.left + offset.dx,
-                              top: initialImageRect!.top + offset.dy,
-                              width: scaledImageSize!.width,
-                              height: scaledImageSize!.height,
-                              child: Image.file(imageFile, fit: BoxFit.fill),
-                            ),
-                            CustomPaint(
-                              size: containerSize!,
-                              painter: CropOverlayPainter(cropRect: cropRect),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.dialogActionCancel),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    // ✅ SOLUCIÓN: Las variables ahora son accesibles y seguras de usar.
-                    if (scaledImageSize == null ||
-                        initialImageRect == null ||
-                        cropWidth == null ||
-                        cropHeight == null)
-                      return;
-
-                    final extraWidth = scaledImageSize!.width - cropWidth!;
-                    final extraHeight = scaledImageSize!.height - cropHeight!;
-
-                    final centerOffset = offset;
-
-                    final alignmentX = extraWidth > 0
-                        ? (centerOffset.dx / (extraWidth / 2)) * -1
-                        : 0.0;
-                    final alignmentY = extraHeight > 0
-                        ? (centerOffset.dy / (extraHeight / 2)) * -1
-                        : 0.0;
-
-                    final finalAlignment = Alignment(
-                      alignmentX.clamp(-1.0, 1.0),
-                      alignmentY.clamp(-1.0, 1.0),
-                    );
-
-                    Navigator.of(context).pop(finalAlignment);
-                  },
-                  child: Text(l10n.dialogActionSave),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
   }
 
   Future<void> _revertToDefaultCover(ModInfo mod) async {
@@ -8756,27 +5443,6 @@ Future<void> _deployScriptAssets() async {
     }
   }
 
-  /// Consulta la API de Nexus para verificar si un ID de mod es válido para Stellar Blade.
-  Future<bool> _isValidNexusId(String modId) async {
-    if (_apiKey == null || _apiKey!.isEmpty) {
-      return false; // No se puede validar sin una API key.
-    }
-    try {
-      final uri = Uri.parse(
-        'https://api.nexusmods.com/v1/games/stellarblade/mods/$modId.json',
-      );
-      final response = await http.get(
-        uri,
-        headers: {'apikey': _apiKey!, 'accept': 'application/json'},
-      );
-      // Si la respuesta es 200 OK, el mod existe y el ID es válido.
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Error during API validation for mod ID $modId: $e');
-      return false; // Error de red u otro problema.
-    }
-  }
-
   Future<void> _showDetailsPage(ModInfo modInfo) async {
     void onPanelClosed(ModInfo? updatedModInfo) {
       if (updatedModInfo != null) {
@@ -8813,13 +5479,13 @@ Future<void> _deployScriptAssets() async {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _ModDetailsPanel(
+      builder: (context) => ModDetailsPanel(
         initialModInfo: modInfo,
         thumbnailService: _thumbnailService,
         onUpdateDetails: _updateModDetails,
         onShowInExplorer: _showInExplorer,
         onShowImageGallery: _showImageGalleryDialog,
-        onShowGeneralEditDialog: _showGeneralEditDialog,
+        onShowGeneralEditDialog: EditDialogs.showGeneralEditDialog,
         onPanelClosed: onPanelClosed,
 
         // ++ INICIO DE LA MODIFICACIÓN ++
@@ -8830,75 +5496,6 @@ Future<void> _deployScriptAssets() async {
         // ++ FIN DE LA MODIFICACIÓN ++
       ),
     );
-  }
-
-  /// Muestra un diálogo para editar un valor de texto personalizado (versión o etiqueta).
-  Future<ModInfo?> _showEditDialog({
-    required BuildContext context,
-    required String title,
-    required String label,
-    required String initialValue,
-    required String defaultValue,
-    required Future<ModInfo?> Function(String) onSave,
-    int? maxLength,
-  }) async {
-    final controller = TextEditingController(text: initialValue);
-    final l10n = AppLocalizations.of(context)!;
-
-    final newValue = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final bool isCurrentlyDefault = controller.text == defaultValue;
-            return AlertDialog(
-              title: Text(title),
-              content: TextField(
-                controller: controller,
-                autofocus: true,
-                maxLength: maxLength,
-                onChanged: (value) =>
-                    setDialogState(() {}), // Rebuild on text change
-                decoration: InputDecoration(labelText: label),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isCurrentlyDefault
-                      ? null
-                      : () {
-                          // ++ LÍNEA CORREGIDA ++
-                          // This now updates the text and rebuilds the dialog
-                          setDialogState(() {
-                            controller.text = defaultValue;
-                            controller.selection = TextSelection.fromPosition(
-                              TextPosition(offset: controller.text.length),
-                            );
-                          });
-                        },
-                  child: Text(l10n.dialogActionResetToDefault),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.dialogActionCancel),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(controller.text),
-                  child: Text(l10n.dialogActionSave),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    controller.dispose();
-
-    if (newValue != null) {
-      return await onSave(newValue);
-    }
-
-    return null;
   }
 
   /// Guarda una propiedad personalizada (versión o etiqueta) en el JSON y actualiza el estado.
@@ -9176,7 +5773,7 @@ Future<void> _deployScriptAssets() async {
             'Nuevo Nexus ID $potentialNexusId detectado. Obteniendo metadatos...',
           );
           // Si es así, obtenemos los datos de la API
-          final nexusData = await _fetchNexusModData(potentialNexusId);
+          final nexusData = await NexusApiService.fetchNexusModData(potentialNexusId, _apiKey);
 
           if (nexusData != null) {
             newNexusId =
@@ -9249,9 +5846,7 @@ Future<void> _deployScriptAssets() async {
       if (newData.containsKey('customDescription')) {
         final newCustomDescription = newData['customDescription'] as String;
         // Si la nueva descripción es igual a la original (sin HTML), la eliminamos para no guardar datos redundantes.
-        final originalDescriptionStripped = _ModDetailsPanelState()._stripHtml(
-          mod.description,
-        );
+        final originalDescriptionStripped = TextUtils.stripHtml(mod.description);
         if (newCustomDescription.isEmpty ||
             newCustomDescription == originalDescriptionStripped) {
           data.remove('customDescription');
@@ -9311,7 +5906,7 @@ Future<void> _deployScriptAssets() async {
       // --- LÍNEA ELIMINADA ---
       // await _loadAllMods(clearHighlight: false);  <-- ESTO CAUSABA EL PARPADEO
       if (newNexusId != null) {
-        await _cacheNexusThumbnail(
+        await ModManagerService.cacheNexusThumbnail(apiKey: _apiKey,
           modDirectory: modDirectory,
           nexusId: newNexusId,
         );
@@ -9370,34 +5965,6 @@ Future<void> _deployScriptAssets() async {
       }
       return null;
     }
-  }
-
-  Future<String?> _getVersionFromCnsPackage(Directory sourceSBDir) async {
-    try {
-      final luaFile = File(
-        p.join(
-          sourceSBDir.path,
-          'Binaries',
-          'Win64',
-          'ue4ss',
-          'Mods',
-          'DekCNS',
-          'Scripts',
-          'main.lua',
-        ),
-      );
-      if (await luaFile.exists()) {
-        final content = await luaFile.readAsString();
-        final regex = RegExp(r'local CNS_Version = "(.+)"');
-        final match = regex.firstMatch(content);
-        if (match != null && match.group(1) != null) {
-          return match.group(1);
-        }
-      }
-    } catch (e) {
-      print("No se pudo leer la versión del paquete CNS: $e");
-    }
-    return null;
   }
 
   /// Displays a confirmation dialog and then proceeds to delete all nexus_info.json files.
@@ -9721,2094 +6288,5 @@ Future<void> _deployScriptAssets() async {
     _hoverTimer?.cancel(); // Cancela el temporizador si está activo
     _previewOverlay?.remove(); // Elimina el overlay de la pantalla
     _previewOverlay = null; // Limpia la referencia
-  }
-}
-
-class ModImage extends StatelessWidget {
-  final String imageUrl;
-  final bool isLocal;
-  final DateTime? lastModified;
-  final BoxFit fit;
-  final double? height;
-
-  const ModImage({
-    super.key,
-    required this.imageUrl,
-    this.isLocal = false,
-    this.lastModified,
-    this.fit = BoxFit.cover,
-    this.height,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // Si la imagen es local (un archivo del sistema)
-    if (isLocal) {
-      return Image.file(
-        File(imageUrl),
-        key: ValueKey(lastModified), // Ayuda a recargar la imagen si cambia
-        height: height,
-        width: double.infinity,
-        fit: fit,
-        errorBuilder: (context, error, stackTrace) =>
-            const Icon(Icons.broken_image, size: 50, color: Colors.grey),
-      );
-    }
-    // Si la imagen es de una URL (Nexus Mods)
-    return Image.network(
-      imageUrl,
-      height: height,
-      width: double.infinity,
-      fit: fit,
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return const Center(child: CircularProgressIndicator());
-      },
-      errorBuilder: (context, error, stackTrace) =>
-          const Icon(Icons.broken_image, size: 50, color: Colors.grey),
-    );
-  }
-}
-
-// ++ NEW WIDGET FOR OPTIMIZED THUMBNAILS ++
-class ModThumbnailImage extends StatefulWidget {
-  final String? imageUrl;
-  final String? imagePathToProcess;
-  final ThumbnailService thumbnailService;
-  final double? width;
-  final double? height;
-  final BoxFit fit;
-  final bool isLocal;
-  final Alignment alignment;
-
-  const ModThumbnailImage({
-    super.key,
-    required this.imageUrl,
-    this.imagePathToProcess,
-    required this.thumbnailService,
-    this.width,
-    this.height,
-    this.fit = BoxFit.cover,
-    this.isLocal = false, // Las imágenes de Nexus no son locales por defecto
-    this.alignment = Alignment.center,
-  });
-
-  @override
-  State<ModThumbnailImage> createState() => _ModThumbnailImageState();
-}
-
-class _ModThumbnailImageState extends State<ModThumbnailImage> {
-  File? _imageFile;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadImage();
-  }
-
-  @override
-  void didUpdateWidget(covariant ModThumbnailImage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.imageUrl != oldWidget.imageUrl ||
-        widget.imagePathToProcess != oldWidget.imagePathToProcess) {
-      _loadImage();
-    }
-  }
-
-  void _loadImage() async {
-    final String? cacheKey = widget.imageUrl;
-    final String? sourcePath = widget.imagePathToProcess;
-
-    if (cacheKey == null || sourcePath == null) {
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
-
-    // 1. Comprobar la caché de memoria PRIMERO (sincrónico)
-    //    La 'key' es la URL o la ruta del archivo
-    final File? cachedFile =
-        widget.thumbnailService.getFromMemoryCache(cacheKey);
-    if (cachedFile != null && mounted) {
-      setState(() {
-        _imageFile = cachedFile;
-        _isLoading = false;
-      });
-      return;
-    }
-    // 2. Si no está en memoria, mostramos 'cargando' y
-    //    llamamos al servicio, indicando si es un archivo local o no.
-    setState(() => _isLoading = true);
-    final file = await widget.thumbnailService.getThumbnail(
-      cacheKey, // La clave estable
-      sourcePath, // La ruta real
-      isLocalFile: widget.isLocal,
-    );
-    if (mounted) {
-      setState(() {
-        _imageFile = file;
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2.0));
-    }
-
-    if (_imageFile != null && _imageFile!.existsSync()) {
-      return Image.file(
-        _imageFile!,
-        width: widget.width,
-        height: widget.height,
-        fit: widget.fit,
-        alignment: widget.alignment,
-      );
-    }
-
-    return Container(
-      width: widget.width,
-      height: widget.height,
-      color: Colors.black26,
-      child: const Icon(Icons.extension, size: 60, color: Colors.white38),
-    );
-  }
-}
-
-class CropOverlayPainter extends CustomPainter {
-  final Rect cropRect;
-
-  CropOverlayPainter({required this.cropRect});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final backgroundPaint = Paint()..color = Colors.black.withOpacity(0.6);
-    final borderPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-
-    // Dibuja el fondo sombreado
-    final backgroundPath = Path.combine(
-      PathOperation.difference,
-      Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height)),
-      Path()..addRect(cropRect),
-    );
-    canvas.drawPath(backgroundPath, backgroundPaint);
-
-    // Dibuja un borde blanco alrededor del área de recorte para que sea más visible
-    canvas.drawRect(cropRect, borderPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
-  }
-}
-
-class _ModDetailsPanel extends StatefulWidget {
-  final ModInfo initialModInfo;
-  final ThumbnailService thumbnailService;
-  // Funciones que necesita del widget principal
-  final Future<ModInfo?> Function(ModInfo, Map<String, dynamic>)
-  onUpdateDetails;
-  final Future<void> Function(Directory) onShowInExplorer;
-  final void Function(ModInfo) onShowImageGallery;
-  final Future<Map<String, dynamic>?> Function(ModInfo, BuildContext)
-  onShowGeneralEditDialog;
-  final Function(ModInfo?) onPanelClosed;
-  // Nuevas propiedades para gestionar la información de la actualización.
-  final Map<String, dynamic>? updateInfo;
-  final bool isIgnored;
-  final Future<bool> Function({
-    required String newVersion,
-    required String nexusId,
-    required int fileId,
-    required String uniqueIdentifier,
-  })
-  onShowUpdateDialog;
-
-  const _ModDetailsPanel({
-    required this.initialModInfo,
-    required this.thumbnailService,
-    required this.onUpdateDetails,
-    required this.onShowInExplorer,
-    required this.onShowImageGallery,
-    required this.onShowGeneralEditDialog,
-    required this.onPanelClosed,
-    // Añadimos los nuevos parámetros al constructor.
-    this.updateInfo,
-    required this.isIgnored,
-    required this.onShowUpdateDialog,
-  });
-
-  @override
-  State<_ModDetailsPanel> createState() => _ModDetailsPanelState();
-}
-
-class _ModDetailsPanelState extends State<_ModDetailsPanel> {
-  late ModInfo currentModInfo;
-  bool _isTranslating = false;
-  bool _showTranslateSummaryButton = false;
-  bool _showTranslateDescriptionButton = false;
-  bool _needsReloadOnClose = false;
-  late bool _isIgnored;
-  late bool _isReplacementMod;
-
-  @override
-  void initState() {
-    super.initState();
-    currentModInfo = widget.initialModInfo;
-    _isIgnored = widget.isIgnored;
-    _isReplacementMod =
-        currentModInfo.modType == 'replacement' ||
-        (currentModInfo.modType == 'genericPak' &&
-            (currentModInfo.replacesOutfit != null &&
-                currentModInfo.replacesOutfit!.isNotEmpty));
-    // Comprueba si se puede traducir tan pronto como el widget se renderiza por primera vez.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _updateTranslationButtonVisibility();
-    });
-  }
-
-  /// Limpia una cadena de texto de las etiquetas HTML más comunes.
-  String _stripHtml(String? htmlString) {
-    if (htmlString == null) return '';
-    // Reemplaza saltos de línea y párrafos por fines de línea.
-    final withLineBreaks = htmlString
-        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
-        .replaceAll(RegExp(r'</li>', caseSensitive: false), '')
-        .replaceAll(RegExp(r'</p>', caseSensitive: false), '');
-    // Reemplaza los elementos de lista por un guion.
-    final withListItems = withLineBreaks.replaceAll(
-      RegExp(r'<li>', caseSensitive: false),
-      '- ',
-    );
-    // Elimina todas las demás etiquetas.
-    final withoutTags = withListItems.replaceAll(RegExp(r'<[^>]*>'), '');
-    // Decodifica las entidades HTML más comunes.
-    final decoded = withoutTags
-        .replaceAll('&amp;', '&')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&quot;', '"')
-        .replaceAll('&#39;', "'")
-        .replaceAll('&nbsp;', ' ');
-
-    // ++ LÍNEA AÑADIDA ++
-    // Colapsa tres o más saltos de línea en solo dos, eliminando renglones vacíos excesivos.
-    final cleanedNewlines = decoded.replaceAll(RegExp(r'(\n\s*){2,}'), '\n');
-
-    return cleanedNewlines.trim();
-  }
-
-  /// El método dispose() se llama AUTOMÁTICAMENTE cuando el widget se va a destruir.
-  // Es el lugar perfecto para nuestra lógica de cierre.
-  @override
-  void dispose() {
-    // Llama al "mensajero" y le entrega el mod actualizado si hubo cambios.
-    widget.onPanelClosed(_needsReloadOnClose ? currentModInfo : null);
-    super.dispose();
-  }
-
-  Future<bool> _checkIfTextNeedsTranslation(String? text) async {
-    if (!mounted) return false;
-    if (text == null || text.trim().isEmpty) {
-      return false;
-    }
-
-    final String currentLocale = Localizations.localeOf(context).languageCode;
-    try {
-      final translator = GoogleTranslator();
-      // Usamos un fragmento para no enviar textos enormes a la API de detección
-      final snippet = text.length > 150 ? text.substring(0, 150) : text;
-      const String pivotLocale = 'de'; // Idioma pivote para forzar la detección
-      final translation = await translator.translate(snippet, to: pivotLocale);
-      final detectedLanguageCode = translation.sourceLanguage.code
-          .toLowerCase();
-
-      // Necesita traducción si el idioma detectado no es el de la app y no es "auto"
-      return detectedLanguageCode != currentLocale &&
-          detectedLanguageCode != 'auto';
-    } catch (e) {
-      print("Error detectando el idioma: $e");
-      return false;
-    }
-  }
-
-  /// Comprueba ambos campos (resumen y descripción) y actualiza la visibilidad de sus botones.
-  Future<void> _updateTranslationButtonVisibility() async {
-    // --- Lógica para el botón del RESUMEN ---
-    // Solo mostramos el botón si estamos viendo el resumen original (no uno personalizado).
-    final isShowingOriginalSummary =
-        currentModInfo.customSummary == null ||
-        currentModInfo.customSummary!.isEmpty;
-    if (isShowingOriginalSummary) {
-      final needsTranslation = await _checkIfTextNeedsTranslation(
-        currentModInfo.summary,
-      );
-      if (mounted) {
-        setState(() => _showTranslateSummaryButton = needsTranslation);
-      }
-    } else {
-      if (mounted) {
-        setState(() => _showTranslateSummaryButton = false);
-      }
-    }
-
-    // --- Lógica para el botón de la DESCRIPCIÓN ---
-    // Solo mostramos el botón si estamos viendo la descripción original.
-    final isShowingOriginalDescription =
-        currentModInfo.customDescription == null ||
-        currentModInfo.customDescription!.isEmpty;
-    if (isShowingOriginalDescription) {
-      final needsTranslation = await _checkIfTextNeedsTranslation(
-        currentModInfo.description,
-      );
-      if (mounted) {
-        setState(() => _showTranslateDescriptionButton = needsTranslation);
-      }
-    } else {
-      if (mounted) {
-        setState(() => _showTranslateDescriptionButton = false);
-      }
-    }
-  }
-
-  // Traduce el resumen
-  Future<void> _translateSummary() async {
-    final l10n = AppLocalizations.of(context)!;
-    if (currentModInfo.summary == null ||
-        currentModInfo.summary!.trim().isEmpty)
-      return;
-
-    setState(() => _isTranslating = true);
-
-    try {
-      final translator = GoogleTranslator();
-      final currentLocale = Localizations.localeOf(context).languageCode;
-      final translation = await translator.translate(
-        _stripHtml(
-          currentModInfo.summary!,
-        ), // Limpiamos el HTML antes de traducir
-        from: 'auto',
-        to: currentLocale,
-      );
-
-      // Guardamos la traducción en el campo personalizado 'summary' (que en la función onUpdateDetails se mapea a 'customSummary')
-      final updatedMod = await widget.onUpdateDetails(currentModInfo, {
-        'summary': translation.text,
-      });
-
-      if (updatedMod != null && mounted) {
-        setState(() {
-          currentModInfo = updatedMod;
-          // ++ CAMBIO 3: Ocultar solo el botón del resumen ++
-          _showTranslateSummaryButton = false;
-          _needsReloadOnClose = true;
-        });
-      }
-    } catch (e) {
-      NotificationService.instance.show(
-        context: context,
-        type: NotificationType.error,
-        title: l10n.errorTranslation,
-        description: e.toString(),
-      );
-    } finally {
-      if (mounted) setState(() => _isTranslating = false);
-    }
-  }
-
-  // Traduce la descripción
-  Future<void> _translateDescription() async {
-    final l10n = AppLocalizations.of(context)!;
-    if (currentModInfo.description == null ||
-        currentModInfo.description!.trim().isEmpty)
-      return;
-
-    setState(() => _isTranslating = true);
-
-    try {
-      final translator = GoogleTranslator();
-      final currentLocale = Localizations.localeOf(context).languageCode;
-      final translation = await translator.translate(
-        _stripHtml(currentModInfo.description!), // Limpiamos el HTML
-        from: 'auto',
-        to: currentLocale,
-      );
-
-      final updatedMod = await widget.onUpdateDetails(currentModInfo, {
-        'customDescription': translation.text,
-      });
-
-      if (updatedMod != null && mounted) {
-        setState(() {
-          currentModInfo = updatedMod;
-          // ++ CAMBIO 4: Ocultar solo el botón de la descripción ++
-          _showTranslateDescriptionButton = false;
-          _needsReloadOnClose = true;
-        });
-      }
-    } catch (e) {
-      NotificationService.instance.show(
-        context: context,
-        type: NotificationType.error,
-        title: l10n.errorTranslation,
-        description: e.toString(),
-      );
-    } finally {
-      if (mounted) setState(() => _isTranslating = false);
-    }
-  }
-
-  // Muestra diálogo para editar un solo campo (notas, descripción)
-  Future<String?> _showSingleFieldEditDialog({
-    required String title,
-    required String label,
-    required String initialValue,
-    String? defaultValue,
-    int? maxLength,
-  }) async {
-    final controller = TextEditingController(text: initialValue);
-    final l10n = AppLocalizations.of(context)!;
-    return await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final bool isCurrentlyDefault =
-                controller.text == (defaultValue ?? '');
-            return AlertDialog(
-              title: Text(title),
-              content: TextField(
-                controller: controller,
-                autofocus: true,
-                decoration: InputDecoration(labelText: label),
-                maxLines: null,
-                maxLength: maxLength,
-                onChanged: (v) => setDialogState(() {}),
-              ),
-              actions: [
-                if (defaultValue != null)
-                  TextButton(
-                    onPressed: isCurrentlyDefault
-                        ? null
-                        : () => setDialogState(
-                            () => controller.text = defaultValue,
-                          ),
-                    child: Text(l10n.dialogActionResetToDefault),
-                  ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.dialogActionCancel),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(controller.text),
-                  child: Text(l10n.dialogActionSave),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // Construye las secciones de texto
-  Widget _buildInfoSection({
-    required String title,
-    required String content,
-    required IconData icon,
-    VoidCallback? onEdit,
-  }) {
-    final l10n = AppLocalizations.of(context)!;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    icon,
-                    color: Colors.tealAccent.withOpacity(0.8),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.tealAccent,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  // Botón para traducir el RESUMEN
-                  if (title == l10n.modSummary && _showTranslateSummaryButton)
-                    _isTranslating
-                        ? const Padding(
-                            padding: EdgeInsets.all(4.0),
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : IconButton(
-                            icon: const Icon(
-                              Icons.translate,
-                              color: Colors.white70,
-                              size: 20,
-                            ),
-                            onPressed: _translateSummary,
-                            tooltip: l10n.translateSummary,
-                          ),
-
-                  // Botón para traducir la DESCRIPCIÓN
-                  if (title == l10n.modDescription &&
-                      _showTranslateDescriptionButton)
-                    _isTranslating
-                        ? const Padding(
-                            padding: EdgeInsets.all(4.0),
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : IconButton(
-                            icon: const Icon(
-                              Icons.translate,
-                              color: Colors.white70,
-                              size: 20,
-                            ),
-                            onPressed: _translateDescription,
-                            tooltip: l10n.translateDescription,
-                          ),
-
-                  if (onEdit != null)
-                    IconButton(
-                      icon: const Icon(
-                        Icons.edit_outlined,
-                        color: Colors.white70,
-                        size: 20,
-                      ),
-                      onPressed: onEdit,
-                      tooltip: l10n.editButtonTooltip,
-                      splashRadius: 20,
-                      constraints: const BoxConstraints(),
-                      padding: EdgeInsets.zero,
-                    ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            _stripHtml(content), // Limpiamos el HTML siempre antes de mostrar
-            style: TextStyle(
-              color: content.startsWith('No')
-                  ? Colors.white.withOpacity(0.5)
-                  : Colors.white.withOpacity(0.9),
-              fontStyle: content.startsWith('No')
-                  ? FontStyle.italic
-                  : FontStyle.normal,
-              height: 1.5,
-              fontSize: 15,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Muestra el panel flotante para seleccionar un traje.
-  Future<void> _showOutfitSelectionDialog(AppLocalizations l10n) async {
-    // --- CAMBIO 1: El Notifier ahora guarda el *nombre* del traje, no el índice ---
-    // Esto soluciona la raíz de todos los errores.
-    final ValueNotifier<String?> hoveredOutfitNotifier = ValueNotifier<String?>(
-      null,
-    );
-    String searchQuery = ''; // El estado de la búsqueda se manejará localmente
-    bool isClosing = false;
-
-    final String? selectedOutfit = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF2d2d2d),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      // Hacemos el panel más ancho y alto para que quepan bien las dos columnas
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.8,
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
-      ),
-      builder: (context) {
-        // Usamos un StatefulBuilder para que SÓLO la columna de la lista
-        // se reconstruya al escribir en el buscador.
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setDialogState) {
-            // La lista filtrada se calcula aquí, cada vez que el StatefulBuilder se reconstruye
-            final filteredOutfits = stellarBladeOutfits
-                .where(
-                  (outfit) =>
-                      outfit.toLowerCase().contains(searchQuery.toLowerCase()),
-                )
-                .toList(); //
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // --- LADO IZQUIERDO: BÚSQUEDA Y LISTA (2/3 del espacio) ---
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    children: [
-                      // Barra de agarre
-                      Container(
-                        height: 5,
-                        width: 40,
-                        margin: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[700],
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                      ),
-                      // Barra de búsqueda
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        child: TextField(
-                          autofocus: true,
-                          onChanged: (value) {
-                            // setDialogState SÓLO se usa para la búsqueda
-                            setDialogState(() {
-                              searchQuery = value;
-                            });
-                          },
-                          decoration: InputDecoration(
-                            hintText: l10n.replacesOutfitSearchHint,
-                            prefixIcon: const Icon(Icons.search),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Lista de trajes (Expandida y con Scroll)
-                      Expanded(
-                        child: MouseRegion(
-                          onExit: (_) {
-                            if (isClosing) return;
-                            // ++ INICIO DE LA MODIFICACIÓN ++
-                            // Solo actualiza el notificador si el valor
-                            // no es ya 'null'. Esto previene que
-                            // onExit se dispare múltiples veces y
-                            // cause el 'Duplicate key' en el AnimatedSwitcher.
-                            if (hoveredOutfitNotifier.value != null) {
-                              hoveredOutfitNotifier.value = null;
-                            }
-                            // ++ FIN DE LA MODIFICACIÓN ++
-                          },
-                          child: ListView.builder(
-                            itemCount: filteredOutfits.length,
-                            itemBuilder: (context, index) {
-                              final outfit = filteredOutfits[index];
-                              return MouseRegion(
-                                // onEnter sigue aquí para *establecer* la vista previa
-                                onEnter: (_) {
-                                  if (isClosing) return;
-                                  // ++ INICIO DE LA MODIFICACIÓN ++
-                                  // Solo actualiza el notificador si el nuevo valor
-                                  // es diferente al valor actual.
-                                  // Esto previene el crash de "Duplicate key"
-                                  // cuando el cursor se mueve rápido sobre el mismo item.
-                                  if (hoveredOutfitNotifier.value != outfit) {
-                                    hoveredOutfitNotifier.value = outfit;
-                                  }
-                                  // ++ FIN DE LA MODIFICACIÓN ++
-                                },
-                                // -- Ya NO necesitamos onExit aquí --
-                                child: ListTile(
-                                  title: Text(outfit),
-                                  onTap: () {
-                                    isClosing = true;
-                                    Navigator.of(context).pop(outfit);
-                                  },
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // --- LADO DERECHO: VISTA PREVIA (1/3 del espacio) ---
-                Expanded(
-                  flex: 1,
-                  // --- CAMBIO 3: Escucha el ValueNotifier<String?> ---
-                  child: ValueListenableBuilder<String?>(
-                    valueListenable: hoveredOutfitNotifier,
-                    builder: (context, hoveredOutfitName, child) {
-                      return Container(
-                        // Ocupa toda la altura del panel
-                        height: double.infinity,
-                        color: Colors.black.withOpacity(0.3),
-                        padding: const EdgeInsets.all(16.0),
-                        child: Center(
-                          child: AnimatedCrossFade(
-                            // 1. Estado: Muestra el placeholder (first) o la imagen (second)
-                            crossFadeState: hoveredOutfitName == null
-                                ? CrossFadeState.showFirst
-                                : CrossFadeState.showSecond,
-
-                            duration: const Duration(milliseconds: 200),
-
-                            // 2. Placeholder (Primer hijo)
-                            firstChild: Column(
-                              key: const ValueKey('outfit_placeholder'),
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.image_search_rounded,
-                                  size: 60,
-                                  color: Colors.grey[700],
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  l10n.replacesOutfitHover,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.grey[500]),
-                                ),
-                              ],
-                            ),
-
-                            // 3. Imagen (Segundo hijo)
-                            // La clave ValueKey(hoveredOutfitName) es crucial.
-                            // Le dice al widget que cambie de imagen aunque el estado
-                            // (showSecond) sea el mismo.
-                            secondChild: ClipRRect(
-                              key: ValueKey(hoveredOutfitName),
-                              child: Image.asset(
-                                // Usamos ?? '' para evitar errores si hoveredOutfitName es nulo
-                                // durante el primer frame de la transición.
-                                _generateOutfitImagePath(
-                                  hoveredOutfitName ?? '',
-                                ),
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) {
-                                  final path = _generateOutfitImagePath(
-                                    hoveredOutfitName ?? '',
-                                  );
-                                  return Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Text(
-                                        "Preview not found at:\n$path",
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: Colors.grey[500],
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-
-                            // 4. (Opcional pero recomendado) Esto evita que el panel "salte"
-                            // de tamaño durante la animación de fundido.
-                            layoutBuilder:
-                                (
-                                  topChild,
-                                  topChildKey,
-                                  bottomChild,
-                                  bottomChildKey,
-                                ) {
-                                  return Stack(
-                                    alignment: Alignment.center,
-                                    children: [bottomChild, topChild],
-                                  );
-                                },
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-    // (Por si el usuario cierra el panel sin seleccionar nada)
-    isClosing = true;
-    // Limpiamos el "mensajero" después de que el panel se cierra.
-    hoveredOutfitNotifier.dispose();
-
-    if (selectedOutfit != null) {
-      _onOutfitSelected(selectedOutfit);
-    }
-  }
-
-  /// Maneja el guardado del traje seleccionado.
-  Future<void> _onOutfitSelected(String? outfitName) async {
-    // Pasa los nuevos datos a la función de actualización del widget principal
-    final updatedMod = await widget.onUpdateDetails(currentModInfo, {
-      'replacesOutfit': outfitName, // Será nulo si se está limpiando
-    });
-
-    if (updatedMod != null && mounted) {
-      setState(() {
-        currentModInfo = updatedMod;
-        _needsReloadOnClose =
-            true; // Marca que la lista principal necesita recargarse
-      });
-    }
-  }
-
-  /// Genera la ruta del asset para la vista previa de un traje.
-  String _generateOutfitImagePath(String outfitName) {
-    // 1. Minúsculas
-    String safeName = outfitName.toLowerCase();
-    // 2. Quitar (NG+) y caracteres especiales
-    safeName = safeName
-        .replaceAll('(ng+)', 'ng_plus')
-        .replaceAll(RegExp(r'[^\w\s-]'), '');
-    // 3. Reemplazar espacios y guiones con guiones bajos
-    safeName = safeName.replaceAll(RegExp(r'[\s-]+'), '_');
-
-    // 4. Devolver la ruta completa del asset
-    return 'assets/images/outfits/$safeName.webp'; // Asume .webp
-  }
-
-  /// Construye la UI para seleccionar un traje de reemplazo.
-  Widget _buildOutfitReplacementSection(AppLocalizations l10n) {
-    final String? replacedOutfit = currentModInfo.replacesOutfit;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // --- TÍTULO ---
-              Row(
-                children: [
-                  Icon(
-                    Icons.swap_horiz_rounded,
-                    color: Colors.tealAccent.withOpacity(0.8),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    l10n.replacesOutfitTitle, // Necesitarás esta traducción
-                    style: const TextStyle(
-                      color: Colors.tealAccent,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-
-              // --- BOTÓN DE EDITAR / LIMPIAR ---
-              IconButton(
-                icon: Icon(
-                  // Cambia el ícono si ya hay un traje seleccionado
-                  replacedOutfit != null
-                      ? Icons.cancel_outlined
-                      : Icons.checkroom_outlined,
-                  color: replacedOutfit != null
-                      ? Colors.redAccent
-                      : Colors.white70,
-                  size: 20,
-                ),
-                onPressed: () {
-                  if (replacedOutfit != null) {
-                    // Limpiar la selección
-                    _onOutfitSelected(null);
-                  } else {
-                    // Mostrar el diálogo de selección
-                    _showOutfitSelectionDialog(l10n);
-                  }
-                },
-                tooltip: replacedOutfit != null
-                    ? l10n.replacesOutfitClearTooltip
-                    : l10n.replacesOutfitSelectTooltip, // Necesitarás estas traducciones
-                splashRadius: 20,
-                constraints: const BoxConstraints(),
-                padding: EdgeInsets.zero,
-              ),
-            ],
-          ),
-
-          // --- "MINI-RETRATO" (El nombre del traje seleccionado) ---
-          if (replacedOutfit != null) ...[
-            const SizedBox(height: 12),
-            // Mantenemos el contenedor original para el fondo y el borde
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(
-                12,
-              ), // Un poco más de padding para la imagen
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.4),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.center, // Centra verticalmente
-                children: [
-                  // 1. Vista previa de la imagen
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(
-                      6.0,
-                    ), // Bordes redondeados más pequeños
-                    child: Image.asset(
-                      _generateOutfitImagePath(
-                        replacedOutfit,
-                      ), // Usamos la función auxiliar
-                      width: 92.5, // Proporción 3:4 (como 60x80)
-                      height: 167,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        // Placeholder si la imagen no se encuentra
-                        return Container(
-                          width: 52.5,
-                          height: 70,
-                          color: Colors.black.withOpacity(0.2),
-                          child: const Icon(
-                            Icons.hide_image_outlined,
-                            color: Colors.grey,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // 2. Nombre del traje
-                  Expanded(
-                    child: Text(
-                      replacedOutfit,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16, // Más grande
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ] else ...[
-            // Mensaje de que no hay nada seleccionado
-            const SizedBox(height: 10),
-            Text(
-              l10n.replacesOutfitNone, // Necesitarás esta traducción
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
-                fontStyle: FontStyle.italic,
-                height: 1.5,
-                fontSize: 15,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final bool hasLink =
-        (currentModInfo.customSourceUrl ?? currentModInfo.sourceUrl)
-            ?.isNotEmpty ??
-        false;
-    // Determina el nombre del autor
-    final author = currentModInfo.customAuthor ?? currentModInfo.author;
-    String? mainImagePath;
-    // 1. PRIORITIZE the custom cover path. This now includes our cached '_nexus_cover.jpg'.
-    if (currentModInfo.customCoverPath != null &&
-        currentModInfo.customCoverPath!.isNotEmpty) {
-      // It's a local file, so we build the full path to it.
-      mainImagePath = p.join(
-        currentModInfo.directory.path,
-        currentModInfo.customCoverPath!,
-      );
-      // 2. FALLBACK to the internet URL from the gallery only if no custom/cached cover exists.
-    } else if (currentModInfo.gallery != null &&
-        currentModInfo.gallery!.isNotEmpty) {
-      mainImagePath = currentModInfo.gallery!.first['image'];
-    }
-
-    final displayVersion =
-        currentModInfo.customVersion ?? currentModInfo.localVersion;
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.9,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (_, scrollController) {
-        return Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: const Color(0xFF1e1e1e),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Scaffold(
-            backgroundColor: Colors.transparent,
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              automaticallyImplyLeading: false,
-              centerTitle: true,
-              leadingWidth:
-                  200, // Aumenta el espacio disponible para el `leading`
-              leading: Padding(
-                padding: const EdgeInsets.only(left: 12.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Versión
-                    if (displayVersion != null && displayVersion.isNotEmpty)
-                      InkWell(
-                        onTap: () async {
-                          final newVersion = await _showSingleFieldEditDialog(
-                            title: l10n.editVersionText,
-                            label: l10n.customVersionText,
-                            initialValue: displayVersion,
-                            defaultValue: currentModInfo.localVersion ?? '',
-                            maxLength: 15,
-                          );
-                          if (newVersion != null) {
-                            final updatedMod = await widget.onUpdateDetails(
-                              currentModInfo,
-                              {'customVersion': newVersion},
-                            );
-                            if (updatedMod != null) {
-                              setState(() {
-                                currentModInfo = updatedMod;
-                                _needsReloadOnClose = true;
-                              });
-                            }
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(4),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 4,
-                          ),
-                          child: Text(
-                            "${l10n.modVersion} $displayVersion",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(context).colorScheme.primary,
-                              //fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                    if (displayVersion != null && displayVersion.isNotEmpty)
-                      const SizedBox(width: 8),
-
-                    // --- INICIO DE LA MODIFICACIÓN (Descomentado y actualizado) ---
-                    /*/ Etiqueta
-                    (() { // Usamos un constructor anónimo para definir las variables
-                      final bool isReplacement = currentModInfo.replacesOutfit != null && currentModInfo.replacesOutfit!.isNotEmpty;
-                      final String displayTag = isReplacement 
-                          ? currentModInfo.replacesOutfit! 
-                          : (currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType ?? l10n.modCategoryOther);
-
-                      return InkWell(
-                        // Deshabilitamos el onTap si es un reemplazo
-                        onTap: isReplacement ? null : () async {
-                          final newTag = await _showSingleFieldEditDialog(
-                            title: l10n.editTagText,
-                            label: l10n.customTagText,
-                            initialValue: displayTag,
-                            defaultValue: currentModInfo.fitMeshType ?? '',
-                          );
-                          if (newTag != null) {
-                            final updatedMod = await widget.onUpdateDetails(
-                              currentModInfo,
-                              {'customFitMeshType': newTag},
-                            );
-                            if (updatedMod != null) {
-                              setState(() {
-                                currentModInfo = updatedMod;
-                                _needsReloadOnClose = true;
-                              });
-                            }
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isReplacement
-                              ? Colors.black.withOpacity(0.4) // Fondo oscuro
-                              : Colors.grey.withOpacity(0.2), // Fondo original
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row( // Usamos un Row para el icono
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (isReplacement)
-                                Icon(
-                                  Icons.checkroom_outlined, 
-                                  size: 12, 
-                                  color: Colors.purpleAccent.shade100, // Color distintivo
-                                ),
-                              if (isReplacement)
-                                const SizedBox(width: 6),
-                              Text(
-                                displayTag, // Muestra el nombre del traje
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isReplacement
-                                    ? Colors.purpleAccent.shade100 // Color distintivo
-                                    : Colors.white70, // Color original
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    })(), // Fin del constructor anónimo de la etiqueta
-                    // --- FIN DE LA MODIFICACIÓN ---*/
-                  ],
-                ),
-              ),
-              title: Container(
-                height: 5,
-                width: 40,
-                decoration: BoxDecoration(
-                  color: Colors.grey[700],
-                  borderRadius: BorderRadius.circular(5),
-                ),
-              ),
-              actions: [
-                // Si hay una actualización que no está ignorada, muestra el botón.
-                // Ahora la visibilidad depende del estado local '_isIgnored'.
-                if (widget.updateInfo != null && !_isIgnored)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.notification_important_rounded,
-                      color: Colors.yellowAccent,
-                    ),
-                    tooltip: l10n.updateAvailable(
-                      widget.updateInfo!['version'],
-                    ),
-                    onPressed: () async {
-                      if (currentModInfo.nexusId != null) {
-                        final updateIdentifier =
-                            currentModInfo.directory.path +
-                            (widget.updateInfo!['version'] as String);
-
-                        // 1. Llamamos a la función y esperamos su resultado (true/false).
-                        final bool wasHidden = await widget.onShowUpdateDialog(
-                          newVersion: widget.updateInfo!['version'],
-                          nexusId: currentModInfo.nexusId!,
-                          fileId: widget.updateInfo!['fileId'],
-                          uniqueIdentifier: updateIdentifier,
-                        );
-
-                        // 2. Si el resultado es 'true', actualizamos el estado local para ocultar la campana.
-                        if (wasHidden && mounted) {
-                          setState(() {
-                            _isIgnored = true;
-                          });
-                        }
-                      }
-                    },
-                  ),
-                IconButton(
-                  icon: const Icon(Icons.edit_note_rounded),
-                  tooltip: l10n.editButtonTooltip,
-                  onPressed: () async {
-                    final updatedData = await widget.onShowGeneralEditDialog(
-                      currentModInfo,
-                      context,
-                    );
-                    if (updatedData != null) {
-                      final updatedMod = await widget.onUpdateDetails(
-                        currentModInfo,
-                        updatedData,
-                      );
-                      if (updatedMod != null) {
-                        setState(() => currentModInfo = updatedMod);
-                        _needsReloadOnClose = true;
-                      }
-                    }
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-            body: SingleChildScrollView(
-              controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: Card(
-                      clipBehavior: Clip.antiAlias,
-                      margin: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          if (mainImagePath != null)
-                            ModImage(
-                              imageUrl: mainImagePath,
-                              isLocal: !mainImagePath.startsWith('http'),
-                              lastModified:
-                                  currentModInfo.customCoverLastModified,
-                            )
-                          else
-                            const Center(
-                              child: Icon(
-                                Icons.extension,
-                                size: 80,
-                                color: Colors.white24,
-                              ),
-                            ),
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: IconButton(
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.black.withOpacity(0.4),
-                              ),
-                              icon: const Icon(
-                                Icons.fullscreen_outlined,
-                                color: Colors.white,
-                              ),
-                              onPressed: () =>
-                                  widget.onShowImageGallery(currentModInfo),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    currentModInfo.customName,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 2, // Límite de dos líneas
-                    overflow: TextOverflow
-                        .ellipsis, // Muestra "..." si el texto es muy largo
-                  ),
-                  // ++ INICIO DE LA MODIFICACIÓN: AUTOR COMO SUBTÍTULO ++
-                  const SizedBox(height: 4),
-                  Text(
-                    // Verifica si el nombre del autor no es nulo ni está vacío
-                    (author?.isNotEmpty ?? false)
-                        // Si existe, usa la cadena localizada pasando el autor como argumento
-                        ? l10n.byText(author!)
-                        // De lo contrario, muestra una cadena vacía
-                        : "",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontStyle: FontStyle.italic,
-                      color: Colors.grey[400],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // ++ FIN DE LA MODIFICACIÓN ++
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.folder_open),
-                          label: Text(l10n.showInFolder),
-                          onPressed: () =>
-                              widget.onShowInExplorer(currentModInfo.directory),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: Icon(
-                            hasLink
-                                ? Icons.open_in_browser_outlined
-                                : Icons.add_link_rounded,
-                          ),
-                          label: Text(
-                            hasLink
-                                ? l10n.openLinkButtonText
-                                : l10n.addLinkButtonText,
-                          ),
-                          onPressed: () async {
-                            final urlString =
-                                currentModInfo.customSourceUrl ??
-                                currentModInfo.sourceUrl;
-                            if (urlString != null && urlString.isNotEmpty) {
-                              final url = Uri.parse(urlString);
-                              if (await canLaunchUrl(url)) await launchUrl(url);
-                            } else {
-                              final updatedData = await widget
-                                  .onShowGeneralEditDialog(
-                                    currentModInfo,
-                                    context,
-                                  );
-                              if (updatedData != null) {
-                                final updatedMod = await widget.onUpdateDetails(
-                                  currentModInfo,
-                                  updatedData,
-                                );
-                                if (updatedMod != null) {
-                                  setState(() => currentModInfo = updatedMod);
-                                  _needsReloadOnClose = true;
-                                }
-                              }
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: hasLink
-                                ? Theme.of(context).colorScheme.secondary
-                                : Colors.grey.withOpacity(0.2),
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (currentModInfo.modType == 'genericPak' ||
-                      currentModInfo.modType == 'replacement' ||
-                      (currentModInfo.modType == null &&
-                          currentModInfo.replacesOutfit != null)) ...[
-                    const SizedBox(height: 20),
-                    // --- Switch para Mod de Reemplazo ---
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 0,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: SwitchListTile(
-                        title: Text(
-                          l10n.replacementModSwitchTitle, // "Mod de Reemplazo"
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        subtitle: Text(
-                          l10n.replacementModSwitchDesc, // "Marca si este mod reemplaza un traje."
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 12,
-                          ),
-                        ),
-                        value: _isReplacementMod,
-                        activeColor: Colors.tealAccent,
-
-                        // ++ INICIO DE LA MODIFICACIÓN: onChanged ++
-                        onChanged: (bool newValue) async {
-                          // Define el nuevo tipo de mod basado en el switch
-                          final String newModType = newValue
-                              ? 'replacement'
-                              : 'genericPak';
-
-                          // Prepara los datos para guardar.
-                          final Map<String, dynamic> dataToSave = {
-                            'modType': newModType,
-                          };
-
-                          // Si el usuario está APAGANDO el switch,
-                          // también borramos el traje seleccionado.
-                          if (newValue == false) {
-                            dataToSave['replacesOutfit'] = null;
-                          }
-
-                          // Guardamos los cambios inmediatamente
-                          final updatedMod = await widget.onUpdateDetails(
-                            currentModInfo,
-                            dataToSave,
-                          );
-
-                          // Actualizamos la UI local
-                          if (updatedMod != null && mounted) {
-                            setState(() {
-                              currentModInfo = updatedMod;
-                              _isReplacementMod =
-                                  newValue; // Sincroniza el switch
-                              _needsReloadOnClose = true;
-                            });
-                          } else {
-                            // Si falla el guardado, revierte el switch
-                            setState(() {
-                              _isReplacementMod = !newValue;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-
-                    // --- Sección de Selección de Traje (Condicional) ---
-                    if (_isReplacementMod) ...[
-                      const SizedBox(height: 20),
-                      _buildOutfitReplacementSection(l10n),
-                    ],
-                  ],
-                  const SizedBox(height: 30),
-                  _buildInfoSection(
-                    title: l10n.modSummary,
-                    content:
-                        currentModInfo.customSummary ??
-                        currentModInfo.summary ??
-                        l10n.noDescriptionAvailable,
-                    icon: Icons.description_outlined,
-                    onEdit: () async {
-                      final newSummary = await _showSingleFieldEditDialog(
-                        title: l10n.modSummary,
-                        label: l10n.summaryLabel,
-                        initialValue:
-                            currentModInfo.customSummary ??
-                            currentModInfo.summary ??
-                            '',
-                        defaultValue: currentModInfo.summary ?? '',
-                      );
-                      if (newSummary != null) {
-                        final updatedMod = await widget.onUpdateDetails(
-                          currentModInfo,
-                          {'summary': newSummary},
-                        );
-                        if (updatedMod != null) {
-                          setState(() {
-                            currentModInfo = updatedMod;
-                            _needsReloadOnClose = true;
-                          });
-                        }
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  _buildInfoSection(
-                    title: l10n.personalNotes,
-                    content: currentModInfo.userNotes?.isNotEmpty ?? false
-                        ? currentModInfo.userNotes!
-                        : l10n.noNotesAvailable,
-                    icon: Icons.edit_note_outlined,
-                    onEdit: () async {
-                      final newNotes = await _showSingleFieldEditDialog(
-                        title: l10n.personalNotes,
-                        label: l10n.notesLabel,
-                        initialValue: currentModInfo.userNotes ?? '',
-                      );
-                      if (newNotes != null) {
-                        final updatedMod = await widget.onUpdateDetails(
-                          currentModInfo,
-                          {'userNotes': newNotes},
-                        );
-                        if (updatedMod != null) {
-                          setState(() {
-                            currentModInfo = updatedMod;
-                            _needsReloadOnClose = true;
-                          });
-                        }
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.description_outlined,
-                                  color: Colors.tealAccent.withOpacity(0.8),
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  l10n.modDescription,
-                                  style: const TextStyle(
-                                    color: Colors.tealAccent,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                /*if (_showTranslateDescriptionButton)
-                                  _isTranslating
-                                      ? const Padding(
-                                          padding: EdgeInsets.all(4.0),
-                                          child: SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(strokeWidth: 2),
-                                          ),
-                                        )
-                                      : IconButton(
-                                          icon: const Icon(
-                                            Icons.translate,
-                                            color: Colors.white70,
-                                            size: 20,
-                                          ),
-                                          onPressed: _translateDescription,
-                                          tooltip: l10n.translateDescription,
-                                        ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.edit_outlined,
-                                    color: Colors.white70,
-                                    size: 20,
-                                  ),
-                                  onPressed: () async {
-                                    final newDescription = await _showSingleFieldEditDialog(
-                                      title: l10n.modDescription,
-                                      label: l10n.summaryLabel,
-                                      initialValue: currentModInfo.customDescription ??
-                                          _stripHtml(currentModInfo.description) ?? '',
-                                      defaultValue: _stripHtml(currentModInfo.description) ?? '',
-                                    );
-                                    if (newDescription != null) {
-                                      final updatedMod = await widget.onUpdateDetails(
-                                        currentModInfo,
-                                        {'customDescription': newDescription},
-                                      );
-                                      if (updatedMod != null) {
-                                        setState(() {
-                                          currentModInfo = updatedMod;
-                                          _needsReloadOnClose = true;
-                                        });
-                                      }
-                                    }
-                                  },
-                                  tooltip: l10n.editButtonTooltip,
-                                  splashRadius: 20,
-                                  constraints: const BoxConstraints(),
-                                  padding: EdgeInsets.zero,
-                                ),*/
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        // Aquí usamos el nuevo Widget
-                        BBCodeRenderer(
-                          data:
-                              currentModInfo.customDescription ??
-                              currentModInfo.description ??
-                              l10n.noDescriptionAvailable,
-                          defaultStyle: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            height: 1.5,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class BBCodeRenderer extends StatelessWidget {
-  final String data;
-  final TextStyle? defaultStyle;
-
-  const BBCodeRenderer({super.key, required this.data, this.defaultStyle});
-
-  @override
-  Widget build(BuildContext context) {
-    final defaultTextStyle =
-        defaultStyle ??
-        Theme.of(context).textTheme.bodyMedium ??
-        const TextStyle();
-    final decodedData = data
-        .replaceAll('&#92;', r'\')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&amp;', '&');
-
-    final widgets = _parseBBCode(context, decodedData);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: widgets.map((widget) {
-        if (widget is RichText) {
-          return DefaultTextStyle(style: defaultTextStyle, child: widget);
-        }
-        return widget;
-      }).toList(),
-    );
-  }
-
-  /// Analizador principal que separa los elementos de bloque (imágenes, listas, etc).
-  List<Widget> _parseBBCode(BuildContext context, String text) {
-    final List<Widget> widgets = [];
-    final regex = RegExp(
-      r'(\[center\][\s\S]*?\[/center\]|\[left\][\s\S]*?\[/left\]|\[list(?:=1)?\][\s\S]*?\[/list\]|\[img\][\s\S]*?\[/img\])',
-      caseSensitive: false,
-    );
-
-    text.splitMapJoin(
-      regex,
-      onMatch: (Match match) {
-        final String matchText = match.group(0)!;
-        final String lowerCaseMatch = matchText.toLowerCase();
-
-        if (lowerCaseMatch.startsWith('[center]')) {
-          final content = matchText.substring(8, matchText.length - 9);
-          widgets.add(
-            Center(child: Column(children: _parseBBCode(context, content))),
-          );
-        } else if (lowerCaseMatch.startsWith('[left]')) {
-          final content = matchText.substring(6, matchText.length - 7);
-          widgets.add(
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: _parseBBCode(context, content),
-              ),
-            ),
-          );
-        } else if (lowerCaseMatch.startsWith('[list')) {
-          final bool isOrdered = lowerCaseMatch.startsWith('[list=1]');
-          final int startIndex = matchText.indexOf(']') + 1;
-          final content = matchText.substring(startIndex, matchText.length - 7);
-          widgets.add(_buildList(context, content, isOrdered: isOrdered));
-        } else if (lowerCaseMatch.startsWith('[img]')) {
-          final url = matchText.substring(5, matchText.length - 6).trim();
-          widgets.add(
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Image.network(
-                url,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.broken_image_outlined, color: Colors.grey),
-              ),
-            ),
-          );
-        }
-        return '';
-      },
-      // ++ INICIO DE LA MODIFICACIÓN: MANEJAR [*] INDEPENDIENTES ++
-      onNonMatch: (String text) {
-        if (text.trim().isEmpty) return '';
-
-        // Ahora, dividimos el texto sobrante por la etiqueta [*]
-        final itemParts = text.split(RegExp(r'\[\*\]', caseSensitive: false));
-
-        // El primer fragmento es texto normal antes de la primera viñeta
-        if (itemParts.first.trim().isNotEmpty) {
-          widgets.add(_buildRichText(context, itemParts.first));
-        }
-
-        // El resto de los fragmentos son viñetas independientes
-        if (itemParts.length > 1) {
-          for (final itemText in itemParts.skip(1)) {
-            if (itemText.trim().isNotEmpty) {
-              widgets.add(_buildStandaloneListItem(context, itemText.trim()));
-            }
-          }
-        }
-        return '';
-      },
-      // ++ FIN DE LA MODIFICACIÓN ++
-    );
-
-    return widgets;
-  }
-
-  /// Widget para construir listas.
-  Widget _buildList(
-    BuildContext context,
-    String content, {
-    bool isOrdered = false,
-  }) {
-    final items = content.split(RegExp(r'\[\*\]', caseSensitive: false));
-    if (items.isEmpty) return const SizedBox.shrink();
-
-    final validItems = items.where((item) => item.trim().isNotEmpty).toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: validItems.asMap().entries.map((entry) {
-        final index = entry.key;
-        final itemText = entry.value;
-        final String bullet = isOrdered ? "${index + 1}." : "•";
-
-        return Padding(
-          padding: const EdgeInsets.only(left: 16.0, top: 2.0, bottom: 2.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0, top: 2.0),
-                child: Text(
-                  bullet,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: _parseBBCode(context, itemText.trim()),
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  // ++ NUEVO: Widget para construir un elemento de lista INDEPENDIENTE ++
-  Widget _buildStandaloneListItem(BuildContext context, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 16.0, top: 2.0, bottom: 2.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(right: 8.0, top: 2.0),
-            child: Text("•", style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          // El contenido del item puede tener más estilos, así que lo pasamos a RichText
-          Expanded(child: _buildRichText(context, text)),
-        ],
-      ),
-    );
-  }
-
-  /// Construye el RichText para estilos en línea (negrita, color, fuente, etc.).
-  Widget _buildRichText(BuildContext context, String text) {
-    final List<TextSpan> spans = [];
-    final List<TextStyle> styleStack = [const TextStyle()];
-    final List<GestureRecognizer?> recognizerStack = [null];
-
-    final regex = RegExp(
-      r'\[\/?(b|u|i|s|color|size|url|font)(?:=([^\]]*))?\]',
-      caseSensitive: false,
-    );
-
-    text.splitMapJoin(
-      regex,
-      onMatch: (Match match) {
-        final tagName = match.group(1)?.toLowerCase();
-        final tagValue = match.group(2);
-        final isClosingTag = match.group(0)!.startsWith('[/');
-
-        if (isClosingTag) {
-          if (styleStack.length > 1) styleStack.removeLast();
-          if (recognizerStack.length > 1) recognizerStack.removeLast();
-        } else {
-          TextStyle currentStyle = styleStack.last;
-          GestureRecognizer? currentRecognizer = recognizerStack.last;
-
-          switch (tagName) {
-            case 'b':
-              currentStyle = currentStyle.copyWith(fontWeight: FontWeight.bold);
-              break;
-            case 'u':
-              currentStyle = currentStyle.copyWith(
-                decoration: TextDecoration.underline,
-              );
-              break;
-            case 'i':
-              currentStyle = currentStyle.copyWith(fontStyle: FontStyle.italic);
-              break;
-            case 's':
-              currentStyle = currentStyle.copyWith(
-                decoration: TextDecoration.lineThrough,
-              );
-              break;
-            case 'color':
-              final color = _hexToColor(tagValue);
-              if (color != null) {
-                currentStyle = currentStyle.copyWith(color: color);
-              }
-              break;
-            case 'size':
-              final fontSize = _sizeToFontSize(tagValue);
-              if (fontSize != null) {
-                currentStyle = currentStyle.copyWith(fontSize: fontSize);
-              }
-              break;
-            case 'url':
-              if (tagValue != null) {
-                currentRecognizer = TapGestureRecognizer()
-                  ..onTap = () async {
-                    try {
-                      final url = Uri.parse(tagValue);
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(url);
-                      }
-                    } catch (e) {
-                      print('Could not launch URL $tagValue: $e');
-                    }
-                  };
-                currentStyle = currentStyle.copyWith(
-                  color: Colors.lightBlueAccent,
-                  decoration: TextDecoration.underline,
-                );
-              }
-              break;
-            case 'font':
-              if (tagValue != null) {
-                currentStyle = currentStyle.copyWith(
-                  fontFamily: tagValue.replaceAll("'", "").replaceAll('"', ""),
-                );
-              }
-              break;
-          }
-          styleStack.add(currentStyle);
-          recognizerStack.add(currentRecognizer);
-        }
-        return '';
-      },
-      onNonMatch: (String text) {
-        if (text.isNotEmpty) {
-          spans.add(
-            TextSpan(
-              text: text,
-              style: styleStack.last,
-              recognizer: recognizerStack.last,
-            ),
-          );
-        }
-        return '';
-      },
-    );
-
-    return RichText(
-      text: TextSpan(
-        children: spans,
-        style: defaultStyle ?? Theme.of(context).textTheme.bodyMedium,
-      ),
-    );
-  }
-
-  // --- Funciones de Ayuda ---
-
-  Color? _hexToColor(String? hex) {
-    if (hex == null) return null;
-    final hexString = hex.startsWith('#') ? hex.substring(1) : hex;
-    if (hexString.length == 6) {
-      return Color(int.parse('FF$hexString', radix: 16));
-    }
-    return null;
-  }
-
-  double? _sizeToFontSize(String? size) {
-    if (size == null) return null;
-    final sizeNum = int.tryParse(size);
-    if (sizeNum == null) return null;
-    switch (sizeNum) {
-      case 1:
-        return 10.0;
-      case 2:
-        return 12.0;
-      case 3:
-        return 14.0;
-      case 4:
-        return 16.0;
-      case 5:
-        return 20.0;
-      case 6:
-        return 24.0;
-      case 7:
-        return 32.0;
-      default:
-        return 14.0;
-    }
-  }
-}
-
-/// Un widget Switch que maneja su propio estado de animación localmente
-/// para permitir una transición visual suave (deslizamiento) al cambiar,
-/// mientras sigue llamando a los callbacks del widget principal para
-/// ejecutar la lógica de habilitación/deshabilitación.
-class AnimatedModSwitch extends StatefulWidget {
-  final ModInfo modInfo;
-  final bool isLoading;
-  // MODIFICADO: Las funciones ahora deben devolver un bool (éxito o fracaso)
-  final Future<bool> Function(ModInfo) onEnable;
-  final Future<bool> Function(ModInfo) onDisable;
-  final double scale; // Para el GridView
-
-  const AnimatedModSwitch({
-    super.key,
-    required this.modInfo,
-    required this.isLoading,
-    required this.onEnable,
-    required this.onDisable,
-    this.scale = 1.0, // Valor por defecto de 1.0 para el ListView
-  });
-
-  @override
-  State<AnimatedModSwitch> createState() => _AnimatedModSwitchState();
-}
-
-class _AnimatedModSwitchState extends State<AnimatedModSwitch> {
-  late bool _isEnabled;
-  bool _isLocallyLoading = false; // <-- AÑADIDO: Estado de carga local
-
-  @override
-  void initState() {
-    super.initState();
-    _isEnabled = widget.modInfo.isEnabled;
-  }
-
-  // MODIFICADO: Lógica de actualización mejorada
-  @override
-  void didUpdateWidget(covariant AnimatedModSwitch oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Si la lista principal se recarga Y no estamos ocupados localmente,
-    // aceptamos el nuevo valor del mod.
-    if (widget.modInfo.isEnabled != _isEnabled && !_isLocallyLoading) {
-      _isEnabled = widget.modInfo.isEnabled;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // El switch se deshabilita si el padre está cargando (ej. borrando otro mod)
-    // O si estamos esperando que este propio switch termine su acción.
-    final bool isDisabled = widget.isLoading || _isLocallyLoading;
-
-    Widget switchWidget = Switch(
-      value: _isEnabled,
-      activeColor: Colors.tealAccent,
-      // MODIFICADO: El onChanged ahora es async y maneja el estado local
-      onChanged: isDisabled
-          ? null
-          : (newValue) async {
-              // 1. Actualiza el estado local INMEDIATAMENTE
-              //    Esto dispara la animación y bloquea nuevos clics.
-              setState(() {
-                _isEnabled = newValue;
-                _isLocallyLoading = true;
-              });
-
-              // 2. ¡LA CLAVE! Espera a que la animación de deslizamiento (aprox. 300ms)
-              //    termine ANTES de llamar a la lógica de archivos, que es
-              //    instantánea y recarga toda la lista.
-              await Future.delayed(const Duration(milliseconds: 300));
-
-              // 3. Llama a la función del widget principal y ESPERA a que termine
-              try {
-                bool success;
-                if (newValue) {
-                  success = await widget.onEnable(widget.modInfo);
-                } else {
-                  success = await widget.onDisable(widget.modInfo);
-                }
-
-                // Si la operación falló (ej. se canceló el diálogo de conflicto),
-                // revierte la animación.
-                if (!success && mounted) {
-                  setState(() {
-                    _isEnabled = !newValue;
-                  });
-                }
-              } catch (e) {
-                // Si hubo una excepción, revierte la animación
-                if (mounted) {
-                  setState(() {
-                    _isEnabled = !newValue;
-                  });
-                }
-              } finally {
-                // 4. Haya éxito o no, desbloquea el switch
-                if (mounted) {
-                  setState(() {
-                    _isLocallyLoading = false;
-                  });
-                }
-              }
-            },
-    );
-
-    if (widget.scale != 1.0) {
-      return Transform.scale(scale: widget.scale, child: switchWidget);
-    }
-
-    return switchWidget;
   }
 }

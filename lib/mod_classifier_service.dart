@@ -1,3 +1,5 @@
+/*Es un servicio de análisis. Se encarga de inspeccionar el contenido de la carpeta de un mod (buscando archivos .json, .pak, 
+.utoc, .bk2) para clasificar de qué tipo es (CNS, Genérico, Películas o LogicMod). */
 import 'dart:io';
 import 'package:path/path.dart' as p;
 

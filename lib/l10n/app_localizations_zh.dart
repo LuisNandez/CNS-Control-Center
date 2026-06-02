@@ -1353,4 +1353,8 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get processingCover => 'Processing Cover...';
+
+  @override
+  String get apiKeyTooltip =>
+      'API Key is required for smart Nexus ID extraction.';
 }

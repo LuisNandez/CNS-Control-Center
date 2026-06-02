@@ -1,4 +1,5 @@
-// notification_service.dart
+/*Es un patrón Singleton que sirve como envoltorio (wrapper) de la librería toastification. Centraliza la forma en que muestras
+ las notificaciones emergentes (éxito, error, info) en cualquier parte de la app.*/
 
 import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';

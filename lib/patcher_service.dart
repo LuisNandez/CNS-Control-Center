@@ -1,14 +1,13 @@
-// lib/patcher_service.dart
+// Contiene la lógica profunda para solucionar conflictos entre mods (archivos .ucas/.utoc). Se encarga de buscar secuencias de
+// bytes problemáticas (Container IDs y Package IDs duplicados) y reescribirlas para evitar crashes en el juego.
 
 // ignore_for_file: avoid_print
 
 import 'dart:io';
 import 'dart:math'; // Importamos 'math' para Random
 import 'dart:typed_data';
-// import 'package:uuid/uuid.dart'; // Ya no es necesario
 import 'package:path/path.dart' as p;
 import 'l10n/app_localizations.dart';
-import 'package:flutter/material.dart';
 
 enum LogEntryType { normal, success, error, info }
 

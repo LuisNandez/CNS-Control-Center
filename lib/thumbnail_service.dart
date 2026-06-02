@@ -1,4 +1,6 @@
-// ignore_for_file: avoid_print
+// Un servicio optimizado para cargar, cachear y comprimir imágenes. Lo más importante aquí es que utiliza Isolates (compute) 
+//para que la decodificación y redimensionamiento de las portadas se haga en un hilo secundario y no congele la interfaz de
+// la aplicación.
 
 import 'dart:io';
 import 'dart:convert';

@@ -1,0 +1,248 @@
+// lib/services/archive_service.dart
+import 'dart:io';
+import 'package:path/path.dart' as p;
+import '../l10n/app_localizations.dart';
+import '../mod_classifier_service.dart';
+import '../models/installation_models.dart';
+import 'nexus_api_service.dart';
+import 'file_manager_service.dart';
+
+class ArchiveService {
+  static String stripVersionFromFolderName(String name) {
+    final regex = RegExp(r'\s+[vV]?\d+(\.\d+)*(-[a-zA-Z0-9]+)?\s*$', caseSensitive: false);
+    return name.replaceAll(regex, '').trim();
+  }
+
+  static String cleanNexusFileName(String fileName) {
+    final nexusIdRegex = RegExp(r'-(\d{2,6})-');
+    final match = nexusIdRegex.firstMatch(fileName);
+    if (match != null) {
+      return fileName.substring(0, match.start);
+    } else {
+      return stripVersionFromFolderName(fileName);
+    }
+  }
+
+  static Future<Map<String, String>?> extractNexusInfoFromName(String name, String? apiKey) async {
+    if (apiKey == null || apiKey.isEmpty) return null;
+    try {
+      final potentialIdsRegex = RegExp(r'-(\d{2,6})-');
+      final matches = potentialIdsRegex.allMatches(name);
+
+      for (final match in matches) {
+        final potentialId = match.group(1);
+        if (potentialId == null) continue;
+
+        if (await NexusApiService.isValidNexusId(potentialId, apiKey)) {
+          final validId = potentialId;
+          final remainingString = name.substring(match.end);
+          final lastHyphenIndex = remainingString.lastIndexOf('-');
+
+          if (lastHyphenIndex != -1) {
+            String version = remainingString.substring(0, lastHyphenIndex);
+            version = version.replaceAll('-', '.');
+            if (version.toLowerCase().startsWith('v')) version = version.substring(1);
+            if (version.toLowerCase().startsWith('cns.')) version = version.substring(4);
+            return {'id': validId, 'version': version};
+          }
+        }
+      }
+    } catch (e) {
+      print('An error occurred during smart Nexus info extraction: $e');
+    }
+    return null;
+  }
+
+  static Future<Directory?> findUE4SSRoot(Directory root) async {
+    final ue4ssDir = Directory(p.join(root.path, 'ue4ss'));
+    final dwmapiFile = File(p.join(root.path, 'dwmapi.dll'));
+    if (await ue4ssDir.exists() && await dwmapiFile.exists()) {
+      return root;
+    }
+
+    await for (final entity in root.list(followLinks: false)) {
+      if (entity is Directory) {
+        final found = await findUE4SSRoot(entity);
+        if (found != null) return found;
+      }
+    }
+    return null;
+  }
+
+  static Future<List<Directory>> findValidModDirectories(Directory root) async {
+    final List<Directory> found = [];
+    final rootModType = await ModClassifierService.classifyModDirectory(root);
+    if (rootModType != ModDirectoryType.unknown) {
+      found.add(root);
+      return found;
+    }
+
+    await for (final entity in root.list(followLinks: false)) {
+      if (entity is Directory) {
+        final basename = p.basename(entity.path);
+        if (basename.startsWith('__') || basename.startsWith('.')) continue;
+        final nestedMods = await findValidModDirectories(entity);
+        found.addAll(nestedMods);
+      }
+    }
+    return found;
+  }
+
+  static Future<ArchiveProcessingResult> processArchives({
+    required List<File> archives,
+    required Directory tempExtractionDir,
+    required String? sevenZipPath,
+    required String? apiKey,
+    required Set<String> logicModIds,
+    required AppLocalizations l10n,
+    required Function(double progress, String status) onProgress,
+  }) async {
+    final List<PreparedMod> preparedMods = [];
+    PreparedUE4SS? preparedUE4SS;
+
+    for (int i = 0; i < archives.length; i++) {
+      final archiveFile = archives[i];
+      final fileName = p.basename(archiveFile.path);
+
+      onProgress((i + 1) / archives.length, l10n.statusExtractingMultipleFiles(i + 1, fileName, archives.length));
+
+      final nexusInfo = await extractNexusInfoFromName(fileName, apiKey);
+      final String? nexusId = nexusInfo?['id'];
+      final bool isLogicModById = (nexusId != null && logicModIds.contains(nexusId));
+      final archiveTempDir = Directory(p.join(tempExtractionDir.path, i.toString()));
+      await archiveTempDir.create();
+
+      final extension = p.extension(archiveFile.path).toLowerCase();
+
+      if (['.zip', '.rar', '.7z'].contains(extension)) {
+        if (sevenZipPath == null || !await File(sevenZipPath).exists()) {
+          throw Exception('7ZIP_MISSING');
+        }
+        final result = await Process.run(sevenZipPath, [
+          'x', archiveFile.path, '-o${archiveTempDir.path}', '-y',
+        ]);
+        if (result.exitCode != 0) {
+          throw Exception(l10n.error7zipDecompression(result.stderr.toString()));
+        }
+      } else {
+        throw Exception(l10n.errorUnsupportedFormat(extension));
+      }
+
+      final baseArchiveName = p.basenameWithoutExtension(archiveFile.path);
+      final archiveName = cleanNexusFileName(baseArchiveName);
+
+      // 1. Comprobar UE4SS
+      final ue4ssRoot = await findUE4SSRoot(archiveTempDir);
+      if (ue4ssRoot != null) {
+        preparedUE4SS = PreparedUE4SS(sourceDir: ue4ssRoot);
+        continue;
+      }
+
+      // 2. Comprobar Actualización CNS
+      final sbDir = Directory(p.join(archiveTempDir.path, 'SB'));
+      if (await sbDir.exists()) {
+        final cnsLuaFile = File(p.join(sbDir.path, 'Binaries', 'Win64', 'ue4ss', 'Mods', 'DekCNS', 'Scripts', 'main.lua'));
+        if (await cnsLuaFile.exists()) {
+          return ArchiveProcessingResult(preparedMods: [], cnsUpdateDir: sbDir);
+        }
+      }
+
+      // 3. Comprobar LogicMod
+      final logicSourceDir = Directory(p.join(archiveTempDir.path, 'SB', 'Content', 'Paks', 'LogicMods'));
+      final ue4ssSourceDir = Directory(p.join(archiveTempDir.path, 'SB', 'Binaries', 'Win64', 'ue4ss', 'Mods'));
+
+      if (await logicSourceDir.exists() && await ue4ssSourceDir.exists()) {
+        final tildeModsSourceDir = Directory(p.join(archiveTempDir.path, 'SB', 'Content', 'Paks', '~mods'));
+        final bool tildeModsExists = await tildeModsSourceDir.exists();
+        preparedMods.add(PreparedMod(
+          sourceDir: logicSourceDir,
+          ue4ssDir: ue4ssSourceDir,
+          tildeModsDir: tildeModsExists ? tildeModsSourceDir : null,
+          nexusId: nexusInfo?['id'],
+          nexusVersion: nexusInfo?['version'],
+          archiveName: archiveName,
+          modType: ModDirectoryType.logicMod,
+        ));
+        continue;
+      }
+
+      Directory? nestedLogicModDir;
+      final List<FileSystemEntity> rootEntities = await archiveTempDir.list().toList();
+      final rootDirs = rootEntities.whereType<Directory>().toList();
+
+      if (rootDirs.length == 1) {
+        final potentialLogicModsDir = Directory(p.join(rootDirs.first.path, 'LogicMods'));
+        if (await potentialLogicModsDir.exists()) nestedLogicModDir = potentialLogicModsDir;
+      } else {
+        final rootLogicModsDir = Directory(p.join(archiveTempDir.path, 'LogicMods'));
+        if (await rootLogicModsDir.exists()) nestedLogicModDir = rootLogicModsDir;
+      }
+
+      if (nestedLogicModDir != null) {
+        preparedMods.add(PreparedMod(
+          sourceDir: nestedLogicModDir,
+          ue4ssDir: null,
+          tildeModsDir: null,
+          nexusId: nexusInfo?['id'],
+          nexusVersion: nexusInfo?['version'],
+          archiveName: archiveName,
+          modType: ModDirectoryType.logicMod,
+        ));
+        continue;
+      }
+
+      // 4. Comprobar Subdirectorios
+      final foundModDirs = await findValidModDirectories(archiveTempDir);
+      if (foundModDirs.isNotEmpty) {
+        for (final modDir in foundModDirs) {
+          var modType = await ModClassifierService.classifyModDirectory(modDir);
+          if (isLogicModById && modType != ModDirectoryType.unknown) {
+            modType = ModDirectoryType.logicMod;
+          }
+          if (modType != ModDirectoryType.unknown) {
+            preparedMods.add(PreparedMod(
+              sourceDir: modDir,
+              ue4ssDir: null,
+              nexusId: nexusInfo?['id'],
+              nexusVersion: nexusInfo?['version'],
+              archiveName: archiveName,
+              modType: modType,
+            ));
+          }
+        }
+        continue;
+      }
+
+      // 5. Comprobar Archivos Sueltos
+      final allModFiles = await FileManagerService.findAllModFilesRecursive(archiveTempDir);
+      final jsonFiles = allModFiles.where((f) => p.extension(f.path).toLowerCase() == '.json').toList();
+      final pakFiles = allModFiles.where((f) => ['.pak', '.ucas', '.utoc'].contains(p.extension(f.path).toLowerCase())).toList();
+      final bk2Files = allModFiles.where((f) => p.extension(f.path).toLowerCase() == '.bk2').toList();
+
+      if (jsonFiles.isNotEmpty && pakFiles.isNotEmpty) {
+        final consolidatedDir = await Directory(p.join(archiveTempDir.path, '_consolidated_')).create();
+        for (final modFile in allModFiles) {
+          final ext = p.extension(modFile.path).toLowerCase();
+          if (['.json', '.pak', '.ucas', '.utoc'].contains(ext)) {
+            await modFile.copy(p.join(consolidatedDir.path, p.basename(modFile.path)));
+          }
+        }
+        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.cns, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version']));
+      } else if (jsonFiles.isEmpty && pakFiles.isNotEmpty) {
+        final consolidatedDir = await Directory(p.join(archiveTempDir.path, '_consolidated_')).create();
+        for (final modFile in pakFiles) {
+          await modFile.copy(p.join(consolidatedDir.path, p.basename(modFile.path)));
+        }
+        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.genericPak, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version']));
+      } else if (jsonFiles.isEmpty && pakFiles.isEmpty && bk2Files.isNotEmpty) {
+        final consolidatedDir = await Directory(p.join(archiveTempDir.path, '_consolidated_')).create();
+        for (final modFile in bk2Files) {
+          await modFile.copy(p.join(consolidatedDir.path, p.basename(modFile.path)));
+        }
+        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.movies, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version']));
+      }
+    }
+
+    return ArchiveProcessingResult(preparedMods: preparedMods, preparedUE4SS: preparedUE4SS);
+  }
+}

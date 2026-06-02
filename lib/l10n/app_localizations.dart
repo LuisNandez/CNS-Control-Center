@@ -2397,6 +2397,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Processing Cover...'**
   String get processingCover;
+
+  /// No description provided for @apiKeyTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key is required for smart Nexus ID extraction.'**
+  String get apiKeyTooltip;
 }
 
 class _AppLocalizationsDelegate

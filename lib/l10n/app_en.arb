@@ -748,5 +748,6 @@
   "fullLogDialogTitle": "Conflict Patcher Log (Dart)",
   "runConflictPatcherTitle": "Run Conflict Patcher",
   "runConflictPatcherSubtitlePython": "Fixes Container_Id & Package_Id crashes",
-  "processingCover": "Processing Cover..."
+  "processingCover": "Processing Cover...",
+  "apiKeyTooltip": "API Key is required for smart Nexus ID extraction."
 }
