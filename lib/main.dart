@@ -19,6 +19,7 @@ import 'notification_service.dart';
 import 'mod_classifier_service.dart';
 import 'dart:async';
 import 'patcher_service.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import 'models/mod_info.dart';
 import 'config/app_prefs.dart';
@@ -41,6 +42,7 @@ import 'services/update_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  HttpOverrides.global = NexusHttpOverrides();
 
   await windowManager.ensureInitialized();
 
@@ -2856,7 +2858,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
       'replacedFiles': (modType == ModDirectoryType.movies)
           ? replacedFiles
           : null,
-      'replacesOutfit': selectedOutfit,
+      'replacesOutfits': selectedOutfit != null ? [selectedOutfit] : null,
     };
     // Limpia valores nulos para no ensuciar el JSON
     modData.removeWhere((key, value) => value == null);
@@ -2906,38 +2908,35 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         _genericModsPath == null ||
         _logicModsPath == null)
       return false;
-    final String? outfitToReplace = modInfo.replacesOutfit;
-    final bool isReplacementMod =
-        outfitToReplace != null && outfitToReplace.isNotEmpty;
+    final List<String> outfitsToReplace = modInfo.replacesOutfits ?? [];
+    final bool isReplacementMod = outfitsToReplace.isNotEmpty;
 
     if (isReplacementMod) {
-      // Es un mod de reemplazo. Comprobar si ya hay otro habilitado para el mismo traje.
       ModInfo? conflictingMod;
+      List<String> overlappingOutfits = [];
+
       try {
-        // Buscamos en todos los mods
         for (final otherMod in _allMods) {
-          // Si el 'otro mod' está habilitado,
-          // no es el mismo mod que intentamos activar,
-          // y reemplaza el MISMO traje...
-          if (otherMod.isEnabled &&
-              otherMod.directory.path != modInfo.directory.path &&
-              otherMod.replacesOutfit == outfitToReplace) {
-            conflictingMod = otherMod;
-            break; // ¡Conflicto encontrado! Salimos del bucle.
+          if (otherMod.isEnabled && otherMod.directory.path != modInfo.directory.path) {
+            final otherOutfits = otherMod.replacesOutfits ?? [];
+            // Busca la intersección (trajes que ambos mods intentan usar)
+            final intersection = outfitsToReplace.where((o) => otherOutfits.contains(o)).toList();
+            
+            if (intersection.isNotEmpty) {
+              conflictingMod = otherMod;
+              overlappingOutfits = intersection;
+              break; // ¡Conflicto encontrado!
+            }
           }
         }
       } catch (e) {
-        // (En caso de que el bucle falle, aunque es poco probable)
         conflictingMod = null;
       }
 
-      // Si se encontró un mod en conflicto, muestra un diálogo y detén la activación.
       if (conflictingMod != null) {
         final l10n = AppLocalizations.of(context)!;
-
-        // Ahora el diálogo devuelve un booleano (true = forzar activación)
-        // Obtenemos los nombres para usarlos como separadores
-        final String outfitName = outfitToReplace;
+        // Une los nombres con coma si hay múltiples conflictos
+        final String outfitName = overlappingOutfits.join(', ');
         final String modName = conflictingMod.customName;
 
         // Obtenemos el texto completo de la localización
@@ -4416,10 +4415,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                               '${l10n.dialogSkippedVersions}: ${entry.value}',
                             ),
                             trailing: IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: Colors.redAccent,
-                              ),
+                              icon: const HugeIcon(icon: HugeIcons.strokeRoundedDelete01, color: Colors.redAccent, size: 24.0),
                               onPressed: () async {
                                 await _removeSkippedVersion(entry.key);
                                 setDialogState(() {});
@@ -4507,8 +4503,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         final nameMatch = mod.customName.toLowerCase().contains(query);
         final tagMatch = displayTag.toLowerCase().contains(query);
         // Comprueba si el traje reemplazado coincide con la búsqueda
-        final outfitMatch = (mod.replacesOutfit != null)
-            ? mod.replacesOutfit!.toLowerCase().contains(query)
+        final outfitMatch = (mod.replacesOutfits != null)
+            ? mod.replacesOutfits!.any((outfit) => outfit.toLowerCase().contains(query))
             : false;
 
         return nameMatch || tagMatch || outfitMatch; // Añade outfitMatch
@@ -4565,9 +4561,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
               Padding(
                 padding: const EdgeInsets.only(left: 8.0),
                 child: IconButton(
-                  icon: const Icon(
-                    Icons.notification_important,
+                  icon: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedNotification01,
                     color: Colors.yellowAccent,
+                    size: 24.0,
                   ),
                   tooltip: l10n.updateAvailable(_cnsUpdateInfo!['version']),
                   onPressed: () {
@@ -4587,14 +4584,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         backgroundColor: const Color(0xFF2a2a2a),
         actions: [
           IconButton(
-            icon: const Icon(Icons.cloud_sync_outlined),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedWifiSync, color: Colors.white, size: 24.0),
             tooltip: l10n.checkForUpdates,
             onPressed: _isLoading || _isCheckingForUpdates
                 ? null
                 : _checkForUpdates,
           ),
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedSetting07, color: Colors.white, size: 24.0),
             tooltip: l10n.settings,
             onPressed: () {
               Navigator.push(
@@ -4771,8 +4768,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(
-                            Icons.download_for_offline,
+                          const HugeIcon(
+                            icon: HugeIcons.strokeRoundedArchiveArrowDown,
                             size: 80,
                             color: Colors.tealAccent,
                           ),
@@ -4819,7 +4816,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            icon: const Icon(Icons.folder_open),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedFolder01, color: Colors.white, size: 24.0),
             label: Text(l10n.pathSelectionButtonManual),
             onPressed: _selectGamePathManually,
             style: ElevatedButton.styleFrom(
@@ -4844,9 +4841,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   final isIgnored = _ignoredUpdates.contains(updateIdentifier);
   final isHighlighted = _lastInstalledModNames.contains(p.basename(modInfo.directory.path));
   final displayVersion = modInfo.customVersion ?? modInfo.localVersion;
-  final bool isReplacement = modInfo.replacesOutfit != null && modInfo.replacesOutfit!.isNotEmpty;
+  final bool isReplacement = modInfo.replacesOutfits != null && modInfo.replacesOutfits!.isNotEmpty;
   final String displayTag = isReplacement
-      ? modInfo.replacesOutfit!
+      ? modInfo.replacesOutfits!.first
       : (modInfo.customFitMeshType ?? modInfo.fitMeshType ?? l10n.modCategoryOther);
 
   void _performSurgicalUpdate(ModInfo? updatedMod) {
@@ -5009,7 +5006,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              icon: const Icon(Icons.add_circle_outline_outlined),
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedAddCircle, color: Colors.white, size: 24.0),
               label: Text(
                 l10n.installNewMod,
               ), // Asegúrate de tener esta traducción
@@ -5094,16 +5091,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   children: [
                     Tooltip(
                       message: l10n.viewTypeGrid,
-                      child: Icon(Icons.grid_view_outlined, size: 20),
+                      child: HugeIcon(icon: HugeIcons.strokeRoundedLayoutGrid, size: 20),
                     ),
                     Tooltip(
                       message: l10n.viewTypeList,
-                      child: Icon(Icons.view_list_outlined, size: 20),
+                      child: HugeIcon(icon: HugeIcons.strokeRoundedLeftToRightListBullet, size: 20),
                     ),
                   ],
                 ),
                 PopupMenuButton<ModFilter>(
-                  icon: const Icon(Icons.filter_list),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedFilter, size: 20),
                   tooltip: l10n.filterBy,
                   onSelected: (ModFilter result) async {
                     final prefs = await SharedPreferences.getInstance();
@@ -5136,7 +5133,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           children: [
                             Text(option['text'] as String),
                             if (_currentFilter == option['value'])
-                              const Icon(Icons.check, color: Colors.tealAccent),
+                              const HugeIcon(icon: HugeIcons.strokeRoundedTick02, color: Colors.tealAccent),
                           ],
                         ),
                       );
@@ -5144,7 +5141,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   },
                 ),
                 PopupMenuButton<ModSort>(
-                  icon: const Icon(Icons.sort),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedSorting01, size: 20),
                   tooltip: l10n.sortBy,
                   onSelected: (ModSort result) async {
                     final prefs = await SharedPreferences.getInstance();
@@ -5166,7 +5163,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                           children: [
                             Text(option['text'] as String),
                             if (_currentSort == option['value'])
-                              const Icon(Icons.check, color: Colors.tealAccent),
+                              const HugeIcon(icon: HugeIcons.strokeRoundedTick02, color: Colors.tealAccent),
                           ],
                         ),
                       );
@@ -5174,7 +5171,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.folder_special_outlined),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedFolderSymlink, size: 20),
                   onPressed: _isLoading
                       ? null
                       : () {
@@ -5185,8 +5182,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   tooltip: l10n.openModsFolder,
                 ),
                 IconButton(
-                  icon: Icon(
-                    Icons.power_outlined,
+                  icon: HugeIcon(
+                    icon: HugeIcons.strokeRoundedPower,
                     // ++ MODIFICADO: Usa el booleano de la vista actual
                     color: (_isLoading || !hasDisabledModsInView)
                         ? Colors.greenAccent.withOpacity(0.4)
@@ -5199,8 +5196,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   tooltip: l10n.enableAllModsTooltip,
                 ),
                 IconButton(
-                  icon: Icon(
-                    Icons.power_off_outlined,
+                  icon: HugeIcon(
+                    icon: HugeIcons.strokeRoundedPowerOff,
                     // ++ MODIFICADO: Usa el booleano de la vista actual
                     color: (_isLoading || !hasEnabledModsInView)
                         ? Colors.orangeAccent.withOpacity(0.4)
@@ -5213,8 +5210,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   tooltip: l10n.disableAllModsTooltip,
                 ),
                 IconButton(
-                  icon: Icon(
-                    Icons.delete_sweep_outlined,
+                  icon: HugeIcon(
+                    icon: HugeIcons.strokeRoundedDelete04,
                     // ++ MODIFICADO: Usa el booleano de la vista actual
                     color: (_isLoading || !hasDisabledModsInView)
                         ? Colors.redAccent.withOpacity(0.4)
@@ -5227,7 +5224,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   tooltip: l10n.deleteAllModsTooltip,
                 ),
                 IconButton(
-                  icon: const Icon(Icons.refresh),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedRefresh01),
                   onPressed: _isLoading
                       ? null
                       : () => _loadAllMods(clearHighlight: true),
@@ -5588,32 +5585,40 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     try {
       Directory modDirectory = mod.directory;
 
-      if (newData.containsKey('replacesOutfit')) {
-        final String? newOutfit = newData['replacesOutfit'] as String?;
+      // Prepara la compatibilidad para recibir listas de la futura UI
+      if (newData.containsKey('replacesOutfit') || newData.containsKey('replacesOutfits')) {
+        List<String> newOutfits = [];
+        if (newData.containsKey('replacesOutfits') && newData['replacesOutfits'] != null) {
+          newOutfits = List<String>.from(newData['replacesOutfits']);
+        } else if (newData.containsKey('replacesOutfit') && newData['replacesOutfit'] != null) {
+          final String single = newData['replacesOutfit'] as String;
+          if (single.isNotEmpty) newOutfits.add(single);
+        }
 
-        // 1. Comprobamos solo si se está ASIGNANDO un nuevo traje (no si se está borrando)
-        if (newOutfit != null && newOutfit.isNotEmpty) {
+        if (newOutfits.isNotEmpty) {
           ModInfo? conflictingMod;
+          List<String> overlappingOutfits = [];
+          
           try {
-            // 2. Buscamos en todos los mods
             for (final otherMod in _allMods) {
-              // Si el 'otro mod' está habilitado,
-              // no es el mismo mod que intentamos editar,
-              // y reemplaza el MISMO traje...
-              if (otherMod.isEnabled &&
-                  otherMod.directory.path != mod.directory.path &&
-                  otherMod.replacesOutfit == newOutfit) {
-                conflictingMod = otherMod;
-                break; // ¡Conflicto encontrado!
+              if (otherMod.isEnabled && otherMod.directory.path != mod.directory.path) {
+                final otherOutfits = otherMod.replacesOutfits ?? [];
+                // Compara si la nueva lista de trajes choca con algún mod habilitado
+                final intersection = newOutfits.where((o) => otherOutfits.contains(o)).toList();
+                
+                if (intersection.isNotEmpty) {
+                  conflictingMod = otherMod;
+                  overlappingOutfits = intersection;
+                  break;
+                }
               }
             }
           } catch (e) {
             conflictingMod = null;
           }
 
-          // 3. Si se encontró un mod en conflicto, muestra el diálogo de elección.
           if (conflictingMod != null && mod.isEnabled) {
-            final String outfitName = newOutfit;
+            final String outfitName = overlappingOutfits.join(', ');
             final String modName = conflictingMod.customName;
 
             // Obtenemos el texto completo de la localización
@@ -5862,14 +5867,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         data['modType'] = newData['modType'];
       }
 
-      if (newData.containsKey('replacesOutfit')) {
-        final value = newData['replacesOutfit'] as String?;
-        if (value == null || value.isEmpty) {
-          // Si el valor es nulo o vacío, lo eliminamos
-          data.remove('replacesOutfit');
+      if (newData.containsKey('replacesOutfits') || newData.containsKey('replacesOutfit')) {
+        List<String>? outList;
+        if (newData.containsKey('replacesOutfits')) {
+          outList = newData['replacesOutfits'] as List<String>?;
         } else {
-          // Si hay un valor, lo guardamos
-          data['replacesOutfit'] = value;
+          final val = newData['replacesOutfit'] as String?;
+          outList = (val != null && val.isNotEmpty) ? [val] : null;
+        }
+
+        if (outList == null || outList.isEmpty) {
+          data.remove('replacesOutfits');
+          data.remove('replacesOutfit'); // Limpiamos la clave vieja
+        } else {
+          data['replacesOutfits'] = outList;
+          data.remove('replacesOutfit'); // Nos aseguramos de no dejar basura
         }
       }
 
@@ -5950,7 +5962,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
         userNotes: data['userNotes'],
         sourceUrl: data['sourceUrl'] ?? mod.sourceUrl,
         customSourceUrl: data['customSourceUrl'],
-        replacesOutfit: data['replacesOutfit'],
+        replacesOutfits: data['replacesOutfits'] != null ? List<String>.from(data['replacesOutfits']) : null,
       );
     } catch (e) {
       print('Error updating mod details: $e');
@@ -6263,8 +6275,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
                   errorBuilder: (context, error, stackTrace) => Container(
                     // Placeholder en caso de error
                     color: Colors.black.withOpacity(0.5),
-                    child: const Icon(
-                      Icons.hide_image_outlined,
+                    child: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedImageDelete02,
                       color: Colors.grey,
                       size: 50,
                     ),
@@ -6288,5 +6300,20 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
     _hoverTimer?.cancel(); // Cancela el temporizador si está activo
     _previewOverlay?.remove(); // Elimina el overlay de la pantalla
     _previewOverlay = null; // Limpia la referencia
+  }
+}
+
+class NexusHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) {
+        // Permitir la conexión aunque el certificado parezca expirado
+        // en el SO del usuario, SOLO si el host pertenece a Nexus Mods.
+        if (host.contains('nexusmods.com')) {
+          return true;
+        }
+        return false; // Rechazar para cualquier otro dominio por seguridad
+      };
   }
 }

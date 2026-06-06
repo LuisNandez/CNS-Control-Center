@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../thumbnail_service.dart';
 import 'mod_image_widgets.dart';
 import 'animated_mod_switch.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 class ModGridCard extends StatelessWidget {
   final ModInfo modInfo;
@@ -121,9 +122,11 @@ class ModGridCard extends StatelessWidget {
     final hasUpdate = updateInfo != null;
     final hasCustomCover = modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty;
     final displayVersion = modInfo.customVersion ?? modInfo.localVersion;
-    final bool isReplacement = modInfo.replacesOutfit != null && modInfo.replacesOutfit!.isNotEmpty;
+    final bool isReplacement = modInfo.replacesOutfits != null && modInfo.replacesOutfits!.isNotEmpty;
     final String displayTag = isReplacement
-        ? modInfo.replacesOutfit!
+        ? (modInfo.replacesOutfits!.length > 1 
+            ? '${modInfo.replacesOutfits!.length} Outfits' 
+            : modInfo.replacesOutfits!.first)
         : (modInfo.customFitMeshType ?? modInfo.fitMeshType ?? l10n.modCategoryOther);
 
     return Card(
@@ -251,7 +254,7 @@ class ModGridCard extends StatelessWidget {
                     child: MouseRegion(
                       onEnter: (event) {
                         if (isReplacement) {
-                          onHoverEnter(event.position, modInfo.replacesOutfit!);
+                          onHoverEnter(event.position, modInfo.replacesOutfits!.first);
                         }
                       },
                       onExit: (_) => onHoverExit(),
@@ -268,7 +271,7 @@ class ModGridCard extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (isReplacement)
-                                Icon(Icons.checkroom_outlined, size: 10, color: Colors.purpleAccent.shade100),
+                                HugeIcon(icon: HugeIcons.strokeRoundedDress04, size: 10, color: Colors.purpleAccent.shade100),
                               if (isReplacement) const SizedBox(width: 4),
                               Flexible(
                                 child: Text(
@@ -326,14 +329,14 @@ class ModGridCard extends StatelessWidget {
                         }
                       },
                       itemBuilder: (context) => [
-                        PopupMenuItem(value: 'edit', child: Row(children: [const Icon(Icons.edit_outlined, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.editModNameTooltip))])),
-                        PopupMenuItem(value: 'set_cover', child: Row(children: [const Icon(Icons.add_photo_alternate_outlined, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.setCoverTooltip))])),
-                        if (hasCustomCover) PopupMenuItem(value: 'revert_cover', child: Row(children: [const Icon(Icons.photo_filter_outlined, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.restoreOriginalCoverText))])),
-                        PopupMenuItem(value: 'folder', child: Row(children: [const Icon(Icons.folder_open_outlined, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.showInFolder))])),
-                        if (modInfo.nexusId != null) PopupMenuItem(value: 'gallery', child: Row(children: [const Icon(Icons.photo_library_outlined, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.viewImageGallery))])),
-                        if (modInfo.nexusId != null) PopupMenuItem(value: 'nexus', child: Row(children: [const Icon(Icons.open_in_browser_outlined, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.openInNexusMods))])),
+                        PopupMenuItem(value: 'edit', child: Row(children: [const HugeIcon(icon: HugeIcons.strokeRoundedEdit01, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.editModNameTooltip))])),
+                        PopupMenuItem(value: 'set_cover', child: Row(children: [const HugeIcon(icon: HugeIcons.strokeRoundedImageAdd02, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.setCoverTooltip))])),
+                        if (hasCustomCover) PopupMenuItem(value: 'revert_cover', child: Row(children: [const HugeIcon(icon: HugeIcons.strokeRoundedImageCounterClockwise, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.restoreOriginalCoverText))])),
+                        PopupMenuItem(value: 'folder', child: Row(children: [const HugeIcon(icon: HugeIcons.strokeRoundedFolderInput, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.showInFolder))])),
+                        if (modInfo.nexusId != null) PopupMenuItem(value: 'gallery', child: Row(children: [const HugeIcon(icon: HugeIcons.strokeRoundedAlbum02, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.viewImageGallery))])),
+                        if (modInfo.nexusId != null) PopupMenuItem(value: 'nexus', child: Row(children: [const HugeIcon(icon: HugeIcons.strokeRoundedLinkSquare02, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.openInNexusMods))])),
                         if (!modInfo.isEnabled) const PopupMenuDivider(),
-                        if (!modInfo.isEnabled) PopupMenuItem(value: 'delete', child: Row(children: [const Icon(Icons.delete_forever_outlined, size: 20, color: Colors.redAccent), const SizedBox(width: 12), Flexible(child: Text(l10n.deletePermanently, style: const TextStyle(color: Colors.redAccent)))])),
+                        if (!modInfo.isEnabled) PopupMenuItem(value: 'delete', child: Row(children: [const HugeIcon(icon: HugeIcons.strokeRoundedDelete04, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.deletePermanently, style: const TextStyle(color: Colors.redAccent)))])),
                       ],
                     ),
                   ],

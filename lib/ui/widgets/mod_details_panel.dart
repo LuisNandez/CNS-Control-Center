@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:translator/translator.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../models/mod_info.dart';
 import '../../l10n/app_localizations.dart';
@@ -63,6 +64,8 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
   late bool _isIgnored;
   late bool _isReplacementMod;
 
+  final ScrollController _carouselScrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -71,8 +74,8 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
     _isReplacementMod =
         currentModInfo.modType == 'replacement' ||
         (currentModInfo.modType == 'genericPak' &&
-            (currentModInfo.replacesOutfit != null &&
-                currentModInfo.replacesOutfit!.isNotEmpty));
+            (currentModInfo.replacesOutfits != null &&
+                currentModInfo.replacesOutfits!.isNotEmpty));
     // Comprueba si se puede traducir tan pronto como el widget se renderiza por primera vez.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _updateTranslationButtonVisibility();
@@ -85,6 +88,7 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
   void dispose() {
     // Llama al "mensajero" y le entrega el mod actualizado si hubo cambios.
     widget.onPanelClosed(_needsReloadOnClose ? currentModInfo : null);
+    _carouselScrollController.dispose();
     super.dispose();
   }
 
@@ -377,8 +381,8 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
 
                   if (onEdit != null)
                     IconButton(
-                      icon: const Icon(
-                        Icons.edit_outlined,
+                      icon: const HugeIcon(
+                        icon: HugeIcons.strokeRoundedEdit01,
                         color: Colors.white70,
                         size: 20,
                       ),
@@ -412,49 +416,41 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
   }
 
   /// Muestra el panel flotante para seleccionar un traje.
+  /// Muestra el panel flotante para seleccionar múltiples trajes.
   Future<void> _showOutfitSelectionDialog(AppLocalizations l10n) async {
-    // --- CAMBIO 1: El Notifier ahora guarda el *nombre* del traje, no el índice ---
-    // Esto soluciona la raíz de todos los errores.
-    final ValueNotifier<String?> hoveredOutfitNotifier = ValueNotifier<String?>(
-      null,
-    );
-    String searchQuery = ''; // El estado de la búsqueda se manejará localmente
+    final ValueNotifier<String?> hoveredOutfitNotifier = ValueNotifier<String?>(null);
+    String searchQuery = ''; 
     bool isClosing = false;
 
-    final String? selectedOutfit = await showModalBottomSheet<String>(
+    // Clonamos localmente la lista de trajes que ya están guardados en el mod
+    final List<String> localSelectedOutfits = List.from(currentModInfo.replacesOutfits ?? []);
+
+    final List<String>? finalSelection = await showModalBottomSheet<List<String>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: const Color(0xFF2d2d2d),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      // Hacemos el panel más ancho y alto para que quepan bien las dos columnas
       constraints: BoxConstraints(
         maxWidth: MediaQuery.of(context).size.width * 0.8,
         maxHeight: MediaQuery.of(context).size.height * 0.85,
       ),
       builder: (context) {
-        // Usamos un StatefulBuilder para que SÓLO la columna de la lista
-        // se reconstruya al escribir en el buscador.
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setDialogState) {
-            // La lista filtrada se calcula aquí, cada vez que el StatefulBuilder se reconstruye
             final filteredOutfits = stellarBladeOutfits
-                .where(
-                  (outfit) =>
-                      outfit.toLowerCase().contains(searchQuery.toLowerCase()),
-                )
-                .toList(); //
+                .where((outfit) => outfit.toLowerCase().contains(searchQuery.toLowerCase()))
+                .toList();
 
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- LADO IZQUIERDO: BÚSQUEDA Y LISTA (2/3 del espacio) ---
+                // --- LADO IZQUIERDO: BÚSQUEDA Y LISTA MULTI-SELECCIÓN (2/3) ---
                 Expanded(
                   flex: 2,
                   child: Column(
                     children: [
-                      // Barra de agarre
                       Container(
                         height: 5,
                         width: 40,
@@ -464,68 +460,81 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
                           borderRadius: BorderRadius.circular(5),
                         ),
                       ),
-                      // Barra de búsqueda
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        child: TextField(
-                          autofocus: true,
-                          onChanged: (value) {
-                            // setDialogState SÓLO se usa para la búsqueda
-                            setDialogState(() {
-                              searchQuery = value;
-                            });
-                          },
-                          decoration: InputDecoration(
-                            hintText: l10n.replacesOutfitSearchHint,
-                            prefixIcon: const Icon(Icons.search),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                autofocus: true,
+                                onChanged: (value) {
+                                  setDialogState(() {
+                                    searchQuery = value;
+                                  });
+                                },
+                                decoration: InputDecoration(
+                                  hintText: l10n.replacesOutfitSearchHint,
+                                  prefixIcon: const Icon(Icons.search),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                                ),
+                              ),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
+                            const SizedBox(width: 12),
+                            // Botón para confirmar la selección múltiple
+                            ElevatedButton.icon(
+                              icon: const HugeIcon(icon: HugeIcons.strokeRoundedSave, size: 18),
+                              label: Text(l10n.dialogActionSave),
+                              onPressed: () {
+                                isClosing = true;
+                                Navigator.of(context).pop(localSelectedOutfits);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.tealAccent,
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
-                      // Lista de trajes (Expandida y con Scroll)
                       Expanded(
                         child: MouseRegion(
                           onExit: (_) {
                             if (isClosing) return;
-                            // ++ INICIO DE LA MODIFICACIÓN ++
-                            // Solo actualiza el notificador si el valor
-                            // no es ya 'null'. Esto previene que
-                            // onExit se dispare múltiples veces y
-                            // cause el 'Duplicate key' en el AnimatedSwitcher.
                             if (hoveredOutfitNotifier.value != null) {
                               hoveredOutfitNotifier.value = null;
                             }
-                            // ++ FIN DE LA MODIFICACIÓN ++
                           },
                           child: ListView.builder(
                             itemCount: filteredOutfits.length,
                             itemBuilder: (context, index) {
                               final outfit = filteredOutfits[index];
+                              final isSelected = localSelectedOutfits.contains(outfit);
+                              
                               return MouseRegion(
-                                // onEnter sigue aquí para *establecer* la vista previa
                                 onEnter: (_) {
                                   if (isClosing) return;
-                                  // ++ INICIO DE LA MODIFICACIÓN ++
-                                  // Solo actualiza el notificador si el nuevo valor
-                                  // es diferente al valor actual.
-                                  // Esto previene el crash de "Duplicate key"
-                                  // cuando el cursor se mueve rápido sobre el mismo item.
                                   if (hoveredOutfitNotifier.value != outfit) {
                                     hoveredOutfitNotifier.value = outfit;
                                   }
-                                  // ++ FIN DE LA MODIFICACIÓN ++
                                 },
-                                // -- Ya NO necesitamos onExit aquí --
-                                child: ListTile(
+                                child: CheckboxListTile(
                                   title: Text(outfit),
-                                  onTap: () {
-                                    isClosing = true;
-                                    Navigator.of(context).pop(outfit);
+                                  value: isSelected,
+                                  activeColor: Colors.tealAccent,
+                                  checkColor: Colors.black,
+                                  controlAffinity: ListTileControlAffinity.leading,
+                                  onChanged: (bool? checked) {
+                                    setDialogState(() {
+                                      if (checked == true) {
+                                        localSelectedOutfits.add(outfit);
+                                      } else {
+                                        localSelectedOutfits.remove(outfit);
+                                      }
+                                    });
                                   },
                                 ),
                               );
@@ -537,37 +546,27 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
                   ),
                 ),
 
-                // --- LADO DERECHO: VISTA PREVIA (1/3 del espacio) ---
+                // --- LADO DERECHO: VISTA PREVIA (1/3) ---
                 Expanded(
                   flex: 1,
-                  // --- CAMBIO 3: Escucha el ValueNotifier<String?> ---
                   child: ValueListenableBuilder<String?>(
                     valueListenable: hoveredOutfitNotifier,
                     builder: (context, hoveredOutfitName, child) {
                       return Container(
-                        // Ocupa toda la altura del panel
                         height: double.infinity,
                         color: Colors.black.withOpacity(0.3),
                         padding: const EdgeInsets.all(16.0),
                         child: Center(
                           child: AnimatedCrossFade(
-                            // 1. Estado: Muestra el placeholder (first) o la imagen (second)
                             crossFadeState: hoveredOutfitName == null
                                 ? CrossFadeState.showFirst
                                 : CrossFadeState.showSecond,
-
                             duration: const Duration(milliseconds: 200),
-
-                            // 2. Placeholder (Primer hijo)
                             firstChild: Column(
                               key: const ValueKey('outfit_placeholder'),
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.image_search_rounded,
-                                  size: 60,
-                                  color: Colors.grey[700],
-                                ),
+                                HugeIcon(icon: HugeIcons.strokeRoundedImageAdd02, size: 60, color: Colors.grey[700]),
                                 const SizedBox(height: 16),
                                 Text(
                                   l10n.replacesOutfitHover,
@@ -576,55 +575,27 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
                                 ),
                               ],
                             ),
-
-                            // 3. Imagen (Segundo hijo)
-                            // La clave ValueKey(hoveredOutfitName) es crucial.
-                            // Le dice al widget que cambie de imagen aunque el estado
-                            // (showSecond) sea el mismo.
                             secondChild: ClipRRect(
                               key: ValueKey(hoveredOutfitName),
                               child: Image.asset(
-                                // Usamos ?? '' para evitar errores si hoveredOutfitName es nulo
-                                // durante el primer frame de la transición.
-                                _generateOutfitImagePath(
-                                  hoveredOutfitName ?? '',
-                                ),
+                                _generateOutfitImagePath(hoveredOutfitName ?? ''),
                                 fit: BoxFit.contain,
                                 errorBuilder: (context, error, stackTrace) {
-                                  final path = _generateOutfitImagePath(
-                                    hoveredOutfitName ?? '',
-                                  );
                                   return Center(
                                     child: Padding(
                                       padding: const EdgeInsets.all(8.0),
-                                      child: Text(
-                                        "Preview not found at:\n$path",
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: Colors.grey[500],
-                                          fontSize: 12,
-                                        ),
-                                      ),
+                                      child: const HugeIcon(icon: HugeIcons.strokeRoundedImageDelete02, color: Colors.grey, size: 40),
                                     ),
                                   );
                                 },
                               ),
                             ),
-
-                            // 4. (Opcional pero recomendado) Esto evita que el panel "salte"
-                            // de tamaño durante la animación de fundido.
-                            layoutBuilder:
-                                (
-                                  topChild,
-                                  topChildKey,
-                                  bottomChild,
-                                  bottomChildKey,
-                                ) {
-                                  return Stack(
-                                    alignment: Alignment.center,
-                                    children: [bottomChild, topChild],
-                                  );
-                                },
+                            layoutBuilder: (topChild, topChildKey, bottomChild, bottomChildKey) {
+                              return Stack(
+                                alignment: Alignment.center,
+                                children: [bottomChild, topChild],
+                              );
+                            },
                           ),
                         ),
                       );
@@ -637,28 +608,25 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
         );
       },
     );
-    // (Por si el usuario cierra el panel sin seleccionar nada)
+
     isClosing = true;
-    // Limpiamos el "mensajero" después de que el panel se cierra.
     hoveredOutfitNotifier.dispose();
 
-    if (selectedOutfit != null) {
-      _onOutfitSelected(selectedOutfit);
+    if (finalSelection != null) {
+      await _onOutfitsSelected(finalSelection);
     }
   }
 
-  /// Maneja el guardado del traje seleccionado.
-  Future<void> _onOutfitSelected(String? outfitName) async {
-    // Pasa los nuevos datos a la función de actualización del widget principal
+  /// Despacha y guarda la lista completa de trajes en el archivo JSON.
+  Future<void> _onOutfitsSelected(List<String> outfits) async {
     final updatedMod = await widget.onUpdateDetails(currentModInfo, {
-      'replacesOutfit': outfitName, // Será nulo si se está limpiando
+      'replacesOutfits': outfits.isEmpty ? null : outfits,
     });
 
     if (updatedMod != null && mounted) {
       setState(() {
         currentModInfo = updatedMod;
-        _needsReloadOnClose =
-            true; // Marca que la lista principal necesita recargarse
+        _needsReloadOnClose = true;
       });
     }
   }
@@ -678,9 +646,9 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
     return 'assets/images/outfits/$safeName.webp'; // Asume .webp
   }
 
-  /// Construye la UI para seleccionar un traje de reemplazo.
+  /// Construye la UI para mostrar y gestionar las múltiples portadas de trajes de reemplazo.
   Widget _buildOutfitReplacementSection(AppLocalizations l10n) {
-    final String? replacedOutfit = currentModInfo.replacesOutfit;
+    final List<String> replacedOutfits = currentModInfo.replacesOutfits ?? [];
 
     return Container(
       width: double.infinity,
@@ -696,17 +664,16 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // --- TÍTULO ---
               Row(
                 children: [
-                  Icon(
-                    Icons.swap_horiz_rounded,
+                  HugeIcon(
+                    icon: HugeIcons.strokeRoundedArrowReloadHorizontal,
                     color: Colors.tealAccent.withOpacity(0.8),
                     size: 20,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    l10n.replacesOutfitTitle, // Necesitarás esta traducción
+                    l10n.replacesOutfitTitle,
                     style: const TextStyle(
                       color: Colors.tealAccent,
                       fontSize: 15,
@@ -715,31 +682,15 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
                   ),
                 ],
               ),
-
-              // --- BOTÓN DE EDITAR / LIMPIAR ---
+              // Botón unificado de configuración/edición múltiple
               IconButton(
-                icon: Icon(
-                  // Cambia el ícono si ya hay un traje seleccionado
-                  replacedOutfit != null
-                      ? Icons.cancel_outlined
-                      : Icons.checkroom_outlined,
-                  color: replacedOutfit != null
-                      ? Colors.redAccent
-                      : Colors.white70,
+                icon: HugeIcon(
+                  icon: replacedOutfits.isNotEmpty ? HugeIcons.strokeRoundedHanger : HugeIcons.strokeRoundedHanger,
+                  color: Colors.white70,
                   size: 20,
                 ),
-                onPressed: () {
-                  if (replacedOutfit != null) {
-                    // Limpiar la selección
-                    _onOutfitSelected(null);
-                  } else {
-                    // Mostrar el diálogo de selección
-                    _showOutfitSelectionDialog(l10n);
-                  }
-                },
-                tooltip: replacedOutfit != null
-                    ? l10n.replacesOutfitClearTooltip
-                    : l10n.replacesOutfitSelectTooltip, // Necesitarás estas traducciones
+                onPressed: () => _showOutfitSelectionDialog(l10n),
+                tooltip: l10n.replacesOutfitSelectTooltip,
                 splashRadius: 20,
                 constraints: const BoxConstraints(),
                 padding: EdgeInsets.zero,
@@ -747,72 +698,79 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
             ],
           ),
 
-          // --- "MINI-RETRATO" (El nombre del traje seleccionado) ---
-          if (replacedOutfit != null) ...[
+          if (replacedOutfits.isNotEmpty) ...[
             const SizedBox(height: 12),
-            // Mantenemos el contenedor original para el fondo y el borde
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(
-                12,
-              ), // Un poco más de padding para la imagen
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.4),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.center, // Centra verticalmente
-                children: [
-                  // 1. Vista previa de la imagen
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(
-                      6.0,
-                    ), // Bordes redondeados más pequeños
-                    child: Image.asset(
-                      _generateOutfitImagePath(
-                        replacedOutfit,
-                      ), // Usamos la función auxiliar
-                      width: 92.5, // Proporción 3:4 (como 60x80)
-                      height: 167,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        // Placeholder si la imagen no se encuentra
-                        return Container(
-                          width: 52.5,
-                          height: 70,
-                          color: Colors.black.withOpacity(0.2),
-                          child: const Icon(
-                            Icons.hide_image_outlined,
-                            color: Colors.grey,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // 2. Nombre del traje
-                  Expanded(
-                    child: Text(
-                      replacedOutfit,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16, // Más grande
-                        fontWeight: FontWeight.w500,
+            // Carrusel horizontal pulido para listar todas las transformaciones asignadas
+            SizedBox(
+              height: 235, // <-- Altura aumentada (antes 175)
+              child: Scrollbar(
+                controller: _carouselScrollController,
+                thumbVisibility: true, // Hace visible la barra siempre
+                trackVisibility: true, // Muestra el riel sutilmente
+                thickness: 6,
+                radius: const Radius.circular(10),
+                child: ListView.builder(
+                  controller: _carouselScrollController,
+                  scrollDirection: Axis.horizontal,
+                  // Añadimos padding abajo para que el scrollbar no pise las tarjetas
+                  padding: const EdgeInsets.only(bottom: 16), 
+                  itemCount: replacedOutfits.length,
+                  itemBuilder: (context, index) {
+                    final outfit = replacedOutfits[index];
+                    return Container(
+                      width: 125, // <-- Anchura aumentada (antes 105)
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white10),
                       ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: Image.asset(
+                                _generateOutfitImagePath(outfit),
+                                fit: BoxFit.cover,
+                                // <-- ESTO EVITA QUE SE CORTE LA CABEZA:
+                                alignment: Alignment.topCenter, 
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: Colors.black26,
+                                    child: const HugeIcon(icon: HugeIcons.strokeRoundedImageRemove01, color: Colors.grey, size: 24),
+                                  );
+                                },
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                              color: Colors.black26,
+                              child: Text(
+                                outfit,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
           ] else ...[
-            // Mensaje de que no hay nada seleccionado
             const SizedBox(height: 10),
             Text(
-              l10n.replacesOutfitNone, // Necesitarás esta traducción
+              l10n.replacesOutfitNone,
               style: TextStyle(
                 color: Colors.white.withOpacity(0.5),
                 fontStyle: FontStyle.italic,
@@ -1038,7 +996,7 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
                     },
                   ),
                 IconButton(
-                  icon: const Icon(Icons.edit_note_rounded),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedPencilEdit02),
                   tooltip: l10n.editButtonTooltip,
                   onPressed: () async {
                     final updatedData = await widget.onShowGeneralEditDialog(
@@ -1089,8 +1047,8 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
                             )
                           else
                             const Center(
-                              child: Icon(
-                                Icons.extension,
+                              child: HugeIcon(
+                                icon: HugeIcons.strokeRoundedPuzzle,
                                 size: 80,
                                 color: Colors.white24,
                               ),
@@ -1102,8 +1060,8 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
                               style: IconButton.styleFrom(
                                 backgroundColor: Colors.black.withOpacity(0.4),
                               ),
-                              icon: const Icon(
-                                Icons.fullscreen_outlined,
+                              icon: const HugeIcon(
+                                icon: HugeIcons.strokeRoundedFullscreen,
                                 color: Colors.white,
                               ),
                               onPressed: () =>
@@ -1148,7 +1106,7 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
-                          icon: const Icon(Icons.folder_open),
+                          icon: const HugeIcon(icon: HugeIcons.strokeRoundedFolderOpen),
                           label: Text(l10n.showInFolder),
                           onPressed: () =>
                               widget.onShowInExplorer(currentModInfo.directory),
@@ -1157,11 +1115,11 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton.icon(
-                          icon: Icon(
-                            hasLink
-                                ? Icons.open_in_browser_outlined
-                                : Icons.add_link_rounded,
-                          ),
+                          icon: HugeIcon(
+  icon: hasLink ? HugeIcons.strokeRoundedLinkSquare02 : HugeIcons.strokeRoundedLinkSquare02,
+  color: Colors.white,
+  size: 20,
+),
                           label: Text(
                             hasLink
                                 ? l10n.openLinkButtonText
@@ -1205,7 +1163,7 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
                   if (currentModInfo.modType == 'genericPak' ||
                       currentModInfo.modType == 'replacement' ||
                       (currentModInfo.modType == null &&
-                          currentModInfo.replacesOutfit != null)) ...[
+                          currentModInfo.replacesOutfits != null)) ...[
                     const SizedBox(height: 20),
                     // --- Switch para Mod de Reemplazo ---
                     Container(
@@ -1238,38 +1196,29 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
 
                         // ++ INICIO DE LA MODIFICACIÓN: onChanged ++
                         onChanged: (bool newValue) async {
-                          // Define el nuevo tipo de mod basado en el switch
-                          final String newModType = newValue
-                              ? 'replacement'
-                              : 'genericPak';
+                          final String newModType = newValue ? 'replacement' : 'genericPak';
 
-                          // Prepara los datos para guardar.
                           final Map<String, dynamic> dataToSave = {
                             'modType': newModType,
                           };
 
-                          // Si el usuario está APAGANDO el switch,
-                          // también borramos el traje seleccionado.
+                          // Si se apaga, borramos la colección completa
                           if (newValue == false) {
-                            dataToSave['replacesOutfit'] = null;
+                            dataToSave['replacesOutfits'] = null;
                           }
 
-                          // Guardamos los cambios inmediatamente
                           final updatedMod = await widget.onUpdateDetails(
                             currentModInfo,
                             dataToSave,
                           );
 
-                          // Actualizamos la UI local
                           if (updatedMod != null && mounted) {
                             setState(() {
                               currentModInfo = updatedMod;
-                              _isReplacementMod =
-                                  newValue; // Sincroniza el switch
+                              _isReplacementMod = newValue; 
                               _needsReloadOnClose = true;
                             });
                           } else {
-                            // Si falla el guardado, revierte el switch
                             setState(() {
                               _isReplacementMod = !newValue;
                             });
@@ -1360,8 +1309,8 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
                           children: [
                             Row(
                               children: [
-                                Icon(
-                                  Icons.description_outlined,
+                                HugeIcon(
+                                  icon: HugeIcons.strokeRoundedBook04,
                                   color: Colors.tealAccent.withOpacity(0.8),
                                   size: 20,
                                 ),

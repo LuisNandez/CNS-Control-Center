@@ -29,7 +29,7 @@ class ModInfo {
   String? userNotes;
   final String? sourceUrl;
   final String? customSourceUrl;
-  final String? replacesOutfit;
+  final List<String>? replacesOutfits;
 
   ModInfo({
     required this.directory,
@@ -58,7 +58,7 @@ class ModInfo {
     this.userNotes,
     this.sourceUrl,
     this.customSourceUrl,
-    this.replacesOutfit,
+    this.replacesOutfits,
   });
 
   ModInfo copyWith({
@@ -88,7 +88,7 @@ class ModInfo {
     String? userNotes,
     String? sourceUrl,
     String? customSourceUrl,
-    String? replacesOutfit,
+    List<String>? replacesOutfits,
   }) {
     return ModInfo(
       directory: directory ?? this.directory,
@@ -118,7 +118,7 @@ class ModInfo {
       userNotes: userNotes ?? this.userNotes,
       sourceUrl: sourceUrl ?? this.sourceUrl,
       customSourceUrl: customSourceUrl ?? this.customSourceUrl,
-      replacesOutfit: replacesOutfit ?? this.replacesOutfit,
+      replacesOutfits: replacesOutfits ?? this.replacesOutfits,
     );
   }
 

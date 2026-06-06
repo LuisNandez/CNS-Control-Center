@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../models/mod_info.dart';
 import '../../l10n/app_localizations.dart';
@@ -255,7 +256,7 @@ class EditDialogs {
                       const SizedBox(height: 24),
                       if (newCoverFile != null) Image.file(newCoverFile!, height: 100),
                       ElevatedButton.icon(
-                        icon: const Icon(Icons.image_search),
+                        icon: const HugeIcon(icon: HugeIcons.strokeRoundedImageAdd02),
                         label: Text(l10n.changeCoverButton),
                         onPressed: () async {
                           FilePickerResult? result = await FilePicker.platform.pickFiles(

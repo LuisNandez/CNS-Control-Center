@@ -2,6 +2,7 @@
 //idioma y desinstala componentes core (UE4SS/CNS).
 import 'package:flutter/material.dart';
 import 'l10n/app_localizations.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 class SettingsPage extends StatefulWidget {
   final String? initialGameRootPath;
@@ -97,13 +98,13 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           _SettingsSectionHeader(title: l10n.settingsGeneral),
           ListTile(
-            leading: const Icon(Icons.translate_outlined),
+            leading: const HugeIcon(icon: HugeIcons.strokeRoundedLanguageSquare, color: Colors.white, size: 24.0),
             title: Text(l10n.settingsLanguage),
             subtitle: Text(l10n.settingsLanguageDesc),
             onTap: widget.onShowLanguageDialog,
           ),
           SwitchListTile(
-            secondary: const Icon(Icons.label_outline),
+            secondary: const HugeIcon(icon: HugeIcons.strokeRoundedLabel, color: Colors.white, size: 24.0),
             title: Text(l10n.settingsShowModTagsTitle),
             subtitle: Text(l10n.settingsShowModTagsDesc),
             value: _showModTypeTags,
@@ -118,7 +119,11 @@ class _SettingsPageState extends State<SettingsPage> {
           const Divider(),
           _SettingsSectionHeader(title: l10n.settingsPathsAndTools),
           ListTile(
-            leading: const Icon(Icons.folder_copy_outlined),
+            leading: const HugeIcon(
+              icon: HugeIcons.strokeRoundedFolder02,
+              color: Colors.white, 
+              size: 24.0
+            ),
             title: Text(l10n.settingsGameFolder),
             subtitle: Text(gameRootPath ?? l10n.settingsApiKeyNotSet),
             onTap: () async {
@@ -129,7 +134,11 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.folder_zip_outlined),
+            leading: const HugeIcon(
+              icon: HugeIcons.strokeRoundedFolderZip, 
+              color: Colors.white, // Ajusta el color según tu tema
+              size: 24.0,
+            ),
             title: Text(l10n.settings7zipPath),
             subtitle: Text(sevenZipPath ?? l10n.settings7zipPathAuto),
             onTap: () async {
@@ -140,17 +149,17 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.build_circle_outlined),
+            leading: const HugeIcon(icon: HugeIcons.strokeRoundedRepair, color: Colors.white, size: 24.0),
             title: Text(l10n.settingsRepairMods),
             subtitle: Text(l10n.settingsRepairModsDesc),
             onTap: widget.onRunSelfHealing,
           ),
-          ListTile(
+          /*ListTile(
             leading: const Icon(Icons.electrical_services_outlined, color: Colors.orangeAccent),
             title: Text(l10n.runConflictPatcherTitle),
             subtitle: Text(l10n.runConflictPatcherSubtitlePython),
             onTap: widget.onRunConflictPatcher,
-          ),
+          ),*/
           
           // ++ NUEVA SECCIÓN PARA GESTIONAR COMPONENTES PRINCIPALES ++
           const Divider(),
@@ -181,7 +190,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
           // ListTile para gestionar el Sistema CNS
           ListTile(
-            leading: const Icon(Icons.memory_rounded), // Ícono representativo
+            leading: const HugeIcon(icon: HugeIcons.strokeRoundedChip, color: Colors.white, size: 24.0), // Ícono representativo
             title: Text(l10n.cnsCoreSystem),
             subtitle: Text(
               isCnsCoreInstalled ? l10n.installedStatus : l10n.notInstalledStatus,
@@ -206,7 +215,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const Divider(),
           _SettingsSectionHeader(title: l10n.settingsConnectivity),
           ListTile(
-            leading: const Icon(Icons.vpn_key_outlined),
+            leading: const HugeIcon(icon: HugeIcons.strokeRoundedKey01, color: Colors.white, size: 24.0),
             title: Text(l10n.settingsApiKey),
             subtitle: Text(
               isApiKeySet ? l10n.settingsApiKeySet : l10n.settingsApiKeyNotSet,
@@ -222,7 +231,7 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.skip_next_outlined),
+            leading: const HugeIcon(icon: HugeIcons.strokeRoundedNext, color: Colors.white, size: 24.0),
             title: Text(l10n.settingsSkippedVersions),
             subtitle:
                 Text(l10n.settingsSkippedVersionsCount(widget.skippedVersions.length)),
@@ -233,7 +242,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const Divider(),
            ListTile(
-            leading: const Icon(Icons.info_outline),
+            leading: const HugeIcon(icon: HugeIcons.strokeRoundedAlertSquare, color: Colors.white, size: 24.0),
             title: Text(l10n.settingsAbout),
             subtitle: Text(l10n.settingsAboutDesc),
             onTap: widget.onShowAboutDialog,

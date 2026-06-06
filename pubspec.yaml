@@ -60,6 +60,7 @@ dependencies:
   toastification: ^1.2.0
   uuid: ^4.4.0
   translator: ^1.0.4+1
+  hugeicons: ^1.1.0
   
 
 

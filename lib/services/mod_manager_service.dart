@@ -201,7 +201,7 @@ class ModManagerService {
             String? userNotes;
             String? sourceUrl;
             String? customSourceUrl;
-            String? replacesOutfit;
+            List<String>? replacesOutfits;
 
             bool isEnabledForMod = isEnabled;
             DateTime? installDate;
@@ -253,7 +253,12 @@ class ModManagerService {
               userNotes = data['userNotes'];
               sourceUrl = data['sourceUrl'];
               customSourceUrl = data['customSourceUrl'];
-              replacesOutfit = data['replacesOutfit'] as String?;
+              if (data['replacesOutfits'] != null) {
+                replacesOutfits = List<String>.from(data['replacesOutfits']);
+              } else if (data['replacesOutfit'] != null) {
+                // Compatibilidad con JSONs antiguos
+                replacesOutfits = [data['replacesOutfit'] as String];
+  }
 
               if (installedVersion != null && installedVersion.toLowerCase().startsWith('v')) {
                 installedVersion = installedVersion.substring(1);
@@ -369,7 +374,7 @@ class ModManagerService {
               userNotes: userNotes,
               sourceUrl: sourceUrl,
               customSourceUrl: customSourceUrl,
-              replacesOutfit: replacesOutfit,
+              replacesOutfits: replacesOutfits,
             ));
           } catch (e) {
             print("Error processing directory ${entity.path}: $e");
