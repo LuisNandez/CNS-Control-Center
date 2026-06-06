@@ -1207,154 +1207,164 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modTypeLogic => '逻辑';
 
   @override
-  String get patcherStarted => '=== StellarBlade Dart Patcher Started ===';
+  String get patcherStarted => '=== StellarBlade Dart 补丁程序已启动 ===';
 
   @override
   String workingDirectory(String path) {
-    return 'Working directory: $path';
+    return '工作目录：$path';
   }
 
   @override
   String modsDirNotFound(String path) {
-    return 'The ~mods directory does not exist at: $path';
+    return '在以下位置不存在 ~mods 目录：$path';
   }
 
   @override
   String warnCannotScanFolder(String path) {
-    return '\n  WARNING: Could not scan folder $path. Skipping.';
+    return '\n  警告：无法扫描文件夹 $path。跳过。';
   }
 
   @override
   String errorDetails(String error) {
-    return '  Error: $error\n';
+    return '  错误：$error\n';
   }
 
   @override
   String foundUtocFiles(int count) {
-    return 'Found $count .utoc files';
+    return '找到 $count 个 .utoc 文件';
   }
 
   @override
-  String get noModsFound2 => 'No mods found to process.';
+  String get noModsFound2 => '未找到要处理的模组。';
 
   @override
-  String get patcherSummaryTitle => '\n=== Patcher Summary (Raw Data) ===';
+  String get patcherSummaryTitle => '\n=== 补丁程序摘要（原始数据） ===';
 
   @override
   String processedMods(int count) {
-    return 'Processed $count mods.';
+    return '已处理 $count 个模组。';
   }
 
   @override
   String fixedContainerIdConflicts(int count) {
-    return 'Fixed $count Container ID conflicts.';
+    return '修复了 $count 个 Container ID 冲突。';
   }
 
   @override
   String foundPackageIdConflicts(int count) {
-    return 'Found $count Package ID conflicts.';
+    return '找到了 $count 个 Package ID 冲突。';
   }
 
   @override
-  String get fatalErrorTitle => '\n=== FATAL ERROR ===';
+  String get fatalErrorTitle => '\n=== 致命错误 ===';
 
   @override
   String patcherServiceError(String error) {
-    return 'Error in PatcherService: $error';
+    return 'PatcherService 中发生错误：$error';
   }
 
   @override
   String analyzingFile(String fileName) {
-    return '--- Analyzing: $fileName ---';
+    return '--- 正在分析：$fileName ---';
   }
 
   @override
-  String get warnUcasNotFound => '  WARNING: .ucas file not found. Skipping.';
+  String get warnUcasNotFound => '  警告：未找到 .ucas 文件。跳过。';
 
   @override
-  String get warnCorruptHeader =>
-      '  WARNING: Corrupt header, entry size exceeds file size. Skipping.';
+  String get warnCorruptHeader => '  警告：标头损坏，条目大小超出了文件大小。跳过。';
 
   @override
   String conflictContainerIdDetected(int id) {
-    return '  Container ID CONFLICT detected: $id';
+    return '  检测到 Container ID 冲突：$id';
   }
 
   @override
   String generatingNewId(int id) {
-    return '  Generating new ID: $id';
+    return '  正在生成新的 ID：$id';
   }
 
   @override
-  String get utocFilePatched => '  .utoc file patched.';
+  String get utocFilePatched => '  已修补 .utoc 文件。';
 
   @override
-  String get patchingUcasFile => '  Patching .ucas file...';
+  String get patchingUcasFile => '  正在修补 .ucas 文件...';
 
   @override
   String ucasReplacementsSuccess(int count) {
-    return '  Successful replacements in .ucas: $count';
+    return '  在 .ucas 中成功替换：$count';
   }
 
   @override
-  String get patchComplete => '  Patch complete!';
+  String get patchComplete => '  修补完成！';
 
   @override
   String idRegisteredNoConflict(int id) {
-    return '  ID $id registered. No conflicts.';
+    return '  已注册 ID $id。无冲突。';
   }
 
   @override
   String errorProcessingFile(String fileName, String error) {
-    return '  ERROR processing $fileName: $error';
+    return '  处理 $fileName 时发生错误：$error';
   }
 
   @override
-  String get statusRunningPatcher => 'Running Conflict Patcher...';
+  String get statusRunningPatcher => '正在运行冲突修补程序...';
 
   @override
   String summarySuccessContainerIds(int count) {
-    return '✅ Success! Fixed $count crash-causing Container ID conflicts.';
+    return '✅ 成功！修复了 $count 个导致崩溃的 Container ID 冲突。';
   }
 
   @override
-  String get summaryNoContainerIdConflicts =>
-      '✅ No Container ID (crash) conflicts were found.';
+  String get summaryNoContainerIdConflicts => '✅ 未发现 Container ID（崩溃）冲突。';
 
   @override
-  String get summaryNoPackageIdConflicts =>
-      '✅ Good news! No serious Package ID (overwrite) conflicts were found.';
+  String get summaryNoPackageIdConflicts => '✅ 好消息！未发现严重的 Package ID（覆盖）冲突。';
 
   @override
   String summaryFoundPackageIdConflicts(int count) {
-    return '⚠️ Warning! Found $count groups of mods that cannot coexist:';
+    return '⚠️ 警告！发现了 $count 组无法共存的模组：';
   }
 
   @override
   String summaryConflictGroupDetails(int count) {
-    return '  • This group of mods competes for $count files:';
+    return '  • 这组模组竞争 $count 个文件：';
   }
 
   @override
-  String get patcherSummaryDialogTitle => 'Patcher Summary';
+  String get patcherSummaryDialogTitle => '补丁程序摘要';
 
   @override
-  String get dialogActionShowFullLog => 'Show Full Log';
+  String get dialogActionShowFullLog => '显示完整日志';
 
   @override
-  String get fullLogDialogTitle => 'Conflict Patcher Log (Dart)';
+  String get fullLogDialogTitle => '冲突补丁程序日志 (Dart)';
 
   @override
-  String get runConflictPatcherTitle => 'Run Conflict Patcher';
+  String get runConflictPatcherTitle => '运行冲突补丁程序';
 
   @override
   String get runConflictPatcherSubtitlePython =>
-      'Fixes Container_Id & Package_Id crashes';
+      '修复 Container_Id 和 Package_Id 崩溃';
 
   @override
-  String get processingCover => 'Processing Cover...';
+  String get processingCover => '正在处理封面...';
 
   @override
-  String get apiKeyTooltip =>
-      'API Key is required for smart Nexus ID extraction.';
+  String get apiKeyTooltip => '智能提取 Nexus ID 需要 API 密钥。';
+
+  @override
+  String dialogTitleSpecialModSelection(String nexusId) {
+    return '安装选项 - 模组 $nexusId';
+  }
+
+  @override
+  String get dialogContentSpecialModSelection => '选择您要安装的选项。所需的主要文件将自动安装。';
+
+  @override
+  String get snackBarSpecialModNoSelection => '请至少选择一个选项以继续。';
+
+  @override
+  String get dialogActionInstallSelection => '安装所选内容';
 }

@@ -2403,6 +2403,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'API Key is required for smart Nexus ID extraction.'**
   String get apiKeyTooltip;
+
+  /// Title for the special mod selection dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Installation Options - Mod {nexusId}'**
+  String dialogTitleSpecialModSelection(String nexusId);
+
+  /// No description provided for @dialogContentSpecialModSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Select the options you want to install. The required main files will be installed automatically.'**
+  String get dialogContentSpecialModSelection;
+
+  /// No description provided for @snackBarSpecialModNoSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Select at least one option to continue.'**
+  String get snackBarSpecialModNoSelection;
+
+  /// No description provided for @dialogActionInstallSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Install Selection'**
+  String get dialogActionInstallSelection;
 }
 
 class _AppLocalizationsDelegate

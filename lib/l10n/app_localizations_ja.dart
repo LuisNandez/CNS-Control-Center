@@ -1220,154 +1220,168 @@ class AppLocalizationsJa extends AppLocalizations {
   String get modTypeLogic => 'ロジック';
 
   @override
-  String get patcherStarted => '=== StellarBlade Dart Patcher Started ===';
+  String get patcherStarted => '=== StellarBlade Dart Patcher 開始 ===';
 
   @override
   String workingDirectory(String path) {
-    return 'Working directory: $path';
+    return '作業ディレクトリ：$path';
   }
 
   @override
   String modsDirNotFound(String path) {
-    return 'The ~mods directory does not exist at: $path';
+    return '次の場所の ~mods ディレクトリが存在しません：$path';
   }
 
   @override
   String warnCannotScanFolder(String path) {
-    return '\n  WARNING: Could not scan folder $path. Skipping.';
+    return '\n  警告：フォルダ $path をスキャンできませんでした。スキップします。';
   }
 
   @override
   String errorDetails(String error) {
-    return '  Error: $error\n';
+    return '  エラー：$error\n';
   }
 
   @override
   String foundUtocFiles(int count) {
-    return 'Found $count .utoc files';
+    return '$count 個の .utoc ファイルが見つかりました';
   }
 
   @override
-  String get noModsFound2 => 'No mods found to process.';
+  String get noModsFound2 => '処理するMODが見つかりません。';
 
   @override
-  String get patcherSummaryTitle => '\n=== Patcher Summary (Raw Data) ===';
+  String get patcherSummaryTitle => '\n=== パッチャーの概要 (生データ) ===';
 
   @override
   String processedMods(int count) {
-    return 'Processed $count mods.';
+    return '$count 個のMODを処理しました。';
   }
 
   @override
   String fixedContainerIdConflicts(int count) {
-    return 'Fixed $count Container ID conflicts.';
+    return '$count 個の Container ID の競合を修正しました。';
   }
 
   @override
   String foundPackageIdConflicts(int count) {
-    return 'Found $count Package ID conflicts.';
+    return '$count 個の Package ID の競合が見つかりました。';
   }
 
   @override
-  String get fatalErrorTitle => '\n=== FATAL ERROR ===';
+  String get fatalErrorTitle => '\n=== 致命的なエラー ===';
 
   @override
   String patcherServiceError(String error) {
-    return 'Error in PatcherService: $error';
+    return 'PatcherService のエラー：$error';
   }
 
   @override
   String analyzingFile(String fileName) {
-    return '--- Analyzing: $fileName ---';
+    return '--- 分析中：$fileName ---';
   }
 
   @override
-  String get warnUcasNotFound => '  WARNING: .ucas file not found. Skipping.';
+  String get warnUcasNotFound => '  警告：.ucas ファイルが見つかりません。スキップします。';
 
   @override
   String get warnCorruptHeader =>
-      '  WARNING: Corrupt header, entry size exceeds file size. Skipping.';
+      '  警告：ヘッダーが破損しており、エントリサイズがファイルサイズを超えています。スキップします。';
 
   @override
   String conflictContainerIdDetected(int id) {
-    return '  Container ID CONFLICT detected: $id';
+    return '  Container ID の競合が検出されました：$id';
   }
 
   @override
   String generatingNewId(int id) {
-    return '  Generating new ID: $id';
+    return '  新しい ID を生成中：$id';
   }
 
   @override
-  String get utocFilePatched => '  .utoc file patched.';
+  String get utocFilePatched => '  .utoc ファイルにパッチを適用しました。';
 
   @override
-  String get patchingUcasFile => '  Patching .ucas file...';
+  String get patchingUcasFile => '  .ucas ファイルにパッチを適用中...';
 
   @override
   String ucasReplacementsSuccess(int count) {
-    return '  Successful replacements in .ucas: $count';
+    return '  .ucas での置換に成功しました：$count';
   }
 
   @override
-  String get patchComplete => '  Patch complete!';
+  String get patchComplete => '  パッチ完了！';
 
   @override
   String idRegisteredNoConflict(int id) {
-    return '  ID $id registered. No conflicts.';
+    return '  ID $id が登録されました。競合はありません。';
   }
 
   @override
   String errorProcessingFile(String fileName, String error) {
-    return '  ERROR processing $fileName: $error';
+    return '  $fileName の処理中にエラーが発生しました：$error';
   }
 
   @override
-  String get statusRunningPatcher => 'Running Conflict Patcher...';
+  String get statusRunningPatcher => '競合パッチャーを実行中...';
 
   @override
   String summarySuccessContainerIds(int count) {
-    return '✅ Success! Fixed $count crash-causing Container ID conflicts.';
+    return '✅ 成功！クラッシュの原因となる $count 個の Container ID の競合を修正しました。';
   }
 
   @override
   String get summaryNoContainerIdConflicts =>
-      '✅ No Container ID (crash) conflicts were found.';
+      '✅ Container ID (クラッシュ) の競合は見つかりませんでした。';
 
   @override
   String get summaryNoPackageIdConflicts =>
-      '✅ Good news! No serious Package ID (overwrite) conflicts were found.';
+      '✅ 朗報です！重大な Package ID (上書き) の競合は見つかりませんでした。';
 
   @override
   String summaryFoundPackageIdConflicts(int count) {
-    return '⚠️ Warning! Found $count groups of mods that cannot coexist:';
+    return '⚠️ 警告！共存できないMODのグループが $count 個見つかりました：';
   }
 
   @override
   String summaryConflictGroupDetails(int count) {
-    return '  • This group of mods competes for $count files:';
+    return '  • このMODグループは $count 個のファイルで競合しています：';
   }
 
   @override
-  String get patcherSummaryDialogTitle => 'Patcher Summary';
+  String get patcherSummaryDialogTitle => 'パッチャーの概要';
 
   @override
-  String get dialogActionShowFullLog => 'Show Full Log';
+  String get dialogActionShowFullLog => '完全なログを表示';
 
   @override
-  String get fullLogDialogTitle => 'Conflict Patcher Log (Dart)';
+  String get fullLogDialogTitle => '競合パッチャーのログ (Dart)';
 
   @override
-  String get runConflictPatcherTitle => 'Run Conflict Patcher';
+  String get runConflictPatcherTitle => '競合パッチャーを実行';
 
   @override
   String get runConflictPatcherSubtitlePython =>
-      'Fixes Container_Id & Package_Id crashes';
+      'Container_Id と Package_Id のクラッシュを修正します';
 
   @override
-  String get processingCover => 'Processing Cover...';
+  String get processingCover => 'カバーを処理中...';
 
   @override
-  String get apiKeyTooltip =>
-      'API Key is required for smart Nexus ID extraction.';
+  String get apiKeyTooltip => 'スマートな Nexus ID 抽出には API キーが必要です。';
+
+  @override
+  String dialogTitleSpecialModSelection(String nexusId) {
+    return 'インストール オプション - MOD $nexusId';
+  }
+
+  @override
+  String get dialogContentSpecialModSelection =>
+      'インストールしたいオプションを選択してください。必要なメインファイルは自動的にインストールされます。';
+
+  @override
+  String get snackBarSpecialModNoSelection => '続行するには少なくとも1つのオプションを選択してください。';
+
+  @override
+  String get dialogActionInstallSelection => '選択したものをインストール';
 }

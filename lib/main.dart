@@ -39,6 +39,8 @@ import 'models/installation_models.dart';
 import 'services/archive_service.dart';
 import 'services/mod_manager_service.dart';
 import 'services/update_service.dart';
+import 'services/special_mods_handler.dart';
+import 'ui/dialogs/special_mod_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -2329,8 +2331,26 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> {
   PreparedMod preparedMod, {
   required AppLocalizations l10n,
   }) async {
-    final modDir = preparedMod.sourceDir;
+    Directory modDir = preparedMod.sourceDir;
     final nexusId = preparedMod.nexusId;
+    if (SpecialModsHandler.isSpecialMod(nexusId)) {
+      // Parsear la estructura
+      final modData = await SpecialModsHandler.parseMod(nexusId!, modDir);
+      
+      // Mostrar el panel UI al usuario
+      final confirmed = await SpecialModSelectionDialog.show(context, modData);
+      
+      if (!confirmed) {
+        throw Exception(l10n.statusInstallationCancelledByUser);
+      }
+
+      // Reconstruir un nuevo directorio fuente solo con los archivos seleccionados
+      final tempRoot = Directory.systemTemp.createTempSync('mod_special_');
+      modDir = await SpecialModsHandler.buildSelectedInstallation(modData, tempRoot);
+      
+      // A partir de aquí, el código estándar de tu app tratará "modDir" 
+      // como un mod limpio y consolidado, y lo instalará normalmente.
+    }
     final nexusVersion = preparedMod.nexusVersion;
     final modType = preparedMod.modType;
     final ue4ssDir = preparedMod.ue4ssDir;

@@ -1250,21 +1250,22 @@ class AppLocalizationsEs extends AppLocalizations {
   String get modTypeLogic => 'Lógica';
 
   @override
-  String get patcherStarted => '=== StellarBlade Dart Patcher Started ===';
+  String get patcherStarted =>
+      '=== Patcher Dart para StellarBlade Iniciado ===';
 
   @override
   String workingDirectory(String path) {
-    return 'Working directory: $path';
+    return 'Directorio de trabajo: $path';
   }
 
   @override
   String modsDirNotFound(String path) {
-    return 'The ~mods directory does not exist at: $path';
+    return 'El directorio ~mods no existe en: $path';
   }
 
   @override
   String warnCannotScanFolder(String path) {
-    return '\n  WARNING: Could not scan folder $path. Skipping.';
+    return '\n  ADVERTENCIA: No se pudo escanear la carpeta $path. Omitiendo.';
   }
 
   @override
@@ -1274,130 +1275,148 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String foundUtocFiles(int count) {
-    return 'Found $count .utoc files';
+    return 'Se encontraron $count archivos .utoc';
   }
 
   @override
-  String get noModsFound2 => 'No mods found to process.';
+  String get noModsFound2 => 'No se encontraron mods para procesar.';
 
   @override
-  String get patcherSummaryTitle => '\n=== Patcher Summary (Raw Data) ===';
+  String get patcherSummaryTitle =>
+      '\n=== Resumen del Patcher (Datos sin procesar) ===';
 
   @override
   String processedMods(int count) {
-    return 'Processed $count mods.';
+    return 'Se procesaron $count mods.';
   }
 
   @override
   String fixedContainerIdConflicts(int count) {
-    return 'Fixed $count Container ID conflicts.';
+    return 'Se corrigieron $count conflictos de Container ID.';
   }
 
   @override
   String foundPackageIdConflicts(int count) {
-    return 'Found $count Package ID conflicts.';
+    return 'Se encontraron $count conflictos de Package ID.';
   }
 
   @override
-  String get fatalErrorTitle => '\n=== FATAL ERROR ===';
+  String get fatalErrorTitle => '\n=== ERROR FATAL ===';
 
   @override
   String patcherServiceError(String error) {
-    return 'Error in PatcherService: $error';
+    return 'Error en PatcherService: $error';
   }
 
   @override
   String analyzingFile(String fileName) {
-    return '--- Analyzing: $fileName ---';
+    return '--- Analizando: $fileName ---';
   }
 
   @override
-  String get warnUcasNotFound => '  WARNING: .ucas file not found. Skipping.';
+  String get warnUcasNotFound =>
+      '  ADVERTENCIA: Archivo .ucas no encontrado. Omitiendo.';
 
   @override
   String get warnCorruptHeader =>
-      '  WARNING: Corrupt header, entry size exceeds file size. Skipping.';
+      '  ADVERTENCIA: Encabezado corrupto, el tamaño de la entrada supera el tamaño del archivo. Omitiendo.';
 
   @override
   String conflictContainerIdDetected(int id) {
-    return '  Container ID CONFLICT detected: $id';
+    return '  CONFLICTO de Container ID detectado: $id';
   }
 
   @override
   String generatingNewId(int id) {
-    return '  Generating new ID: $id';
+    return '  Generando nuevo ID: $id';
   }
 
   @override
-  String get utocFilePatched => '  .utoc file patched.';
+  String get utocFilePatched => '  Archivo .utoc parcheado.';
 
   @override
-  String get patchingUcasFile => '  Patching .ucas file...';
+  String get patchingUcasFile => '  Parcheando archivo .ucas...';
 
   @override
   String ucasReplacementsSuccess(int count) {
-    return '  Successful replacements in .ucas: $count';
+    return '  Reemplazos exitosos en .ucas: $count';
   }
 
   @override
-  String get patchComplete => '  Patch complete!';
+  String get patchComplete => '  ¡Parche completado!';
 
   @override
   String idRegisteredNoConflict(int id) {
-    return '  ID $id registered. No conflicts.';
+    return '  ID $id registrado. Sin conflictos.';
   }
 
   @override
   String errorProcessingFile(String fileName, String error) {
-    return '  ERROR processing $fileName: $error';
+    return '  ERROR al procesar $fileName: $error';
   }
 
   @override
-  String get statusRunningPatcher => 'Running Conflict Patcher...';
+  String get statusRunningPatcher => 'Ejecutando Patcher de Conflictos...';
 
   @override
   String summarySuccessContainerIds(int count) {
-    return '✅ Success! Fixed $count crash-causing Container ID conflicts.';
+    return '✅ ¡Éxito! Se corrigieron $count conflictos de Container ID que causaban bloqueos.';
   }
 
   @override
   String get summaryNoContainerIdConflicts =>
-      '✅ No Container ID (crash) conflicts were found.';
+      '✅ No se encontraron conflictos de Container ID (bloqueos).';
 
   @override
   String get summaryNoPackageIdConflicts =>
-      '✅ Good news! No serious Package ID (overwrite) conflicts were found.';
+      '✅ ¡Buenas noticias! No se encontraron conflictos graves de Package ID (sobrescritura).';
 
   @override
   String summaryFoundPackageIdConflicts(int count) {
-    return '⚠️ Warning! Found $count groups of mods that cannot coexist:';
+    return '⚠️ ¡Advertencia! Se encontraron $count grupos de mods que no pueden coexistir:';
   }
 
   @override
   String summaryConflictGroupDetails(int count) {
-    return '  • This group of mods competes for $count files:';
+    return '  • Este grupo de mods compite por $count archivos:';
   }
 
   @override
-  String get patcherSummaryDialogTitle => 'Patcher Summary';
+  String get patcherSummaryDialogTitle => 'Resumen del Patcher';
 
   @override
-  String get dialogActionShowFullLog => 'Show Full Log';
+  String get dialogActionShowFullLog => 'Mostrar Registro Completo';
 
   @override
-  String get fullLogDialogTitle => 'Conflict Patcher Log (Dart)';
+  String get fullLogDialogTitle => 'Registro del Patcher de Conflictos (Dart)';
 
   @override
-  String get runConflictPatcherTitle => 'Run Conflict Patcher';
+  String get runConflictPatcherTitle => 'Ejecutar Patcher de Conflictos';
 
   @override
   String get runConflictPatcherSubtitlePython =>
-      'Fixes Container_Id & Package_Id crashes';
+      'Corrige bloqueos de Container_Id y Package_Id';
 
   @override
-  String get processingCover => 'Processing Cover...';
+  String get processingCover => 'Procesando Portada...';
 
   @override
   String get apiKeyTooltip =>
-      'API Key is required for smart Nexus ID extraction.';
+      'Se requiere la Clave API para la extracción inteligente del ID de Nexus.';
+
+  @override
+  String dialogTitleSpecialModSelection(String nexusId) {
+    return 'Opciones de Instalación - Mod $nexusId';
+  }
+
+  @override
+  String get dialogContentSpecialModSelection =>
+      'Selecciona las opciones que deseas instalar. Los archivos principales requeridos se instalarán automáticamente.';
+
+  @override
+  String get snackBarSpecialModNoSelection =>
+      'Selecciona al menos una opción para continuar.';
+
+  @override
+  String get dialogActionInstallSelection => 'Instalar Selección';
 }

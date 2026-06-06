@@ -749,5 +749,18 @@
   "runConflictPatcherTitle": "Run Conflict Patcher",
   "runConflictPatcherSubtitlePython": "Fixes Container_Id & Package_Id crashes",
   "processingCover": "Processing Cover...",
-  "apiKeyTooltip": "API Key is required for smart Nexus ID extraction."
+  "apiKeyTooltip": "API Key is required for smart Nexus ID extraction.",
+  "dialogTitleSpecialModSelection": "Installation Options - Mod {nexusId}",
+  "@dialogTitleSpecialModSelection": {
+    "description": "Title for the special mod selection dialog",
+    "placeholders": {
+      "nexusId": {
+        "type": "String",
+        "example": "1234"
+      }
+    }
+  },
+  "dialogContentSpecialModSelection": "Select the options you want to install. The required main files will be installed automatically.",
+  "snackBarSpecialModNoSelection": "Select at least one option to continue.",
+  "dialogActionInstallSelection": "Install Selection"
 }

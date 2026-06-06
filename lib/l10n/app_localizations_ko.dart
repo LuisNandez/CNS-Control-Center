@@ -1217,154 +1217,167 @@ class AppLocalizationsKo extends AppLocalizations {
   String get modTypeLogic => '로직';
 
   @override
-  String get patcherStarted => '=== StellarBlade Dart Patcher Started ===';
+  String get patcherStarted => '=== StellarBlade Dart 패처 시작됨 ===';
 
   @override
   String workingDirectory(String path) {
-    return 'Working directory: $path';
+    return '작업 디렉토리: $path';
   }
 
   @override
   String modsDirNotFound(String path) {
-    return 'The ~mods directory does not exist at: $path';
+    return '다음 위치에 ~mods 디렉토리가 존재하지 않습니다: $path';
   }
 
   @override
   String warnCannotScanFolder(String path) {
-    return '\n  WARNING: Could not scan folder $path. Skipping.';
+    return '\n  경고: $path 폴더를 스캔할 수 없습니다. 건너뜁니다.';
   }
 
   @override
   String errorDetails(String error) {
-    return '  Error: $error\n';
+    return '  오류: $error\n';
   }
 
   @override
   String foundUtocFiles(int count) {
-    return 'Found $count .utoc files';
+    return '$count개의 .utoc 파일을 찾았습니다';
   }
 
   @override
-  String get noModsFound2 => 'No mods found to process.';
+  String get noModsFound2 => '처리할 모드를 찾을 수 없습니다.';
 
   @override
-  String get patcherSummaryTitle => '\n=== Patcher Summary (Raw Data) ===';
+  String get patcherSummaryTitle => '\n=== 패처 요약 (원시 데이터) ===';
 
   @override
   String processedMods(int count) {
-    return 'Processed $count mods.';
+    return '$count개의 모드를 처리했습니다.';
   }
 
   @override
   String fixedContainerIdConflicts(int count) {
-    return 'Fixed $count Container ID conflicts.';
+    return '$count개의 Container ID 충돌을 해결했습니다.';
   }
 
   @override
   String foundPackageIdConflicts(int count) {
-    return 'Found $count Package ID conflicts.';
+    return '$count개의 Package ID 충돌을 발견했습니다.';
   }
 
   @override
-  String get fatalErrorTitle => '\n=== FATAL ERROR ===';
+  String get fatalErrorTitle => '\n=== 치명적인 오류 ===';
 
   @override
   String patcherServiceError(String error) {
-    return 'Error in PatcherService: $error';
+    return 'PatcherService 오류: $error';
   }
 
   @override
   String analyzingFile(String fileName) {
-    return '--- Analyzing: $fileName ---';
+    return '--- 분석 중: $fileName ---';
   }
 
   @override
-  String get warnUcasNotFound => '  WARNING: .ucas file not found. Skipping.';
+  String get warnUcasNotFound => '  경고: .ucas 파일을 찾을 수 없습니다. 건너뜁니다.';
 
   @override
-  String get warnCorruptHeader =>
-      '  WARNING: Corrupt header, entry size exceeds file size. Skipping.';
+  String get warnCorruptHeader => '  경고: 손상된 헤더, 항목 크기가 파일 크기를 초과합니다. 건너뜁니다.';
 
   @override
   String conflictContainerIdDetected(int id) {
-    return '  Container ID CONFLICT detected: $id';
+    return '  Container ID 충돌 감지됨: $id';
   }
 
   @override
   String generatingNewId(int id) {
-    return '  Generating new ID: $id';
+    return '  새 ID 생성 중: $id';
   }
 
   @override
-  String get utocFilePatched => '  .utoc file patched.';
+  String get utocFilePatched => '  .utoc 파일이 패치되었습니다.';
 
   @override
-  String get patchingUcasFile => '  Patching .ucas file...';
+  String get patchingUcasFile => '  .ucas 파일 패치 중...';
 
   @override
   String ucasReplacementsSuccess(int count) {
-    return '  Successful replacements in .ucas: $count';
+    return '  .ucas에서 성공적으로 교체됨: $count';
   }
 
   @override
-  String get patchComplete => '  Patch complete!';
+  String get patchComplete => '  패치 완료!';
 
   @override
   String idRegisteredNoConflict(int id) {
-    return '  ID $id registered. No conflicts.';
+    return '  ID $id이(가) 등록되었습니다. 충돌 없음.';
   }
 
   @override
   String errorProcessingFile(String fileName, String error) {
-    return '  ERROR processing $fileName: $error';
+    return '  $fileName 처리 중 오류 발생: $error';
   }
 
   @override
-  String get statusRunningPatcher => 'Running Conflict Patcher...';
+  String get statusRunningPatcher => '충돌 패처 실행 중...';
 
   @override
   String summarySuccessContainerIds(int count) {
-    return '✅ Success! Fixed $count crash-causing Container ID conflicts.';
+    return '✅ 성공! 충돌을 유발하는 $count개의 Container ID 문제를 해결했습니다.';
   }
 
   @override
   String get summaryNoContainerIdConflicts =>
-      '✅ No Container ID (crash) conflicts were found.';
+      '✅ Container ID(충돌) 문제가 발견되지 않았습니다.';
 
   @override
   String get summaryNoPackageIdConflicts =>
-      '✅ Good news! No serious Package ID (overwrite) conflicts were found.';
+      '✅ 좋은 소식입니다! 심각한 Package ID(덮어쓰기) 충돌이 발견되지 않았습니다.';
 
   @override
   String summaryFoundPackageIdConflicts(int count) {
-    return '⚠️ Warning! Found $count groups of mods that cannot coexist:';
+    return '⚠️ 경고! 공존할 수 없는 $count개의 모드 그룹을 발견했습니다:';
   }
 
   @override
   String summaryConflictGroupDetails(int count) {
-    return '  • This group of mods competes for $count files:';
+    return '  • 이 모드 그룹은 $count개의 파일을 두고 경쟁합니다:';
   }
 
   @override
-  String get patcherSummaryDialogTitle => 'Patcher Summary';
+  String get patcherSummaryDialogTitle => '패처 요약';
 
   @override
-  String get dialogActionShowFullLog => 'Show Full Log';
+  String get dialogActionShowFullLog => '전체 로그 보기';
 
   @override
-  String get fullLogDialogTitle => 'Conflict Patcher Log (Dart)';
+  String get fullLogDialogTitle => '충돌 패처 로그 (Dart)';
 
   @override
-  String get runConflictPatcherTitle => 'Run Conflict Patcher';
+  String get runConflictPatcherTitle => '충돌 패처 실행';
 
   @override
   String get runConflictPatcherSubtitlePython =>
-      'Fixes Container_Id & Package_Id crashes';
+      'Container_Id 및 Package_Id 충돌 해결';
 
   @override
-  String get processingCover => 'Processing Cover...';
+  String get processingCover => '표지 처리 중...';
 
   @override
-  String get apiKeyTooltip =>
-      'API Key is required for smart Nexus ID extraction.';
+  String get apiKeyTooltip => '스마트 Nexus ID 추출을 위해 API 키가 필요합니다.';
+
+  @override
+  String dialogTitleSpecialModSelection(String nexusId) {
+    return '설치 옵션 - 모드 $nexusId';
+  }
+
+  @override
+  String get dialogContentSpecialModSelection =>
+      '설치하려는 옵션을 선택하십시오. 필수 기본 파일이 자동으로 설치됩니다.';
+
+  @override
+  String get snackBarSpecialModNoSelection => '계속하려면 하나 이상의 옵션을 선택하십시오.';
+
+  @override
+  String get dialogActionInstallSelection => '선택 항목 설치';
 }

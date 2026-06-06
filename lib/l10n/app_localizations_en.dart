@@ -1393,4 +1393,20 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get apiKeyTooltip =>
       'API Key is required for smart Nexus ID extraction.';
+
+  @override
+  String dialogTitleSpecialModSelection(String nexusId) {
+    return 'Installation Options - Mod $nexusId';
+  }
+
+  @override
+  String get dialogContentSpecialModSelection =>
+      'Select the options you want to install. The required main files will be installed automatically.';
+
+  @override
+  String get snackBarSpecialModNoSelection =>
+      'Select at least one option to continue.';
+
+  @override
+  String get dialogActionInstallSelection => 'Install Selection';
 }
