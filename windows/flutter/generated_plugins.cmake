@@ -4,9 +4,11 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   desktop_drop
+  protocol_handler_windows
   screen_retriever
   url_launcher_windows
   window_manager
+  windows_single_instance
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

@@ -112,4 +112,48 @@ class NexusApiService {
       return false;
     }
   }
+
+  /// Procesa el enlace nxm:// de Nexus Mods y devuelve el enlace de descarga del CDN y el nombre del archivo.
+  static Future<Map<String, String>?> getDownloadLinkFromNxm(String nxmUrl, String? apiKey) async {
+    if (apiKey == null || apiKey.isEmpty) return null;
+
+    try {
+      // Formato esperado: nxm://stellarblade/mods/123/files/456?key=abc&expires=123&user_id=123
+      final uri = Uri.parse(nxmUrl);
+      final gameDomain = uri.host;
+      final modId = uri.pathSegments[1];
+      final fileId = uri.pathSegments[3];
+      
+      final key = uri.queryParameters['key'];
+      final expires = uri.queryParameters['expires'];
+
+      final apiUrl = Uri.parse(
+        'https://api.nexusmods.com/v1/games/$gameDomain/mods/$modId/files/$fileId/download_link.json?key=$key&expires=$expires'
+      );
+
+      final response = await http.get(apiUrl, headers: {'apikey': apiKey, 'accept': 'application/json'});
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> links = json.decode(response.body);
+        if (links.isNotEmpty) {
+          // Dar prioridad al servidor Premium si está disponible, si no, tomar el primero
+          final bestLink = links.firstWhere((link) => link['short_name'] == 'Premium', orElse: () => links.first);
+          final cdnUrl = bestLink['URI'] as String;
+          
+          // Extraer el nombre del archivo de la URI directa del CDN
+          final String fileName = Uri.parse(cdnUrl).pathSegments.last;
+          
+          return {
+            'url': cdnUrl,
+            'fileName': fileName
+          };
+        }
+      } else {
+        print("Error API Nexus Mods NXM. Estado: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error al procesar el enlace nxm:// : $e");
+    }
+    return null;
+  }
 }

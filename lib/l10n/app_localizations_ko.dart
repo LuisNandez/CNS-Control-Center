@@ -1380,4 +1380,30 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dialogActionInstallSelection => '선택 항목 설치';
+
+  @override
+  String get downloadStatusFetching => 'Nexus Mods 데이터 가져오는 중...';
+
+  @override
+  String get downloadStatusFetchingFailed =>
+      '다운로드 링크를 가져오지 못했습니다. API 키 또는 연결을 확인하세요.';
+
+  @override
+  String downloadStatusDownloading(String fileName) {
+    return '$fileName 다운로드 중';
+  }
+
+  @override
+  String get downloadStatusError => '파일 다운로드 중 오류가 발생했습니다.';
+
+  @override
+  String downloadStatusException(String error) {
+    return '예외: $error';
+  }
+
+  @override
+  String get dialogTitleDownloadModManager => '모드 매니저 다운로드';
+
+  @override
+  String get launchGameText => 'Stellar Blade 실행';
 }

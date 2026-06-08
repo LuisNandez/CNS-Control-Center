@@ -1367,4 +1367,29 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dialogActionInstallSelection => '安装所选内容';
+
+  @override
+  String get downloadStatusFetching => '正在获取 Nexus Mods 数据...';
+
+  @override
+  String get downloadStatusFetchingFailed => '获取下载链接失败。请检查您的 API 密钥或网络连接。';
+
+  @override
+  String downloadStatusDownloading(String fileName) {
+    return '正在下载 $fileName';
+  }
+
+  @override
+  String get downloadStatusError => '文件下载期间发生错误。';
+
+  @override
+  String downloadStatusException(String error) {
+    return '异常：$error';
+  }
+
+  @override
+  String get dialogTitleDownloadModManager => '模组管理器下载';
+
+  @override
+  String get launchGameText => '启动《星刃》';
 }

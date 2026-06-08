@@ -2427,6 +2427,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Install Selection'**
   String get dialogActionInstallSelection;
+
+  /// No description provided for @downloadStatusFetching.
+  ///
+  /// In en, this message translates to:
+  /// **'Obtaining Nexus Mods data...'**
+  String get downloadStatusFetching;
+
+  /// No description provided for @downloadStatusFetchingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to get download link. Check your API Key or connection.'**
+  String get downloadStatusFetchingFailed;
+
+  /// No description provided for @downloadStatusDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {fileName}'**
+  String downloadStatusDownloading(String fileName);
+
+  /// No description provided for @downloadStatusError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error during file download.'**
+  String get downloadStatusError;
+
+  /// No description provided for @downloadStatusException.
+  ///
+  /// In en, this message translates to:
+  /// **'Exception: {error}'**
+  String downloadStatusException(String error);
+
+  /// No description provided for @dialogTitleDownloadModManager.
+  ///
+  /// In en, this message translates to:
+  /// **'Mod Manager Download'**
+  String get dialogTitleDownloadModManager;
+
+  /// No description provided for @launchGameText.
+  ///
+  /// In en, this message translates to:
+  /// **'Launch Stellar Blade'**
+  String get launchGameText;
 }
 
 class _AppLocalizationsDelegate

@@ -380,5 +380,12 @@
   "dialogTitleSpecialModSelection": "Opções de Instalação - Mod {nexusId}",
   "dialogContentSpecialModSelection": "Selecione as opções que deseja instalar. Os arquivos principais necessários serão instalados automaticamente.",
   "snackBarSpecialModNoSelection": "Selecione pelo menos uma opção para continuar.",
-  "dialogActionInstallSelection": "Instalar Seleção"
+  "dialogActionInstallSelection": "Instalar Seleção",
+  "downloadStatusFetching": "Obtendo dados do Nexus Mods...",
+  "downloadStatusFetchingFailed": "Falha ao obter o link de download. Verifique sua chave de API ou conexão.",
+  "downloadStatusDownloading": "Baixando {fileName}",
+  "downloadStatusError": "Erro durante o download do arquivo.",
+  "downloadStatusException": "Exceção: {error}",
+  "dialogTitleDownloadModManager": "Download do Mod Manager",
+  "launchGameText": "Iniciar Stellar Blade"
 }

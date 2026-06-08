@@ -131,6 +131,24 @@ class ArchiveService {
       final baseArchiveName = p.basenameWithoutExtension(archiveFile.path);
       final archiveName = cleanNexusFileName(baseArchiveName);
 
+      final allModFiles = await FileManagerService.findAllModFilesRecursive(archiveTempDir);
+      final hasPaks = allModFiles.any((f) => ['.pak', '.ucas', '.utoc'].contains(p.extension(f.path).toLowerCase()));
+      final hasJsons = allModFiles.any((f) => p.extension(f.path).toLowerCase() == '.json');
+      final hasMovies = allModFiles.any((f) => ['.bk2', '.webm'].contains(p.extension(f.path).toLowerCase()));
+
+      if (hasMovies && !hasPaks && !hasJsons) {
+        preparedMods.add(PreparedMod(
+          sourceDir: archiveTempDir, // Tratamos todo el paquete como un único mod
+          ue4ssDir: null,
+          tildeModsDir: null,
+          nexusId: nexusInfo?['id'],
+          nexusVersion: nexusInfo?['version'],
+          archiveName: archiveName,
+          modType: ModDirectoryType.movies,
+        ));
+        continue;
+      }
+
       // 1. Comprobar UE4SS
       final ue4ssRoot = await findUE4SSRoot(archiveTempDir);
       if (ue4ssRoot != null) {
@@ -214,7 +232,7 @@ class ArchiveService {
       }
 
       // 5. Comprobar Archivos Sueltos
-      final allModFiles = await FileManagerService.findAllModFilesRecursive(archiveTempDir);
+      //final allModFiles = await FileManagerService.findAllModFilesRecursive(archiveTempDir);
       final jsonFiles = allModFiles.where((f) => p.extension(f.path).toLowerCase() == '.json').toList();
       final pakFiles = allModFiles.where((f) => ['.pak', '.ucas', '.utoc'].contains(p.extension(f.path).toLowerCase())).toList();
       final bk2Files = allModFiles.where((f) => p.extension(f.path).toLowerCase() == '.bk2').toList();

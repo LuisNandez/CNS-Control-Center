@@ -380,5 +380,12 @@
   "dialogTitleSpecialModSelection": "Options d'installation - Mod {nexusId}",
   "dialogContentSpecialModSelection": "Sélectionnez les options que vous souhaitez installer. Les fichiers principaux requis seront installés automatiquement.",
   "snackBarSpecialModNoSelection": "Sélectionnez au moins une option pour continuer.",
-  "dialogActionInstallSelection": "Installer la sélection"
+  "dialogActionInstallSelection": "Installer la sélection",
+  "downloadStatusFetching": "Obtention des données de Nexus Mods...",
+  "downloadStatusFetchingFailed": "Échec de l'obtention du lien de téléchargement. Vérifiez votre clé API ou votre connexion.",
+  "downloadStatusDownloading": "Téléchargement de {fileName}",
+  "downloadStatusError": "Erreur lors du téléchargement du fichier.",
+  "downloadStatusException": "Exception : {error}",
+  "dialogTitleDownloadModManager": "Téléchargement de Mod Manager",
+  "launchGameText": "Lancer Stellar Blade"
 }

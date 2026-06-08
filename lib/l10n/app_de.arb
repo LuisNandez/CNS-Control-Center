@@ -380,5 +380,12 @@
   "dialogTitleSpecialModSelection": "Installationsoptionen - Mod {nexusId}",
   "dialogContentSpecialModSelection": "Wählen Sie die Optionen aus, die Sie installieren möchten. Die erforderlichen Hauptdateien werden automatisch installiert.",
   "snackBarSpecialModNoSelection": "Wählen Sie mindestens eine Option aus, um fortzufahren.",
-  "dialogActionInstallSelection": "Auswahl installieren"
+  "dialogActionInstallSelection": "Auswahl installieren",
+  "downloadStatusFetching": "Nexus Mods Daten werden abgerufen...",
+  "downloadStatusFetchingFailed": "Download-Link konnte nicht abgerufen werden. Überprüfen Sie Ihren API-Schlüssel oder Ihre Verbindung.",
+  "downloadStatusDownloading": "Lade {fileName} herunter",
+  "downloadStatusError": "Fehler beim Herunterladen der Datei.",
+  "downloadStatusException": "Ausnahme: {error}",
+  "dialogTitleDownloadModManager": "Mod Manager Download",
+  "launchGameText": "Stellar Blade starten"
 }

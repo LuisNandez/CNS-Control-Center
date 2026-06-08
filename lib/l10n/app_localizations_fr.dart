@@ -1423,4 +1423,30 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get dialogActionInstallSelection => 'Installer la sélection';
+
+  @override
+  String get downloadStatusFetching => 'Obtention des données de Nexus Mods...';
+
+  @override
+  String get downloadStatusFetchingFailed =>
+      'Échec de l\'obtention du lien de téléchargement. Vérifiez votre clé API ou votre connexion.';
+
+  @override
+  String downloadStatusDownloading(String fileName) {
+    return 'Téléchargement de $fileName';
+  }
+
+  @override
+  String get downloadStatusError => 'Erreur lors du téléchargement du fichier.';
+
+  @override
+  String downloadStatusException(String error) {
+    return 'Exception : $error';
+  }
+
+  @override
+  String get dialogTitleDownloadModManager => 'Téléchargement de Mod Manager';
+
+  @override
+  String get launchGameText => 'Lancer Stellar Blade';
 }

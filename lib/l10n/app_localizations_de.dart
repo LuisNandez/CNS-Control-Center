@@ -1418,4 +1418,30 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get dialogActionInstallSelection => 'Auswahl installieren';
+
+  @override
+  String get downloadStatusFetching => 'Nexus Mods Daten werden abgerufen...';
+
+  @override
+  String get downloadStatusFetchingFailed =>
+      'Download-Link konnte nicht abgerufen werden. Überprüfen Sie Ihren API-Schlüssel oder Ihre Verbindung.';
+
+  @override
+  String downloadStatusDownloading(String fileName) {
+    return 'Lade $fileName herunter';
+  }
+
+  @override
+  String get downloadStatusError => 'Fehler beim Herunterladen der Datei.';
+
+  @override
+  String downloadStatusException(String error) {
+    return 'Ausnahme: $error';
+  }
+
+  @override
+  String get dialogTitleDownloadModManager => 'Mod Manager Download';
+
+  @override
+  String get launchGameText => 'Stellar Blade starten';
 }

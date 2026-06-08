@@ -1419,4 +1419,30 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get dialogActionInstallSelection => 'Instalar Selección';
+
+  @override
+  String get downloadStatusFetching => 'Obteniendo datos de Nexus Mods...';
+
+  @override
+  String get downloadStatusFetchingFailed =>
+      'Fallo al obtener el enlace de descarga. Verifica tu API Key o conexión.';
+
+  @override
+  String downloadStatusDownloading(String fileName) {
+    return 'Descargando $fileName';
+  }
+
+  @override
+  String get downloadStatusError => 'Error durante la descarga del archivo.';
+
+  @override
+  String downloadStatusException(String error) {
+    return 'Excepción: $error';
+  }
+
+  @override
+  String get dialogTitleDownloadModManager => 'Descarga del Mod Manager';
+
+  @override
+  String get launchGameText => 'Iniciar Stellar Blade';
 }
