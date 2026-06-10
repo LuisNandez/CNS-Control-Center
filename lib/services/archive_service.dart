@@ -6,6 +6,7 @@ import '../mod_classifier_service.dart';
 import '../models/installation_models.dart';
 import 'nexus_api_service.dart';
 import 'file_manager_service.dart';
+import 'special_mods_handler.dart';
 
 class ArchiveService {
   static String stripVersionFromFolderName(String name) {
@@ -109,6 +110,7 @@ class ArchiveService {
       final nexusInfo = await extractNexusInfoFromName(fileName, apiKey);
       final String? nexusId = nexusInfo?['id'];
       final bool isLogicModById = (nexusId != null && logicModIds.contains(nexusId));
+      final bool isSpecialModById = (nexusId != null && SpecialModsHandler.isSpecialMod(nexusId));
       final archiveTempDir = Directory(p.join(tempExtractionDir.path, i.toString()));
       await archiveTempDir.create();
 
@@ -167,14 +169,23 @@ class ArchiveService {
 
       // 3. Comprobar LogicMod
       final logicSourceDir = Directory(p.join(archiveTempDir.path, 'SB', 'Content', 'Paks', 'LogicMods'));
-      final ue4ssSourceDir = Directory(p.join(archiveTempDir.path, 'SB', 'Binaries', 'Win64', 'ue4ss', 'Mods'));
+      final ue4ssSourceDir = Directory(p.join(archiveTempDir.path, 'SB', 'Binaries', 'Win64', 'ue4ss')); // MODIFICADO: Apunta a la raíz de ue4ss
 
-      if (await logicSourceDir.exists() && await ue4ssSourceDir.exists()) {
+      final bool hasLogicDir = await logicSourceDir.exists();
+      final bool hasUe4ssDir = await ue4ssSourceDir.exists();
+
+      if (hasLogicDir || hasUe4ssDir) {
         final tildeModsSourceDir = Directory(p.join(archiveTempDir.path, 'SB', 'Content', 'Paks', '~mods'));
         final bool tildeModsExists = await tildeModsSourceDir.exists();
+
+        // Aseguramos la existencia de un sourceDir base para alojar los metadatos
+        if (!hasLogicDir) {
+          await logicSourceDir.create(recursive: true);
+        }
+
         preparedMods.add(PreparedMod(
           sourceDir: logicSourceDir,
-          ue4ssDir: ue4ssSourceDir,
+          ue4ssDir: hasUe4ssDir ? ue4ssSourceDir : null,
           tildeModsDir: tildeModsExists ? tildeModsSourceDir : null,
           nexusId: nexusInfo?['id'],
           nexusVersion: nexusInfo?['version'],
@@ -184,27 +195,54 @@ class ArchiveService {
         continue;
       }
 
+      // Comprobar estructuras LogicMod/ue4ss en la raíz del ZIP (Sin estructura SB)
       Directory? nestedLogicModDir;
+      Directory? nestedUe4ssModsDir;
+
       final List<FileSystemEntity> rootEntities = await archiveTempDir.list().toList();
       final rootDirs = rootEntities.whereType<Directory>().toList();
 
-      if (rootDirs.length == 1) {
+      // 1. Primero buscamos directamente en la raíz de la extracción
+      final rootLogicModsDir = Directory(p.join(archiveTempDir.path, 'LogicMods'));
+      if (await rootLogicModsDir.exists()) nestedLogicModDir = rootLogicModsDir;
+
+      final rootUe4ssModsDir = Directory(p.join(archiveTempDir.path, 'ue4ss')); // MODIFICADO: Apunta a la raíz de ue4ss
+      if (await rootUe4ssModsDir.exists()) nestedUe4ssModsDir = rootUe4ssModsDir;
+
+      // 2. Si no están en la raíz, buscamos dentro de una posible carpeta envoltorio
+      if (nestedLogicModDir == null && nestedUe4ssModsDir == null && rootDirs.length == 1) {
         final potentialLogicModsDir = Directory(p.join(rootDirs.first.path, 'LogicMods'));
         if (await potentialLogicModsDir.exists()) nestedLogicModDir = potentialLogicModsDir;
-      } else {
-        final rootLogicModsDir = Directory(p.join(archiveTempDir.path, 'LogicMods'));
-        if (await rootLogicModsDir.exists()) nestedLogicModDir = rootLogicModsDir;
+        
+        final potentialUe4ssModsDir = Directory(p.join(rootDirs.first.path, 'ue4ss')); // MODIFICADO: Apunta a la raíz de ue4ss
+        if (await potentialUe4ssModsDir.exists()) nestedUe4ssModsDir = potentialUe4ssModsDir;
       }
 
-      if (nestedLogicModDir != null) {
+      if (nestedLogicModDir != null || nestedUe4ssModsDir != null) {
+        Directory actualLogicDir = nestedLogicModDir ?? await Directory(p.join(archiveTempDir.path, '_logic_base_')).create();
+        
         preparedMods.add(PreparedMod(
-          sourceDir: nestedLogicModDir,
-          ue4ssDir: null,
+          sourceDir: actualLogicDir,
+          ue4ssDir: nestedUe4ssModsDir,
           tildeModsDir: null,
           nexusId: nexusInfo?['id'],
           nexusVersion: nexusInfo?['version'],
           archiveName: archiveName,
           modType: ModDirectoryType.logicMod,
+        ));
+        continue;
+      }
+
+      // 3.5 Interceptar Mods Especiales (como 550, 1112) para que no se dividan
+      if (isSpecialModById) {
+        preparedMods.add(PreparedMod(
+          sourceDir: archiveTempDir, // Pasamos toda la raíz de extracción intacta
+          ue4ssDir: null,
+          tildeModsDir: null,
+          nexusId: nexusId,
+          nexusVersion: nexusInfo?['version'],
+          archiveName: archiveName,
+          modType: ModDirectoryType.genericPak, 
         ));
         continue;
       }

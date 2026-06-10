@@ -21,56 +21,73 @@ class SpecialModData {
   final List<File> mainFiles;
   final List<SpecialModOption> options;
   final Directory originalDir;
+  final bool isSingleSelection;
 
   SpecialModData({
     required this.nexusId,
     required this.mainFiles,
     required this.options,
     required this.originalDir,
+    this.isSingleSelection = false,
   });
 }
 
 class SpecialModsHandler {
-  // Lista de IDs de Nexus que requieren este trato especial
-  static const List<String> supportedSpecialMods = ['550'];
+  // AÑADIDO: '390' y '30' a la lista de mods especiales
+  static const List<String> supportedSpecialMods = ['30', '390', '550', '1112'];
 
-  /// Verifica si el ID corresponde a un mod especial soportado
   static bool isSpecialMod(String? nexusId) {
     return nexusId != null && supportedSpecialMods.contains(nexusId);
   }
 
-  /// Lee el directorio extraído y separa los archivos principales de las carpetas opcionales
   static Future<SpecialModData> parseMod(String nexusId, Directory sourceDir) async {
     List<File> mainFiles = [];
     List<SpecialModOption> options = [];
 
+    // 1. Archivos principales (sueltos en la raíz)
     await for (final entity in sourceDir.list(recursive: false)) {
       if (entity is File) {
-        // Archivos sueltos en la raíz (los 6 archivos principales)
         mainFiles.add(entity);
-      } else if (entity is Directory) {
-        // Carpetas de opciones
-        final folderName = p.basename(entity.path);
-        // Evitamos carpetas ocultas o del sistema
-        if (!folderName.startsWith('.') && !folderName.startsWith('__')) {
-          options.add(SpecialModOption(name: folderName, directory: entity));
+      }
+    }
+
+    // 2. Búsqueda profunda de opciones (cualquier carpeta que contenga un .pak)
+    await for (final entity in sourceDir.list(recursive: true)) {
+      if (entity is File && p.extension(entity.path).toLowerCase() == '.pak') {
+        final parentDir = entity.parent;
+        
+        // Si el .pak está en la raíz absoluta, ya es un mainFile
+        if (parentDir.path == sourceDir.path) continue;
+
+        // Evita agregar la misma carpeta varias veces si tiene múltiples paks
+        if (!options.any((o) => o.directory.path == parentDir.path)) {
+          // Genera un nombre jerárquico bonito basado en las carpetas
+          final relativePath = p.relative(parentDir.path, from: sourceDir.path);
+          String optionName = relativePath.replaceAll(Platform.pathSeparator, ' / ');
+
+          // CORRECCIÓN AQUÍ: Forma nativa de Dart para ignorar mayúsculas/minúsculas
+          // Esto transformará "Color Azul / ~mods" en simplemente "Color Azul"
+          optionName = optionName.replaceAll(RegExp(r'\s*/\s*~mods$', caseSensitive: false), '');
+
+          options.add(SpecialModOption(name: optionName, directory: parentDir));
         }
       }
     }
 
-    // Ordenamos las opciones alfabéticamente para mejor presentación en la UI
     options.sort((a, b) => a.name.compareTo(b.name));
+    
+    // AÑADIDO: '390' y '30' a la lógica de selección única (Radio Buttons)
+    final bool singleSelection = nexusId == '30' || nexusId == '390' || nexusId == '1112';
 
     return SpecialModData(
       nexusId: nexusId,
       mainFiles: mainFiles,
       options: options,
       originalDir: sourceDir,
+      isSingleSelection: singleSelection,
     );
   }
 
-  /// Construye un nuevo directorio temporal fusionando los archivos principales 
-  /// con el contenido de las subcarpetas de las opciones seleccionadas.
   static Future<Directory> buildSelectedInstallation(
     SpecialModData modData,
     Directory tempRoot,
@@ -81,20 +98,22 @@ class SpecialModsHandler {
     }
     await destDir.create(recursive: true);
 
-    // 1. Copiar archivos principales a la raíz del nuevo directorio
+    // 1. Copiar archivos principales
     for (final file in modData.mainFiles) {
       final destPath = p.join(destDir.path, p.basename(file.path));
       await file.copy(destPath);
     }
 
-    // 2. Copiar el contenido de las subcarpetas seleccionadas
+    // 2. Copiar archivos de las opciones seleccionadas
     for (final option in modData.options.where((o) => o.isSelected)) {
-      // Entramos a la opción y buscamos su subcarpeta
       await for (final subEntity in option.directory.list(recursive: false)) {
         if (subEntity is Directory) {
-          // Es la subcarpeta (donde están los archivos reales)
-          // Copiamos su contenido a la raíz de la instalación
           await _copyDirectoryContents(subEntity, destDir);
+        } else if (subEntity is File) {
+          // Copiamos los archivos (.pak, .ucas) directamente a la raíz de la instalación
+          // Sin importar si vinieron de una carpeta llamada ~mods o no.
+          final destPath = p.join(destDir.path, p.basename(subEntity.path));
+          await subEntity.copy(destPath);
         }
       }
     }
@@ -102,7 +121,6 @@ class SpecialModsHandler {
     return destDir;
   }
 
-  /// Función auxiliar para copiar recursivamente el contenido de una carpeta
   static Future<void> _copyDirectoryContents(Directory source, Directory destination) async {
     await for (var entity in source.list(recursive: true)) {
       if (entity is File) {

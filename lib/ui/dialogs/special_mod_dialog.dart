@@ -25,7 +25,7 @@ class _SpecialModSelectionDialogState extends State<SpecialModSelectionDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    // Puedes usar AppLocalizations aquí para el título y los botones si lo deseas
+    
     return AlertDialog(
       backgroundColor: const Color(0xFF2a2a2a),
       title: Text(l10n.dialogTitleSpecialModSelection(widget.modData.nexusId)),
@@ -36,9 +36,12 @@ class _SpecialModSelectionDialogState extends State<SpecialModSelectionDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-            l10n.dialogContentSpecialModSelection,
-            style: const TextStyle(color: Colors.white70, fontSize: 13),
-          ),
+              // Si quieres, puedes poner un texto diferente dependiendo de si es selección única
+              widget.modData.isSingleSelection 
+                  ? "Selecciona una única opción para instalar." 
+                  : l10n.dialogContentSpecialModSelection,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
             const SizedBox(height: 12),
             Expanded(
               child: ListView.builder(
@@ -54,9 +57,22 @@ class _SpecialModSelectionDialogState extends State<SpecialModSelectionDialog> {
                     value: option.isSelected,
                     activeColor: Colors.tealAccent,
                     checkColor: Colors.black,
+                    // NUEVO: Le damos forma de círculo si es de selección única
+                    checkboxShape: widget.modData.isSingleSelection 
+                        ? const CircleBorder() 
+                        : null,
                     onChanged: (bool? value) {
                       setState(() {
-                        option.isSelected = value ?? false;
+                        if (widget.modData.isSingleSelection) {
+                          // Lógica de selección única (Radio Button)
+                          for (var o in widget.modData.options) {
+                            o.isSelected = false; // Desmarcamos todos
+                          }
+                          option.isSelected = true; // Marcamos solo el actual
+                        } else {
+                          // Lógica normal de selección múltiple
+                          option.isSelected = value ?? false;
+                        }
                       });
                     },
                   );

@@ -2640,51 +2640,63 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
       // Parte A: Copiar .../zip/LogicMods/* A .../Paks/LogicMods/<mod_name>/
       await Directory(logicModDestPath).create(recursive: true);
-      // Comprobamos si la fuente existe (aunque la detección ya lo hizo)
       await FileManagerService.copyDirectory(logicSourceDir, Directory(logicModDestPath));
-      // Parte B: Copiar .../zip/Mods/* A .../ue4ss/Mods/ (Fusionar)
+
+      // Parte B: Copiar componentes de UE4SS (Carpetas de mods y archivos sueltos raíz)
+      List<String> ue4ssComponentFolders = [];
+      List<String> looseFilesLog = [];
+
       if (ue4ssSourceDir != null && await ue4ssSourceDir.exists()) {
-        await FileManagerService.copyDirectory(ue4ssSourceDir, Directory(ue4ssDestPath));
-      } else {
-        // (Opcional) Informar que no se copió nada de UE4SS
-        print(
-          "No se encontró la carpeta 'Mods' (UE4SS) para $finalFolderName. Omitiendo copia de scripts.",
-        );
-      }
-      bool hasTildeModsComponent = false; // Rastreador
-      if (tildeModsSourceDir != null && await tildeModsSourceDir.exists()) {
-        // 1. Definir la nueva ruta de destino específica para este mod
-        final tildeModDestPathWithFolder = p.join(
-          tildeModsDestPath,
-          finalFolderName,
-        );
-        hasTildeModsComponent = true; // Marcar como verdadero
+        final ue4ssRootDestPath = p.dirname(ue4ssDestPath!); // Ruta raíz de ue4ss del juego
 
-        print(
-          "Instalando archivos complementarios de ~mods para $finalFolderName en: $tildeModDestPathWithFolder",
-        );
-
-        // 2. Asegurarse de que esa carpeta exista
-        final destDir = Directory(tildeModDestPathWithFolder);
-        if (!await destDir.exists()) {
-          await destDir.create(recursive: true);
+        // 1. Copiar subcarpetas dentro de ue4ss/Mods si existen
+        final sourceModsFolder = Directory(p.join(ue4ssSourceDir.path, 'Mods'));
+        if (await sourceModsFolder.exists()) {
+          await FileManagerService.copyDirectory(sourceModsFolder, Directory(ue4ssDestPath));
+          await for (final entity in sourceModsFolder.list()) {
+            if (entity is Directory) {
+              ue4ssComponentFolders.add(p.basename(entity.path));
+            }
+          }
         }
 
-        // 3. Copiar el contenido de la fuente (~mods/*) a la nueva carpeta de destino
-        await FileManagerService.copyDirectory(tildeModsSourceDir, destDir);
-      }
+        // 2. Detectar y copiar archivos sueltos directamente en la raíz de ue4ss (ej: UE4SS-settings.ini)
+        await for (final entity in ue4ssSourceDir.list(recursive: false)) {
+          if (entity is File) {
+            final fileName = p.basename(entity.path);
+            if (fileName == 'nexus_info.json') continue;
 
-      // Obtener la lista de carpetas de componentes de UE4SS
-      List<String> ue4ssComponentFolders = [];
-      if (ue4ssSourceDir != null && await ue4ssSourceDir.exists()) {
-        await for (final entity in ue4ssSourceDir.list()) {
-          if (entity is Directory) {
-            ue4ssComponentFolders.add(p.basename(entity.path));
+            final gameTargetFile = File(p.join(ue4ssRootDestPath, fileName));
+            final originalsBackupDir = Directory(p.join(logicModDestPath, '_ue4ss_originals'));
+
+            // Si el archivo ya existe en el juego, guardamos una copia del original antes de sobrescribir
+            if (await gameTargetFile.exists()) {
+              if (!await originalsBackupDir.exists()) {
+                await originalsBackupDir.create(recursive: true);
+              }
+              final backupOriginalFile = File(p.join(originalsBackupDir.path, fileName));
+              if (!await backupOriginalFile.exists()) {
+                await gameTargetFile.copy(backupOriginalFile.path);
+              }
+            }
+
+            // Copiamos el archivo del mod al directorio de ejecución del juego
+            await entity.copy(gameTargetFile.path);
+            looseFilesLog.add(fileName);
           }
         }
       }
+      
+      bool hasTildeModsComponent = false;
+      if (tildeModsSourceDir != null && await tildeModsSourceDir.exists()) {
+        final tildeModDestPathWithFolder = p.join(tildeModsDestPath, finalFolderName);
+        hasTildeModsComponent = true;
+        final destDir = Directory(tildeModDestPathWithFolder);
+        if (!await destDir.exists()) await destDir.create(recursive: true);
+        await FileManagerService.copyDirectory(tildeModsSourceDir, destDir);
+      }
+
       // --- 5. Crear nexus_info.json ---
-      // Lo creamos dentro de la carpeta que SÍ gestionamos (.../Paks/LogicMods/<mod_name>)
       final infoFile = File(p.join(logicModDestPath, 'nexus_info.json'));
       final versionForFile = nexusVersion;
 
@@ -2695,17 +2707,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         'installedVersion': versionForFile,
         'installDate': DateTime.now().toIso8601String(),
         'managerVersion': _appVersion,
-        'fitMeshType': fitMeshType, // "Logic"
-        'modType': modType.name, // "logicMod"
-        'sourceUrl': nexusId != null
-            ? 'https://www.nexusmods.com/stellarblade/mods/$nexusId'
-            : null,
-        'tildeModsComponentFolder': hasTildeModsComponent
-            ? finalFolderName
-            : null,
-        'ue4ssComponents': ue4ssComponentFolders.isNotEmpty
-            ? ue4ssComponentFolders
-            : null,
+        'fitMeshType': fitMeshType,
+        'modType': modType.name,
+        'sourceUrl': nexusId != null ? 'https://www.nexusmods.com/stellarblade/mods/$nexusId' : null,
+        'tildeModsComponentFolder': hasTildeModsComponent ? finalFolderName : null,
+        'ue4ssComponents': ue4ssComponentFolders.isNotEmpty ? ue4ssComponentFolders : null,
+        'ue4ssLooseFiles': looseFilesLog.isNotEmpty ? looseFilesLog : null, // Guardamos registro de los archivos raíz instalados
       };
       modData.removeWhere((key, value) => value == null); // Limpia nulos
 
@@ -3307,6 +3314,35 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                 if (await ue4ssBackupContainer.list().isEmpty)
                   await ue4ssBackupContainer.delete();
               }
+
+              final List<dynamic>? ue4ssLooseFiles = data['ue4ssLooseFiles'];
+              if (ue4ssLooseFiles != null && _ue4ssModsPath != null) {
+                final ue4ssRootDestPath = p.dirname(_ue4ssModsPath!);
+                final looseFilesBackupContainer = Directory(p.join(backupContainerDir.path, "_ue4ss_loose_files"));
+                final originalsBackupDir = Directory(p.join(backupContainerDir.path, "_ue4ss_originals"));
+
+                for (final fileName in ue4ssLooseFiles.cast<String>()) {
+                  final activeGameFile = File(p.join(ue4ssRootDestPath, fileName));
+
+                  // Resguardo de seguridad preventivo si no existiera backup original previo
+                  if (await activeGameFile.exists()) {
+                    if (!await originalsBackupDir.exists()) await originalsBackupDir.create(recursive: true);
+                    final backupOriginal = File(p.join(originalsBackupDir.path, fileName));
+                    if (!await backupOriginal.exists()) {
+                      await activeGameFile.copy(backupOriginal.path);
+                    }
+                  }
+
+                  // Volvemos a colocar el archivo personalizado del mod en el juego
+                  final modCustomFile = File(p.join(looseFilesBackupContainer.path, fileName));
+                  if (await modCustomFile.exists()) {
+                    await modCustomFile.rename(activeGameFile.path);
+                  }
+                }
+                if (await looseFilesBackupContainer.exists() && await looseFilesBackupContainer.list().isEmpty) {
+                  await looseFilesBackupContainer.delete();
+                }
+              }
             } catch (e) {
               print("Error al restaurar componentes de LogicMod: $e");
             }
@@ -3316,12 +3352,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         String modType = modInfo.modType ?? 'cns'; // Usa el tipo del ModInfo
 
         final String targetPath;
-        if (modType == 'genericPak') {
+        if (modType == 'genericPak' || modType == 'replacement') {
           targetPath = _genericModsPath!;
         } else if (modType == 'logicMod') {
-          targetPath = _logicModsPath!; // <-- RUTA NUEVA
+          targetPath = _logicModsPath!; // RUTA NUEVA
         } else {
-          targetPath = _finalModsPath!; // Default a CNS
+          targetPath = _finalModsPath!; // Default a CNS para los cns puros
         }
 
         final newDirectory = Directory(p.join(targetPath, modName));
@@ -3440,6 +3476,27 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                   if (await ue4ssSourceDir.exists()) {
                     print("Archivando componente UE4SS: $folderName");
                     await FileManagerService.moveMod(ue4ssSourceDir, ue4ssDestContainer.path);
+                  }
+                }
+              }
+              final List<dynamic>? ue4ssLooseFiles = data['ue4ssLooseFiles'];
+              if (ue4ssLooseFiles != null && _ue4ssModsPath != null) {
+                final ue4ssRootDestPath = p.dirname(_ue4ssModsPath!);
+                final looseFilesBackupContainer = Directory(p.join(newDirectory.path, "_ue4ss_loose_files"));
+                if (!await looseFilesBackupContainer.exists()) await looseFilesBackupContainer.create(recursive: true);
+                final originalsBackupDir = Directory(p.join(newDirectory.path, "_ue4ss_originals"));
+
+                for (final fileName in ue4ssLooseFiles.cast<String>()) {
+                  final activeGameFile = File(p.join(ue4ssRootDestPath, fileName));
+                  if (await activeGameFile.exists()) {
+                    // Guardamos la configuración personalizada del mod en la carpeta de respaldos
+                    await activeGameFile.rename(p.join(looseFilesBackupContainer.path, fileName));
+                  }
+
+                  // Restauramos el archivo original intacto de vuelta al juego
+                  final originalFile = File(p.join(originalsBackupDir.path, fileName));
+                  if (await originalFile.exists()) {
+                    await originalFile.copy(activeGameFile.path);
                   }
                 }
               }
@@ -3747,7 +3804,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
   Future<void> _enableAllMods(List<ModInfo> modsInView) async {
     final l10n = AppLocalizations.of(context)!;
-
     final disabledMods = modsInView.where((mod) => !mod.isEnabled).toList();
 
     if (disabledMods.isEmpty) {
@@ -3761,10 +3817,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       return;
     }
 
-    // Orden de prioridad de activación:
-    // 1º Mod 529 (Core/Requisito)
-    // 2º Mods generales (CNS, Logic, Genéricos)
-    // 3º Mods de películas (Movies)
+    // 1. Orden de prioridad vital (529 primero)
     disabledMods.sort((a, b) {
       if (a.nexusId == '529' && b.nexusId != '529') return -1;
       if (b.nexusId == '529' && a.nexusId != '529') return 1;
@@ -3798,128 +3851,69 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     if (confirm != true) return;
 
     setState(() => _isLoading = true);
+    int successCount = 0;
+    int skippedCount = 0;
+
+    // --- LÓGICA DE FILTRADO INTELIGENTE (PREVENCIÓN DE CONFLICTOS) ---
+    // 1. Reservamos los trajes que ya están siendo usados por mods habilitados
+    Set<String> claimedOutfits = _allMods
+        .where((m) => m.isEnabled)
+        .expand((m) => m.replacesOutfits ?? <String>[])
+        .toSet();
+    
+    // 2. Reservamos las "firmas" (ID + Tipo) de mods activos para no activar versiones alternativas
+    Set<String> activeModSignatures = _allMods
+        .where((m) => m.isEnabled && m.nexusId != null)
+        .map((m) => '${m.nexusId}_${m.modType}')
+        .toSet();
+
     try {
-      if (_finalModsPath == null || _genericModsPath == null || _logicModsPath == null) {
-        throw Exception("Mods paths are not defined.");
-      }
-
-      final Map<String, ModInfo> updatedModMap = {};
-
-      // ++ NUEVA LÓGICA: Determinar si el Mod 529 está instalado en el sistema
-      final bool isMod529Installed = _allMods.any((m) => m.nexusId == '529');
-      // ++ NUEVA LÓGICA: Rastrear si ya hay un mod de película activo (o si lo activamos en este bucle)
-      bool hasActiveMovieMod = _allMods.any((m) => m.isEnabled && m.modType == 'movies');
-
       for (final mod in disabledMods) {
-        // Prevención del Mod 529: Apaga preventivamente los mods de película activos
-        if (mod.nexusId == '529') {
-          final activeMovieMods = _allMods
-              .where((m) => m.isEnabled && m.modType == 'movies' && m.directory.path != mod.directory.path)
-              .toList();
-          for (final movieMod in activeMovieMods) {
-            await _disableMovieMod(movieMod);
-            updatedModMap[movieMod.directory.path] = movieMod.copyWith(isEnabled: false);
-            final idx = _allMods.indexWhere((m) => m.directory.path == movieMod.directory.path);
-            if (idx != -1) _allMods[idx] = updatedModMap[movieMod.directory.path]!;
+        // Filtrar Alternativas (Mismo ID de Nexus y mismo tipo de mod)
+        if (mod.nexusId != null) {
+          final signature = '${mod.nexusId}_${mod.modType}';
+          if (activeModSignatures.contains(signature)) {
+            print("Saltando ${mod.customName}: Ya hay una variante activa de este mod.");
+            skippedCount++;
+            continue;
           }
-          // Si activamos el Mod 529, reseteamos el rastreador para que ahora sí permita múltiples
-          hasActiveMovieMod = false; 
         }
 
-        if (mod.modType == 'movies') {
-          // ++ NUEVA LÓGICA: Si no está el 529 y ya tenemos una película activa, saltamos las demás
-          if (!isMod529Installed && hasActiveMovieMod) {
-            print("Saltando activación de ${mod.customName}: El Mod 529 no está instalado y ya hay un video activo.");
-            continue; 
+        // Filtrar Conflictos de Outfits (Evita choques y diálogos de interrupción)
+        if (mod.replacesOutfits != null && mod.replacesOutfits!.isNotEmpty) {
+          final hasConflict = mod.replacesOutfits!.any((outfit) => claimedOutfits.contains(outfit));
+          if (hasConflict) {
+            print("Saltando ${mod.customName}: Conflicto con un traje ya ocupado.");
+            skippedCount++;
+            continue;
           }
+        }
 
-          // Lógica de Movies
-          await _enableMovieMod(mod, _allMods);
-          updatedModMap[mod.directory.path] = mod.copyWith(isEnabled: true);
-          
-          final idx = _allMods.indexWhere((m) => m.directory.path == mod.directory.path);
-          if (idx != -1) _allMods[idx] = updatedModMap[mod.directory.path]!;
+        // Si pasó los filtros, "reservamos" sus recursos para los mods que le siguen en el bucle
+        if (mod.nexusId != null) {
+          activeModSignatures.add('${mod.nexusId}_${mod.modType}');
+        }
+        if (mod.replacesOutfits != null) {
+          claimedOutfits.addAll(mod.replacesOutfits!);
+        }
 
-          // ++ NUEVA LÓGICA: Marcamos que ya activamos un mod de película
-          if (!isMod529Installed) {
-            hasActiveMovieMod = true;
-          }
-        } else {
-          // Lógica de Carpetas (CNS / Genérico / LogicMod)
-          final modName = p.basename(mod.directory.path);
-          final backupContainerDir = mod.directory;
-
-          if (mod.modType == 'logicMod') {
-            final infoFile = File(p.join(backupContainerDir.path, 'nexus_info.json'));
-            if (await infoFile.exists()) {
-              try {
-                final data = json.decode(await infoFile.readAsString());
-                
-                final String? tildeFolder = data['tildeModsComponentFolder'];
-                if (tildeFolder != null && _genericModsPath != null) {
-                  final tildeBackupContainer = Directory(p.join(backupContainerDir.path, "_tilde_mods"));
-                  final tildeSourceDir = Directory(p.join(tildeBackupContainer.path, tildeFolder));
-                  if (await tildeSourceDir.exists()) {
-                    await FileManagerService.moveMod(tildeSourceDir, _genericModsPath!);
-                    if (await tildeBackupContainer.list().isEmpty) await tildeBackupContainer.delete();
-                  }
-                }
-
-                final List<dynamic>? ue4ssFolders = data['ue4ssComponents'];
-                if (ue4ssFolders != null && _ue4ssModsPath != null) {
-                  final ue4ssBackupContainer = Directory(p.join(backupContainerDir.path, "_ue4ss_mods"));
-                  for (final folderName in ue4ssFolders.cast<String>()) {
-                    final ue4ssSourceDir = Directory(p.join(ue4ssBackupContainer.path, folderName));
-                    if (await ue4ssSourceDir.exists()) {
-                      await FileManagerService.moveMod(ue4ssSourceDir, _ue4ssModsPath!);
-                    }
-                  }
-                  if (await ue4ssBackupContainer.list().isEmpty) await ue4ssBackupContainer.delete();
-                }
-              } catch (e) {
-                print("Error al restaurar componentes de LogicMod en lote: $e");
-              }
-            }
-          }
-
-          String modTypeStr = mod.modType ?? 'cns';
-          final String targetPath;
-          if (modTypeStr == 'genericPak') {
-            targetPath = _genericModsPath!;
-          } else if (modTypeStr == 'logicMod') {
-            targetPath = _logicModsPath!;
-          } else {
-            targetPath = _finalModsPath!;
-          }
-
-          await FileManagerService.moveMod(backupContainerDir, targetPath);
-
-          updatedModMap[mod.directory.path] = mod.copyWith(
-            directory: Directory(p.join(targetPath, modName)),
-            isEnabled: true,
-          );
-          
-          final idx = _allMods.indexWhere((m) => m.directory.path == mod.directory.path);
-          if (idx != -1) _allMods[idx] = updatedModMap[mod.directory.path]!;
+        // Y lo activamos de forma segura
+        final success = await _enableMod(mod);
+        if (success) {
+          successCount++;
         }
       }
-
-      final List<ModInfo> updatedModsList = _allMods.map((originalMod) {
-        if (updatedModMap.containsKey(originalMod.directory.path)) {
-          return updatedModMap[originalMod.directory.path]!;
-        }
-        return originalMod;
-      }).toList();
-
-      setState(() {
-        _allMods = updatedModsList;
-      });
 
       if (mounted) {
+        // Notificación dinámica: Avisa al usuario si hubo mods saltados para que no piense que fue un error
+        final String titleMsg = skippedCount > 0 
+            ? 'Activados: $successCount (Saltados: $skippedCount por conflictos)'
+            : l10n.snackBarAllModsEnabled(successCount);
+
         NotificationService.instance.show(
           context: context,
-          type: NotificationType.success,
-          title: l10n.snackBarAllModsEnabled(updatedModMap.length),
+          type: skippedCount > 0 ? NotificationType.info : NotificationType.success,
+          title: titleMsg,
         );
       }
     } catch (e) {
@@ -3927,7 +3921,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         _statusMessage = AppLocalizations.of(context)!.errorEnableMod(e.toString());
         _statusColor = Colors.redAccent;
       });
-      await _loadAllMods();
+      await _loadAllMods(); 
     } finally {
       setState(() => _isLoading = false);
     }
@@ -3971,109 +3965,22 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     if (confirm != true) return;
 
     setState(() => _isLoading = true);
+    int successCount = 0;
+
     try {
-      if (_gameRootPath == null) {
-        throw Exception("Game path is not defined.");
-      }
-      final backupDir = Directory(
-        p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__'),
-      );
-      if (!await backupDir.exists()) {
-        await backupDir.create(recursive: true);
-      }
-
-      final Map<String, ModInfo> updatedModMap = {};
-
+      // Delegamos TODA la lógica a la función singular
       for (final mod in enabledMods) {
-        // Prevención del Mod 529
-        if (mod.nexusId == '529') {
-          final activeMovieMods = _allMods
-              .where((m) => m.isEnabled && m.modType == 'movies' && m.directory.path != mod.directory.path)
-              .toList();
-          for (final movieMod in activeMovieMods) {
-            await _disableMovieMod(movieMod);
-            updatedModMap[movieMod.directory.path] = movieMod.copyWith(isEnabled: false);
-            
-            final idx = _allMods.indexWhere((m) => m.directory.path == movieMod.directory.path);
-            if (idx != -1) _allMods[idx] = updatedModMap[movieMod.directory.path]!;
-          }
-        }
-
-        if (mod.modType == 'movies') {
-          // Si el 529 no lo deshabilitó ya en este mismo bucle
-          if (!updatedModMap.containsKey(mod.directory.path)) {
-            await _disableMovieMod(mod);
-            updatedModMap[mod.directory.path] = mod.copyWith(isEnabled: false);
-            
-            final idx = _allMods.indexWhere((m) => m.directory.path == mod.directory.path);
-            if (idx != -1) _allMods[idx] = updatedModMap[mod.directory.path]!;
-          }
-        } else {
-          // Lógica de Movimiento de Carpeta (CNS / Genérico / LogicMod)
-          final modName = p.basename(mod.directory.path);
-          final newDirectory = Directory(p.join(backupDir.path, modName));
-          
-          await FileManagerService.moveMod(mod.directory, backupDir.path);
-
-          // Archivar componentes adicionales si es LogicMod
-          if (mod.modType == 'logicMod') {
-            final infoFile = File(p.join(newDirectory.path, 'nexus_info.json'));
-            if (await infoFile.exists()) {
-              try {
-                final data = json.decode(await infoFile.readAsString());
-                
-                // Parte C (~mods)
-                final String? tildeFolder = data['tildeModsComponentFolder'];
-                if (tildeFolder != null && _genericModsPath != null) {
-                  final tildeSourceDir = Directory(p.join(_genericModsPath!, tildeFolder));
-                  final tildeDestContainer = Directory(p.join(newDirectory.path, "_tilde_mods"));
-                  if (!await tildeDestContainer.exists()) await tildeDestContainer.create();
-                  if (await tildeSourceDir.exists()) {
-                    await FileManagerService.moveMod(tildeSourceDir, tildeDestContainer.path);
-                  }
-                }
-
-                // Parte B (UE4SS)
-                final List<dynamic>? ue4ssFolders = data['ue4ssComponents'];
-                if (ue4ssFolders != null && _ue4ssModsPath != null) {
-                  final ue4ssDestContainer = Directory(p.join(newDirectory.path, "_ue4ss_mods"));
-                  if (!await ue4ssDestContainer.exists()) await ue4ssDestContainer.create();
-                  for (final folderName in ue4ssFolders.cast<String>()) {
-                    final ue4ssSourceDir = Directory(p.join(_ue4ssModsPath!, folderName));
-                    if (await ue4ssSourceDir.exists()) {
-                      await FileManagerService.moveMod(ue4ssSourceDir, ue4ssDestContainer.path);
-                    }
-                  }
-                }
-              } catch (e) {
-                print("Error al archivar componentes de LogicMod en lote: $e");
-              }
-            }
-          }
-
-          updatedModMap[mod.directory.path] = mod.copyWith(
-            directory: Directory(p.join(backupDir.path, modName)),
-            isEnabled: false,
-          );
+        final success = await _disableMod(mod);
+        if (success) {
+          successCount++;
         }
       }
-
-      final List<ModInfo> updatedModsList = _allMods.map((originalMod) {
-        if (updatedModMap.containsKey(originalMod.directory.path)) {
-          return updatedModMap[originalMod.directory.path]!;
-        }
-        return originalMod;
-      }).toList();
-
-      setState(() {
-        _allMods = updatedModsList;
-      });
 
       if (mounted) {
         NotificationService.instance.show(
           context: context,
           type: NotificationType.info,
-          title: l10n.snackBarAllModsDisabled(enabledMods.length),
+          title: l10n.snackBarAllModsDisabled(successCount),
         );
       }
     } catch (e) {
