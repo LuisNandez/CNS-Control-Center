@@ -513,6 +513,9 @@
   "modTypeCNS": "CNS",
   "modTypeGeneric": "Generic",
   "modTypeMovies": "Movies",
+  "modTypeSave": "Save",
+  "modTypeConfig": "Config",
+  "modTypeSplash": "Splash",
   "replacesOutfitTitle": "Replaces Outfit",
   "replacesOutfitClearTooltip": "Clear outfit selection",
   "replacesOutfitSelectTooltip": "Select outfit to replace",
@@ -783,5 +786,16 @@
     }
   },
   "dialogTitleDownloadModManager": "Mod Manager Download",
-  "launchGameText": "Launch Stellar Blade"
+  "launchGameText": "Launch Stellar Blade",
+  "mod801DialogTitle": "Steam Configuration Required",
+  "mod801DialogIntro": "The Random Splash mod has been installed. To make it work automatically when you launch the game, you need to configure Steam.",
+  "mod801Step1": "1. Generate the exact path for your PC below and copy it.",
+  "mod801Step2": "2. Open your Steam Library.",
+  "mod801Step3": "3. Right-click on Stellar Blade -> Properties.",
+  "mod801Step4": "4. In the 'General' tab, paste the code into 'Launch Options'.",
+  "mod801BtnGenerate": "Generate Path",
+  "mod801BtnSteam": "Open Steam",
+  "mod801BtnCopy": "Copy",
+  "mod801PathGenerated": "Path generated successfully.",
+  "mod801PathCopied": "Command copied to clipboard!"
 }

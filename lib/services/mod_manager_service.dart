@@ -326,7 +326,7 @@ class ModManagerService {
               else if (path == finalModsPath) modType = 'cns';
             }
 
-            if (modType == 'movies' && await infoFile.exists()) {
+            if (['movies', 'save', 'config', 'splash'].contains(modType) && await infoFile.exists()) {
               final content = await infoFile.readAsString();
               final data = json.decode(content);
               isEnabledForMod = data['isEnabled'] as bool? ?? false;

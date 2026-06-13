@@ -33,8 +33,7 @@ class SpecialModData {
 }
 
 class SpecialModsHandler {
-  // AÑADIDO: '390' y '30' a la lista de mods especiales
-  static const List<String> supportedSpecialMods = ['30', '390', '550', '1112'];
+  static const List<String> supportedSpecialMods = ['30', '390', '550', '801', '1112'];
 
   static bool isSpecialMod(String? nexusId) {
     return nexusId != null && supportedSpecialMods.contains(nexusId);
@@ -51,25 +50,28 @@ class SpecialModsHandler {
       }
     }
 
-    // 2. Búsqueda profunda de opciones (cualquier carpeta que contenga un .pak)
+    // 2. Búsqueda profunda de opciones (cualquier carpeta que contenga un .pak, .bat o .bmp)
     await for (final entity in sourceDir.list(recursive: true)) {
-      if (entity is File && p.extension(entity.path).toLowerCase() == '.pak') {
-        final parentDir = entity.parent;
+      if (entity is File) {
+        final ext = p.extension(entity.path).toLowerCase();
+        if (ext == '.pak' || ext == '.bat' || ext == '.bmp') {
+          final parentDir = entity.parent;
         
         // Si el .pak está en la raíz absoluta, ya es un mainFile
         if (parentDir.path == sourceDir.path) continue;
 
         // Evita agregar la misma carpeta varias veces si tiene múltiples paks
-        if (!options.any((o) => o.directory.path == parentDir.path)) {
-          // Genera un nombre jerárquico bonito basado en las carpetas
-          final relativePath = p.relative(parentDir.path, from: sourceDir.path);
-          String optionName = relativePath.replaceAll(Platform.pathSeparator, ' / ');
+          if (!options.any((o) => o.directory.path == parentDir.path)) {
+            // Genera un nombre jerárquico bonito basado en las carpetas
+            final relativePath = p.relative(parentDir.path, from: sourceDir.path);
+            String optionName = relativePath.replaceAll(Platform.pathSeparator, ' / ');
 
-          // CORRECCIÓN AQUÍ: Forma nativa de Dart para ignorar mayúsculas/minúsculas
-          // Esto transformará "Color Azul / ~mods" en simplemente "Color Azul"
-          optionName = optionName.replaceAll(RegExp(r'\s*/\s*~mods$', caseSensitive: false), '');
+            // CORRECCIÓN AQUÍ: Forma nativa de Dart para ignorar mayúsculas/minúsculas
+            // Esto transformará "Color Azul / ~mods" en simplemente "Color Azul"
+            optionName = optionName.replaceAll(RegExp(r'\s*/\s*~mods$', caseSensitive: false), '');
 
-          options.add(SpecialModOption(name: optionName, directory: parentDir));
+            options.add(SpecialModOption(name: optionName, directory: parentDir));
+         }
         }
       }
     }

@@ -81,6 +81,15 @@ class ModGridCard extends StatelessWidget {
     } else if (modType == 'logicMod') {
       modTypeString = l10n.modTypeLogic;
       modTypeColor = const Color.fromARGB(255, 26, 99, 151);
+    } else if (modType == 'save') {
+      modTypeString = l10n.modTypeSave;
+      modTypeColor = Colors.green.shade600; // Puedes ajustar el color
+    } else if (modType == 'config') {
+      modTypeString = l10n.modTypeConfig;
+      modTypeColor = Colors.blueGrey.shade600; // Puedes ajustar el color
+    } else if (modType == 'splash') {
+      modTypeString = l10n.modTypeSplash;
+      modTypeColor = Colors.deepOrange.shade600; // Puedes ajustar el color
     } else {
       modTypeString = l10n.modTypeCNS;
       modTypeColor = Colors.teal.shade600;

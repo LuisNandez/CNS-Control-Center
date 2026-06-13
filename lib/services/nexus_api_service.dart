@@ -141,11 +141,49 @@ class NexusApiService {
           final cdnUrl = bestLink['URI'] as String;
           
           // Extraer el nombre del archivo de la URI directa del CDN
-          final String fileName = Uri.parse(cdnUrl).pathSegments.last;
+          String fileName = Uri.parse(cdnUrl).pathSegments.last;
+          String exactVersion = '1';
+          
+          // --- NUEVA LÓGICA DE VALIDACIÓN DE NOMBRE ---
+          // Si el CDN nos da un UUID sin extensión, hacemos una consulta rápida para obtener el nombre real
+          if (!fileName.toLowerCase().endsWith('.zip') && 
+              !fileName.toLowerCase().endsWith('.rar') && 
+              !fileName.toLowerCase().endsWith('.7z')) {
+            try {
+            final fileDetailsUrl = Uri.parse('https://api.nexusmods.com/v1/games/$gameDomain/mods/$modId/files/$fileId.json');
+            final fileDetailsResponse = await http.get(fileDetailsUrl, headers: {'apikey': apiKey, 'accept': 'application/json'});
+            
+            if (fileDetailsResponse.statusCode == 200) {
+              final fileDetails = json.decode(fileDetailsResponse.body);
+              
+              // 1. Obtenemos el nombre real
+              final realFileName = fileDetails['file_name'] as String?;
+              if (realFileName != null && realFileName.isNotEmpty) {
+                fileName = realFileName;
+              }
+              
+              // 2. Obtenemos la versión oficial (ej. "1.1", "v2.0")
+              if (fileDetails['version'] != null) {
+                exactVersion = fileDetails['version'].toString();
+              }
+            }
+          } catch (e) {
+            print("Error al consultar detalles del archivo: $e");
+          }
+          // Fallback de extensión por si falla la API y el CDN nos dio un UUID
+          if (!fileName.toLowerCase().endsWith('.zip') && 
+              !fileName.toLowerCase().endsWith('.rar') && 
+              !fileName.toLowerCase().endsWith('.7z')) {
+            fileName = '$fileName.zip';
+          }
+          }
+          // ---------------------------------------------
           
           return {
             'url': cdnUrl,
-            'fileName': fileName
+            'fileName': fileName,
+            'modId': modId, // Devolvemos el ID para que main.dart lo procese
+            'version': exactVersion
           };
         }
       } else {

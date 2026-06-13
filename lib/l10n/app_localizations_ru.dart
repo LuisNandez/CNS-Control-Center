@@ -1177,6 +1177,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get modTypeMovies => 'Видео';
 
   @override
+  String get modTypeSave => 'Save';
+
+  @override
+  String get modTypeConfig => 'Config';
+
+  @override
+  String get modTypeSplash => 'Splash';
+
+  @override
   String get replacesOutfitTitle => 'Заменяет костюм';
 
   @override
@@ -1434,4 +1443,40 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get launchGameText => 'Запустить Stellar Blade';
+
+  @override
+  String get mod801DialogTitle => 'Steam Configuration Required';
+
+  @override
+  String get mod801DialogIntro =>
+      'The Random Splash mod has been installed. To make it work automatically when you launch the game, you need to configure Steam.';
+
+  @override
+  String get mod801Step1 =>
+      '1. Generate the exact path for your PC below and copy it.';
+
+  @override
+  String get mod801Step2 => '2. Open your Steam Library.';
+
+  @override
+  String get mod801Step3 => '3. Right-click on Stellar Blade -> Properties.';
+
+  @override
+  String get mod801Step4 =>
+      '4. In the \'General\' tab, paste the code into \'Launch Options\'.';
+
+  @override
+  String get mod801BtnGenerate => 'Generate Path';
+
+  @override
+  String get mod801BtnSteam => 'Open Steam';
+
+  @override
+  String get mod801BtnCopy => 'Copy';
+
+  @override
+  String get mod801PathGenerated => 'Path generated successfully.';
+
+  @override
+  String get mod801PathCopied => 'Command copied to clipboard!';
 }

@@ -2068,6 +2068,24 @@ abstract class AppLocalizations {
   /// **'Movies'**
   String get modTypeMovies;
 
+  /// No description provided for @modTypeSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get modTypeSave;
+
+  /// No description provided for @modTypeConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'Config'**
+  String get modTypeConfig;
+
+  /// No description provided for @modTypeSplash.
+  ///
+  /// In en, this message translates to:
+  /// **'Splash'**
+  String get modTypeSplash;
+
   /// No description provided for @replacesOutfitTitle.
   ///
   /// In en, this message translates to:
@@ -2469,6 +2487,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Launch Stellar Blade'**
   String get launchGameText;
+
+  /// No description provided for @mod801DialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Steam Configuration Required'**
+  String get mod801DialogTitle;
+
+  /// No description provided for @mod801DialogIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'The Random Splash mod has been installed. To make it work automatically when you launch the game, you need to configure Steam.'**
+  String get mod801DialogIntro;
+
+  /// No description provided for @mod801Step1.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Generate the exact path for your PC below and copy it.'**
+  String get mod801Step1;
+
+  /// No description provided for @mod801Step2.
+  ///
+  /// In en, this message translates to:
+  /// **'2. Open your Steam Library.'**
+  String get mod801Step2;
+
+  /// No description provided for @mod801Step3.
+  ///
+  /// In en, this message translates to:
+  /// **'3. Right-click on Stellar Blade -> Properties.'**
+  String get mod801Step3;
+
+  /// No description provided for @mod801Step4.
+  ///
+  /// In en, this message translates to:
+  /// **'4. In the \'General\' tab, paste the code into \'Launch Options\'.'**
+  String get mod801Step4;
+
+  /// No description provided for @mod801BtnGenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate Path'**
+  String get mod801BtnGenerate;
+
+  /// No description provided for @mod801BtnSteam.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Steam'**
+  String get mod801BtnSteam;
+
+  /// No description provided for @mod801BtnCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get mod801BtnCopy;
+
+  /// No description provided for @mod801PathGenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'Path generated successfully.'**
+  String get mod801PathGenerated;
+
+  /// No description provided for @mod801PathCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Command copied to clipboard!'**
+  String get mod801PathCopied;
 }
 
 class _AppLocalizationsDelegate

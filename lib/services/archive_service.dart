@@ -138,9 +138,23 @@ class ArchiveService {
       final hasJsons = allModFiles.any((f) => p.extension(f.path).toLowerCase() == '.json');
       final hasMovies = allModFiles.any((f) => ['.bk2', '.webm'].contains(p.extension(f.path).toLowerCase()));
 
+      // --- NUEVO ESCÁNER INFALIBLE PARA SPLASH ---
+      // Buscamos directamente en el disco duro, ignorando los filtros de la app
+      bool hasSplashImages = false;
+      await for (final entity in archiveTempDir.list(recursive: true)) {
+        if (entity is File) {
+          final ext = p.extension(entity.path).toLowerCase();
+          if (['.bmp', '.jpg', '.jpeg', '.png'].contains(ext)) {
+            hasSplashImages = true;
+            break; // En cuanto encontramos una imagen, sabemos que es Splash
+          }
+        }
+      }
+      // -------------------------------------------
+
       if (hasMovies && !hasPaks && !hasJsons) {
         preparedMods.add(PreparedMod(
-          sourceDir: archiveTempDir, // Tratamos todo el paquete como un único mod
+          sourceDir: archiveTempDir,
           ue4ssDir: null,
           tildeModsDir: null,
           nexusId: nexusInfo?['id'],
@@ -150,6 +164,22 @@ class ArchiveService {
         ));
         continue;
       }
+
+      // --- NUEVA INTERCEPCIÓN PARA SPLASH ---
+      // Si tiene imágenes y NO tiene Paks ni Videos, interceptamos el ZIP COMPLETO
+      if (hasSplashImages && !hasPaks && !hasMovies) {
+        preparedMods.add(PreparedMod(
+          sourceDir: archiveTempDir, // Pasamos toda la carpeta principal intacta
+          ue4ssDir: null,
+          tildeModsDir: null,
+          nexusId: nexusInfo?['id'],
+          nexusVersion: nexusInfo?['version'],
+          archiveName: archiveName,
+          modType: ModDirectoryType.splash,
+        ));
+        continue; // Rompemos el ciclo aquí para que NO divida el ZIP en 3 ventanas
+      }
+      // ---------------------------------------
 
       // 1. Comprobar UE4SS
       final ue4ssRoot = await findUE4SSRoot(archiveTempDir);
@@ -233,8 +263,14 @@ class ArchiveService {
         continue;
       }
 
-      // 3.5 Interceptar Mods Especiales (como 550, 1112) para que no se dividan
+      // 3.5 Interceptar Mods Especiales (como 550, 801, 1112) para que no se dividan
       if (isSpecialModById) {
+        // Por defecto es genericPak, a menos que sea el 801 (Splash)
+        ModDirectoryType targetType = ModDirectoryType.genericPak;
+        if (nexusId == '801') {
+          targetType = ModDirectoryType.splash;
+        }
+
         preparedMods.add(PreparedMod(
           sourceDir: archiveTempDir, // Pasamos toda la raíz de extracción intacta
           ue4ssDir: null,
@@ -242,7 +278,7 @@ class ArchiveService {
           nexusId: nexusId,
           nexusVersion: nexusInfo?['version'],
           archiveName: archiveName,
-          modType: ModDirectoryType.genericPak, 
+          modType: targetType, 
         ));
         continue;
       }
@@ -275,6 +311,13 @@ class ArchiveService {
       final pakFiles = allModFiles.where((f) => ['.pak', '.ucas', '.utoc'].contains(p.extension(f.path).toLowerCase())).toList();
       final bk2Files = allModFiles.where((f) => p.extension(f.path).toLowerCase() == '.bk2').toList();
 
+      final saveFiles = allModFiles.where((f) => p.extension(f.path).toLowerCase() == '.sav').toList();
+      final configFiles = allModFiles.where((f) {
+        final name = p.basename(f.path).toLowerCase();
+        return ['engine.ini', 'scalability.ini', 'input.ini', 'game.ini'].contains(name);
+      }).toList();
+      
+
       if (jsonFiles.isNotEmpty && pakFiles.isNotEmpty) {
         final consolidatedDir = await Directory(p.join(archiveTempDir.path, '_consolidated_')).create();
         for (final modFile in allModFiles) {
@@ -296,6 +339,19 @@ class ArchiveService {
           await modFile.copy(p.join(consolidatedDir.path, p.basename(modFile.path)));
         }
         preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.movies, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version']));
+      }
+      else if (saveFiles.isNotEmpty) {
+        final consolidatedDir = await Directory(p.join(archiveTempDir.path, '_consolidated_')).create();
+        for (final modFile in saveFiles) {
+          await modFile.copy(p.join(consolidatedDir.path, p.basename(modFile.path)));
+        }
+        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.save, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version']));
+      } else if (configFiles.isNotEmpty) {
+        final consolidatedDir = await Directory(p.join(archiveTempDir.path, '_consolidated_')).create();
+        for (final modFile in configFiles) {
+          await modFile.copy(p.join(consolidatedDir.path, p.basename(modFile.path)));
+        }
+        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.config, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version']));
       }
     }
 

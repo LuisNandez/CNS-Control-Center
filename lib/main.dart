@@ -45,6 +45,9 @@ import 'package:protocol_handler/protocol_handler.dart';
 import 'ui/dialogs/download_dialog.dart';
 import 'package:windows_single_instance/windows_single_instance.dart';
 import 'services/movie_mods_handler.dart';
+import 'ui/dialogs/mod_801_steam_dialog.dart';
+import 'services/splash_mods_handler.dart';
+import 'ui/dialogs/splash_mod_dialog.dart';
 
 final StreamController<String> multiInstanceLinkStream = StreamController<String>.broadcast();
 
@@ -193,6 +196,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   String? _moviesBackupPath;
   String? _logicModsPath;
   String? _ue4ssModsPath;
+  String? _savesPath;         // <-- NUEVO: Ruta a %LOCALAPPDATA%/SB/Saved/SaveGames
+  String? _configPath;        // <-- NUEVO: Ruta a %LOCALAPPDATA%/SB/Saved/Config/WindowsNoEditor
+  String? _splashPath;        // <-- NUEVO: Ruta a SB/Content/Splash
+
+  String? _savesBackupPath;   // <-- NUEVO: Respaldo seguro de partidas originales
+  String? _configBackupPath;  // <-- NUEVO: Respaldo seguro de configuraciones (.ini)
+  String? _splashBackupPath;  // <-- NUEVO: Respaldo seguro del splash original
 
   String? _7zipPath;
 
@@ -322,18 +332,32 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         return DownloadModDialog(
           nxmUrl: url,
           apiKey: _apiKey!,
-          onDownloadComplete: (File downloadedFile) async { // <-- Añade async
+          onDownloadComplete: (File downloadedFile, String modId, String version) async { 
             Navigator.of(context).pop(); 
+
+            File fileToProcess = downloadedFile;
+
+            // Inyectar el Nexus ID imitando la estructura estándar de Nexus Mods
+            final fileName = p.basename(downloadedFile.path);
+            if (!fileName.contains('-$modId-')) {
+               final ext = p.extension(downloadedFile.path);
+               final nameWithoutExt = p.basenameWithoutExtension(downloadedFile.path);
+               final safeVersion = version.replaceAll('.', '-');
+               
+               // Añadimos "-1-0" al final para que ArchiveService detecte 
+               // una versión y valide la expresión regular perfectamente.
+               final newPath = p.join(downloadedFile.parent.path, '$nameWithoutExt-$modId-$safeVersion-0$ext');
+               fileToProcess = await downloadedFile.rename(newPath);
+            }
             
-            // Esperamos a que el usuario termine en el panel de instalación (instale o cancele)
-            await _showInstallationPanel(initialFiles: [downloadedFile]);
+            // IMPORTANTE: Asegúrate de pasar 'fileToProcess' y no 'downloadedFile'
+            await _showInstallationPanel(initialFiles: [fileToProcess]);
             
             // ++ LIMPIEZA DEL ARCHIVO DESCARGADO ++
             try {
-              if (await downloadedFile.exists()) {
-                await downloadedFile.delete(); // Borramos el .zip
-                // Intentamos borrar la carpeta contenedora (sb_downloads_...) si quedó vacía
-                final parentDir = downloadedFile.parent;
+              if (await fileToProcess.exists()) {
+                await fileToProcess.delete(); 
+                final parentDir = fileToProcess.parent;
                 if (await parentDir.exists() && await parentDir.list().isEmpty) {
                   await parentDir.delete();
                 }
@@ -980,65 +1004,67 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
       gamePath ??= await GameLocatorService.findSteamInstallation();
 
-      if (gamePath != null && await Directory(gamePath).exists()) {
-        final cnsModPath = p.join(
-          gamePath,
-          'SB',
-          'Content',
-          'Paks',
-          '~mods',
-          'CustomNanosuitSystem',
-        );
-        final genericModPath = p.join(
-          gamePath,
-          'SB',
-          'Content',
-          'Paks',
-          '~mods',
-        );
-        final moviesPath = p.join(gamePath, 'SB', 'Content', 'Movies');
-        final moviesBackupPath = p.join(
-          gamePath,
-          'SB',
-          'Content',
-          '__MOVIES_ORIGINALS__',
-        );
-        final logicModsPath = p.join(
-          gamePath,
-          'SB',
-          'Content',
-          'Paks',
-          'LogicMods',
-        );
-        final ue4ssModsPath = p.join(
-          gamePath,
-          'SB',
-          'Binaries',
-          'Win64',
-          'ue4ss',
-          'Mods',
-        );
-        final cnsDir = Directory(cnsModPath);
-        final genericDir = Directory(genericModPath);
-        final moviesBackupDir = Directory(moviesBackupPath);
-        final logicModsDir = Directory(logicModsPath);
-        final ue4ssModsDir = Directory(ue4ssModsPath);
+      // Resolver la ruta de %LOCALAPPDATA% de Windows de forma segura
+      String? localAppData = Platform.environment['LOCALAPPDATA'];
+      if (localAppData == null && Platform.isWindows) {
+        final userProfile = Platform.environment['USERPROFILE'];
+        if (userProfile != null) {
+          localAppData = p.join(userProfile, 'AppData', 'Local');
+        }
+      }
 
-        if (!await cnsDir.exists()) {
-          await cnsDir.create(recursive: true);
+      if (gamePath != null && await Directory(gamePath).exists() && localAppData != null) {
+        // 1. Rutas estándar del juego
+        final cnsModPath = p.join(gamePath, 'SB', 'Content', 'Paks', '~mods', 'CustomNanosuitSystem');
+        final genericModPath = p.join(gamePath, 'SB', 'Content', 'Paks', '~mods');
+        final moviesPath = p.join(gamePath, 'SB', 'Content', 'Movies');
+        final logicModsPath = p.join(gamePath, 'SB', 'Content', 'Paks', 'LogicMods');
+        final ue4ssModsPath = p.join(gamePath, 'SB', 'Binaries', 'Win64', 'ue4ss', 'Mods');
+        
+        // [NUEVO] 2. Rutas de Datos de Usuario e Inyecciones de Contenido
+        String savesPath = p.join(localAppData, 'SB', 'Saved', 'SaveGames');
+        final savesBaseDir = Directory(savesPath);
+        
+        // Emular la lógica de Vortex: buscar la carpeta con el ID de usuario
+        if (await savesBaseDir.exists()) {
+          try {
+            final entities = await savesBaseDir.list().toList();
+            for (var entity in entities) {
+              if (entity is Directory) {
+                // Tomamos la primera subcarpeta (ej: 76561198388357018)
+                savesPath = entity.path;
+                break;
+              }
+            }
+          } catch (e) {
+            print("Error al leer la subcarpeta de SaveGames: $e");
+          }
         }
-        if (!await genericDir.exists()) {
-          await genericDir.create(recursive: true);
-        }
-        if (!await moviesBackupDir.exists()) {
-          await moviesBackupDir.create(recursive: true);
-        }
-        if (!await logicModsDir.exists()) {
-          await logicModsDir.create(recursive: true);
-        }
-        if (!await ue4ssModsDir.exists()) {
-          await ue4ssModsDir.create(recursive: true);
-        }
+
+        final configPath = p.join(localAppData, 'SB', 'Saved', 'Config', 'WindowsNoEditor');
+        final splashPath = p.join(gamePath, 'SB', 'Content', 'Splash');
+
+        // [NUEVO] 3. Rutas de Respaldos de Seguridad Reversibles
+        final moviesBackupPath = p.join(gamePath, 'SB', 'Content', '__MOVIES_ORIGINALS__');
+        final savesBackupPath = p.join(gamePath, 'SB', 'Content', '__SAVES_ORIGINALS__');
+        final configBackupPath = p.join(gamePath, 'SB', 'Content', '__CONFIG_ORIGINALS__');
+        final splashBackupPath = p.join(gamePath, 'SB', 'Content', '__SPLASH_ORIGINALS__');
+
+        // Asegurar la existencia de directorios base y nuevas rutas
+        await Directory(cnsModPath).create(recursive: true);
+        await Directory(genericModPath).create(recursive: true);
+        await Directory(moviesPath).create(recursive: true);
+        await Directory(logicModsPath).create(recursive: true);
+        await Directory(ue4ssModsPath).create(recursive: true);
+        
+        // Crear las nuevas carpetas físicas en el sistema si no existen
+        await Directory(savesPath).create(recursive: true);
+        await Directory(configPath).create(recursive: true);
+        await Directory(splashPath).create(recursive: true);
+        await Directory(moviesBackupPath).create(recursive: true);
+        await Directory(savesBackupPath).create(recursive: true);
+        await Directory(configBackupPath).create(recursive: true);
+        await Directory(splashBackupPath).create(recursive: true);
 
         setState(() {
           _gameRootPath = gamePath;
@@ -1048,44 +1074,56 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           _moviesBackupPath = moviesBackupPath;
           _logicModsPath = logicModsPath;
           _ue4ssModsPath = ue4ssModsPath;
+          
+          // Asignar nuevos estados de rutas
+          _savesPath = savesPath;
+          _configPath = configPath;
+          _splashPath = splashPath;
+          _savesBackupPath = savesBackupPath;
+          _configBackupPath = configBackupPath;
+          _splashBackupPath = splashBackupPath;
+
           if (mounted) {
             _statusMessage = AppLocalizations.of(context)!.statusGamePathFound;
           }
         });
       } else {
+        _resetCustomPaths();
         setState(() {
-          _finalModsPath = null;
-          _genericModsPath = null;
-          _moviesPath = null;
-          _moviesBackupPath = null;
-          _logicModsPath = null;
-          _ue4ssModsPath = null;
           if (mounted) {
-            _statusMessage = AppLocalizations.of(
-              context,
-            )!.statusGamePathNotFound;
+            _statusMessage = AppLocalizations.of(context)!.statusGamePathNotFound;
           }
           _statusColor = Colors.orangeAccent;
         });
       }
     } catch (e) {
+      _resetCustomPaths();
       setState(() {
-        _finalModsPath = null;
-        _genericModsPath = null;
-        _moviesPath = null;
-        _moviesBackupPath = null;
-        _logicModsPath = null;
-        _ue4ssModsPath = null;
         if (mounted) {
-          _statusMessage = AppLocalizations.of(
-            context,
-          )!.statusErrorFindingGame(e.toString());
+          _statusMessage = AppLocalizations.of(context)!.statusErrorFindingGame(e.toString());
         }
         _statusColor = Colors.redAccent;
       });
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  // Método auxiliar para limpiar estados en caso de error o desconfiguración
+  void _resetCustomPaths() {
+    _gameRootPath = null;
+    _finalModsPath = null;
+    _genericModsPath = null;
+    _moviesPath = null;
+    _moviesBackupPath = null;
+    _logicModsPath = null;
+    _ue4ssModsPath = null;
+    _savesPath = null;
+    _configPath = null;
+    _splashPath = null;
+    _savesBackupPath = null;
+    _configBackupPath = null;
+    _splashBackupPath = null;
   }
 
   Future<String?> _readCNSData() async {
@@ -2252,6 +2290,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     String? errorMessage;
     int successCount = 0;
     int failCount = 0;
+    bool installedMod801 = false;
 
     try {
       for (int i = 0; i < _preparedMods.length; i++) {
@@ -2264,6 +2303,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           if (modName != null) {
             installedNames.add(modName);
             successCount++;
+            if (preparedMod.nexusId == '801') {
+              installedMod801 = true;
+            }
             updateState(() {
               _installationProgress = (i + 1) / _preparedMods.length;
               _installationStatus = l10n.statusInstallingMod(
@@ -2299,6 +2341,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
             type: NotificationType.success,
             title: l10n.snackBarModInstalled(installedNames.first),
           );
+        }
+        if (installedMod801 && _gameRootPath != null) {
+          // Un pequeño delay visual para que el usuario vea que la instalación terminó primero
+          await Future.delayed(const Duration(milliseconds: 500));
+          await Mod801SteamDialog.show(context, _gameRootPath!);
         }
       }
     } catch (e) {
@@ -2440,14 +2487,19 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       // Parsear la estructura
       final modData = await SpecialModsHandler.parseMod(nexusId!, modDir);
       
-      // Mostrar el panel UI al usuario
-      final confirmed = await SpecialModSelectionDialog.show(context, modData);
-      
-      if (!confirmed) {
-        throw Exception(l10n.statusInstallationCancelledByUser);
+      // Mostrar el panel UI al usuario SOLO si hay MÁS de una opción
+      if (modData.options.length > 1) {
+        final confirmed = await SpecialModSelectionDialog.show(context, modData);
+        
+        if (!confirmed) {
+          throw Exception(l10n.statusInstallationCancelledByUser);
+        }
+      } else if (modData.options.length == 1) {
+        // Si solo hay una opción, la auto-seleccionamos para instalar directo
+        modData.options.first.isSelected = true;
       }
 
-      // Reconstruir un nuevo directorio fuente solo con los archivos seleccionados
+      // Reconstruir un nuevo directorio fuente solo con los archivos seleccionados (o principales)
       final tempRoot = Directory.systemTemp.createTempSync('mod_special_');
       modDir = await SpecialModsHandler.buildSelectedInstallation(modData, tempRoot);
       
@@ -2778,6 +2830,63 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       if (replacedFiles.isEmpty) {
         throw Exception("Movies mod contains no valid video files.");
       }
+    } 
+    else if (modType == ModDirectoryType.save) {
+      baseDisplayName = preparedMod.archiveName;
+      fitMeshType = "Save Game";
+      installPath = backupDirPath; // Se registra inactivo dentro de backups
+
+      await for (final entity in modDir.list(recursive: false)) {
+        if (entity is File && p.extension(entity.path).toLowerCase() == '.sav') {
+          replacedFiles.add(p.basename(entity.path));
+        }
+      }
+    } else if (modType == ModDirectoryType.config) {
+      baseDisplayName = preparedMod.archiveName;
+      fitMeshType = "Config (.ini)";
+      installPath = backupDirPath;
+
+      await for (final entity in modDir.list(recursive: false)) {
+        if (entity is File) {
+          final name = p.basename(entity.path).toLowerCase();
+          if (['engine.ini', 'scalability.ini', 'input.ini', 'game.ini'].contains(name)) {
+            replacedFiles.add(p.basename(entity.path));
+          }
+        }
+      }
+    } else if (modType == ModDirectoryType.splash) {
+      baseDisplayName = preparedMod.archiveName;
+      fitMeshType = "Splash Screen";
+      installPath = backupDirPath;
+
+      // 1. Parseamos el directorio para estructurar las opciones
+      final splashData = await SplashModsHandler.parseSplashMod(modDir);
+
+      // 2. Si hay múltiples imágenes/carpetas, mostramos el UI
+      if (splashData.hasMultipleOptions) {
+        final confirmed = await SplashModSelectionDialog.show(context, splashData);
+        if (!confirmed) {
+          throw Exception(l10n.statusInstallationCancelledByUser);
+        }
+        
+        // Creamos un nuevo directorio temporal consolidando SOLO lo seleccionado
+        final tempRoot = Directory.systemTemp.createTempSync('mod_splash_selected_');
+        modDir = await SplashModsHandler.buildSelectedInstallation(splashData, tempRoot);
+      } else if (splashData.folders.isNotEmpty) {
+        // Auto-selección si solo hay un archivo sin necesidad de interrumpir con el diálogo
+        final tempRoot = Directory.systemTemp.createTempSync('mod_splash_selected_');
+        modDir = await SplashModsHandler.buildSelectedInstallation(splashData, tempRoot);
+      }
+
+      // 3. Pasamos los archivos consolidados a la variable que _installSingleMod espera
+      await for (final entity in modDir.list(recursive: false)) {
+        if (entity is File) {
+          final ext = p.extension(entity.path).toLowerCase();
+          if (['.bmp', '.jpg', '.jpeg', '.png', '.bat'].contains(ext)) {
+            replacedFiles.add(p.basename(entity.path));
+          }
+        }
+      }
     } else {
       // No debería pasar si el clasificador de _processArchives funcionó
       throw Exception(l10n.errorNoCompatibleFilesInArchive);
@@ -2997,10 +3106,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       'sourceUrl': nexusId != null
           ? 'https://www.nexusmods.com/stellarblade/mods/$nexusId'
           : null,
-      'isEnabled': (modType == ModDirectoryType.movies)
+      'isEnabled': (modType == ModDirectoryType.movies ||
+                    modType == ModDirectoryType.save ||
+                    modType == ModDirectoryType.config ||
+                    modType == ModDirectoryType.splash)
           ? false
-          : null, // Los mods 'Movies' se instalan deshabilitados
-      'replacedFiles': (modType == ModDirectoryType.movies)
+          : null, // Se registran deshabilitados para evitar sobrescrituras accidentales
+      'replacedFiles': (modType == ModDirectoryType.movies ||
+                        modType == ModDirectoryType.save ||
+                        modType == ModDirectoryType.config ||
+                        modType == ModDirectoryType.splash)
           ? replacedFiles
           : null,
       'replacesOutfits': selectedOutfit != null ? [selectedOutfit] : null,
@@ -3023,13 +3138,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
     // 5. COPIAR ARCHIVOS (Usando la función auxiliar que ya tenías)
     List<File> filesToInstall = [];
-    if (modType == ModDirectoryType.movies) {
-      // Solo copia los archivos .bk2
+    if (modType == ModDirectoryType.movies ||
+        modType == ModDirectoryType.save ||
+        modType == ModDirectoryType.config ||
+        modType == ModDirectoryType.splash) {
       for (final fileName in replacedFiles) {
         filesToInstall.add(File(p.join(modDir.path, fileName)));
       }
     } else {
-      // Lógica anterior para CNS/Genéricos
       filesToInstall = await FileManagerService.findAllModFilesRecursive(modDir);
     }
 
@@ -3037,6 +3153,45 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       final fileName = p.basename(file.path);
       final destinationPath = p.join(newModPath, fileName);
       await file.copy(destinationPath);
+      if (nexusId == '801' && p.extension(destinationPath).toLowerCase() == '.bat') {
+        if (_gameRootPath != null) {
+          try {
+            final batFile = File(destinationPath);
+            List<String> lines = await batFile.readAsLines();
+            List<String> patchedLines = [];
+
+            // Construimos las rutas dinámicas basadas en la instalación real del usuario
+            final dynamicSplashDir = p.join(_gameRootPath!, 'SB', 'Content', 'Splash', 'ModSplash', 'SplashImages');
+            final dynamicGameSplash = p.join(_gameRootPath!, 'SB', 'Content', 'Splash', 'splash.jpg');
+            
+            // Buscamos cuál es el ejecutable correcto del juego para este usuario
+            String dynamicGameExe = p.join(_gameRootPath!, 'StellarBlade.exe');
+            if (!await File(dynamicGameExe).exists()) {
+              dynamicGameExe = p.join(_gameRootPath!, 'SB.exe');
+            }
+
+            // Reemplazamos línea por línea si coincide con las variables del script
+            for (String line in lines) {
+              final upperLine = line.trim().toUpperCase();
+              if (upperLine.startsWith('SET "SPLASH_DIR=')) {
+                patchedLines.add('set "SPLASH_DIR=$dynamicSplashDir"');
+              } else if (upperLine.startsWith('SET "GAME_SPLASH=')) {
+                patchedLines.add('set "GAME_SPLASH=$dynamicGameSplash"');
+              } else if (upperLine.startsWith('SET "GAME_EXE=')) {
+                patchedLines.add('set "GAME_EXE=$dynamicGameExe"');
+              } else {
+                patchedLines.add(line);
+              }
+            }
+
+            // Guardamos el .bat ya parcheado (con formato de salto de línea de Windows)
+            await batFile.writeAsString(patchedLines.join('\r\n'));
+            print('Script .bat del Mod 801 parcheado con éxito para este equipo.');
+          } catch (e) {
+            print('Error al intentar parchear el archivo .bat del Mod 801: $e');
+          }
+        }
+      }
     }
 
     if (nexusId != null) {
@@ -3062,6 +3217,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       for (final movieMod in activeMovieMods) {
         print("Desactivando mod de película preventivamente por activación del Mod 529: ${movieMod.customName}");
         await _disableMod(movieMod);
+      }
+    }
+    if (modInfo.nexusId == '801') {
+      final activeSplashMods = _allMods
+          .where((m) => m.isEnabled && m.modType == 'splash' && m.directory.path != modInfo.directory.path)
+          .toList();
+      
+      for (final splashMod in activeSplashMods) {
+        print("Desactivando mod splash preventivamente por activación del Mod 801: ${splashMod.customName}");
+        await _disableMod(splashMod);
       }
     }
 
@@ -3247,12 +3412,26 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
       // --- INICIO DE LÓGICA DE BIFURCACIÓN ---
       if (modInfo.modType == 'movies') {
-        // LÓGICA DE REEMPLAZO (MOVIES)
-        // ++ PASAMOS _allMods para que pueda resolver conflictos ++
         await _enableMovieMod(modInfo, _allMods);
-        updatedMod = modInfo.copyWith(
-          isEnabled: true,
-        ); // Actualiza el estado local
+        updatedMod = modInfo.copyWith(isEnabled: true);
+      } else if (modInfo.modType == 'save') {
+        await _enableCustomFileMod(modInfo, _savesPath!, _savesBackupPath!);
+        updatedMod = modInfo.copyWith(isEnabled: true);
+      } else if (modInfo.modType == 'config') {
+        await _enableCustomFileMod(modInfo, _configPath!, _configBackupPath!);
+        updatedMod = modInfo.copyWith(isEnabled: true);
+      } else if (modInfo.modType == 'splash') {
+        await _enableSplashMod(modInfo, _allMods);
+        
+        // Creación requerida de la carpeta "ModSplash" específica para el mod 801
+        if (modInfo.nexusId == '801' && _splashPath != null) {
+          final modSplashDir = Directory(p.join(_splashPath!, 'ModSplash'));
+          if (!await modSplashDir.exists()) {
+            await modSplashDir.create(recursive: true);
+          }
+        }
+        
+        updatedMod = modInfo.copyWith(isEnabled: true);
       } else {
         // LÓGICA DE MOVIMIENTO DE CARPETA (CNS/GENÉRICO)
         final modName = p.basename(modInfo.directory.path);
@@ -3406,6 +3585,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         await _disableMod(movieMod);
       }
     }
+    if (modInfo.nexusId == '801') {
+      final activeSplashMods = _allMods
+          .where((m) => m.isEnabled && m.modType == 'splash' && m.directory.path != modInfo.directory.path)
+          .toList();
+      
+      for (final splashMod in activeSplashMods) {
+        print("Desactivando mod splash preventivamente por activación del Mod 801: ${splashMod.customName}");
+        await _disableMod(splashMod);
+      }
+    }
 
     try {
       final backupDir = Directory(
@@ -3419,11 +3608,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
       // --- INICIO DE LÓGICA DE BIFURCACIÓN ---
       if (modInfo.modType == 'movies') {
-        // LÓGICA DE REEMPLAZO (MOVIES)
         await _disableMovieMod(modInfo);
-        updatedMod = modInfo.copyWith(
-          isEnabled: false,
-        ); // Actualiza el estado local
+        updatedMod = modInfo.copyWith(isEnabled: false);
+      } else if (modInfo.modType == 'save') {
+        await _disableCustomFileMod(modInfo, _savesPath!, _savesBackupPath!);
+        updatedMod = modInfo.copyWith(isEnabled: false);
+      } else if (modInfo.modType == 'config') {
+        await _disableCustomFileMod(modInfo, _configPath!, _configBackupPath!);
+        updatedMod = modInfo.copyWith(isEnabled: false);
+      } else if (modInfo.modType == 'splash') {
+        await _disableSplashMod(modInfo);
+        updatedMod = modInfo.copyWith(isEnabled: false);
       } else {
         // LÓGICA DE MOVIMIENTO DE CARPETA (CNS/GENÉRICO)
         final modName = p.basename(modInfo.directory.path);
@@ -3716,8 +3911,271 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     await infoFile.writeAsString(encoder.convert(data));
   }
 
+  /// Lógica específica para HABILITAR un mod de tipo "Splash".
+  Future<void> _enableSplashMod(ModInfo modInfo, List<ModInfo> allMods) async {
+    if (_splashPath == null || _splashBackupPath == null) {
+      throw Exception("Splash paths are not defined.");
+    }
+
+    final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
+    if (!await infoFile.exists()) {
+      throw Exception("nexus_info.json not found for ${modInfo.customName}.");
+    }
+
+    final data = json.decode(await infoFile.readAsString());
+    final List<String> rawFiles = List<String>.from(data['replacedFiles'] ?? []);
+    
+    // Verificamos si el Mod 801 está activo (excepto si el mod que estamos instalando ES el 801)
+    final bool hasMod801 = allMods.any((m) => m.nexusId == '801' && m.isEnabled) || modInfo.nexusId == '801';
+    
+    List<String> actuallyInstalledFiles = [];
+
+    // Ignorar la lógica de imágenes si el mod es el propio Mod 801 (solo instala el .bat)
+    if (modInfo.nexusId == '801') {
+       for (final fileName in rawFiles) {
+          final sourceFile = File(p.join(modInfo.directory.path, fileName));
+          
+          if (p.extension(fileName).toLowerCase() == '.bat') {
+             // 1. Apuntamos a la carpeta ModSplash
+             final modSplashDir = Directory(p.join(_splashPath!, 'ModSplash'));
+             if (!await modSplashDir.exists()) {
+               await modSplashDir.create(recursive: true);
+             }
+             
+             // 2. Definimos el destino FINAL dentro de ModSplash
+             final targetFile = File(p.join(modSplashDir.path, fileName));
+             
+             // 3. Copiamos el archivo .bat
+             await sourceFile.copy(targetFile.path);
+             
+             // 4. Guardamos el registro con la ruta relativa 'ModSplash\nombre_del_archivo.bat'
+             // Esto es crucial para que la función de desactivar sepa dónde encontrarlo.
+             actuallyInstalledFiles.add(p.join('ModSplash', fileName));
+          }
+       }
+       data['isRandomizerMode'] = false; // El 801 es la base, no el contenido
+    }
+    else if (hasMod801) {
+      // ==== MODO RANDOMIZER (Mod 801 Activo) ====
+      final imagesDir = Directory(p.join(_splashPath!, 'ModSplash', 'SplashImages'));
+      if (!await imagesDir.exists()) await imagesDir.create(recursive: true);
+
+      for (final relativePath in rawFiles) {
+        final sourceFile = File(p.join(modInfo.directory.path, relativePath));
+        if (await sourceFile.exists() && ['.bmp', '.jpg', '.jpeg', '.png'].contains(p.extension(sourceFile.path).toLowerCase())) {
+          var ext = p.extension(sourceFile.path).toLowerCase();
+          
+          // Forzar la extensión a .jpg si el archivo original es .bmp
+          if (ext == '.bmp') {
+            ext = '.jpg';
+          }
+
+          // Se calcula el índice dentro del bucle para detectar y llenar huecos correctamente
+          // por cada archivo individual, evitando sobreescrituras si el mod tiene varias imágenes.
+          int nextIndex = await SplashModsHandler.getNextAvailableIndex(imagesDir);
+          
+          final newName = 'splash_$nextIndex$ext';
+          final targetFile = File(p.join(imagesDir.path, newName));
+          
+          await sourceFile.copy(targetFile.path);
+          actuallyInstalledFiles.add(newName);
+        }
+      }
+      data['isRandomizerMode'] = true;
+
+    } else {
+      // ==== MODO CLÁSICO REEMPLAZO (Sin Mod 801) ====
+      List<File> fileObjects = rawFiles
+        .map((path) => File(p.join(modInfo.directory.path, path)))
+        .where((f) => f.existsSync())
+        .toList();
+
+      final mappings = SplashModsHandler.mapFilesForClassicReplacement(fileObjects);
+      
+      if (mappings.isEmpty) throw Exception("No se encontraron imágenes válidas en el mod.");
+
+      for (var entry in mappings.entries) {
+        final sourceFile = entry.key;
+        final targetName = entry.value; 
+        final gameFile = File(p.join(_splashPath!, targetName));
+        final backupFile = File(p.join(_splashBackupPath!, '$targetName.bak'));
+
+        if (await gameFile.exists() && !await backupFile.exists()) {
+          await gameFile.copy(backupFile.path);
+        }
+
+        await sourceFile.copy(gameFile.path);
+        actuallyInstalledFiles.add(targetName);
+      }
+      data['isRandomizerMode'] = false;
+    }
+
+    data['isEnabled'] = true;
+    data['activeInstalledFiles'] = actuallyInstalledFiles; 
+    final encoder = JsonEncoder.withIndent('  ');
+    await infoFile.writeAsString(encoder.convert(data));
+  }
+
+  /// Lógica específica para DESHABILITAR un mod de tipo "Splash".
+  Future<void> _disableSplashMod(ModInfo modInfo) async {
+    if (_splashPath == null || _splashBackupPath == null) {
+      throw Exception("Splash paths are not defined.");
+    }
+
+    final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
+    if (!await infoFile.exists()) return;
+
+    final data = json.decode(await infoFile.readAsString());
+    final bool isRandomizerMode = data['isRandomizerMode'] ?? false;
+    final List<String> activeFiles = List<String>.from(data['activeInstalledFiles'] ?? []);
+
+    if (modInfo.nexusId == '801') {
+       // Eliminar el archivo .bat
+       for (final relativePath in activeFiles) {
+          final installedFile = File(p.join(_splashPath!, relativePath));
+          if (await installedFile.exists()) await installedFile.delete();
+       }
+    }
+    else if (isRandomizerMode) {
+      // ==== MODO RANDOMIZER ====
+      final imagesDir = Directory(p.join(_splashPath!, 'ModSplash', 'SplashImages'));
+      if (await imagesDir.exists()) {
+        for (final fileName in activeFiles) {
+          final installedFile = File(p.join(imagesDir.path, fileName));
+          if (await installedFile.exists()) await installedFile.delete();
+        }
+      }
+    } else {
+      // ==== MODO REEMPLAZO CLÁSICO ====
+      for (final fileName in activeFiles) {
+        final gameFile = File(p.join(_splashPath!, fileName));
+        final backupFile = File(p.join(_splashBackupPath!, '$fileName.bak'));
+
+        if (await backupFile.exists()) {
+          await backupFile.copy(gameFile.path);
+        } else if (await gameFile.exists()) {
+          await gameFile.delete();
+        }
+      }
+    }
+
+    data['isEnabled'] = false;
+    data.remove('activeInstalledFiles'); 
+    final encoder = JsonEncoder.withIndent('  ');
+    await infoFile.writeAsString(encoder.convert(data));
+  }
+
+  Future<void> _enableCustomFileMod(ModInfo modInfo, String targetPath, String backupPath) async {
+    final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
+    if (!await infoFile.exists()) {
+      throw Exception("nexus_info.json not found for ${modInfo.customName}.");
+    }
+
+    final data = json.decode(await infoFile.readAsString());
+    final List<String> files = List<String>.from(data['replacedFiles'] ?? []);
+
+    // Asegurar que el directorio de copias de seguridad exista
+    final backupDir = Directory(backupPath);
+    if (!await backupDir.exists()) {
+      await backupDir.create(recursive: true);
+    }
+
+    for (final fileName in files) {
+      final gameFile = File(p.join(targetPath, fileName));
+      // Guardamos el archivo con su nombre original (ej: Engine.ini) en la carpeta de backup
+      final backupFile = File(p.join(backupPath, fileName));
+      final sourceFile = File(p.join(modInfo.directory.path, fileName));
+
+      // Si el archivo original existe en el juego y no hay un respaldo previo, lo copiamos tal cual
+      if (await gameFile.exists() && !await backupFile.exists()) {
+        await gameFile.copy(backupFile.path);
+      }
+
+      // Inyectamos el archivo modificado del mod
+      if (await sourceFile.exists()) {
+        if (await gameFile.exists()) {
+          await gameFile.delete(); // Eliminar para evitar bloqueos de escritura de Windows/Unreal
+        }
+        await sourceFile.copy(gameFile.path);
+      }
+    }
+
+    data['isEnabled'] = true;
+    final encoder = JsonEncoder.withIndent('  ');
+    await infoFile.writeAsString(encoder.convert(data));
+  }
+
+  Future<void> _disableCustomFileMod(ModInfo modInfo, String targetPath, String backupPath) async {
+    final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
+    if (!await infoFile.exists()) {
+      throw Exception("nexus_info.json not found for ${modInfo.customName}.");
+    }
+
+    final data = json.decode(await infoFile.readAsString());
+    final List<String> files = List<String>.from(data['replacedFiles'] ?? []);
+
+    for (final fileName in files) {
+      final gameFile = File(p.join(targetPath, fileName));
+      final backupFile = File(p.join(backupPath, fileName));
+
+      if (await backupFile.exists()) {
+        // 1. Quitar el bloqueo de "Solo lectura" de Windows (Muy común en los .ini)
+        if (Platform.isWindows) {
+          try {
+            await Process.run('attrib', ['-R', gameFile.path]);
+          } catch (_) {} // Lo ignoramos si la consola no responde
+        }
+
+        // 2. Eliminar de forma segura el archivo inyectado
+        if (await gameFile.exists()) {
+          try {
+            await gameFile.delete();
+          } catch (e) {
+            print("Advertencia: No se pudo borrar el archivo modificado: $e");
+          }
+        }
+        
+        // 3. Restaurar original y borrar temporal (Con sistema anti-fallos)
+        try {
+          await backupFile.copy(gameFile.path);
+          await backupFile.delete();
+        } catch (e) {
+          print("Fallo en copy normal, usando fuerza bruta de bytes: $e");
+          // Fallback: Fuerza bruta leyendo y escribiendo los bytes directamente
+          final bytes = await backupFile.readAsBytes();
+          await gameFile.writeAsBytes(bytes);
+          await backupFile.delete();
+        }
+      } else {
+        // Si no existía original, borramos el archivo inyectado (con desbloqueo previo)
+        if (await gameFile.exists()) {
+           if (Platform.isWindows) {
+              try { await Process.run('attrib', ['-R', gameFile.path]); } catch (_) {}
+           }
+           try { await gameFile.delete(); } catch (_) {}
+        }
+      }
+    }
+
+    data['isEnabled'] = false;
+    final encoder = JsonEncoder.withIndent('  ');
+    await infoFile.writeAsString(encoder.convert(data));
+  }
+
   Future<void> _deleteModPermanently(ModInfo modInfo) async {
     final l10n = AppLocalizations.of(context)!;
+
+    // Validación de seguridad: bloquea la eliminación si el mod sigue activo
+    if (modInfo.isEnabled) {
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.error,
+        title: l10n.errorDialogTitle,
+        description: 'Por favor, desactiva el mod antes de eliminarlo.', // O usa una variable de l10n si la tienes creada
+      );
+      return;
+    }
+
     final modName = modInfo.customName;
     final confirm = await showDialog<bool>(
       context: context,
@@ -3745,41 +4203,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       _isLoading = true;
       _lastInstalledModNames.clear();
     });
+
     try {
-      // --- INICIO DE LÓGICA DE BIFURCACIÓN ---
-      if (modInfo.modType == 'movies') {
-        // LÓGICA DE REEMPLAZO (MOVIES)
-        // 1. Si está habilitado, deshabilítalo primero para restaurar el original.
-        if (modInfo.isEnabled) {
-          await _disableMovieMod(modInfo);
-        }
-
-        // 2. (Opcional pero recomendado) Borra los backups de los originales
-        final infoFile = File(
-          p.join(modInfo.directory.path, 'nexus_info.json'),
-        );
-        if (await infoFile.exists() && _moviesBackupPath != null) {
-          try {
-            final data = json.decode(await infoFile.readAsString());
-            final List<String> replacedFiles = List<String>.from(
-              data['replacedFiles'] ?? [],
-            );
-            for (final fileName in replacedFiles) {
-              final backupFile = File(
-                p.join(_moviesBackupPath!, '$fileName.bak'),
-              );
-              if (await backupFile.exists()) {
-                await backupFile.delete();
-              }
-            }
-          } catch (e) {
-            print("Could not clean up movie backups: $e");
-          }
-        }
-      }
-      // --- FIN DE LÓGICA DE BIFURCACIÓN ---
-
-      // La lógica de borrado de carpeta es la misma para todos
+      // Como el mod ya se validó como inactivo, pasamos directo al borrado de la carpeta
       final deleted = await FileManagerService.deleteDirectoryWithRetry(modInfo.directory);
 
       if (deleted && mounted) {
@@ -4437,7 +4863,27 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       }
 
       if (exeToLaunch != null) {
-        await Process.start(exeToLaunch, [], workingDirectory: _gameRootPath);
+        // MEJORA 1: El directorio de trabajo debe ser la carpeta donde vive el ejecutable.
+        final workingDir = p.dirname(exeToLaunch);
+
+        // MEJORA 2 y 3: Usar el comando 'start' nativo de Windows a través de CMD
+        if (Platform.isWindows) {
+          // El primer par de comillas vacías '""' previene errores si la ruta tiene espacios
+          await Process.start(
+            'cmd',
+            ['/c', 'start', '""', exeToLaunch],
+            workingDirectory: workingDir,
+            runInShell: true, 
+          );
+        } else {
+          // Fallback por si la app se compila para otro OS en el futuro
+          await Process.start(
+            exeToLaunch, 
+            [], 
+            workingDirectory: workingDir,
+            runInShell: true
+          );
+        }
         
         if (mounted) {
           NotificationService.instance.show(
@@ -4789,6 +5235,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         break;
       case ModTypeFilter.logicMod:
         mods.retainWhere((mod) => mod.modType == 'logicMod');
+        break;
+      case ModTypeFilter.save:
+        mods.retainWhere((mod) => mod.modType == 'save');
+        break;
+      case ModTypeFilter.config:
+        mods.retainWhere((mod) => mod.modType == 'config');
+        break;
+      case ModTypeFilter.splash:
+        mods.retainWhere((mod) => mod.modType == 'splash');
         break;
       case ModTypeFilter.all:
       default:
@@ -5609,6 +6064,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                   _buildNavButton(l10n.modTypeMovies),
                   _buildNavButton(l10n.modTypeLogic),
                   _buildNavButton(l10n.modTypeGeneric),
+                  _buildNavButton(l10n.modTypeSave),
+                  _buildNavButton(l10n.modTypeConfig),
+                  _buildNavButton(l10n.modTypeSplash),
                 ],
               ),
             ),

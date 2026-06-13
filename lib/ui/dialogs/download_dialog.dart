@@ -7,7 +7,7 @@ import '../../services/download_service.dart';
 class DownloadModDialog extends StatefulWidget {
   final String nxmUrl;
   final String apiKey;
-  final Function(File downloadedFile) onDownloadComplete;
+  final Function(File downloadedFile, String modId, String version) onDownloadComplete;
 
   const DownloadModDialog({
     super.key,
@@ -59,6 +59,9 @@ class _DownloadModDialogState extends State<DownloadModDialog> {
         _statusMessage = AppLocalizations.of(context)!.downloadStatusDownloading(_fileName);
       });
 
+      final String extractedModId = linkData['modId']!;
+      final String extractedVersion = linkData['version']!;
+
       // 2. Descargar el archivo
       final downloadedFile = await DownloadService.downloadFile(
         url: linkData['url']!,
@@ -77,7 +80,8 @@ class _DownloadModDialogState extends State<DownloadModDialog> {
       if (!mounted) return;
 
       if (downloadedFile != null) {
-        widget.onDownloadComplete(downloadedFile);
+        widget.onDownloadComplete(downloadedFile, extractedModId, extractedVersion);
+        
       } else {
         setState(() {
           _isDownloading = false;
