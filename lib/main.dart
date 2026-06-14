@@ -48,6 +48,8 @@ import 'services/movie_mods_handler.dart';
 import 'ui/dialogs/mod_801_steam_dialog.dart';
 import 'services/splash_mods_handler.dart';
 import 'ui/dialogs/splash_mod_dialog.dart';
+import 'services/download_manager.dart';
+import 'ui/widgets/download_pill_overlay.dart';
 
 final StreamController<String> multiInstanceLinkStream = StreamController<String>.broadcast();
 
@@ -175,6 +177,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   final List<PreparedMod> _preparedMods = [];
   PreparedUE4SS? _preparedUE4SS;
   Map<String, List<String>> _modsToInstallPreviewMap = {};
+  final List<File> _installQueue = [];
+  bool _isProcessingQueue = false;
 
   String _statusMessage = '';
   Color _statusColor = Colors.white;
@@ -313,6 +317,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     }
   }
 
+  // En main.dart
+
   Future<void> _handleNxmDownload(String url) async {
     if (_apiKey == null || _apiKey!.isEmpty) {
       if (mounted) {
@@ -325,48 +331,22 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       return;
     }
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return DownloadModDialog(
-          nxmUrl: url,
-          apiKey: _apiKey!,
-          onDownloadComplete: (File downloadedFile, String modId, String version) async { 
-            Navigator.of(context).pop(); 
+    // Mostrar el Overlay de descargas (la píldora)
+    DownloadOverlay.show(context);
 
-            File fileToProcess = downloadedFile;
-
-            // Inyectar el Nexus ID imitando la estructura estándar de Nexus Mods
-            final fileName = p.basename(downloadedFile.path);
-            if (!fileName.contains('-$modId-')) {
-               final ext = p.extension(downloadedFile.path);
-               final nameWithoutExt = p.basenameWithoutExtension(downloadedFile.path);
-               final safeVersion = version.replaceAll('.', '-');
-               
-               // Añadimos "-1-0" al final para que ArchiveService detecte 
-               // una versión y valide la expresión regular perfectamente.
-               final newPath = p.join(downloadedFile.parent.path, '$nameWithoutExt-$modId-$safeVersion-0$ext');
-               fileToProcess = await downloadedFile.rename(newPath);
-            }
-            
-            // IMPORTANTE: Asegúrate de pasar 'fileToProcess' y no 'downloadedFile'
-            await _showInstallationPanel(initialFiles: [fileToProcess]);
-            
-            // ++ LIMPIEZA DEL ARCHIVO DESCARGADO ++
-            try {
-              if (await fileToProcess.exists()) {
-                await fileToProcess.delete(); 
-                final parentDir = fileToProcess.parent;
-                if (await parentDir.exists() && await parentDir.list().isEmpty) {
-                  await parentDir.delete();
-                }
-              }
-            } catch (e) {
-              print("No se pudo limpiar el archivo descargado: $e");
-            }
-          },
-        );
+    // Añadir la descarga al gestor global
+    DownloadManager.instance.addDownload(
+      url, 
+      _apiKey!, 
+      (File readyFile, String modId, String version) { 
+        
+        // El archivo 'readyFile' ya viene con el nombre corregido desde el Manager
+        _installQueue.add(readyFile);
+        
+        // Si el procesador de la cola no está trabajando, lo encendemos
+        if (!_isProcessingQueue) {
+          _processInstallQueue();
+        }
       },
     );
   }
@@ -647,9 +627,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     });
 
     try {
-      if (_gameRootPath == null) throw Exception("Game path not found.");
-
-      if (_gameRootPath == null) throw Exception("Game path not found.");
+      if (_gameRootPath == null) throw Exception(l10n.errorGamePathNotFoundException);
 
       // Llama al nuevo servicio para hacer el trabajo sucio
       await CoreInstallerService.uninstallCoreComponent(
@@ -722,7 +700,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
   Future<void> _migrateModFolders() async {
     setState(() {
-      _statusMessage = "Verifying integrity of mods...";
+      _statusMessage = AppLocalizations.of(context)!.statusVerifyingMods;
       _isLoading = true;
     });
 
@@ -948,7 +926,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['exe'],
-        dialogTitle: 'Select the 7z.exe file',
+        dialogTitle: AppLocalizations.of(context)!.dialogTitleSelect7zip,
       );
       if (result != null && result.files.single.path != null) {
         final newPath = result.files.single.path!;
@@ -978,7 +956,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         return newPath;
       }
     } catch (e) {
-      setState(() => _statusMessage = 'Error selecting 7-Zip: $e');
+      setState(() => _statusMessage = AppLocalizations.of(context)!.errorSelecting7Zip(e.toString()));
     }
     return null;
   }
@@ -1202,7 +1180,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   Future<String?> _selectGamePathManually() async {
     try {
       String? result = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: 'Please select the main StellarBlade folder',
+        dialogTitle: AppLocalizations.of(context)!.dialogTitleSelectGameFolder,
       );
       if (result != null) {
         final validationPath = p.join(result, 'SB', 'Content', 'Paks');
@@ -1240,13 +1218,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           }
           setState(() {
             _statusMessage =
-                'The selected folder does not seem to be correct. Please try again.';
+                AppLocalizations.of(context)!.errorInvalidFolderRetry;
             _statusColor = Colors.redAccent;
           });
         }
       }
     } catch (e) {
-      setState(() => _statusMessage = 'Error selecting folder: $e');
+      setState(() => _statusMessage = AppLocalizations.of(context)!.errorSelectingFolderDynamic(e.toString()));
     }
     return null;
   }
@@ -2363,7 +2341,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         if (errorMessage == null) {
           _statusMessage = installedNames.isNotEmpty
               ? l10n.statusInstallationComplete
-              : 'Installation produced no new mods.';
+              : l10n.statusNoNewModsInstalled;
         } else {
           _statusMessage = l10n.statusError(errorMessage);
           _statusColor = Colors.redAccent;
@@ -2522,7 +2500,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     List<String> replacedFiles = [];
 
     // Definir la ruta de backup general (para mods deshabilitados y movies)
-    if (_gameRootPath == null) throw Exception("Game path not defined.");
+    if (_gameRootPath == null) throw Exception(l10n.errorGamePathNotDefined);
     final backupDirPath = p.join(
       _gameRootPath!,
       'SB',
@@ -2552,16 +2530,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       // Ruta de destino para los LogicMods (.../Paks/LogicMods)
       installPath = _logicModsPath;
       if (installPath == null)
-        throw Exception("LogicMods path is not defined.");
+        throw Exception(l10n.errorLogicModsPathNotDefined);
 
       // Ruta de destino para los archivos UE4SS (.../ue4ss/Mods)
       final ue4ssDestPath = _ue4ssModsPath;
       if (ue4ssDestPath == null)
-        throw Exception("UE4SS Mods path is not defined.");
+        throw Exception(l10n.errorUe4ssModsPathNotDefined);
 
       final tildeModsDestPath = _genericModsPath;
       if (tildeModsDestPath == null)
-        throw Exception("Generic mods (~mods) path is not defined.");
+        throw Exception(l10n.errorGenericModsPathNotDefined);
 
       // Nombre de la carpeta del mod (para la parte Lógica)
       finalFolderName = baseDisplayName;
@@ -2603,7 +2581,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
             if (oldVersionMod == null) {
               // Comprobación de seguridad
               throw Exception(
-                "Attempted to replace a mod but no old version was identified.",
+                l10n.errorReplaceNoOldVersion,
               );
             }
             // Preservar customName
@@ -2626,7 +2604,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
             );
             if (!deleted) {
               throw Exception(
-                'Could not delete old mod version (${oldVersionMod.customName}).',
+                l10n.errorDeleteOldModVersion(oldVersionMod.customName),
               );
             }
             // NOTA: No podemos desinstalar la parte de UE4SS. El usuario es responsable.
@@ -2682,7 +2660,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           );
           if (!deleted) {
             throw Exception(
-              'Could not delete existing mod ($finalFolderName) to reinstall.',
+              l10n.errorDeleteExistingModReinstall(finalFolderName),
             );
           }
         }
@@ -2828,7 +2806,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       }
       
       if (replacedFiles.isEmpty) {
-        throw Exception("Movies mod contains no valid video files.");
+        throw Exception(l10n.errorMoviesModNoValidFiles);
       }
     } 
     else if (modType == ModDirectoryType.save) {
@@ -2896,7 +2874,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       throw FormatException(l10n.errorNoValidDisplayName);
     }
     if (installPath == null) {
-      throw Exception("Installation path could not be determined.");
+      throw Exception(l10n.errorInstallPathUndetermined);
     }
 
     finalFolderName = baseDisplayName;
@@ -3081,7 +3059,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         final deleted = await FileManagerService.deleteDirectoryWithRetry(Directory(newModPath));
         if (!deleted) {
           throw Exception(
-            'Could not delete existing mod ($finalFolderName) to reinstall after several attempts.',
+            l10n.errorDeleteExistingModReinstallAttempts(finalFolderName),
           );
         }
       }
@@ -3736,7 +3714,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   /// Lógica específica para HABILITAR un mod de tipo "Movies".
   Future<void> _enableMovieMod(ModInfo modInfo, List<ModInfo> allMods) async {
     if (_moviesPath == null || _moviesBackupPath == null) {
-      throw Exception("Movies paths are not defined.");
+      throw Exception(AppLocalizations.of(context)!.errorMoviesPathsNotDefined);
     }
 
     final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
@@ -3783,7 +3761,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
       for (final relativePath in filesToProcess) {
         if (nextIndex > 99) {
-          throw Exception("Límite de 99 vídeos para el menú alcanzado.");
+          throw Exception(AppLocalizations.of(context)!.errorMenuVideoLimitReached);
         }
         final sourceFile = File(p.join(modInfo.directory.path, relativePath));
         if (await sourceFile.exists()) {
@@ -3808,7 +3786,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       final mappings = MovieModsHandler.mapFilesForClassicReplacement(fileObjects);
       
       if (mappings.isEmpty) {
-        throw Exception("El mod requiere el Mod ID 529 para funcionar (solo contiene archivos WebM).");
+        throw Exception(AppLocalizations.of(context)!.errorModRequires529);
       }
 
       // Aplicar exclusividad clásica (apagar mods conflictivos)
@@ -3862,12 +3840,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   /// Lógica específica para DESHABILITAR un mod de tipo "Movies".
   Future<void> _disableMovieMod(ModInfo modInfo) async {
     if (_moviesPath == null || _moviesBackupPath == null) {
-      throw Exception("Movies paths are not defined.");
+      throw Exception(AppLocalizations.of(context)!.errorMoviesPathsNotDefined);
     }
 
     final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
     if (!await infoFile.exists()) {
-      throw Exception("nexus_info.json not found for ${modInfo.customName}.");
+      throw Exception(AppLocalizations.of(context)!.errorNexusInfoNotFoundForMod(modInfo.customName));
     }
 
     final data = json.decode(await infoFile.readAsString());
@@ -3914,12 +3892,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   /// Lógica específica para HABILITAR un mod de tipo "Splash".
   Future<void> _enableSplashMod(ModInfo modInfo, List<ModInfo> allMods) async {
     if (_splashPath == null || _splashBackupPath == null) {
-      throw Exception("Splash paths are not defined.");
+      throw Exception(AppLocalizations.of(context)!.errorSplashPathsNotDefined);
     }
 
     final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
     if (!await infoFile.exists()) {
-      throw Exception("nexus_info.json not found for ${modInfo.customName}.");
+      throw Exception(AppLocalizations.of(context)!.errorNexusInfoNotFoundForMod(modInfo.customName));
     }
 
     final data = json.decode(await infoFile.readAsString());
@@ -3992,7 +3970,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
       final mappings = SplashModsHandler.mapFilesForClassicReplacement(fileObjects);
       
-      if (mappings.isEmpty) throw Exception("No se encontraron imágenes válidas en el mod.");
+      if (mappings.isEmpty) throw Exception(AppLocalizations.of(context)!.errorSplashNoValidImages);
 
       for (var entry in mappings.entries) {
         final sourceFile = entry.key;
@@ -4019,7 +3997,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   /// Lógica específica para DESHABILITAR un mod de tipo "Splash".
   Future<void> _disableSplashMod(ModInfo modInfo) async {
     if (_splashPath == null || _splashBackupPath == null) {
-      throw Exception("Splash paths are not defined.");
+      throw Exception(AppLocalizations.of(context)!.errorSplashPathsNotDefined);
     }
 
     final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
@@ -4171,7 +4149,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         context: context,
         type: NotificationType.error,
         title: l10n.errorDialogTitle,
-        description: 'Por favor, desactiva el mod antes de eliminarlo.', // O usa una variable de l10n si la tienes creada
+        description: l10n.errorDisableModBeforeDelete, // O usa una variable de l10n si la tienes creada
       );
       return;
     }
@@ -4215,7 +4193,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           title: l10n.snackBarModDeleted(modName),
         );
       } else if (!deleted) {
-        throw Exception('Could not delete directory.');
+        throw Exception(l10n.errorCouldNotDeleteDirectory);
       }
       await _loadAllMods();
     } catch (e) {
@@ -4333,7 +4311,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       if (mounted) {
         // Notificación dinámica: Avisa al usuario si hubo mods saltados para que no piense que fue un error
         final String titleMsg = skippedCount > 0 
-            ? 'Activados: $successCount (Saltados: $skippedCount por conflictos)'
+            ? l10n.snackBarModsEnabledWithSkips(successCount, skippedCount)
             : l10n.snackBarAllModsEnabled(successCount);
 
         NotificationService.instance.show(
@@ -4618,7 +4596,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                       NotificationService.instance.show(
                         context: context,
                         type: NotificationType.success,
-                        title: 'Developer Mode Enabled!',
+                        title: AppLocalizations.of(context)!.snackBarDeveloperModeEnabled,
                       );
                     }
                   },
@@ -4821,7 +4799,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       );
     } catch (e) {
       setState(() {
-        _statusMessage = "Error renaming mod: $e";
+        _statusMessage = AppLocalizations.of(context)!.errorRenamingMod(e.toString());
         _statusColor = Colors.redAccent;
       });
       return null;
@@ -4835,8 +4813,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         NotificationService.instance.show(
           context: context,
           type: NotificationType.error,
-          title: 'Error',
-          description: 'No se ha encontrado la ruta del juego.', 
+          title: AppLocalizations.of(context)!.notificationTitleError,
+          description: AppLocalizations.of(context)!.errorGamePathNotFoundNotification,
         );
       }
       return;
@@ -4889,7 +4867,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           NotificationService.instance.show(
             context: context,
             type: NotificationType.success,
-            title: 'Iniciando Stellar Blade...',
+            title: AppLocalizations.of(context)!.notificationLaunchingGame,
           );
         }
 
@@ -4898,14 +4876,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         await Future.delayed(const Duration(seconds: 4));
 
       } else {
-        throw Exception('No se encontró el archivo ejecutable (.exe) del juego en la carpeta principal ni en Binaries.');
+        throw Exception(AppLocalizations.of(context)!.errorGameExeNotFound);
       }
     } catch (e) {
       if (mounted) {
         NotificationService.instance.show(
           context: context,
           type: NotificationType.error,
-          title: 'Error al iniciar el juego',
+          title: AppLocalizations.of(context)!.errorLaunchingGame,
           description: e.toString(),
         );
       }
@@ -6120,7 +6098,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'pwebp', 'tiff'],
-      dialogTitle: 'Selecciona una portada para el mod',
+      dialogTitle: AppLocalizations.of(context)!.dialogTitleSelectCover,
     );
 
     if (result != null && result.files.single.path != null) {
@@ -6955,6 +6933,47 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       setState(() => _isLoading = false);
     }
   }
+
+  Future<void> _processInstallQueue() async {
+  // Si no hay más archivos en la fila, apagamos el procesador
+  if (_installQueue.isEmpty) {
+    setState(() {
+      _isProcessingQueue = false;
+    });
+    return;
+  }
+
+  setState(() {
+    _isProcessingQueue = true;
+  });
+
+  // Tomamos el primer archivo de la fila
+  File fileToProcess = _installQueue.removeAt(0);
+
+  // 1. Abrimos el panel de instalación y ESPERAMOS a que el usuario lo cierre
+  await _showInstallationPanel(initialFiles: [fileToProcess]);
+
+  // 2. Limpieza segura del archivo descargado que acabamos de procesar
+  try {
+    if (await fileToProcess.exists()) {
+      await fileToProcess.delete(); 
+      final parentDir = fileToProcess.parent;
+      if (await parentDir.exists() && await parentDir.list().isEmpty) {
+        await parentDir.delete();
+      }
+    }
+  } catch (e) {
+    print("No se pudo limpiar el archivo descargado: $e");
+  }
+
+  // 3. Pausa visual breve para que la transición no sea brusca
+  await Future.delayed(const Duration(milliseconds: 500));
+
+  // 4. Llamada recursiva para procesar el siguiente mod en la fila
+  if (mounted) {
+    _processInstallQueue();
+  }
+}
 
   /// Widget auxiliar para dar padding uniforme a los botones de navegación
   Widget _buildNavButton(String text) {

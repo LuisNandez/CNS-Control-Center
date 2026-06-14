@@ -797,5 +797,145 @@
   "mod801BtnSteam": "Open Steam",
   "mod801BtnCopy": "Copy",
   "mod801PathGenerated": "Path generated successfully.",
-  "mod801PathCopied": "Command copied to clipboard!"
+  "mod801PathCopied": "Command copied to clipboard!",
+  "statusVerifyingMods": "Verifying integrity of mods...",
+  
+  "errorSelecting7Zip": "Error selecting 7-Zip: {error}",
+  "@errorSelecting7Zip": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+
+  "errorInvalidFolderRetry": "The selected folder does not seem to be correct. Please try again.",
+  
+  "errorSelectingFolderDynamic": "Error selecting folder: {error}",
+  "@errorSelectingFolderDynamic": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+
+  "statusNoNewModsInstalled": "Installation produced no new mods.",
+  
+  "errorDisableModBeforeDelete": "Please disable the mod before deleting it.",
+  
+  "snackBarModsEnabledWithSkips": "Enabled: {successCount} (Skipped: {skippedCount} due to conflicts)",
+  "@snackBarModsEnabledWithSkips": {
+    "placeholders": {
+      "successCount": {
+        "type": "int"
+      },
+      "skippedCount": {
+        "type": "int"
+      }
+    }
+  },
+
+  "snackBarDeveloperModeEnabled": "Developer Mode Enabled!",
+  
+  "errorRenamingMod": "Error renaming mod: {error}",
+  "@errorRenamingMod": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+
+  "notificationTitleError": "Error",
+  
+  "errorGamePathNotFoundNotification": "Game path not found.",
+  
+  "notificationLaunchingGame": "Launching Stellar Blade...",
+  
+  "errorLaunchingGame": "Error launching the game",
+
+  "dialogTitleSelect7zip": "Select the 7z.exe file",
+  
+  "dialogTitleSelectGameFolder": "Please select the main StellarBlade folder",
+  
+  "dialogTitleSelectCover": "Select a cover for the mod",
+  
+
+
+
+  "errorGamePathNotFoundException": "Game path not found.",
+  
+  "errorGamePathNotDefined": "Game path not defined.",
+  
+  "errorLogicModsPathNotDefined": "LogicMods path is not defined.",
+  
+  "errorUe4ssModsPathNotDefined": "UE4SS Mods path is not defined.",
+  
+  "errorGenericModsPathNotDefined": "Generic mods (~mods) path is not defined.",
+  
+  "errorReplaceNoOldVersion": "Attempted to replace a mod but no old version was identified.",
+  
+  "errorDeleteOldModVersion": "Could not delete old mod version ({modName}).",
+  "@errorDeleteOldModVersion": {
+    "placeholders": {
+      "modName": {
+        "type": "String"
+      }
+    }
+  },
+
+  "errorDeleteExistingModReinstall": "Could not delete existing mod ({modName}) to reinstall.",
+  "@errorDeleteExistingModReinstall": {
+    "placeholders": {
+      "modName": {
+        "type": "String"
+      }
+    }
+  },
+
+  "errorDeleteExistingModReinstallAttempts": "Could not delete existing mod ({modName}) to reinstall after several attempts.",
+  "@errorDeleteExistingModReinstallAttempts": {
+    "placeholders": {
+      "modName": {
+        "type": "String"
+      }
+    }
+  },
+
+  "errorMoviesModNoValidFiles": "Movies mod contains no valid video files.",
+  
+  "errorInstallPathUndetermined": "Installation path could not be determined.",
+  
+  "errorMoviesPathsNotDefined": "Movies paths are not defined.",
+  
+  "errorNexusInfoNotFoundForMod": "nexus_info.json not found for {modName}.",
+  "@errorNexusInfoNotFoundForMod": {
+    "placeholders": {
+      "modName": {
+        "type": "String"
+      }
+    }
+  },
+
+  "errorMenuVideoLimitReached": "Menu video limit of 99 reached.",
+  
+  "errorModRequires529": "The mod requires Mod ID 529 to work (contains only WebM files).",
+  
+  "errorSplashPathsNotDefined": "Splash paths are not defined.",
+  
+  "errorSplashNoValidImages": "No valid images were found in the mod.",
+  
+  "errorCouldNotDeleteDirectory": "Could not delete directory.",
+  
+  "errorGameExeNotFound": "The game's executable file (.exe) was not found in the main folder or in Binaries.",
+
+  "dialogTitleSplashOptions": "Splash Options (Images)",
+  "@dialogTitleSplashOptions": {
+    "description": "Title for the splash mod image selection dialog."
+  },
+  "dialogContentSplashOptions": "Select the images you want to install. You can choose entire folders (batches) or individual images.",
+  "snackBarSplashNoSelection": "Please select at least one image.",
+
+  "dialogContentSpecialModSingleSelection": "Select a single option to install."
 }

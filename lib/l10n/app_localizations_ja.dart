@@ -1158,13 +1158,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get modTypeMovies => 'ムービー';
 
   @override
-  String get modTypeSave => 'Save';
+  String get modTypeSave => 'セーブ';
 
   @override
-  String get modTypeConfig => 'Config';
+  String get modTypeConfig => '設定';
 
   @override
-  String get modTypeSplash => 'Splash';
+  String get modTypeSplash => 'スプラッシュ';
 
   @override
   String get replacesOutfitTitle => '置き換え衣装';
@@ -1421,38 +1421,173 @@ class AppLocalizationsJa extends AppLocalizations {
   String get launchGameText => 'Stellar Bladeを起動';
 
   @override
-  String get mod801DialogTitle => 'Steam Configuration Required';
+  String get mod801DialogTitle => 'Steamの設定が必要です';
 
   @override
   String get mod801DialogIntro =>
-      'The Random Splash mod has been installed. To make it work automatically when you launch the game, you need to configure Steam.';
+      'Random Splashモッドがインストールされました。ゲーム起動時に自動的に機能させるには、Steamを設定する必要があります。';
 
   @override
-  String get mod801Step1 =>
-      '1. Generate the exact path for your PC below and copy it.';
+  String get mod801Step1 => '1. 以下のPC用の正確なパスを生成してコピーします。';
 
   @override
-  String get mod801Step2 => '2. Open your Steam Library.';
+  String get mod801Step2 => '2. Steamライブラリを開きます。';
 
   @override
-  String get mod801Step3 => '3. Right-click on Stellar Blade -> Properties.';
+  String get mod801Step3 => '3. Stellar Bladeを右クリック -> プロパティを選択します。';
 
   @override
-  String get mod801Step4 =>
-      '4. In the \'General\' tab, paste the code into \'Launch Options\'.';
+  String get mod801Step4 => '4. 「一般」タブの「起動オプション」にコードを貼り付けます。';
 
   @override
-  String get mod801BtnGenerate => 'Generate Path';
+  String get mod801BtnGenerate => 'パスを生成';
 
   @override
-  String get mod801BtnSteam => 'Open Steam';
+  String get mod801BtnSteam => 'Steamを開く';
 
   @override
-  String get mod801BtnCopy => 'Copy';
+  String get mod801BtnCopy => 'コピー';
 
   @override
-  String get mod801PathGenerated => 'Path generated successfully.';
+  String get mod801PathGenerated => 'パスが正常に生成されました。';
 
   @override
-  String get mod801PathCopied => 'Command copied to clipboard!';
+  String get mod801PathCopied => 'コマンドをクリップボードにコピーしました！';
+
+  @override
+  String get statusVerifyingMods => 'モッドの整合性を確認しています...';
+
+  @override
+  String errorSelecting7Zip(String error) {
+    return '7-Zipの選択エラー: $error';
+  }
+
+  @override
+  String get errorInvalidFolderRetry => '選択したフォルダが正しくないようです。もう一度お試しください。';
+
+  @override
+  String errorSelectingFolderDynamic(String error) {
+    return 'フォルダの選択エラー: $error';
+  }
+
+  @override
+  String get statusNoNewModsInstalled => 'インストールによる新しいモッドはありません。';
+
+  @override
+  String get errorDisableModBeforeDelete => '削除する前にモッドを無効にしてください。';
+
+  @override
+  String snackBarModsEnabledWithSkips(int successCount, int skippedCount) {
+    return '有効化: $successCount (競合のためスキップ: $skippedCount)';
+  }
+
+  @override
+  String get snackBarDeveloperModeEnabled => '開発者モードが有効になりました！';
+
+  @override
+  String errorRenamingMod(String error) {
+    return 'モッドの名前変更エラー: $error';
+  }
+
+  @override
+  String get notificationTitleError => 'エラー';
+
+  @override
+  String get errorGamePathNotFoundNotification => 'ゲームのパスが見つかりません。';
+
+  @override
+  String get notificationLaunchingGame => 'Stellar Bladeを起動しています...';
+
+  @override
+  String get errorLaunchingGame => 'ゲームの起動エラー';
+
+  @override
+  String get dialogTitleSelect7zip => '7z.exeファイルを選択してください';
+
+  @override
+  String get dialogTitleSelectGameFolder => 'StellarBladeのメインフォルダを選択してください';
+
+  @override
+  String get dialogTitleSelectCover => 'モッドのカバー画像を選択してください';
+
+  @override
+  String get errorGamePathNotFoundException => 'ゲームのパスが見つかりません。';
+
+  @override
+  String get errorGamePathNotDefined => 'ゲームのパスが定義されていません。';
+
+  @override
+  String get errorLogicModsPathNotDefined => 'Logicモッドのパスが定義されていません。';
+
+  @override
+  String get errorUe4ssModsPathNotDefined => 'UE4SSモッドのパスが定義されていません。';
+
+  @override
+  String get errorGenericModsPathNotDefined => '汎用モッド(~mods)のパスが定義されていません。';
+
+  @override
+  String get errorReplaceNoOldVersion => 'モッドを置換しようとしましたが、古いバージョンが特定されませんでした。';
+
+  @override
+  String errorDeleteOldModVersion(String modName) {
+    return '古いバージョンのモッド ($modName) を削除できませんでした。';
+  }
+
+  @override
+  String errorDeleteExistingModReinstall(String modName) {
+    return '再インストールのために既存のモッド ($modName) を削除できませんでした。';
+  }
+
+  @override
+  String errorDeleteExistingModReinstallAttempts(String modName) {
+    return '数回試行しましたが、再インストールのために既存のモッド ($modName) を削除できませんでした。';
+  }
+
+  @override
+  String get errorMoviesModNoValidFiles => 'ムービーモッドに有効な動画ファイルが含まれていません。';
+
+  @override
+  String get errorInstallPathUndetermined => 'インストールパスを特定できませんでした。';
+
+  @override
+  String get errorMoviesPathsNotDefined => 'ムービーのパスが定義されていません。';
+
+  @override
+  String errorNexusInfoNotFoundForMod(String modName) {
+    return '$modName の nexus_info.json が見つかりません。';
+  }
+
+  @override
+  String get errorMenuVideoLimitReached => 'メニュー動画の制限である99個に達しました。';
+
+  @override
+  String get errorModRequires529 =>
+      'このモッドを機能させるにはモッドID 529が必要です（WebMファイルのみが含まれています）。';
+
+  @override
+  String get errorSplashPathsNotDefined => 'スプラッシュのパスが定義されていません。';
+
+  @override
+  String get errorSplashNoValidImages => 'モッド内に有効な画像が見つかりませんでした。';
+
+  @override
+  String get errorCouldNotDeleteDirectory => 'ディレクトリを削除できませんでした。';
+
+  @override
+  String get errorGameExeNotFound =>
+      'ゲームの実行ファイル (.exe) がメインフォルダまたはBinaries内に見つかりませんでした。';
+
+  @override
+  String get dialogTitleSplashOptions => 'スプラッシュオプション（画像）';
+
+  @override
+  String get dialogContentSplashOptions =>
+      'インストールする画像を選択してください。フォルダ全体（一括）または個別の画像を選択できます。';
+
+  @override
+  String get snackBarSplashNoSelection => '少なくとも1つの画像を選択してください。';
+
+  @override
+  String get dialogContentSpecialModSingleSelection =>
+      'インストールするオプションを1つ選択してください。';
 }

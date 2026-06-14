@@ -38,7 +38,7 @@ class _SpecialModSelectionDialogState extends State<SpecialModSelectionDialog> {
             Text(
               // Si quieres, puedes poner un texto diferente dependiendo de si es selección única
               widget.modData.isSingleSelection 
-                  ? "Selecciona una única opción para instalar." 
+                  ? l10n.dialogContentSpecialModSingleSelection
                   : l10n.dialogContentSpecialModSelection,
               style: const TextStyle(color: Colors.white70, fontSize: 13),
             ),

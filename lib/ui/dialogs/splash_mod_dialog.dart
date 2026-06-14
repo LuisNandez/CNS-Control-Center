@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import '../../services/splash_mods_handler.dart';
+import '../../l10n/app_localizations.dart';
 
 class SplashModSelectionDialog extends StatefulWidget {
   final SplashSelectionData modData;
@@ -26,16 +27,16 @@ class _SplashModSelectionDialogState extends State<SplashModSelectionDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: const Color(0xFF2a2a2a),
-      title: const Text('Opciones de Splash (Imágenes)', style: TextStyle(color: Colors.white)),
+      title: Text(AppLocalizations.of(context)!.dialogTitleSplashOptions, style: const TextStyle(color: Colors.white)),
       content: SizedBox(
         width: double.maxFinite,
         height: 450,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Selecciona las imágenes que deseas instalar. Puedes elegir por carpetas completas (lotes) o imágenes individuales.',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+            Text(
+              AppLocalizations.of(context)!.dialogContentSplashOptions,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -124,20 +125,20 @@ class _SplashModSelectionDialogState extends State<SplashModSelectionDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          child: Text(AppLocalizations.of(context)!.dialogActionCancel, style: const TextStyle(color: Colors.grey)),
         ),
         ElevatedButton(
           onPressed: () {
             if (!widget.modData.hasSelection) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Por favor, selecciona al menos una imagen.'), backgroundColor: Colors.redAccent),
+                SnackBar(content: Text(AppLocalizations.of(context)!.snackBarSplashNoSelection), backgroundColor: Colors.redAccent),
               );
               return;
             }
             Navigator.of(context).pop(true);
           },
           style: ElevatedButton.styleFrom(backgroundColor: Colors.tealAccent, foregroundColor: Colors.black),
-          child: const Text('Instalar Selección'),
+          child: Text(AppLocalizations.of(context)!.dialogActionInstallSelection),
         ),
       ],
     );

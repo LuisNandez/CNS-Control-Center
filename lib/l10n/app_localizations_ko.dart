@@ -1155,13 +1155,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get modTypeMovies => '무비';
 
   @override
-  String get modTypeSave => 'Save';
+  String get modTypeSave => '세이브';
 
   @override
-  String get modTypeConfig => 'Config';
+  String get modTypeConfig => '설정';
 
   @override
-  String get modTypeSplash => 'Splash';
+  String get modTypeSplash => '스플래시';
 
   @override
   String get replacesOutfitTitle => '의상 교체';
@@ -1417,38 +1417,172 @@ class AppLocalizationsKo extends AppLocalizations {
   String get launchGameText => 'Stellar Blade 실행';
 
   @override
-  String get mod801DialogTitle => 'Steam Configuration Required';
+  String get mod801DialogTitle => 'Steam 설정 필요';
 
   @override
   String get mod801DialogIntro =>
-      'The Random Splash mod has been installed. To make it work automatically when you launch the game, you need to configure Steam.';
+      'Random Splash 모드가 설치되었습니다. 게임 실행 시 자동으로 작동하게 하려면 Steam을 설정해야 합니다.';
 
   @override
-  String get mod801Step1 =>
-      '1. Generate the exact path for your PC below and copy it.';
+  String get mod801Step1 => '1. 아래에서 PC의 정확한 경로를 생성하고 복사합니다.';
 
   @override
-  String get mod801Step2 => '2. Open your Steam Library.';
+  String get mod801Step2 => '2. Steam 라이브러리를 엽니다.';
 
   @override
-  String get mod801Step3 => '3. Right-click on Stellar Blade -> Properties.';
+  String get mod801Step3 => '3. Stellar Blade를 우클릭 -> 속성을 선택합니다.';
 
   @override
-  String get mod801Step4 =>
-      '4. In the \'General\' tab, paste the code into \'Launch Options\'.';
+  String get mod801Step4 => '4. \'일반\' 탭의 \'시작 옵션\'에 코드를 붙여넣습니다.';
 
   @override
-  String get mod801BtnGenerate => 'Generate Path';
+  String get mod801BtnGenerate => '경로 생성';
 
   @override
-  String get mod801BtnSteam => 'Open Steam';
+  String get mod801BtnSteam => 'Steam 열기';
 
   @override
-  String get mod801BtnCopy => 'Copy';
+  String get mod801BtnCopy => '복사';
 
   @override
-  String get mod801PathGenerated => 'Path generated successfully.';
+  String get mod801PathGenerated => '경로가 성공적으로 생성되었습니다.';
 
   @override
-  String get mod801PathCopied => 'Command copied to clipboard!';
+  String get mod801PathCopied => '명령어가 클립보드에 복사되었습니다!';
+
+  @override
+  String get statusVerifyingMods => '모드 무결성 확인 중...';
+
+  @override
+  String errorSelecting7Zip(String error) {
+    return '7-Zip 선택 오류: $error';
+  }
+
+  @override
+  String get errorInvalidFolderRetry => '선택한 폴더가 올바르지 않은 것 같습니다. 다시 시도해 주세요.';
+
+  @override
+  String errorSelectingFolderDynamic(String error) {
+    return '폴더 선택 오류: $error';
+  }
+
+  @override
+  String get statusNoNewModsInstalled => '설치된 새로운 모드가 없습니다.';
+
+  @override
+  String get errorDisableModBeforeDelete => '삭제하기 전에 모드를 비활성화해 주세요.';
+
+  @override
+  String snackBarModsEnabledWithSkips(int successCount, int skippedCount) {
+    return '활성화됨: $successCount (충돌로 인해 건너뜀: $skippedCount)';
+  }
+
+  @override
+  String get snackBarDeveloperModeEnabled => '개발자 모드가 활성화되었습니다!';
+
+  @override
+  String errorRenamingMod(String error) {
+    return '모드 이름 변경 오류: $error';
+  }
+
+  @override
+  String get notificationTitleError => '오류';
+
+  @override
+  String get errorGamePathNotFoundNotification => '게임 경로를 찾을 수 없습니다.';
+
+  @override
+  String get notificationLaunchingGame => 'Stellar Blade 실행 중...';
+
+  @override
+  String get errorLaunchingGame => '게임 실행 오류';
+
+  @override
+  String get dialogTitleSelect7zip => '7z.exe 파일을 선택해 주세요';
+
+  @override
+  String get dialogTitleSelectGameFolder => 'StellarBlade 메인 폴더를 선택해 주세요';
+
+  @override
+  String get dialogTitleSelectCover => '모드의 커버 이미지를 선택해 주세요';
+
+  @override
+  String get errorGamePathNotFoundException => '게임 경로를 찾을 수 없습니다.';
+
+  @override
+  String get errorGamePathNotDefined => '게임 경로가 정의되지 않았습니다.';
+
+  @override
+  String get errorLogicModsPathNotDefined => 'Logic 모드 경로가 정의되지 않았습니다.';
+
+  @override
+  String get errorUe4ssModsPathNotDefined => 'UE4SS 모드 경로가 정의되지 않았습니다.';
+
+  @override
+  String get errorGenericModsPathNotDefined => '일반 모드(~mods) 경로가 정의되지 않았습니다.';
+
+  @override
+  String get errorReplaceNoOldVersion => '모드를 교체하려고 했으나 이전 버전을 찾을 수 없습니다.';
+
+  @override
+  String errorDeleteOldModVersion(String modName) {
+    return '이전 버전의 모드($modName)를 삭제할 수 없습니다.';
+  }
+
+  @override
+  String errorDeleteExistingModReinstall(String modName) {
+    return '재설치를 위해 기존 모드($modName)를 삭제할 수 없습니다.';
+  }
+
+  @override
+  String errorDeleteExistingModReinstallAttempts(String modName) {
+    return '여러 번 시도했지만 재설치를 위해 기존 모드($modName)를 삭제할 수 없습니다.';
+  }
+
+  @override
+  String get errorMoviesModNoValidFiles => '동영상 모드에 유효한 비디오 파일이 포함되어 있지 않습니다.';
+
+  @override
+  String get errorInstallPathUndetermined => '설치 경로를 확인할 수 없습니다.';
+
+  @override
+  String get errorMoviesPathsNotDefined => '동영상 경로가 정의되지 않았습니다.';
+
+  @override
+  String errorNexusInfoNotFoundForMod(String modName) {
+    return '$modName의 nexus_info.json을 찾을 수 없습니다.';
+  }
+
+  @override
+  String get errorMenuVideoLimitReached => '메뉴 비디오 제한인 99개에 도달했습니다.';
+
+  @override
+  String get errorModRequires529 =>
+      '모드가 작동하려면 Mod ID 529가 필요합니다(WebM 파일만 포함됨).';
+
+  @override
+  String get errorSplashPathsNotDefined => '스플래시 경로가 정의되지 않았습니다.';
+
+  @override
+  String get errorSplashNoValidImages => '모드에서 유효한 이미지를 찾을 수 없습니다.';
+
+  @override
+  String get errorCouldNotDeleteDirectory => '디렉토리를 삭제할 수 없습니다.';
+
+  @override
+  String get errorGameExeNotFound =>
+      '게임 실행 파일(.exe)을 메인 폴더나 Binaries에서 찾을 수 없습니다.';
+
+  @override
+  String get dialogTitleSplashOptions => '스플래시 옵션 (이미지)';
+
+  @override
+  String get dialogContentSplashOptions =>
+      '설치할 이미지를 선택해 주세요. 전체 폴더(일괄) 또는 개별 이미지를 선택할 수 있습니다.';
+
+  @override
+  String get snackBarSplashNoSelection => '최소 하나 이상의 이미지를 선택해 주세요.';
+
+  @override
+  String get dialogContentSpecialModSingleSelection => '설치할 단일 옵션을 선택해 주세요.';
 }

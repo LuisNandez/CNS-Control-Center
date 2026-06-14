@@ -1145,13 +1145,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modTypeMovies => '影片';
 
   @override
-  String get modTypeSave => 'Save';
+  String get modTypeSave => '存档';
 
   @override
-  String get modTypeConfig => 'Config';
+  String get modTypeConfig => '配置';
 
   @override
-  String get modTypeSplash => 'Splash';
+  String get modTypeSplash => '启动画面';
 
   @override
   String get replacesOutfitTitle => '替换服装';
@@ -1403,38 +1403,169 @@ class AppLocalizationsZh extends AppLocalizations {
   String get launchGameText => '启动《星刃》';
 
   @override
-  String get mod801DialogTitle => 'Steam Configuration Required';
+  String get mod801DialogTitle => '需要配置 Steam';
 
   @override
   String get mod801DialogIntro =>
-      'The Random Splash mod has been installed. To make it work automatically when you launch the game, you need to configure Steam.';
+      '已安装 Random Splash 模组。为了让它在启动游戏时自动生效，您需要配置 Steam。';
 
   @override
-  String get mod801Step1 =>
-      '1. Generate the exact path for your PC below and copy it.';
+  String get mod801Step1 => '1. 请在下方生成您电脑的准确路径并复制。';
 
   @override
-  String get mod801Step2 => '2. Open your Steam Library.';
+  String get mod801Step2 => '2. 打开您的 Steam 库。';
 
   @override
-  String get mod801Step3 => '3. Right-click on Stellar Blade -> Properties.';
+  String get mod801Step3 => '3. 右键点击 Stellar Blade -> 属性。';
 
   @override
-  String get mod801Step4 =>
-      '4. In the \'General\' tab, paste the code into \'Launch Options\'.';
+  String get mod801Step4 => '4. 在“通用”选项卡中，将代码粘贴到“启动选项”中。';
 
   @override
-  String get mod801BtnGenerate => 'Generate Path';
+  String get mod801BtnGenerate => '生成路径';
 
   @override
-  String get mod801BtnSteam => 'Open Steam';
+  String get mod801BtnSteam => '打开 Steam';
 
   @override
-  String get mod801BtnCopy => 'Copy';
+  String get mod801BtnCopy => '复制';
 
   @override
-  String get mod801PathGenerated => 'Path generated successfully.';
+  String get mod801PathGenerated => '路径生成成功。';
 
   @override
-  String get mod801PathCopied => 'Command copied to clipboard!';
+  String get mod801PathCopied => '命令已复制到剪贴板！';
+
+  @override
+  String get statusVerifyingMods => '正在验证模组完整性...';
+
+  @override
+  String errorSelecting7Zip(String error) {
+    return '选择 7-Zip 时出错：$error';
+  }
+
+  @override
+  String get errorInvalidFolderRetry => '所选文件夹似乎不正确，请重试。';
+
+  @override
+  String errorSelectingFolderDynamic(String error) {
+    return '选择文件夹时出错：$error';
+  }
+
+  @override
+  String get statusNoNewModsInstalled => '安装未产生新模组。';
+
+  @override
+  String get errorDisableModBeforeDelete => '请在删除模组前先将其禁用。';
+
+  @override
+  String snackBarModsEnabledWithSkips(int successCount, int skippedCount) {
+    return '已启用：$successCount（由于冲突跳过：$skippedCount）';
+  }
+
+  @override
+  String get snackBarDeveloperModeEnabled => '开发者模式已启用！';
+
+  @override
+  String errorRenamingMod(String error) {
+    return '重命名模组时出错：$error';
+  }
+
+  @override
+  String get notificationTitleError => '错误';
+
+  @override
+  String get errorGamePathNotFoundNotification => '未找到游戏路径。';
+
+  @override
+  String get notificationLaunchingGame => '正在启动 Stellar Blade...';
+
+  @override
+  String get errorLaunchingGame => '启动游戏时出错';
+
+  @override
+  String get dialogTitleSelect7zip => '请选择 7z.exe 文件';
+
+  @override
+  String get dialogTitleSelectGameFolder => '请选择 StellarBlade 主文件夹';
+
+  @override
+  String get dialogTitleSelectCover => '请选择模组封面';
+
+  @override
+  String get errorGamePathNotFoundException => '未找到游戏路径。';
+
+  @override
+  String get errorGamePathNotDefined => '未定义游戏路径。';
+
+  @override
+  String get errorLogicModsPathNotDefined => '未定义 Logic 模组路径。';
+
+  @override
+  String get errorUe4ssModsPathNotDefined => '未定义 UE4SS 模组路径。';
+
+  @override
+  String get errorGenericModsPathNotDefined => '未定义通用模组 (~mods) 路径。';
+
+  @override
+  String get errorReplaceNoOldVersion => '尝试替换模组，但未找到旧版本。';
+
+  @override
+  String errorDeleteOldModVersion(String modName) {
+    return '无法删除旧版模组 ($modName)。';
+  }
+
+  @override
+  String errorDeleteExistingModReinstall(String modName) {
+    return '无法删除现有模组 ($modName) 以重新安装。';
+  }
+
+  @override
+  String errorDeleteExistingModReinstallAttempts(String modName) {
+    return '多次尝试后仍无法删除现有模组 ($modName) 以重新安装。';
+  }
+
+  @override
+  String get errorMoviesModNoValidFiles => '电影模组中不包含有效的视频文件。';
+
+  @override
+  String get errorInstallPathUndetermined => '无法确定安装路径。';
+
+  @override
+  String get errorMoviesPathsNotDefined => '未定义电影路径。';
+
+  @override
+  String errorNexusInfoNotFoundForMod(String modName) {
+    return '找不到 $modName 的 nexus_info.json。';
+  }
+
+  @override
+  String get errorMenuVideoLimitReached => '已达到 99 个菜单视频的上限。';
+
+  @override
+  String get errorModRequires529 => '该模组需要 Mod ID 529 才能运行（仅包含 WebM 文件）。';
+
+  @override
+  String get errorSplashPathsNotDefined => '未定义启动画面路径。';
+
+  @override
+  String get errorSplashNoValidImages => '在模组中未找到有效的图像。';
+
+  @override
+  String get errorCouldNotDeleteDirectory => '无法删除目录。';
+
+  @override
+  String get errorGameExeNotFound => '未在主文件夹或 Binaries 中找到游戏可执行文件 (.exe)。';
+
+  @override
+  String get dialogTitleSplashOptions => '启动画面选项（图像）';
+
+  @override
+  String get dialogContentSplashOptions => '请选择您要安装的图像。您可以选择整个文件夹（批量）或单个图像。';
+
+  @override
+  String get snackBarSplashNoSelection => '请至少选择一张图像。';
+
+  @override
+  String get dialogContentSpecialModSingleSelection => '请选择一个要安装的选项。';
 }

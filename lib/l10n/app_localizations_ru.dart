@@ -1177,13 +1177,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get modTypeMovies => 'Видео';
 
   @override
-  String get modTypeSave => 'Save';
+  String get modTypeSave => 'Сохранение';
 
   @override
-  String get modTypeConfig => 'Config';
+  String get modTypeConfig => 'Конфигурация';
 
   @override
-  String get modTypeSplash => 'Splash';
+  String get modTypeSplash => 'Заставка';
 
   @override
   String get replacesOutfitTitle => 'Заменяет костюм';
@@ -1445,38 +1445,185 @@ class AppLocalizationsRu extends AppLocalizations {
   String get launchGameText => 'Запустить Stellar Blade';
 
   @override
-  String get mod801DialogTitle => 'Steam Configuration Required';
+  String get mod801DialogTitle => 'Требуется настройка Steam';
 
   @override
   String get mod801DialogIntro =>
-      'The Random Splash mod has been installed. To make it work automatically when you launch the game, you need to configure Steam.';
+      'Установлен мод Random Splash. Чтобы он работал автоматически при запуске игры, необходимо настроить Steam.';
 
   @override
   String get mod801Step1 =>
-      '1. Generate the exact path for your PC below and copy it.';
+      '1. Сгенерируйте точный путь для вашего ПК ниже и скопируйте его.';
 
   @override
-  String get mod801Step2 => '2. Open your Steam Library.';
+  String get mod801Step2 => '2. Откройте библиотеку Steam.';
 
   @override
-  String get mod801Step3 => '3. Right-click on Stellar Blade -> Properties.';
+  String get mod801Step3 =>
+      '3. Щелкните правой кнопкой мыши Stellar Blade -> Свойства.';
 
   @override
   String get mod801Step4 =>
-      '4. In the \'General\' tab, paste the code into \'Launch Options\'.';
+      '4. На вкладке «Общие» вставьте код в «Параметры запуска».';
 
   @override
-  String get mod801BtnGenerate => 'Generate Path';
+  String get mod801BtnGenerate => 'Сгенерировать путь';
 
   @override
-  String get mod801BtnSteam => 'Open Steam';
+  String get mod801BtnSteam => 'Открыть Steam';
 
   @override
-  String get mod801BtnCopy => 'Copy';
+  String get mod801BtnCopy => 'Копировать';
 
   @override
-  String get mod801PathGenerated => 'Path generated successfully.';
+  String get mod801PathGenerated => 'Путь успешно сгенерирован.';
 
   @override
-  String get mod801PathCopied => 'Command copied to clipboard!';
+  String get mod801PathCopied => 'Команда скопирована в буфер обмена!';
+
+  @override
+  String get statusVerifyingMods => 'Проверка целостности модов...';
+
+  @override
+  String errorSelecting7Zip(String error) {
+    return 'Ошибка при выборе 7-Zip: $error';
+  }
+
+  @override
+  String get errorInvalidFolderRetry =>
+      'Выбранная папка кажется неправильной. Пожалуйста, попробуйте снова.';
+
+  @override
+  String errorSelectingFolderDynamic(String error) {
+    return 'Ошибка при выборе папки: $error';
+  }
+
+  @override
+  String get statusNoNewModsInstalled => 'Установка не добавила новых модов.';
+
+  @override
+  String get errorDisableModBeforeDelete =>
+      'Пожалуйста, отключите мод перед его удалением.';
+
+  @override
+  String snackBarModsEnabledWithSkips(int successCount, int skippedCount) {
+    return 'Включено: $successCount (Пропущено из-за конфликтов: $skippedCount)';
+  }
+
+  @override
+  String get snackBarDeveloperModeEnabled => 'Режим разработчика включен!';
+
+  @override
+  String errorRenamingMod(String error) {
+    return 'Ошибка при переименовании мода: $error';
+  }
+
+  @override
+  String get notificationTitleError => 'Ошибка';
+
+  @override
+  String get errorGamePathNotFoundNotification => 'Путь к игре не найден.';
+
+  @override
+  String get notificationLaunchingGame => 'Запуск Stellar Blade...';
+
+  @override
+  String get errorLaunchingGame => 'Ошибка при запуске игры';
+
+  @override
+  String get dialogTitleSelect7zip => 'Выберите файл 7z.exe';
+
+  @override
+  String get dialogTitleSelectGameFolder =>
+      'Пожалуйста, выберите главную папку StellarBlade';
+
+  @override
+  String get dialogTitleSelectCover => 'Выберите обложку для мода';
+
+  @override
+  String get errorGamePathNotFoundException => 'Путь к игре не найден.';
+
+  @override
+  String get errorGamePathNotDefined => 'Путь к игре не определен.';
+
+  @override
+  String get errorLogicModsPathNotDefined => 'Путь к модам Logic не определен.';
+
+  @override
+  String get errorUe4ssModsPathNotDefined => 'Путь к модам UE4SS не определен.';
+
+  @override
+  String get errorGenericModsPathNotDefined =>
+      'Путь к общим модам (~mods) не определен.';
+
+  @override
+  String get errorReplaceNoOldVersion =>
+      'Попытка заменить мод, но старая версия не найдена.';
+
+  @override
+  String errorDeleteOldModVersion(String modName) {
+    return 'Не удалось удалить старую версию мода ($modName).';
+  }
+
+  @override
+  String errorDeleteExistingModReinstall(String modName) {
+    return 'Не удалось удалить существующий мод ($modName) для переустановки.';
+  }
+
+  @override
+  String errorDeleteExistingModReinstallAttempts(String modName) {
+    return 'Не удалось удалить существующий мод ($modName) для переустановки после нескольких попыток.';
+  }
+
+  @override
+  String get errorMoviesModNoValidFiles =>
+      'Мод с видео не содержит допустимых видеофайлов.';
+
+  @override
+  String get errorInstallPathUndetermined =>
+      'Не удалось определить путь установки.';
+
+  @override
+  String get errorMoviesPathsNotDefined => 'Пути к видео не определены.';
+
+  @override
+  String errorNexusInfoNotFoundForMod(String modName) {
+    return 'Файл nexus_info.json не найден для $modName.';
+  }
+
+  @override
+  String get errorMenuVideoLimitReached => 'Достигнут лимит в 99 видео в меню.';
+
+  @override
+  String get errorModRequires529 =>
+      'Для работы мода требуется Mod ID 529 (содержит только файлы WebM).';
+
+  @override
+  String get errorSplashPathsNotDefined => 'Пути к заставкам не определены.';
+
+  @override
+  String get errorSplashNoValidImages =>
+      'В моде не найдено допустимых изображений.';
+
+  @override
+  String get errorCouldNotDeleteDirectory => 'Не удалось удалить каталог.';
+
+  @override
+  String get errorGameExeNotFound =>
+      'Исполняемый файл игры (.exe) не найден в главной папке или в Binaries.';
+
+  @override
+  String get dialogTitleSplashOptions => 'Параметры заставки (изображения)';
+
+  @override
+  String get dialogContentSplashOptions =>
+      'Выберите изображения, которые хотите установить. Вы можете выбирать целые папки или отдельные изображения.';
+
+  @override
+  String get snackBarSplashNoSelection =>
+      'Пожалуйста, выберите хотя бы одно изображение.';
+
+  @override
+  String get dialogContentSpecialModSingleSelection =>
+      'Выберите один вариант для установки.';
 }

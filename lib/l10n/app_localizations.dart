@@ -2553,6 +2553,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Command copied to clipboard!'**
   String get mod801PathCopied;
+
+  /// No description provided for @statusVerifyingMods.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying integrity of mods...'**
+  String get statusVerifyingMods;
+
+  /// No description provided for @errorSelecting7Zip.
+  ///
+  /// In en, this message translates to:
+  /// **'Error selecting 7-Zip: {error}'**
+  String errorSelecting7Zip(String error);
+
+  /// No description provided for @errorInvalidFolderRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected folder does not seem to be correct. Please try again.'**
+  String get errorInvalidFolderRetry;
+
+  /// No description provided for @errorSelectingFolderDynamic.
+  ///
+  /// In en, this message translates to:
+  /// **'Error selecting folder: {error}'**
+  String errorSelectingFolderDynamic(String error);
+
+  /// No description provided for @statusNoNewModsInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Installation produced no new mods.'**
+  String get statusNoNewModsInstalled;
+
+  /// No description provided for @errorDisableModBeforeDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Please disable the mod before deleting it.'**
+  String get errorDisableModBeforeDelete;
+
+  /// No description provided for @snackBarModsEnabledWithSkips.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled: {successCount} (Skipped: {skippedCount} due to conflicts)'**
+  String snackBarModsEnabledWithSkips(int successCount, int skippedCount);
+
+  /// No description provided for @snackBarDeveloperModeEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer Mode Enabled!'**
+  String get snackBarDeveloperModeEnabled;
+
+  /// No description provided for @errorRenamingMod.
+  ///
+  /// In en, this message translates to:
+  /// **'Error renaming mod: {error}'**
+  String errorRenamingMod(String error);
+
+  /// No description provided for @notificationTitleError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get notificationTitleError;
+
+  /// No description provided for @errorGamePathNotFoundNotification.
+  ///
+  /// In en, this message translates to:
+  /// **'Game path not found.'**
+  String get errorGamePathNotFoundNotification;
+
+  /// No description provided for @notificationLaunchingGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Launching Stellar Blade...'**
+  String get notificationLaunchingGame;
+
+  /// No description provided for @errorLaunchingGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Error launching the game'**
+  String get errorLaunchingGame;
+
+  /// No description provided for @dialogTitleSelect7zip.
+  ///
+  /// In en, this message translates to:
+  /// **'Select the 7z.exe file'**
+  String get dialogTitleSelect7zip;
+
+  /// No description provided for @dialogTitleSelectGameFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select the main StellarBlade folder'**
+  String get dialogTitleSelectGameFolder;
+
+  /// No description provided for @dialogTitleSelectCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a cover for the mod'**
+  String get dialogTitleSelectCover;
+
+  /// No description provided for @errorGamePathNotFoundException.
+  ///
+  /// In en, this message translates to:
+  /// **'Game path not found.'**
+  String get errorGamePathNotFoundException;
+
+  /// No description provided for @errorGamePathNotDefined.
+  ///
+  /// In en, this message translates to:
+  /// **'Game path not defined.'**
+  String get errorGamePathNotDefined;
+
+  /// No description provided for @errorLogicModsPathNotDefined.
+  ///
+  /// In en, this message translates to:
+  /// **'LogicMods path is not defined.'**
+  String get errorLogicModsPathNotDefined;
+
+  /// No description provided for @errorUe4ssModsPathNotDefined.
+  ///
+  /// In en, this message translates to:
+  /// **'UE4SS Mods path is not defined.'**
+  String get errorUe4ssModsPathNotDefined;
+
+  /// No description provided for @errorGenericModsPathNotDefined.
+  ///
+  /// In en, this message translates to:
+  /// **'Generic mods (~mods) path is not defined.'**
+  String get errorGenericModsPathNotDefined;
+
+  /// No description provided for @errorReplaceNoOldVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Attempted to replace a mod but no old version was identified.'**
+  String get errorReplaceNoOldVersion;
+
+  /// No description provided for @errorDeleteOldModVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not delete old mod version ({modName}).'**
+  String errorDeleteOldModVersion(String modName);
+
+  /// No description provided for @errorDeleteExistingModReinstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not delete existing mod ({modName}) to reinstall.'**
+  String errorDeleteExistingModReinstall(String modName);
+
+  /// No description provided for @errorDeleteExistingModReinstallAttempts.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not delete existing mod ({modName}) to reinstall after several attempts.'**
+  String errorDeleteExistingModReinstallAttempts(String modName);
+
+  /// No description provided for @errorMoviesModNoValidFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies mod contains no valid video files.'**
+  String get errorMoviesModNoValidFiles;
+
+  /// No description provided for @errorInstallPathUndetermined.
+  ///
+  /// In en, this message translates to:
+  /// **'Installation path could not be determined.'**
+  String get errorInstallPathUndetermined;
+
+  /// No description provided for @errorMoviesPathsNotDefined.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies paths are not defined.'**
+  String get errorMoviesPathsNotDefined;
+
+  /// No description provided for @errorNexusInfoNotFoundForMod.
+  ///
+  /// In en, this message translates to:
+  /// **'nexus_info.json not found for {modName}.'**
+  String errorNexusInfoNotFoundForMod(String modName);
+
+  /// No description provided for @errorMenuVideoLimitReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Menu video limit of 99 reached.'**
+  String get errorMenuVideoLimitReached;
+
+  /// No description provided for @errorModRequires529.
+  ///
+  /// In en, this message translates to:
+  /// **'The mod requires Mod ID 529 to work (contains only WebM files).'**
+  String get errorModRequires529;
+
+  /// No description provided for @errorSplashPathsNotDefined.
+  ///
+  /// In en, this message translates to:
+  /// **'Splash paths are not defined.'**
+  String get errorSplashPathsNotDefined;
+
+  /// No description provided for @errorSplashNoValidImages.
+  ///
+  /// In en, this message translates to:
+  /// **'No valid images were found in the mod.'**
+  String get errorSplashNoValidImages;
+
+  /// No description provided for @errorCouldNotDeleteDirectory.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not delete directory.'**
+  String get errorCouldNotDeleteDirectory;
+
+  /// No description provided for @errorGameExeNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The game\'s executable file (.exe) was not found in the main folder or in Binaries.'**
+  String get errorGameExeNotFound;
+
+  /// Title for the splash mod image selection dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Splash Options (Images)'**
+  String get dialogTitleSplashOptions;
+
+  /// No description provided for @dialogContentSplashOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Select the images you want to install. You can choose entire folders (batches) or individual images.'**
+  String get dialogContentSplashOptions;
+
+  /// No description provided for @snackBarSplashNoSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select at least one image.'**
+  String get snackBarSplashNoSelection;
+
+  /// No description provided for @dialogContentSpecialModSingleSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a single option to install.'**
+  String get dialogContentSpecialModSingleSelection;
 }
 
 class _AppLocalizationsDelegate

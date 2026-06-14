@@ -1480,4 +1480,149 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mod801PathCopied => 'Command copied to clipboard!';
+
+  @override
+  String get statusVerifyingMods => 'Verifying integrity of mods...';
+
+  @override
+  String errorSelecting7Zip(String error) {
+    return 'Error selecting 7-Zip: $error';
+  }
+
+  @override
+  String get errorInvalidFolderRetry =>
+      'The selected folder does not seem to be correct. Please try again.';
+
+  @override
+  String errorSelectingFolderDynamic(String error) {
+    return 'Error selecting folder: $error';
+  }
+
+  @override
+  String get statusNoNewModsInstalled => 'Installation produced no new mods.';
+
+  @override
+  String get errorDisableModBeforeDelete =>
+      'Please disable the mod before deleting it.';
+
+  @override
+  String snackBarModsEnabledWithSkips(int successCount, int skippedCount) {
+    return 'Enabled: $successCount (Skipped: $skippedCount due to conflicts)';
+  }
+
+  @override
+  String get snackBarDeveloperModeEnabled => 'Developer Mode Enabled!';
+
+  @override
+  String errorRenamingMod(String error) {
+    return 'Error renaming mod: $error';
+  }
+
+  @override
+  String get notificationTitleError => 'Error';
+
+  @override
+  String get errorGamePathNotFoundNotification => 'Game path not found.';
+
+  @override
+  String get notificationLaunchingGame => 'Launching Stellar Blade...';
+
+  @override
+  String get errorLaunchingGame => 'Error launching the game';
+
+  @override
+  String get dialogTitleSelect7zip => 'Select the 7z.exe file';
+
+  @override
+  String get dialogTitleSelectGameFolder =>
+      'Please select the main StellarBlade folder';
+
+  @override
+  String get dialogTitleSelectCover => 'Select a cover for the mod';
+
+  @override
+  String get errorGamePathNotFoundException => 'Game path not found.';
+
+  @override
+  String get errorGamePathNotDefined => 'Game path not defined.';
+
+  @override
+  String get errorLogicModsPathNotDefined => 'LogicMods path is not defined.';
+
+  @override
+  String get errorUe4ssModsPathNotDefined => 'UE4SS Mods path is not defined.';
+
+  @override
+  String get errorGenericModsPathNotDefined =>
+      'Generic mods (~mods) path is not defined.';
+
+  @override
+  String get errorReplaceNoOldVersion =>
+      'Attempted to replace a mod but no old version was identified.';
+
+  @override
+  String errorDeleteOldModVersion(String modName) {
+    return 'Could not delete old mod version ($modName).';
+  }
+
+  @override
+  String errorDeleteExistingModReinstall(String modName) {
+    return 'Could not delete existing mod ($modName) to reinstall.';
+  }
+
+  @override
+  String errorDeleteExistingModReinstallAttempts(String modName) {
+    return 'Could not delete existing mod ($modName) to reinstall after several attempts.';
+  }
+
+  @override
+  String get errorMoviesModNoValidFiles =>
+      'Movies mod contains no valid video files.';
+
+  @override
+  String get errorInstallPathUndetermined =>
+      'Installation path could not be determined.';
+
+  @override
+  String get errorMoviesPathsNotDefined => 'Movies paths are not defined.';
+
+  @override
+  String errorNexusInfoNotFoundForMod(String modName) {
+    return 'nexus_info.json not found for $modName.';
+  }
+
+  @override
+  String get errorMenuVideoLimitReached => 'Menu video limit of 99 reached.';
+
+  @override
+  String get errorModRequires529 =>
+      'The mod requires Mod ID 529 to work (contains only WebM files).';
+
+  @override
+  String get errorSplashPathsNotDefined => 'Splash paths are not defined.';
+
+  @override
+  String get errorSplashNoValidImages =>
+      'No valid images were found in the mod.';
+
+  @override
+  String get errorCouldNotDeleteDirectory => 'Could not delete directory.';
+
+  @override
+  String get errorGameExeNotFound =>
+      'The game\'s executable file (.exe) was not found in the main folder or in Binaries.';
+
+  @override
+  String get dialogTitleSplashOptions => 'Splash Options (Images)';
+
+  @override
+  String get dialogContentSplashOptions =>
+      'Select the images you want to install. You can choose entire folders (batches) or individual images.';
+
+  @override
+  String get snackBarSplashNoSelection => 'Please select at least one image.';
+
+  @override
+  String get dialogContentSpecialModSingleSelection =>
+      'Select a single option to install.';
 }
