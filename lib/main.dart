@@ -6110,11 +6110,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       setState(() => _isLoading = true);
       try {
         // ===== INICIO DE LA CORRECCIÓN =====
+        await FileManagerService.cleanOldCustomCovers(mod.directory);
         // 1. Guarda los cambios en el archivo nexus_info.json
         final extension = p.extension(imageFile.path);
         final newFileName = '_custom_cover$extension';
         final destinationPath = p.join(mod.directory.path, newFileName);
         await imageFile.copy(destinationPath);
+
+        PaintingBinding.instance.imageCache.clear(); // <--- NUEVO (Fuerza a Flutter a olvidar la imagen vieja)
+        PaintingBinding.instance.imageCache.clearLiveImages(); // <--- NUEVO (Limpia las imágenes que aún están en uso)
 
         final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
         Map<String, dynamic> data = {};
@@ -6589,12 +6593,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       }
 
       if (newData.containsKey('newCoverFile')) {
+        await FileManagerService.cleanOldCustomCovers(modDirectory);
         final imageFile = newData['newCoverFile'] as File;
         final alignment = newData['newCoverAlignment'] as Alignment?;
         final extension = p.extension(imageFile.path);
         final newFileName = '_custom_cover$extension';
         final destinationPath = p.join(modDirectory.path, newFileName);
         await imageFile.copy(destinationPath);
+        PaintingBinding.instance.imageCache.clear(); // <--- NUEVO
+        PaintingBinding.instance.imageCache.clearLiveImages(); // <--- NUEVO
         data['customCoverPath'] = newFileName;
         if (alignment != null) {
           data['customCoverAlignmentX'] = alignment.x;

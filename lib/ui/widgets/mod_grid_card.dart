@@ -121,6 +121,9 @@ class ModGridCard extends StatelessWidget {
     if (modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty) {
       coverImagePath = p.join(modInfo.directory.path, modInfo.customCoverPath!);
       cacheKey = p.basename(modInfo.directory.path) + modInfo.customCoverPath!;
+      if (modInfo.customCoverLastModified != null) {
+        cacheKey += modInfo.customCoverLastModified!.millisecondsSinceEpoch.toString();
+      }
       isLocalFile = true;
     } else if (modInfo.gallery != null && modInfo.gallery!.isNotEmpty) {
       coverImagePath = modInfo.gallery!.first['thumbnail'] as String?;

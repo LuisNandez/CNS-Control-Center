@@ -50,4 +50,24 @@ class FileManagerService {
     }
     return foundFiles;
   }
+
+  static Future<void> cleanOldCustomCovers(Directory dir) async {
+    try {
+      if (!await dir.exists()) return;
+      
+      await for (final entity in dir.list(recursive: false)) {
+        if (entity is File) {
+          final filename = p.basename(entity.path).toLowerCase();
+          // Elimina cualquier archivo que empiece con '_custom_cover.' 
+          // (cubre .jpg, .png, .webp, etc.)
+          if (filename.startsWith('_custom_cover.')) {
+            await entity.delete();
+            print('🗑️ Portada anterior eliminada: ${entity.path}');
+          }
+        }
+      }
+    } catch (e) {
+      print('Error al limpiar portadas antiguas: $e');
+    }
+  }
 }
