@@ -4,7 +4,7 @@ import 'package:path/path.dart' as p;
 import 'nexus_api_service.dart';
 import 'download_service.dart';
 
-enum DownloadStatus { fetching, downloading, complete, error }
+enum DownloadStatus { fetching, downloading, paused, complete, error, cancelled }
 
 class DownloadTask {
   final String id;
@@ -18,11 +18,12 @@ class DownloadTask {
   String? modId;
   String? version;
   File? file;
+  final DownloadController controller = DownloadController();
 
   DownloadTask({
     required this.id,
     required this.nxmUrl,
-    this.fileName = "Obteniendo...",
+    required this.fileName,
     this.progress = 0.0,
     this.speed = "",
     this.downloaded = "",
@@ -37,15 +38,26 @@ class DownloadManager extends ChangeNotifier {
   final List<DownloadTask> activeDownloads = [];
   bool get hasActiveDownloads => activeDownloads.isNotEmpty;
 
-  void addDownload(String nxmUrl, String apiKey, Function(File, String, String) onComplete) async {
-    final task = DownloadTask(id: DateTime.now().millisecondsSinceEpoch.toString(), nxmUrl: nxmUrl);
+  void addDownload({
+    required String nxmUrl, 
+    required String apiKey, 
+    required String fetchingText,
+    required String linkErrorText,
+    required String downloadErrorText,
+    required Function(File, String, String) onComplete,
+  }) async {
+    final task = DownloadTask(
+      id: DateTime.now().millisecondsSinceEpoch.toString(), 
+      nxmUrl: nxmUrl,
+      fileName: fetchingText,
+    );
     activeDownloads.add(task);
     notifyListeners();
 
     try {
       final linkData = await NexusApiService.getDownloadLinkFromNxm(nxmUrl, apiKey);
       if (linkData == null) {
-        _updateTaskError(task, "No se pudo obtener el enlace");
+        _updateTaskError(task, linkErrorText);
         return;
       }
 
@@ -53,15 +65,10 @@ class DownloadManager extends ChangeNotifier {
       final String extractedModId = linkData['modId']!;
       final String extractedVersion = linkData['version']!;
 
-      // --- AQUÍ INTEGRAMOS TU LÓGICA DE REESTRUCTURACIÓN DE NOMBRE ---
-      // Si el nombre original no contiene el ID del mod, construimos el nombre perfecto
       if (!finalFileName.contains('-$extractedModId-')) {
         final ext = p.extension(finalFileName);
         final nameWithoutExt = p.basenameWithoutExtension(finalFileName);
         final safeVersion = extractedVersion.replaceAll('.', '-');
-        
-        // Añadimos "-1-0" o "-0" al final para que ArchiveService detecte
-        // la versión y valide la expresión regular perfectamente.
         finalFileName = '$nameWithoutExt-$extractedModId-$safeVersion-0$ext';
       }
 
@@ -71,17 +78,20 @@ class DownloadManager extends ChangeNotifier {
       task.status = DownloadStatus.downloading;
       notifyListeners();
 
-      // Pasamos el finalFileName ya corregido al DownloadService
       final downloadedFile = await DownloadService.downloadFile(
         url: linkData['url']!,
-        fileName: task.fileName, 
+        fileName: task.fileName,
+        controller: task.controller,
         onProgress: (progress, speed, downloadedStr) {
+          if (task.status == DownloadStatus.cancelled) return;
           task.progress = progress;
           task.speed = speed;
           task.downloaded = downloadedStr;
           notifyListeners();
         },
       );
+
+      if (task.status == DownloadStatus.cancelled) return;
 
       if (downloadedFile != null) {
         task.status = DownloadStatus.complete;
@@ -94,18 +104,49 @@ class DownloadManager extends ChangeNotifier {
           notifyListeners();
         });
       } else {
-        _updateTaskError(task, "Error en la descarga");
+        _updateTaskError(task, downloadErrorText);
       }
     } catch (e) {
-      _updateTaskError(task, e.toString());
+      if (task.status != DownloadStatus.cancelled) {
+        _updateTaskError(task, e.toString());
+      }
     }
+  }
+
+  void pauseTask(String id, {required String pausedText}) {
+    final task = activeDownloads.firstWhere((t) => t.id == id);
+    if (task.status == DownloadStatus.downloading) {
+      task.controller.pause();
+      task.status = DownloadStatus.paused;
+      task.speed = pausedText; // Usamos el texto localizado
+      notifyListeners();
+    }
+  }
+
+  void resumeTask(String id) {
+    final task = activeDownloads.firstWhere((t) => t.id == id);
+    if (task.status == DownloadStatus.paused) {
+      task.controller.resume();
+      task.status = DownloadStatus.downloading;
+      notifyListeners();
+    }
+  }
+
+  void cancelTask(String id) {
+    final task = activeDownloads.firstWhere((t) => t.id == id);
+    task.controller.cancel();
+    task.status = DownloadStatus.cancelled;
+    notifyListeners();
+    Future.delayed(const Duration(seconds: 2), () {
+      activeDownloads.remove(task);
+      notifyListeners();
+    });
   }
 
   void _updateTaskError(DownloadTask task, String error) {
     task.status = DownloadStatus.error;
     task.errorMessage = error;
     notifyListeners();
-    // Remover la tarea fallida después de unos segundos
     Future.delayed(const Duration(seconds: 5), () {
       activeDownloads.remove(task);
       notifyListeners();

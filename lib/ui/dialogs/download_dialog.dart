@@ -29,6 +29,7 @@ class _DownloadModDialogState extends State<DownloadModDialog> {
   String _speed = "";
   String _downloaded = "";
   bool _hasError = false;
+  final DownloadController _controller = DownloadController();
 
   @override
   void initState() {
@@ -66,8 +67,9 @@ class _DownloadModDialogState extends State<DownloadModDialog> {
       final downloadedFile = await DownloadService.downloadFile(
         url: linkData['url']!,
         fileName: _fileName,
+        controller: _controller,
         onProgress: (progress, speed, downloadedStr) {
-          if (mounted) {
+          if (mounted && !_controller.isCancelled) {
             setState(() {
               _progress = progress;
               _speed = speed;
@@ -76,6 +78,7 @@ class _DownloadModDialogState extends State<DownloadModDialog> {
           }
         },
       );
+      if (_controller.isCancelled) return;
 
       if (!mounted) return;
 
@@ -149,6 +152,14 @@ class _DownloadModDialogState extends State<DownloadModDialog> {
         ),
       ),
       actions: [
+        if (_isDownloading && !_hasError)
+          TextButton(
+            onPressed: () {
+              _controller.cancel();
+              Navigator.of(context).pop();
+            },
+            child: Text(l10n.dialogActionCancel), // Botón cancelar activo durante la descarga
+          ),
         if (_hasError)
           TextButton(
             onPressed: () => Navigator.of(context).pop(),

@@ -825,7 +825,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get modAuthor => '作者';
 
   @override
-  String get modSummary => 'Summary';
+  String get modSummary => '概要';
 
   @override
   String get modDescription => '説明';
@@ -903,7 +903,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get errorTranslation => '説明を翻訳できませんでした';
 
   @override
-  String get translateSummary => 'Translate summary';
+  String get translateSummary => '概要を翻訳する';
 
   @override
   String get translateDescription => '説明を翻訳';
@@ -1590,4 +1590,144 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get dialogContentSpecialModSingleSelection =>
       'インストールするオプションを1つ選択してください。';
+
+  @override
+  String get activeDownloads => 'アクティブなダウンロード';
+
+  @override
+  String downloadingModsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'MOD',
+      one: 'MOD',
+    );
+    return '$count 個の $_temp0 をダウンロード中';
+  }
+
+  @override
+  String get downloadError => 'エラー';
+
+  @override
+  String get downloadCancelled => 'キャンセルされました';
+
+  @override
+  String get downloadPause => '一時停止';
+
+  @override
+  String get downloadResume => '再開';
+
+  @override
+  String get downloadCancel => 'キャンセル';
+
+  @override
+  String get errorNexusInfoNotFound => 'nexus_info.json が見つかりません。';
+
+  @override
+  String logFixingCorruptedJson(String displayName) {
+    return '$displayName の破損した nexus_info.json を修正しています。';
+  }
+
+  @override
+  String logMetadataUpdateFailed(String displayName, String error) {
+    return '$displayName のメタデータを更新できませんでした: $error';
+  }
+
+  @override
+  String logDisablingMovieMod(String modName) {
+    return 'Mod 529が有効化されたため、ムービーMODを予防的に無効にしています: $modName';
+  }
+
+  @override
+  String logDisablingSplashMod(String modName) {
+    return 'Mod 801が有効化されたため、スプラッシュMODを予防的に無効にしています: $modName';
+  }
+
+  @override
+  String logRestoringTildeComponent(String folderName) {
+    return '~mods コンポーネントを復元しています: $folderName';
+  }
+
+  @override
+  String logRestoringUe4ssComponent(String folderName) {
+    return 'UE4SS コンポーネントを復元しています: $folderName';
+  }
+
+  @override
+  String logErrorRestoringLogicMod(String error) {
+    return 'LogicMod コンポーネントの復元中にエラーが発生しました: $error';
+  }
+
+  @override
+  String logArchivingTildeComponent(String folderName) {
+    return '~mods コンポーネントをアーカイブしています: $folderName';
+  }
+
+  @override
+  String logArchivingUe4ssComponent(String folderName) {
+    return 'UE4SS コンポーネントをアーカイブしています: $folderName';
+  }
+
+  @override
+  String logErrorArchivingLogicMod(String error) {
+    return 'LogicMod コンポーネントのアーカイブ中にエラーが発生しました: $error';
+  }
+
+  @override
+  String logSkippingActiveVariant(String modName) {
+    return '$modName をスキップします: このMODのアクティブなバリアントがすでに存在します。';
+  }
+
+  @override
+  String logSkippingOutfitConflict(String modName) {
+    return '$modName をスキップします: すでに使用されている衣装との競合があります。';
+  }
+
+  @override
+  String logErrorCleaningVideoBackups(String modName, String error) {
+    return '$modName のビデオバックアップをクリーンアップできませんでした: $error';
+  }
+
+  @override
+  String logNewNexusIdDetected(String nexusId) {
+    return '新しい Nexus ID $nexusId が検出されました。メタデータを取得しています...';
+  }
+
+  @override
+  String logMetadataApplied(String nexusId) {
+    return '$nexusId のメタデータを取得して適用しました。';
+  }
+
+  @override
+  String logFallbackByteCopy(String error) {
+    return '通常のコピーが失敗しました。バイトのブルートフォースを使用します: $error';
+  }
+
+  @override
+  String logWarningDeleteModifiedFile(String error) {
+    return '警告: 変更されたファイルを削除できませんでした: $error';
+  }
+
+  @override
+  String get logMod801BatPatched => 'このシステム用にMod 801の.batスクリプトが正常にパッチされました。';
+
+  @override
+  String logMod801BatPatchError(String error) {
+    return 'Mod 801の.batファイルにパッチを適用しようとしてエラーが発生しました: $error';
+  }
+
+  @override
+  String get errorHomeDirNotFound => 'ホームディレクトリの環境変数が見つかりませんでした。';
+
+  @override
+  String get downloadFetchingPlaceholder => '取得中...';
+
+  @override
+  String get downloadErrorLink => 'ダウンロードリンクを取得できませんでした';
+
+  @override
+  String get downloadErrorGeneral => 'ダウンロードに失敗しました';
+
+  @override
+  String get downloadPausedStatus => '一時停止中';
 }

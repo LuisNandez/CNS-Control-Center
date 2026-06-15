@@ -330,20 +330,20 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       }
       return;
     }
+    final l10n = AppLocalizations.of(context)!;
 
     // Mostrar el Overlay de descargas (la píldora)
     DownloadOverlay.show(context);
 
     // Añadir la descarga al gestor global
     DownloadManager.instance.addDownload(
-      url, 
-      _apiKey!, 
-      (File readyFile, String modId, String version) { 
-        
-        // El archivo 'readyFile' ya viene con el nombre corregido desde el Manager
+      nxmUrl: url, 
+      apiKey: _apiKey!, 
+      fetchingText: l10n.downloadFetchingPlaceholder,
+      linkErrorText: l10n.downloadErrorLink,
+      downloadErrorText: l10n.downloadErrorGeneral,
+      onComplete: (File readyFile, String modId, String version) { 
         _installQueue.add(readyFile);
-        
-        // Si el procesador de la cola no está trabajando, lo encendemos
         if (!_isProcessingQueue) {
           _processInstallQueue();
         }
@@ -1320,7 +1320,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
               final content = await infoFile.readAsString();
               data = json.decode(content);
             } catch (e) {
-              print("Corrigiendo nexus_info.json corrupto para $displayName.");
+              print(l10n.logFixingCorruptedJson(displayName));
             }
           }
 
@@ -1367,7 +1367,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
             );
           }
         } catch (e) {
-          print('Fallo al actualizar los metadatos para $displayName: $e');
+          print(l10n.logMetadataUpdateFailed(displayName, e.toString()));
         }
       }
 
@@ -2960,9 +2960,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       switch (action) {
         case AlternativeVersionAction.replace:
           if (oldVersionMod == null) {
-            throw Exception(
-              "Attempted to replace a mod but no old version was identified.",
-            );
+            throw Exception(l10n.errorReplaceNoOldVersion);
           }
           final oldInfoFile = File(
             p.join(oldVersionMod.directory.path, 'nexus_info.json'),
@@ -2988,7 +2986,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
             oldVersionMod.directory,
           );
           if (!deleted) {
-            throw Exception('Could not delete old mod version ($oldModName).');
+            throw Exception(l10n.errorDeleteOldModVersion(oldModName));
           }
           break;
         case AlternativeVersionAction.installAsNew:
@@ -3182,6 +3180,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   }
 
   Future<bool> _enableMod(ModInfo modInfo) async {
+    final l10n = AppLocalizations.of(context)!;
     if (_finalModsPath == null ||
         _genericModsPath == null ||
         _logicModsPath == null)
@@ -3193,7 +3192,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           .toList();
       
       for (final movieMod in activeMovieMods) {
-        print("Desactivando mod de película preventivamente por activación del Mod 529: ${movieMod.customName}");
+        print(l10n.logDisablingMovieMod(movieMod.customName));
         await _disableMod(movieMod);
       }
     }
@@ -3203,7 +3202,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           .toList();
       
       for (final splashMod in activeSplashMods) {
-        print("Desactivando mod splash preventivamente por activación del Mod 801: ${splashMod.customName}");
+        print(l10n.logDisablingSplashMod(splashMod.customName));
         await _disableMod(splashMod);
       }
     }
@@ -3439,7 +3438,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                 );
 
                 if (await tildeSourceDir.exists()) {
-                  print("Restaurando componente ~mods: $tildeFolder");
+                  print(l10n.logRestoringTildeComponent(tildeFolder));
                   // Mover de vuelta a .../Paks/~mods/
                   await FileManagerService.moveMod(tildeSourceDir, _genericModsPath!);
                   // Limpiar la carpeta contenedora vacía
@@ -3462,7 +3461,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                     p.join(ue4ssBackupContainer.path, folderName),
                   );
                   if (await ue4ssSourceDir.exists()) {
-                    print("Restaurando componente UE4SS: $folderName");
+                    print(l10n.logRestoringUe4ssComponent(folderName));
                     // Mover de vuelta a .../ue4ss/Mods/
                     await FileManagerService.moveMod(ue4ssSourceDir, _ue4ssModsPath!);
                   }
@@ -3501,7 +3500,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                 }
               }
             } catch (e) {
-              print("Error al restaurar componentes de LogicMod: $e");
+              print(l10n.logErrorRestoringLogicMod(e.toString()));
             }
           }
         }
@@ -3550,6 +3549,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   }
 
   Future<bool> _disableMod(ModInfo modInfo) async {
+    final l10n = AppLocalizations.of(context)!;
     if (_gameRootPath == null) return false;
     //setState(() => _isLoading = true);
 
@@ -3627,7 +3627,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                   await tildeDestContainer.create();
 
                 if (await tildeSourceDir.exists()) {
-                  print("Archivando componente ~mods: $tildeFolder");
+                  print(l10n.logArchivingTildeComponent(tildeFolder));
                   await FileManagerService.moveMod(tildeSourceDir, tildeDestContainer.path);
                 }
               }
@@ -3647,7 +3647,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                     p.join(_ue4ssModsPath!, folderName),
                   );
                   if (await ue4ssSourceDir.exists()) {
-                    print("Archivando componente UE4SS: $folderName");
+                    print(l10n.logArchivingUe4ssComponent(folderName));
                     await FileManagerService.moveMod(ue4ssSourceDir, ue4ssDestContainer.path);
                   }
                 }
@@ -3674,7 +3674,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                 }
               }
             } catch (e) {
-              print("Error al archivar componentes de LogicMod: $e");
+              print(l10n.logErrorArchivingLogicMod(e.toString()));
             }
           }
         }
@@ -3713,13 +3713,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
   /// Lógica específica para HABILITAR un mod de tipo "Movies".
   Future<void> _enableMovieMod(ModInfo modInfo, List<ModInfo> allMods) async {
+    final l10n = AppLocalizations.of(context)!;
     if (_moviesPath == null || _moviesBackupPath == null) {
       throw Exception(AppLocalizations.of(context)!.errorMoviesPathsNotDefined);
     }
 
     final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
     if (!await infoFile.exists()) {
-      throw Exception("nexus_info.json not found for ${modInfo.customName}.");
+      throw Exception(l10n.errorNexusInfoNotFoundForMod(modInfo.customName));
     }
 
     final data = json.decode(await infoFile.readAsString());
@@ -4044,9 +4045,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   }
 
   Future<void> _enableCustomFileMod(ModInfo modInfo, String targetPath, String backupPath) async {
+    final l10n = AppLocalizations.of(context)!;
     final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
     if (!await infoFile.exists()) {
-      throw Exception("nexus_info.json not found for ${modInfo.customName}.");
+      throw Exception(l10n.errorNexusInfoNotFoundForMod(modInfo.customName));
     }
 
     final data = json.decode(await infoFile.readAsString());
@@ -4084,9 +4086,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   }
 
   Future<void> _disableCustomFileMod(ModInfo modInfo, String targetPath, String backupPath) async {
+    final l10n = AppLocalizations.of(context)!;
     final infoFile = File(p.join(modInfo.directory.path, 'nexus_info.json'));
     if (!await infoFile.exists()) {
-      throw Exception("nexus_info.json not found for ${modInfo.customName}.");
+      throw Exception(l10n.errorNexusInfoNotFoundForMod(modInfo.customName));
     }
 
     final data = json.decode(await infoFile.readAsString());
@@ -4109,7 +4112,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           try {
             await gameFile.delete();
           } catch (e) {
-            print("Advertencia: No se pudo borrar el archivo modificado: $e");
+            print(AppLocalizations.of(context)!.logWarningDeleteModifiedFile(e.toString()));
           }
         }
         
@@ -4118,7 +4121,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           await backupFile.copy(gameFile.path);
           await backupFile.delete();
         } catch (e) {
-          print("Fallo en copy normal, usando fuerza bruta de bytes: $e");
+          print(AppLocalizations.of(context)!.logFallbackByteCopy(e.toString()));
           // Fallback: Fuerza bruta leyendo y escribiendo los bytes directamente
           final bytes = await backupFile.readAsBytes();
           await gameFile.writeAsBytes(bytes);
@@ -4277,7 +4280,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         if (mod.nexusId != null) {
           final signature = '${mod.nexusId}_${mod.modType}';
           if (activeModSignatures.contains(signature)) {
-            print("Saltando ${mod.customName}: Ya hay una variante activa de este mod.");
+            print(l10n.logSkippingActiveVariant(mod.customName));
             skippedCount++;
             continue;
           }
@@ -4287,7 +4290,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         if (mod.replacesOutfits != null && mod.replacesOutfits!.isNotEmpty) {
           final hasConflict = mod.replacesOutfits!.any((outfit) => claimedOutfits.contains(outfit));
           if (hasConflict) {
-            print("Saltando ${mod.customName}: Conflicto con un traje ya ocupado.");
+            print(l10n.logSkippingOutfitConflict(mod.customName));
             skippedCount++;
             continue;
           }
@@ -4453,7 +4456,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                 }
               }
             } catch (e) {
-              print("No se pudieron limpiar los backups de video para ${mod.customName}: $e");
+              print(l10n.logErrorCleaningVideoBackups(mod.customName, e.toString()));
             }
           }
         }
@@ -6152,13 +6155,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   }
 
   Future<void> _revertToDefaultCover(ModInfo mod) async {
+    final l10n = AppLocalizations.of(context)!;
     if (mod.customCoverPath == null || mod.customCoverPath!.isEmpty) return;
 
     setState(() => _isLoading = true);
     try {
       final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
       if (!await infoFile.exists()) {
-        throw Exception("nexus_info.json not found.");
+        throw Exception(l10n.errorNexusInfoNotFound);
       }
 
       // --- START: NEW SMART REVERT LOGIC ---
@@ -6897,9 +6901,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       }
 
       if (homePath == null) {
-        throw Exception(
-          'Could not find the home directory environment variable.',
-        );
+        throw Exception(l10n.errorHomeDirNotFound);
       }
 
       final desktopDir = Directory(p.join(homePath, 'Desktop'));

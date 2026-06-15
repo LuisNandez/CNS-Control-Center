@@ -576,7 +576,7 @@ abstract class AppLocalizations {
   /// **'You are about to permanently delete the mod \"{modName}\". This action cannot be undone.\n\nAre you sure?'**
   String dialogContentDeleteMod(Object modName);
 
-  /// No description provided for @dialogActionCancel.
+  /// Text for the cancel action button in dialogs
   ///
   /// In en, this message translates to:
   /// **'Cancel'**
@@ -2787,6 +2787,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select a single option to install.'**
   String get dialogContentSpecialModSingleSelection;
+
+  /// No description provided for @activeDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Downloads'**
+  String get activeDownloads;
+
+  /// Indicates how many mods are currently downloading
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {count} {count, plural, =1{mod} other{mods}}'**
+  String downloadingModsCount(int count);
+
+  /// No description provided for @downloadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get downloadError;
+
+  /// Status text shown when a download is cancelled
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get downloadCancelled;
+
+  /// Tooltip for the pause download button
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get downloadPause;
+
+  /// Tooltip for the resume download button
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get downloadResume;
+
+  /// Tooltip for the cancel download button
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get downloadCancel;
+
+  /// No description provided for @errorNexusInfoNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'nexus_info.json not found.'**
+  String get errorNexusInfoNotFound;
+
+  /// No description provided for @logFixingCorruptedJson.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixing corrupted nexus_info.json for {displayName}.'**
+  String logFixingCorruptedJson(String displayName);
+
+  /// No description provided for @logMetadataUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update metadata for {displayName}: {error}'**
+  String logMetadataUpdateFailed(String displayName, String error);
+
+  /// No description provided for @logDisablingMovieMod.
+  ///
+  /// In en, this message translates to:
+  /// **'Preventively disabling movie mod due to Mod 529 activation: {modName}'**
+  String logDisablingMovieMod(String modName);
+
+  /// No description provided for @logDisablingSplashMod.
+  ///
+  /// In en, this message translates to:
+  /// **'Preventively disabling splash mod due to Mod 801 activation: {modName}'**
+  String logDisablingSplashMod(String modName);
+
+  /// No description provided for @logRestoringTildeComponent.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring ~mods component: {folderName}'**
+  String logRestoringTildeComponent(String folderName);
+
+  /// No description provided for @logRestoringUe4ssComponent.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring UE4SS component: {folderName}'**
+  String logRestoringUe4ssComponent(String folderName);
+
+  /// No description provided for @logErrorRestoringLogicMod.
+  ///
+  /// In en, this message translates to:
+  /// **'Error restoring LogicMod components: {error}'**
+  String logErrorRestoringLogicMod(String error);
+
+  /// No description provided for @logArchivingTildeComponent.
+  ///
+  /// In en, this message translates to:
+  /// **'Archiving ~mods component: {folderName}'**
+  String logArchivingTildeComponent(String folderName);
+
+  /// No description provided for @logArchivingUe4ssComponent.
+  ///
+  /// In en, this message translates to:
+  /// **'Archiving UE4SS component: {folderName}'**
+  String logArchivingUe4ssComponent(String folderName);
+
+  /// No description provided for @logErrorArchivingLogicMod.
+  ///
+  /// In en, this message translates to:
+  /// **'Error archiving LogicMod components: {error}'**
+  String logErrorArchivingLogicMod(String error);
+
+  /// No description provided for @logSkippingActiveVariant.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipping {modName}: An active variant of this mod already exists.'**
+  String logSkippingActiveVariant(String modName);
+
+  /// No description provided for @logSkippingOutfitConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipping {modName}: Conflict with an already occupied outfit.'**
+  String logSkippingOutfitConflict(String modName);
+
+  /// No description provided for @logErrorCleaningVideoBackups.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not clean video backups for {modName}: {error}'**
+  String logErrorCleaningVideoBackups(String modName, String error);
+
+  /// No description provided for @logNewNexusIdDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'New Nexus ID {nexusId} detected. Fetching metadata...'**
+  String logNewNexusIdDetected(String nexusId);
+
+  /// No description provided for @logMetadataApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Metadata fetched and applied for {nexusId}.'**
+  String logMetadataApplied(String nexusId);
+
+  /// No description provided for @logFallbackByteCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Normal copy failed, using byte brute-force: {error}'**
+  String logFallbackByteCopy(String error);
+
+  /// No description provided for @logWarningDeleteModifiedFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning: Could not delete modified file: {error}'**
+  String logWarningDeleteModifiedFile(String error);
+
+  /// No description provided for @logMod801BatPatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Mod 801 .bat script successfully patched for this system.'**
+  String get logMod801BatPatched;
+
+  /// No description provided for @logMod801BatPatchError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error attempting to patch the Mod 801 .bat file: {error}'**
+  String logMod801BatPatchError(String error);
+
+  /// No description provided for @errorHomeDirNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not find the home directory environment variable.'**
+  String get errorHomeDirNotFound;
+
+  /// Placeholder text while fetching file info
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching...'**
+  String get downloadFetchingPlaceholder;
+
+  /// Error when nxm link resolution fails
+  ///
+  /// In en, this message translates to:
+  /// **'Could not fetch download link'**
+  String get downloadErrorLink;
+
+  /// General download failure error
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed'**
+  String get downloadErrorGeneral;
+
+  /// Status text when download is paused
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get downloadPausedStatus;
 }
 
 class _AppLocalizationsDelegate

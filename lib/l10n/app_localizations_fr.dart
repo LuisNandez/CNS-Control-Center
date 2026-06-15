@@ -851,7 +851,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get modAuthor => 'Auteur';
 
   @override
-  String get modSummary => 'Summary';
+  String get modSummary => 'Résumé';
 
   @override
   String get modDescription => 'Description';
@@ -930,7 +930,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get errorTranslation => 'Impossible de traduire la description';
 
   @override
-  String get translateSummary => 'Translate summary';
+  String get translateSummary => 'Traduire le résumé';
 
   @override
   String get translateDescription => 'Traduire la description';
@@ -1649,4 +1649,147 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get dialogContentSpecialModSingleSelection =>
       'Sélectionnez une seule option à installer.';
+
+  @override
+  String get activeDownloads => 'Téléchargements actifs';
+
+  @override
+  String downloadingModsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'mods',
+      one: 'mod',
+    );
+    return 'Téléchargement de $count $_temp0';
+  }
+
+  @override
+  String get downloadError => 'Erreur';
+
+  @override
+  String get downloadCancelled => 'Annulé';
+
+  @override
+  String get downloadPause => 'Pause';
+
+  @override
+  String get downloadResume => 'Reprendre';
+
+  @override
+  String get downloadCancel => 'Annuler';
+
+  @override
+  String get errorNexusInfoNotFound => 'nexus_info.json introuvable.';
+
+  @override
+  String logFixingCorruptedJson(String displayName) {
+    return 'Correction du nexus_info.json corrompu pour $displayName.';
+  }
+
+  @override
+  String logMetadataUpdateFailed(String displayName, String error) {
+    return 'Échec de la mise à jour des métadonnées pour $displayName : $error';
+  }
+
+  @override
+  String logDisablingMovieMod(String modName) {
+    return 'Désactivation préventive du mod de films suite à l\'activation du Mod 529 : $modName';
+  }
+
+  @override
+  String logDisablingSplashMod(String modName) {
+    return 'Désactivation préventive du mod d\'écran d\'accueil suite à l\'activation du Mod 801 : $modName';
+  }
+
+  @override
+  String logRestoringTildeComponent(String folderName) {
+    return 'Restauration du composant ~mods : $folderName';
+  }
+
+  @override
+  String logRestoringUe4ssComponent(String folderName) {
+    return 'Restauration du composant UE4SS : $folderName';
+  }
+
+  @override
+  String logErrorRestoringLogicMod(String error) {
+    return 'Erreur lors de la restauration des composants LogicMod : $error';
+  }
+
+  @override
+  String logArchivingTildeComponent(String folderName) {
+    return 'Archivage du composant ~mods : $folderName';
+  }
+
+  @override
+  String logArchivingUe4ssComponent(String folderName) {
+    return 'Archivage du composant UE4SS : $folderName';
+  }
+
+  @override
+  String logErrorArchivingLogicMod(String error) {
+    return 'Erreur lors de l\'archivage des composants LogicMod : $error';
+  }
+
+  @override
+  String logSkippingActiveVariant(String modName) {
+    return 'Ignoré $modName : Une variante active de ce mod existe déjà.';
+  }
+
+  @override
+  String logSkippingOutfitConflict(String modName) {
+    return 'Ignoré $modName : Conflit avec une tenue déjà occupée.';
+  }
+
+  @override
+  String logErrorCleaningVideoBackups(String modName, String error) {
+    return 'Impossible de nettoyer les sauvegardes vidéo pour $modName : $error';
+  }
+
+  @override
+  String logNewNexusIdDetected(String nexusId) {
+    return 'Nouvel ID Nexus $nexusId détecté. Récupération des métadonnées...';
+  }
+
+  @override
+  String logMetadataApplied(String nexusId) {
+    return 'Métadonnées récupérées et appliquées pour $nexusId.';
+  }
+
+  @override
+  String logFallbackByteCopy(String error) {
+    return 'Échec de la copie normale, utilisation de la force brute par octets : $error';
+  }
+
+  @override
+  String logWarningDeleteModifiedFile(String error) {
+    return 'Avertissement : Impossible de supprimer le fichier modifié : $error';
+  }
+
+  @override
+  String get logMod801BatPatched =>
+      'Script .bat du Mod 801 patché avec succès pour ce système.';
+
+  @override
+  String logMod801BatPatchError(String error) {
+    return 'Erreur lors de la tentative de patch du fichier .bat du Mod 801 : $error';
+  }
+
+  @override
+  String get errorHomeDirNotFound =>
+      'Impossible de trouver la variable d\'environnement du répertoire de base.';
+
+  @override
+  String get downloadFetchingPlaceholder => 'Récupération en cours...';
+
+  @override
+  String get downloadErrorLink =>
+      'Impossible de récupérer le lien de téléchargement';
+
+  @override
+  String get downloadErrorGeneral => 'Échec du téléchargement';
+
+  @override
+  String get downloadPausedStatus => 'En pause';
 }

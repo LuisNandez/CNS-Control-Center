@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/download_manager.dart';
 
 class DownloadOverlay {
@@ -10,8 +11,6 @@ class DownloadOverlay {
 
     _overlayEntry = OverlayEntry(
       builder: (context) => const Positioned(
-        // NUEVO: Se redujo de 20 a 4 para pegarlo más al borde superior.
-        // La SafeArea evitará que se solape con la barra de estado (batería, reloj).
         top: 4, 
         left: 0,
         right: 0,
@@ -34,7 +33,6 @@ class DownloadPillWidget extends StatefulWidget {
 
 class _DownloadPillWidgetState extends State<DownloadPillWidget> {
   bool _isExpanded = false;
-  // NUEVO: Variable para rastrear la cantidad de descargas en el frame anterior
   int _previousTaskCount = 0; 
 
   @override
@@ -45,17 +43,12 @@ class _DownloadPillWidgetState extends State<DownloadPillWidget> {
         final tasks = DownloadManager.instance.activeDownloads;
         final currentTaskCount = tasks.length;
         
-        // NUEVO: Si la cantidad actual es mayor a la anterior, inició una nueva descarga.
         if (currentTaskCount > _previousTaskCount) {
           _isExpanded = true;
-        } 
-        // Si se vacía la lista, la contraemos internamente para que la próxima vez 
-        // que inicie una descarga, la animación comience desde el estado colapsado.
-        else if (currentTaskCount == 0) {
+        } else if (currentTaskCount == 0) {
           _isExpanded = false;
         }
         
-        // Actualizamos el contador para la siguiente evaluación
         _previousTaskCount = currentTaskCount;
 
         final totalProgress = tasks.isEmpty 
@@ -118,8 +111,8 @@ class _DownloadPillWidgetState extends State<DownloadPillWidget> {
                                 child: AnimatedSwitcher(
                                   duration: const Duration(milliseconds: 200),
                                   child: _isExpanded 
-                                      ? _buildExpandedList(tasks) 
-                                      : _buildCollapsedPill(downloadingTasks, totalProgress),
+                                      ? _buildExpandedList(context, tasks) // NUEVO: Se pasa el context
+                                      : _buildCollapsedPill(context, downloadingTasks, totalProgress), // NUEVO: Se pasa el context
                                 ),
                               ),
                             ),
@@ -134,7 +127,10 @@ class _DownloadPillWidgetState extends State<DownloadPillWidget> {
     );
   }
 
-  Widget _buildCollapsedPill(int count, double progress) {
+  // NUEVO: Recibe BuildContext
+  Widget _buildCollapsedPill(BuildContext context, int count, double progress) {
+    final l10n = AppLocalizations.of(context)!; // Instancia de traducciones
+
     return Container(
       key: const ValueKey('collapsed'), 
       width: 260,
@@ -154,7 +150,7 @@ class _DownloadPillWidgetState extends State<DownloadPillWidget> {
           ),
           const SizedBox(width: 12),
           Text(
-            "Descargando $count mod${count != 1 ? 's' : ''}",
+            l10n.downloadingModsCount(count), // NUEVO: Texto localizado con pluralización
             style: const TextStyle(
               color: Colors.white, 
               fontSize: 14, 
@@ -167,7 +163,10 @@ class _DownloadPillWidgetState extends State<DownloadPillWidget> {
     );
   }
 
-  Widget _buildExpandedList(List<DownloadTask> tasks) {
+  // NUEVO: Recibe BuildContext
+  Widget _buildExpandedList(BuildContext context, List<DownloadTask> tasks) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       key: const ValueKey('expanded'),
       width: 400,
@@ -180,9 +179,9 @@ class _DownloadPillWidgetState extends State<DownloadPillWidget> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  "Descargas Activas", 
-                  style: TextStyle(
+                Text(
+                  l10n.activeDownloads,
+                  style: const TextStyle(
                     color: Colors.white, 
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
@@ -235,8 +234,13 @@ class _DownloadPillWidgetState extends State<DownloadPillWidget> {
                         const LinearProgressIndicator(color: Colors.tealAccent)
                       else if (task.status == DownloadStatus.error)
                         Text(
-                          task.errorMessage ?? "Error", 
+                          task.errorMessage ?? l10n.downloadError,
                           style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                        )
+                      else if (task.status == DownloadStatus.cancelled)
+                        Text(
+                          l10n.downloadCancelled, // Nueva l10n requerida
+                          style: const TextStyle(color: Colors.orangeAccent, fontSize: 12),
                         )
                       else ...[
                         ClipRRect(
@@ -244,7 +248,7 @@ class _DownloadPillWidgetState extends State<DownloadPillWidget> {
                           child: LinearProgressIndicator(
                             value: task.progress, 
                             backgroundColor: Colors.white.withOpacity(0.1), 
-                            color: Colors.tealAccent,
+                            color: task.status == DownloadStatus.paused ? Colors.grey : Colors.tealAccent,
                             minHeight: 6,
                           ),
                         ),
@@ -252,13 +256,52 @@ class _DownloadPillWidgetState extends State<DownloadPillWidget> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              task.downloaded, 
-                              style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    task.downloaded, 
+                                    style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                                  ),
+                                  Text(
+                                    task.speed, 
+                                    style: TextStyle(fontSize: 11, color: task.status == DownloadStatus.paused ? Colors.orangeAccent : Colors.grey[400]),
+                                  ),
+                                ],
+                              ),
                             ),
-                            Text(
-                              task.speed, 
-                              style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (task.status == DownloadStatus.downloading)
+                                  IconButton(
+                                    icon: const Icon(Icons.pause, color: Colors.white70, size: 20),
+                                    onPressed: () => DownloadManager.instance.pauseTask(
+                                      task.id,
+                                      pausedText: l10n.downloadPausedStatus, // Texto localizado
+                                    ),
+                                    tooltip: l10n.downloadPause,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  )
+                                else if (task.status == DownloadStatus.paused)
+                                  IconButton(
+                                    icon: const Icon(Icons.play_arrow, color: Colors.tealAccent, size: 20),
+                                    onPressed: () => DownloadManager.instance.resumeTask(task.id),
+                                    tooltip: l10n.downloadResume, // Nueva l10n requerida
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                const SizedBox(width: 16),
+                                IconButton(
+                                  icon: const Icon(Icons.close, color: Colors.redAccent, size: 20),
+                                  onPressed: () => DownloadManager.instance.cancelTask(task.id),
+                                  tooltip: l10n.downloadCancel, // Nueva l10n requerida
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
                             ),
                           ],
                         ),

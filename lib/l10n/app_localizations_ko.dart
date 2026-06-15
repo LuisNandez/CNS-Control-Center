@@ -822,7 +822,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get modAuthor => '제작자';
 
   @override
-  String get modSummary => 'Summary';
+  String get modSummary => '요약';
 
   @override
   String get modDescription => '설명';
@@ -900,7 +900,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get errorTranslation => '설명을 번역할 수 없습니다';
 
   @override
-  String get translateSummary => 'Translate summary';
+  String get translateSummary => '요약 번역';
 
   @override
   String get translateDescription => '설명 번역';
@@ -1585,4 +1585,145 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get dialogContentSpecialModSingleSelection => '설치할 단일 옵션을 선택해 주세요.';
+
+  @override
+  String get activeDownloads => '활성 다운로드';
+
+  @override
+  String downloadingModsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '모드',
+      one: '모드',
+    );
+    return '$count개의 $_temp0 다운로드 중';
+  }
+
+  @override
+  String get downloadError => '오류';
+
+  @override
+  String get downloadCancelled => '취소됨';
+
+  @override
+  String get downloadPause => '일시 정지';
+
+  @override
+  String get downloadResume => '계속';
+
+  @override
+  String get downloadCancel => '취소';
+
+  @override
+  String get errorNexusInfoNotFound => 'nexus_info.json을 찾을 수 없습니다.';
+
+  @override
+  String logFixingCorruptedJson(String displayName) {
+    return '$displayName의 손상된 nexus_info.json을 수정 중입니다.';
+  }
+
+  @override
+  String logMetadataUpdateFailed(String displayName, String error) {
+    return '$displayName의 메타데이터를 업데이트할 수 없습니다: $error';
+  }
+
+  @override
+  String logDisablingMovieMod(String modName) {
+    return 'Mod 529 활성화로 인해 동영상 모드를 예방 차원에서 비활성화합니다: $modName';
+  }
+
+  @override
+  String logDisablingSplashMod(String modName) {
+    return 'Mod 801 활성화로 인해 스플래시 모드를 예방 차원에서 비활성화합니다: $modName';
+  }
+
+  @override
+  String logRestoringTildeComponent(String folderName) {
+    return '~mods 구성 요소 복원 중: $folderName';
+  }
+
+  @override
+  String logRestoringUe4ssComponent(String folderName) {
+    return 'UE4SS 구성 요소 복원 중: $folderName';
+  }
+
+  @override
+  String logErrorRestoringLogicMod(String error) {
+    return 'LogicMod 구성 요소를 복원하는 중 오류 발생: $error';
+  }
+
+  @override
+  String logArchivingTildeComponent(String folderName) {
+    return '~mods 구성 요소 보관 중: $folderName';
+  }
+
+  @override
+  String logArchivingUe4ssComponent(String folderName) {
+    return 'UE4SS 구성 요소 보관 중: $folderName';
+  }
+
+  @override
+  String logErrorArchivingLogicMod(String error) {
+    return 'LogicMod 구성 요소를 보관하는 중 오류 발생: $error';
+  }
+
+  @override
+  String logSkippingActiveVariant(String modName) {
+    return '$modName 건너뛰기: 이 모드의 활성 변형이 이미 존재합니다.';
+  }
+
+  @override
+  String logSkippingOutfitConflict(String modName) {
+    return '$modName 건너뛰기: 이미 사용 중인 의상과 충돌합니다.';
+  }
+
+  @override
+  String logErrorCleaningVideoBackups(String modName, String error) {
+    return '$modName의 비디오 백업을 정리할 수 없습니다: $error';
+  }
+
+  @override
+  String logNewNexusIdDetected(String nexusId) {
+    return '새로운 Nexus ID $nexusId 감지됨. 메타데이터를 가져오는 중...';
+  }
+
+  @override
+  String logMetadataApplied(String nexusId) {
+    return '$nexusId의 메타데이터를 가져와 적용했습니다.';
+  }
+
+  @override
+  String logFallbackByteCopy(String error) {
+    return '일반 복사에 실패했습니다. 바이트 브루트 포스를 사용합니다: $error';
+  }
+
+  @override
+  String logWarningDeleteModifiedFile(String error) {
+    return '경고: 수정된 파일을 삭제할 수 없습니다: $error';
+  }
+
+  @override
+  String get logMod801BatPatched =>
+      '이 시스템에 맞게 Mod 801 .bat 스크립트가 성공적으로 패치되었습니다.';
+
+  @override
+  String logMod801BatPatchError(String error) {
+    return 'Mod 801 .bat 파일을 패치하는 중 오류 발생: $error';
+  }
+
+  @override
+  String get errorHomeDirNotFound => '홈 디렉터리 환경 변수를 찾을 수 없습니다.';
+
+  @override
+  String get downloadFetchingPlaceholder => '가져오는 중...';
+
+  @override
+  String get downloadErrorLink => '다운로드 링크를 가져올 수 없습니다';
+
+  @override
+  String get downloadErrorGeneral => '다운로드 실패';
+
+  @override
+  String get downloadPausedStatus => '일시 정지됨';
 }

@@ -1625,4 +1625,146 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get dialogContentSpecialModSingleSelection =>
       'Select a single option to install.';
+
+  @override
+  String get activeDownloads => 'Active Downloads';
+
+  @override
+  String downloadingModsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'mods',
+      one: 'mod',
+    );
+    return 'Downloading $count $_temp0';
+  }
+
+  @override
+  String get downloadError => 'Error';
+
+  @override
+  String get downloadCancelled => 'Cancelled';
+
+  @override
+  String get downloadPause => 'Pause';
+
+  @override
+  String get downloadResume => 'Resume';
+
+  @override
+  String get downloadCancel => 'Cancel';
+
+  @override
+  String get errorNexusInfoNotFound => 'nexus_info.json not found.';
+
+  @override
+  String logFixingCorruptedJson(String displayName) {
+    return 'Fixing corrupted nexus_info.json for $displayName.';
+  }
+
+  @override
+  String logMetadataUpdateFailed(String displayName, String error) {
+    return 'Failed to update metadata for $displayName: $error';
+  }
+
+  @override
+  String logDisablingMovieMod(String modName) {
+    return 'Preventively disabling movie mod due to Mod 529 activation: $modName';
+  }
+
+  @override
+  String logDisablingSplashMod(String modName) {
+    return 'Preventively disabling splash mod due to Mod 801 activation: $modName';
+  }
+
+  @override
+  String logRestoringTildeComponent(String folderName) {
+    return 'Restoring ~mods component: $folderName';
+  }
+
+  @override
+  String logRestoringUe4ssComponent(String folderName) {
+    return 'Restoring UE4SS component: $folderName';
+  }
+
+  @override
+  String logErrorRestoringLogicMod(String error) {
+    return 'Error restoring LogicMod components: $error';
+  }
+
+  @override
+  String logArchivingTildeComponent(String folderName) {
+    return 'Archiving ~mods component: $folderName';
+  }
+
+  @override
+  String logArchivingUe4ssComponent(String folderName) {
+    return 'Archiving UE4SS component: $folderName';
+  }
+
+  @override
+  String logErrorArchivingLogicMod(String error) {
+    return 'Error archiving LogicMod components: $error';
+  }
+
+  @override
+  String logSkippingActiveVariant(String modName) {
+    return 'Skipping $modName: An active variant of this mod already exists.';
+  }
+
+  @override
+  String logSkippingOutfitConflict(String modName) {
+    return 'Skipping $modName: Conflict with an already occupied outfit.';
+  }
+
+  @override
+  String logErrorCleaningVideoBackups(String modName, String error) {
+    return 'Could not clean video backups for $modName: $error';
+  }
+
+  @override
+  String logNewNexusIdDetected(String nexusId) {
+    return 'New Nexus ID $nexusId detected. Fetching metadata...';
+  }
+
+  @override
+  String logMetadataApplied(String nexusId) {
+    return 'Metadata fetched and applied for $nexusId.';
+  }
+
+  @override
+  String logFallbackByteCopy(String error) {
+    return 'Normal copy failed, using byte brute-force: $error';
+  }
+
+  @override
+  String logWarningDeleteModifiedFile(String error) {
+    return 'Warning: Could not delete modified file: $error';
+  }
+
+  @override
+  String get logMod801BatPatched =>
+      'Mod 801 .bat script successfully patched for this system.';
+
+  @override
+  String logMod801BatPatchError(String error) {
+    return 'Error attempting to patch the Mod 801 .bat file: $error';
+  }
+
+  @override
+  String get errorHomeDirNotFound =>
+      'Could not find the home directory environment variable.';
+
+  @override
+  String get downloadFetchingPlaceholder => 'Fetching...';
+
+  @override
+  String get downloadErrorLink => 'Could not fetch download link';
+
+  @override
+  String get downloadErrorGeneral => 'Download failed';
+
+  @override
+  String get downloadPausedStatus => 'Paused';
 }

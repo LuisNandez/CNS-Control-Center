@@ -937,5 +937,128 @@
   "dialogContentSplashOptions": "Select the images you want to install. You can choose entire folders (batches) or individual images.",
   "snackBarSplashNoSelection": "Please select at least one image.",
 
-  "dialogContentSpecialModSingleSelection": "Select a single option to install."
+  "dialogContentSpecialModSingleSelection": "Select a single option to install.",
+  "activeDownloads": "Active Downloads",
+  "downloadingModsCount": "Downloading {count} {count, plural, =1{mod} other{mods}}",
+  "@downloadingModsCount": {
+    "description": "Indicates how many mods are currently downloading",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadError": "Error",
+  "downloadCancelled": "Cancelled",
+  "@downloadCancelled": {
+    "description": "Status text shown when a download is cancelled"
+  },
+  "downloadPause": "Pause",
+  "@downloadPause": {
+    "description": "Tooltip for the pause download button"
+  },
+  "downloadResume": "Resume",
+  "@downloadResume": {
+    "description": "Tooltip for the resume download button"
+  },
+  "downloadCancel": "Cancel",
+  "@downloadCancel": {
+    "description": "Tooltip for the cancel download button"
+  },
+  "@dialogActionCancel": {
+    "description": "Text for the cancel action button in dialogs"
+  },
+
+  "errorNexusInfoNotFound": "nexus_info.json not found.",
+  "logFixingCorruptedJson": "Fixing corrupted nexus_info.json for {displayName}.",
+  "@logFixingCorruptedJson": {
+    "placeholders": { "displayName": { "type": "String" } }
+  },
+  "logMetadataUpdateFailed": "Failed to update metadata for {displayName}: {error}",
+  "@logMetadataUpdateFailed": {
+    "placeholders": { "displayName": { "type": "String" }, "error": { "type": "String" } }
+  },
+  "logDisablingMovieMod": "Preventively disabling movie mod due to Mod 529 activation: {modName}",
+  "@logDisablingMovieMod": {
+    "placeholders": { "modName": { "type": "String" } }
+  },
+  "logDisablingSplashMod": "Preventively disabling splash mod due to Mod 801 activation: {modName}",
+  "@logDisablingSplashMod": {
+    "placeholders": { "modName": { "type": "String" } }
+  },
+  "logRestoringTildeComponent": "Restoring ~mods component: {folderName}",
+  "@logRestoringTildeComponent": {
+    "placeholders": { "folderName": { "type": "String" } }
+  },
+  "logRestoringUe4ssComponent": "Restoring UE4SS component: {folderName}",
+  "@logRestoringUe4ssComponent": {
+    "placeholders": { "folderName": { "type": "String" } }
+  },
+  "logErrorRestoringLogicMod": "Error restoring LogicMod components: {error}",
+  "@logErrorRestoringLogicMod": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "logArchivingTildeComponent": "Archiving ~mods component: {folderName}",
+  "@logArchivingTildeComponent": {
+    "placeholders": { "folderName": { "type": "String" } }
+  },
+  "logArchivingUe4ssComponent": "Archiving UE4SS component: {folderName}",
+  "@logArchivingUe4ssComponent": {
+    "placeholders": { "folderName": { "type": "String" } }
+  },
+  "logErrorArchivingLogicMod": "Error archiving LogicMod components: {error}",
+  "@logErrorArchivingLogicMod": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "logSkippingActiveVariant": "Skipping {modName}: An active variant of this mod already exists.",
+  "@logSkippingActiveVariant": {
+    "placeholders": { "modName": { "type": "String" } }
+  },
+  "logSkippingOutfitConflict": "Skipping {modName}: Conflict with an already occupied outfit.",
+  "@logSkippingOutfitConflict": {
+    "placeholders": { "modName": { "type": "String" } }
+  },
+  "logErrorCleaningVideoBackups": "Could not clean video backups for {modName}: {error}",
+  "@logErrorCleaningVideoBackups": {
+    "placeholders": { "modName": { "type": "String" }, "error": { "type": "String" } }
+  },
+  "logNewNexusIdDetected": "New Nexus ID {nexusId} detected. Fetching metadata...",
+  "@logNewNexusIdDetected": {
+    "placeholders": { "nexusId": { "type": "String" } }
+  },
+  "logMetadataApplied": "Metadata fetched and applied for {nexusId}.",
+  "@logMetadataApplied": {
+    "placeholders": { "nexusId": { "type": "String" } }
+  },
+  "logFallbackByteCopy": "Normal copy failed, using byte brute-force: {error}",
+  "@logFallbackByteCopy": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "logWarningDeleteModifiedFile": "Warning: Could not delete modified file: {error}",
+  "@logWarningDeleteModifiedFile": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "logMod801BatPatched": "Mod 801 .bat script successfully patched for this system.",
+  "logMod801BatPatchError": "Error attempting to patch the Mod 801 .bat file: {error}",
+  "@logMod801BatPatchError": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "errorHomeDirNotFound": "Could not find the home directory environment variable.",
+
+  "downloadFetchingPlaceholder": "Fetching...",
+  "@downloadFetchingPlaceholder": {
+    "description": "Placeholder text while fetching file info"
+  },
+  "downloadErrorLink": "Could not fetch download link",
+  "@downloadErrorLink": {
+    "description": "Error when nxm link resolution fails"
+  },
+  "downloadErrorGeneral": "Download failed",
+  "@downloadErrorGeneral": {
+    "description": "General download failure error"
+  },
+  "downloadPausedStatus": "Paused",
+  "@downloadPausedStatus": {
+    "description": "Status text when download is paused"
+  }
 }

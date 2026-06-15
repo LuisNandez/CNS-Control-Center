@@ -814,7 +814,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modAuthor => '作者';
 
   @override
-  String get modSummary => 'Summary';
+  String get modSummary => '摘要';
 
   @override
   String get modDescription => '描述';
@@ -892,7 +892,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get errorTranslation => '无法翻译描述';
 
   @override
-  String get translateSummary => 'Translate summary';
+  String get translateSummary => '翻译摘要';
 
   @override
   String get translateDescription => '翻译描述';
@@ -1568,4 +1568,144 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dialogContentSpecialModSingleSelection => '请选择一个要安装的选项。';
+
+  @override
+  String get activeDownloads => '活动下载';
+
+  @override
+  String downloadingModsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '个模组',
+      one: '个模组',
+    );
+    return '正在下载 $count $_temp0';
+  }
+
+  @override
+  String get downloadError => '错误';
+
+  @override
+  String get downloadCancelled => '已取消';
+
+  @override
+  String get downloadPause => '暂停';
+
+  @override
+  String get downloadResume => '继续';
+
+  @override
+  String get downloadCancel => '取消';
+
+  @override
+  String get errorNexusInfoNotFound => '找不到 nexus_info.json。';
+
+  @override
+  String logFixingCorruptedJson(String displayName) {
+    return '正在修复 $displayName 损坏的 nexus_info.json。';
+  }
+
+  @override
+  String logMetadataUpdateFailed(String displayName, String error) {
+    return '无法更新 $displayName 的元数据: $error';
+  }
+
+  @override
+  String logDisablingMovieMod(String modName) {
+    return '由于启用了模组 529，已预防性禁用电影模组: $modName';
+  }
+
+  @override
+  String logDisablingSplashMod(String modName) {
+    return '由于启用了模组 801，已预防性禁用启动画面模组: $modName';
+  }
+
+  @override
+  String logRestoringTildeComponent(String folderName) {
+    return '正在恢复 ~mods 组件: $folderName';
+  }
+
+  @override
+  String logRestoringUe4ssComponent(String folderName) {
+    return '正在恢复 UE4SS 组件: $folderName';
+  }
+
+  @override
+  String logErrorRestoringLogicMod(String error) {
+    return '恢复 LogicMod 组件时出错: $error';
+  }
+
+  @override
+  String logArchivingTildeComponent(String folderName) {
+    return '正在归档 ~mods 组件: $folderName';
+  }
+
+  @override
+  String logArchivingUe4ssComponent(String folderName) {
+    return '正在归档 UE4SS 组件: $folderName';
+  }
+
+  @override
+  String logErrorArchivingLogicMod(String error) {
+    return '归档 LogicMod 组件时出错: $error';
+  }
+
+  @override
+  String logSkippingActiveVariant(String modName) {
+    return '跳过 $modName: 此模组的活动变体已存在。';
+  }
+
+  @override
+  String logSkippingOutfitConflict(String modName) {
+    return '跳过 $modName: 与已占用的服装发生冲突。';
+  }
+
+  @override
+  String logErrorCleaningVideoBackups(String modName, String error) {
+    return '无法清理 $modName 的视频备份: $error';
+  }
+
+  @override
+  String logNewNexusIdDetected(String nexusId) {
+    return '检测到新的 Nexus ID $nexusId。正在获取元数据...';
+  }
+
+  @override
+  String logMetadataApplied(String nexusId) {
+    return '已获取并应用 $nexusId 的元数据。';
+  }
+
+  @override
+  String logFallbackByteCopy(String error) {
+    return '常规复制失败，正在使用字节暴力破解: $error';
+  }
+
+  @override
+  String logWarningDeleteModifiedFile(String error) {
+    return '警告: 无法删除修改后的文件: $error';
+  }
+
+  @override
+  String get logMod801BatPatched => '已成功为此系统修补模组 801 的 .bat 脚本。';
+
+  @override
+  String logMod801BatPatchError(String error) {
+    return '尝试修补模组 801 的 .bat 文件时出错: $error';
+  }
+
+  @override
+  String get errorHomeDirNotFound => '找不到主目录环境变量。';
+
+  @override
+  String get downloadFetchingPlaceholder => '获取中...';
+
+  @override
+  String get downloadErrorLink => '无法获取下载链接';
+
+  @override
+  String get downloadErrorGeneral => '下载失败';
+
+  @override
+  String get downloadPausedStatus => '已暂停';
 }
