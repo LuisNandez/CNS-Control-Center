@@ -1,7 +1,10 @@
+// ignore_for_file: deprecated_member_use
+import 'package:flutter/cupertino.dart' show CupertinoSwitch;
 import 'package:flutter/material.dart';
 import '../../models/mod_info.dart';
+import '../theme/ios_theme.dart';
 
-/// Un widget Switch que maneja su propio estado de animación localmente
+/// Interruptor estilo iOS que maneja su propio estado de animación localmente
 /// para permitir una transición visual suave (deslizamiento) al cambiar,
 /// mientras sigue llamando a los callbacks del widget principal para
 /// ejecutar la lógica de habilitación/deshabilitación.
@@ -43,54 +46,52 @@ class _AnimatedModSwitchState extends State<AnimatedModSwitch> {
     }
   }
 
+  Future<void> _handleChange(bool newValue) async {
+    // Mientras se procesa un cambio se ignoran toques extra, pero el
+    // interruptor conserva su aspecto normal (como en iOS).
+    if (_isLocallyLoading) return;
+
+    setState(() {
+      _isEnabled = newValue;
+      _isLocallyLoading = true;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    try {
+      final bool success = newValue
+          ? await widget.onEnable(widget.modInfo)
+          : await widget.onDisable(widget.modInfo);
+
+      if (!success && mounted) {
+        setState(() => _isEnabled = !newValue);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isEnabled = !newValue);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLocallyLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final bool isDisabled = widget.isLoading || _isLocallyLoading;
-
-    Widget switchWidget = Switch(
+    final Widget switchWidget = CupertinoSwitch(
       value: _isEnabled,
-      activeColor: Colors.tealAccent,
-      onChanged: isDisabled
-          ? null
-          : (newValue) async {
-              setState(() {
-                _isEnabled = newValue;
-                _isLocallyLoading = true;
-              });
-
-              await Future.delayed(const Duration(milliseconds: 300));
-
-              try {
-                bool success;
-                if (newValue) {
-                  success = await widget.onEnable(widget.modInfo);
-                } else {
-                  success = await widget.onDisable(widget.modInfo);
-                }
-
-                if (!success && mounted) {
-                  setState(() {
-                    _isEnabled = !newValue;
-                  });
-                }
-              } catch (e) {
-                if (mounted) {
-                  setState(() {
-                    _isEnabled = !newValue;
-                  });
-                }
-              } finally {
-                if (mounted) {
-                  setState(() {
-                    _isLocallyLoading = false;
-                  });
-                }
-              }
-            },
+      activeColor: IosColors.green,
+      onChanged: widget.isLoading ? null : _handleChange,
     );
 
     if (widget.scale != 1.0) {
-      return Transform.scale(scale: widget.scale, child: switchWidget);
+      // El CupertinoSwitch mide 51x31; se escala también el espacio que ocupa.
+      return SizedBox(
+        width: 51 * widget.scale,
+        height: 31 * widget.scale,
+        child: FittedBox(fit: BoxFit.contain, child: switchWidget),
+      );
     }
 
     return switchWidget;

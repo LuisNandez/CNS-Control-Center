@@ -2,19 +2,61 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class BBCodeRenderer extends StatelessWidget {
+class BBCodeRenderer extends StatefulWidget {
   final String data;
   final TextStyle? defaultStyle;
 
   const BBCodeRenderer({super.key, required this.data, this.defaultStyle});
 
   @override
-  Widget build(BuildContext context) {
+  State<BBCodeRenderer> createState() => _BBCodeRendererState();
+}
+
+class _BBCodeRendererState extends State<BBCodeRenderer> {
+  // El análisis del BBCode (regex + construcción de widgets) es costoso. Antes
+  // se repetía en CADA rebuild del panel (cada setState, cada cambio del
+  // scroll...). Ahora se hace una vez y solo se repite si cambian el texto, el
+  // estilo o el tema.
+  List<Widget> _children = const [];
+  bool _dirty = true;
+  final List<TapGestureRecognizer> _recognizers = [];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _dirty = true;
+  }
+
+  @override
+  void didUpdateWidget(covariant BBCodeRenderer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.data != widget.data ||
+        oldWidget.defaultStyle != widget.defaultStyle) {
+      _dirty = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposeRecognizers();
+    super.dispose();
+  }
+
+  void _disposeRecognizers() {
+    for (final r in _recognizers) {
+      r.dispose();
+    }
+    _recognizers.clear();
+  }
+
+  void _rebuildChildren() {
+    _disposeRecognizers();
+
     final defaultTextStyle =
-        defaultStyle ??
+        widget.defaultStyle ??
         Theme.of(context).textTheme.bodyMedium ??
         const TextStyle();
-    final decodedData = data
+    final decodedData = widget.data
         .replaceAll('&#92;', r'\')
         .replaceAll('&gt;', '>')
         .replaceAll('&lt;', '<')
@@ -22,14 +64,21 @@ class BBCodeRenderer extends StatelessWidget {
 
     final widgets = _parseBBCode(context, decodedData);
 
+    _children = widgets.map((w) {
+      if (w is RichText) {
+        return DefaultTextStyle(style: defaultTextStyle, child: w);
+      }
+      return w;
+    }).toList();
+    _dirty = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_dirty) _rebuildChildren();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: widgets.map((widget) {
-        if (widget is RichText) {
-          return DefaultTextStyle(style: defaultTextStyle, child: widget);
-        }
-        return widget;
-      }).toList(),
+      children: _children,
     );
   }
 
@@ -74,6 +123,24 @@ class BBCodeRenderer extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Image.network(
                 url,
+                // Las imágenes de las descripciones suelen ser enormes: se
+                // decodifican como mucho a 1280 px de ancho.
+                cacheWidth: 1280,
+                filterQuality: FilterQuality.medium,
+                gaplessPlayback: true,
+                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                  if (wasSynchronouslyLoaded) return child;
+                  return AnimatedOpacity(
+                    opacity: frame == null ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 240),
+                    curve: Curves.easeOut,
+                    child: child,
+                  );
+                },
+                // Hueco reservado mientras carga, para que el texto de debajo
+                // no salte de golpe al llegar la imagen.
+                loadingBuilder: (context, child, progress) =>
+                    progress == null ? child : const SizedBox(height: 120),
                 errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.broken_image_outlined, color: Colors.grey),
               ),
@@ -214,7 +281,7 @@ class BBCodeRenderer extends StatelessWidget {
               break;
             case 'url':
               if (tagValue != null) {
-                currentRecognizer = TapGestureRecognizer()
+                final recognizer = TapGestureRecognizer()
                   ..onTap = () async {
                     try {
                       final url = Uri.parse(tagValue);
@@ -225,6 +292,8 @@ class BBCodeRenderer extends StatelessWidget {
                       print('Could not launch URL $tagValue: $e');
                     }
                   };
+                _recognizers.add(recognizer);
+                currentRecognizer = recognizer;
                 currentStyle = currentStyle.copyWith(
                   color: Colors.lightBlueAccent,
                   decoration: TextDecoration.underline,
@@ -261,7 +330,7 @@ class BBCodeRenderer extends StatelessWidget {
     return RichText(
       text: TextSpan(
         children: spans,
-        style: defaultStyle ?? Theme.of(context).textTheme.bodyMedium,
+        style: widget.defaultStyle ?? Theme.of(context).textTheme.bodyMedium,
       ),
     );
   }

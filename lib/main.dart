@@ -3,6 +3,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:ui' show ImageFilter, FontFeature;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:file_picker/file_picker.dart';
@@ -26,11 +27,13 @@ import 'config/app_prefs.dart';
 import 'models/app_enums.dart';
 import 'utils/version_utils.dart';
 import 'services/nexus_api_service.dart';
+import 'services/endorse_info_store.dart';
 import 'services/file_manager_service.dart';
 import 'services/game_locator_service.dart';
 import 'ui/widgets/mod_grid_card.dart';
 import 'ui/widgets/mod_list_tile.dart';
 import 'ui/widgets/mod_details_panel.dart';
+import 'ui/widgets/image_viewer.dart';
 import 'utils/text_utils.dart';
 import 'ui/dialogs/edit_dialogs.dart';
 import 'ui/widgets/installation_panel.dart';
@@ -38,6 +41,7 @@ import 'services/core_installer_service.dart';
 import 'models/installation_models.dart';
 import 'services/archive_service.dart';
 import 'services/mod_manager_service.dart';
+import 'services/mod_metadata_migrator.dart';
 import 'services/update_service.dart';
 import 'services/special_mods_handler.dart';
 import 'ui/dialogs/special_mod_dialog.dart';
@@ -50,6 +54,16 @@ import 'services/splash_mods_handler.dart';
 import 'ui/dialogs/splash_mod_dialog.dart';
 import 'services/download_manager.dart';
 import 'ui/widgets/download_pill_overlay.dart';
+import 'package:flutter/cupertino.dart' show CupertinoActivityIndicator;
+import 'ui/theme/ios_theme.dart';
+import 'ui/widgets/ios_widgets.dart';
+import 'ui/widgets/ios_motion.dart' show IosMotion;
+import 'ui/widgets/smooth_scroll.dart';
+import 'ui/widgets/ios_progress_bar.dart';
+import 'ui/dialogs/settings_dialogs.dart';
+import 'ui/dialogs/install_dialogs.dart';
+import 'services/game_repair_service.dart';
+import 'ui/dialogs/repair_game_dialog.dart';
 
 final StreamController<String> multiInstanceLinkStream = StreamController<String>.broadcast();
 
@@ -139,25 +153,7 @@ class _ModInstallerAppState extends State<ModInstallerApp> {
     return MaterialApp(
       title: 'SB Control Center',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        primaryColor: Colors.blueGrey[700],
-        scaffoldBackgroundColor: const Color(0xFF1e1e1e),
-        cardColor: const Color(0xFF2d2d2d),
-        colorScheme: const ColorScheme.dark(
-          primary: Colors.tealAccent,
-          secondary: Colors.teal,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.teal,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-      ),
+      theme: IosTheme.dark(),
       locale: _locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
@@ -184,11 +180,23 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   Color _statusColor = Colors.white;
   bool _isLoading = true;
   bool _isLaunchingGame = false;
+  bool _isGameRunning = false; // el juego está en ejecución (botón rojo)
+  bool _isStoppingGame = false;
+  bool _gameCheckInFlight = false;
+  Timer? _gameWatcher;
 
   List<ModInfo> _allMods = [];
 
   final _searchController = TextEditingController();
   String _searchQuery = '';
+
+  // Scroll de la cuadrícula y de la lista de mods, con la rueda del ratón
+  // suavizada. Son dos controladores porque durante el cambio de vista (fundido
+  // de 300 ms) ambas vistas existen a la vez.
+  final IosSmoothScrollController _gridScrollController =
+      IosSmoothScrollController();
+  final IosSmoothScrollController _listScrollController =
+      IosSmoothScrollController();
 
   bool _isDragging = false;
   Directory? _tempExtractionDir;
@@ -246,13 +254,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   bool _isCnsCoreInstalled = false;
 
   bool _developerModeEnabled = false;
-  int _versionTapCount = 0;
   Timer? _hoverTimer;
   OverlayEntry? _previewOverlay;
   Offset _cursorPosition = Offset.zero;
 
   final ThumbnailService _thumbnailService = ThumbnailService();
   StreamSubscription<String>? _multiInstanceSubscription;
+
+  String? _nexusUserName;
+  bool _isNexusPremium = false;
+  String? _nexusAvatarUrl;
 
   @override
   void didChangeDependencies() {
@@ -265,6 +276,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   @override
   void initState() {
     super.initState();
+    _startGameWatcher();
     
     // Esperamos a que todo se inicialice (incluyendo la carga de la API Key)
     _initialize().then((_) {
@@ -288,6 +300,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     protocolHandler.removeListener(this);
     _multiInstanceSubscription?.cancel();
     _searchController.dispose();
+    _gridScrollController.dispose();
+    _listScrollController.dispose();
+    _gameWatcher?.cancel();
     _hoverTimer?.cancel();
     _previewOverlay?.remove();
     try {
@@ -369,6 +384,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
     if (_finalModsPath != null) {
       await _checkCoreInstallations();
+      await _recoverInterruptedRepair();
       await _migrateModFolders();
       await _runMetadataUpdateIfNeeded();
       await _loadAllMods();
@@ -477,9 +493,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF2a2a2a),
+      backgroundColor: IosColors.background,
+      barrierColor: const Color(0x66000000),
+      constraints: const BoxConstraints(maxWidth: 640),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+        side: BorderSide(color: Color(0x1FFFFFFF), width: 0.5),
       ),
       enableDrag: false,
       builder: (context) {
@@ -564,62 +583,43 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   }
 
   Future<void> _cancelAndCleanInstallation() async {
-    _preparedMods.clear();
-    _modsToInstallPreviewMap.clear();
-    try {
-      if (_tempExtractionDir != null && await _tempExtractionDir!.exists()) {
-        await _tempExtractionDir!.delete(recursive: true);
-        _tempExtractionDir = null;
-        print('Temporary extraction directory cleaned up successfully.');
-      }
-    } catch (e) {
-      print('Failed to clean up temp directory during cancellation: $e');
+  _preparedMods.clear();
+  _modsToInstallPreviewMap.clear();
+  try {
+    if (_tempExtractionDir != null && await _tempExtractionDir!.exists()) {
+      // Usar el FileManagerService para evadir los bloqueos de Windows
+      await FileManagerService.deleteDirectoryWithRetry(_tempExtractionDir!);
+      _tempExtractionDir = null;
+      print('Temporary extraction directory cleaned up successfully.');
     }
+  } catch (e) {
+    print('Failed to clean up temp directory during cancellation: $e');
   }
+}
 
   Future<bool> _uninstallCoreComponent({required bool isUe4ss}) async {
     final l10n = AppLocalizations.of(context)!;
     final componentName = isUe4ss ? "UE4SS" : "CNS";
 
     if (isUe4ss && _isCnsCoreInstalled) {
-      await showDialog(
+      await SettingsDialogs.info(
         context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF2a2a2a),
-          title: Text(l10n.uninstallDependencyTitle),
-          content: Text(l10n.uninstallDependencyContent),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(l10n.dialogActionUnderstood),
-            ),
-          ],
-        ),
+        title: l10n.uninstallDependencyTitle,
+        message: l10n.uninstallDependencyContent,
+        okLabel: l10n.dialogActionUnderstood,
       );
       return false;
     }
 
-    final confirm = await showDialog<bool>(
+    final confirm = await SettingsDialogs.confirm(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.dialogTitleUninstall(componentName)),
-        content: Text(l10n.dialogContentUninstall(componentName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.dialogActionCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: Text(l10n.dialogActionUninstall),
-          ),
-        ],
-      ),
+      title: l10n.dialogTitleUninstall(componentName),
+      message: l10n.dialogContentUninstall(componentName),
+      confirmLabel: l10n.dialogActionUninstall,
+      destructive: true,
     );
 
-    if (confirm != true) return false;
+    if (!confirm) return false;
 
     setState(() {
       _isLoading = true;
@@ -664,10 +664,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     try {
       final tempDir = Directory.systemTemp;
       await for (final entity in tempDir.list()) {
-        if (entity is Directory &&
-            p.basename(entity.path).startsWith('mod_manager_')) {
+        if (entity is Directory && p.basename(entity.path).startsWith('mod_manager_')) {
           try {
-            await entity.delete(recursive: true);
+            await FileManagerService.deleteDirectoryWithRetry(entity);
           } catch (e) {
             print('Could not delete orphan directory ${entity.path}: $e');
           }
@@ -682,19 +681,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
   Future<void> _showRepairedModInfoDialog() async {
     final l10n = AppLocalizations.of(context)!;
-    await showDialog(
+    await SettingsDialogs.info(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.dialogTitleRepairedModWarning),
-        content: Text(l10n.dialogContentRepairedModWarning),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.dialogActionClose),
-          ),
-        ],
-      ),
+      title: l10n.dialogTitleRepairedModWarning,
+      message: l10n.dialogContentRepairedModWarning,
+      okLabel: l10n.dialogActionClose,
     );
   }
 
@@ -831,6 +822,36 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     setState(() {
       _apiKey = prefs.getString(AppPrefs.nexusApiKey);
     });
+    // 1. Cargamos el último estado conocido rápido para que la UI no espere
+    DownloadManager.instance.isUserPremium = prefs.getBool('is_premium') ?? false;
+
+    // 2. Verificación silenciosa en segundo plano para actualizar el estado
+    if (_apiKey != null && _apiKey!.isNotEmpty) {
+      _refreshPremiumStatusSilently(_apiKey!);
+    }
+  }
+
+  Future<void> _refreshPremiumStatusSilently(String key) async {
+    final profileData = await NexusApiService.validateAndGetProfile(key);
+    
+    if (profileData != null && profileData['isValid'] == true) {
+      final isPremium = profileData['isPremium'] as bool;
+      
+      // Actualizamos las preferencias locales
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_premium', isPremium);
+      
+      // Inyectamos el nuevo estado (si cambió, notifyListeners actualizará la píldora)
+      DownloadManager.instance.isUserPremium = isPremium;
+
+      if (mounted) {
+        setState(() {
+          _nexusUserName = profileData['name'];
+          _isNexusPremium = isPremium;
+          _nexusAvatarUrl = profileData['profileUrl'];
+        });
+      }
+    }
   }
 
   Future<void> _saveApiKey(String apiKey) async {
@@ -1231,30 +1252,28 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
   Future<void> _runMetadataUpdateIfNeeded() async {
     if (_finalModsPath == null) return;
+    // Sin API key no se puede migrar nada: se evita mostrar el progreso en
+    // vano y se reintenta cuando el usuario la configure.
+    if (_apiKey == null || _apiKey!.isEmpty) return;
     final l10n = AppLocalizations.of(context)!;
 
     final List<Map<String, dynamic>> modsToUpdate = [];
     final List<String> modPaths = [];
 
-    final enabledDir = Directory(_finalModsPath!);
-    if (await enabledDir.exists()) {
-      await for (var entity in enabledDir.list()) {
+    // Mods activos (CNS, genéricos y logic mods) y desactivados (backups).
+    final List<String?> roots = [
+      _finalModsPath,
+      _genericModsPath,
+      _logicModsPath,
+      if (_gameRootPath != null)
+        p.join(_gameRootPath!, 'SB', 'Content', '__MOD_BACKUPS__'),
+    ];
+    for (final root in roots) {
+      if (root == null) continue;
+      final dir = Directory(root);
+      if (!await dir.exists()) continue;
+      await for (var entity in dir.list()) {
         if (entity is Directory) modPaths.add(entity.path);
-      }
-    }
-
-    if (_gameRootPath != null) {
-      final backupDirPath = p.join(
-        _gameRootPath!,
-        'SB',
-        'Content',
-        '__MOD_BACKUPS__',
-      );
-      final disabledDir = Directory(backupDirPath);
-      if (await disabledDir.exists()) {
-        await for (var entity in disabledDir.list()) {
-          if (entity is Directory) modPaths.add(entity.path);
-        }
       }
     }
 
@@ -1265,20 +1284,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         try {
           final content = await infoFile.readAsString();
           Map<String, dynamic> data = json.decode(content);
-          final String? modManagerVersion = data['managerVersion'];
-          final String? nexusIdForCheck = data['nexusId'];
+          final String? nexusIdForCheck = data['nexusId']?.toString();
 
-          bool needsUpdate =
-              modManagerVersion == null ||
-              (VersionUtils.compareVersions(_appVersion, modManagerVersion) > 0);
+          final bool needsMigration =
+              ModMetadataMigrator.needsMigration(data, _appVersion) &&
+                  ModMetadataMigrator.canAttempt(modPath);
+          // Mods instalados antes de la galería completa: se les baja ahora.
+          final bool needsGallery = ModManagerService.needsGalleryCache(data) &&
+              ModManagerService.canCacheGallery(modPath);
 
-          if (needsUpdate &&
-              nexusIdForCheck != null &&
-              nexusIdForCheck.isNotEmpty) {
+          if (needsMigration || needsGallery) {
             modsToUpdate.add({
               'path': modPath,
               'nexusId': nexusIdForCheck,
               'displayName': data['displayName'] ?? p.basename(modPath),
+              'needsMigration': needsMigration,
             });
           }
         } catch (e) {
@@ -1289,13 +1309,34 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       }
     }
 
-    if (modsToUpdate.isNotEmpty) {
+    if (modsToUpdate.isEmpty) return;
+
+    // La barra NO se muestra de inmediato: la mayoría de arranques solo
+    // comprueba mods que ya están al día o que no se pueden migrar (sin red,
+    // mod retirado de Nexus...) y terminan en milisegundos. Solo si el
+    // trabajo real se alarga se revela la barra, así no hay parpadeo.
+    const revealDelay = Duration(milliseconds: 900);
+    final revealTimer = Timer(revealDelay, () {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
         _isUpdatingMetadata = true;
-        _metadataUpdateProgress = 0.0;
       });
+    });
 
+    // Actualiza el estado; solo reconstruye la UI si la barra ya es visible.
+    void updateProgress(VoidCallback change) {
+      if (_isUpdatingMetadata && mounted) {
+        setState(change);
+      } else {
+        change();
+      }
+    }
+
+    _metadataUpdateProgress = 0.0;
+    _metadataUpdateStatus = '';
+
+    try {
       for (int i = 0; i < modsToUpdate.length; i++) {
         final modData = modsToUpdate[i];
         final modDirectory = Directory(modData['path']);
@@ -1303,7 +1344,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         final displayName = modData['displayName'];
         final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
 
-        setState(() {
+        updateProgress(() {
           _metadataUpdateProgress = (i + 1) / modsToUpdate.length;
           _metadataUpdateStatus = l10n.statusUpdatingMetadata(
             displayName,
@@ -1313,7 +1354,6 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         });
 
         try {
-          final nexusData = await NexusApiService.fetchNexusModData(nexusId, _apiKey);
           Map<String, dynamic> data = {};
           if (await infoFile.exists()) {
             try {
@@ -1324,32 +1364,38 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
             }
           }
 
-          if (nexusData != null) {
-            data['summary'] ??= nexusData['summary'];
-            data['author'] ??= nexusData['author'];
-            data['gallery'] ??= nexusData['gallery'];
-            data['description'] ??= nexusData['description'];
-            data['sourceUrl'] ??=
-                'https://www.nexusmods.com/stellarblade/mods/$nexusId';
-            data['managerVersion'] = _appVersion;
-
-            final encoder = JsonEncoder.withIndent('  ');
-            await infoFile.writeAsString(encoder.convert(data));
-            
-            await ModManagerService.cacheNexusThumbnail(apiKey: _apiKey,
+          // Rellena los metadatos que faltan en mods antiguos (resumen,
+          // autor, nombre del mod, edición, archivo de Nexus...).
+          final migrated = modData['needsMigration'] == true
+              ? await ModMetadataMigrator.migrate(
+                  modDirectory: modDirectory,
+                  data: data,
+                  appVersion: _appVersion,
+                  apiKey: _apiKey,
+                )
+              : false;
+          if (migrated) {
+            // Portada y galería completa (cacheNexusThumbnail baja ambas).
+            await ModManagerService.cacheNexusThumbnail(
+              apiKey: _apiKey,
               modDirectory: modDirectory,
               nexusId: nexusId,
             );
-
             if (await infoFile.exists()) {
               data = json.decode(await infoFile.readAsString());
             }
+          } else if (nexusId != null) {
+            // Sin migración pendiente (o no posible): solo la galería.
+            await ModManagerService.cacheNexusGallery(
+              modDirectory: modDirectory,
+              nexusId: nexusId.toString(),
+              apiKey: _apiKey,
+            );
           }
 
           final String? customCoverPath = data['customCoverPath'];
           if (customCoverPath != null && customCoverPath.isNotEmpty) {
-            
-            setState(() {
+            updateProgress(() {
               _metadataUpdateStatus = l10n.statusUpdatingMetadata(
                 displayName,
                 i + 1,
@@ -1370,11 +1416,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           print(l10n.logMetadataUpdateFailed(displayName, e.toString()));
         }
       }
-
-      setState(() {
-        _isUpdatingMetadata = false;
-        _metadataUpdateStatus = '';
-      });
+    } finally {
+      revealTimer.cancel();
+      if (mounted) {
+        setState(() {
+          _isUpdatingMetadata = false;
+          _metadataUpdateStatus = '';
+        });
+      }
     }
   }
 
@@ -1420,38 +1469,21 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
   Future<void> _showSelfHealConfirmationDialog() async {
     final l10n = AppLocalizations.of(context)!;
-    final confirm = await showDialog<bool>(
+    final confirm = await SettingsDialogs.confirm(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.dialogTitleRepairMods),
-        content: Text(l10n.dialogContentRepairMods),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.dialogActionCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
-            child: Text(l10n.dialogActionRunRepair),
-          ),
-        ],
-      ),
+      title: l10n.dialogTitleRepairMods,
+      message: l10n.dialogContentRepairMods,
+      confirmLabel: l10n.dialogActionRunRepair,
     );
-
-    if (confirm == true) {
-      _runSelfHealing();
-    }
+    if (confirm) _runSelfHealing();
   }
 
   Future<void> _runSelfHealing() async {
     final l10n = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l10n.snackBarRepairStarted),
-        backgroundColor: Colors.blueGrey,
-      ),
+    NotificationService.instance.show(
+      context: context,
+      type: NotificationType.info,
+      title: l10n.snackBarRepairStarted,
     );
 
     setState(() => _isLoading = true);
@@ -1507,8 +1539,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     try {
       // 1. Crear una instancia del servicio y ejecutar el parcheo
       final PatcherService patcher = PatcherService(l10n);
+      // Carpetas "reservadas": juego base (Paks) y LogicMods (núcleo CNS).
+      // Sus Container IDs cuentan como ocupados y nunca se modifican.
+      final String paksDir = p.dirname(_genericModsPath!);
       final PatcherResult result = await patcher.patchConflictsInDirectory(
         _genericModsPath!,
+        reservedDirectories: [paksDir, p.join(paksDir, 'LogicMods')],
       );
 
       fullLog = result.logEntries; // Guardamos el log completo
@@ -1525,6 +1561,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         summary.writeln(
           l10n.summaryNoContainerIdConflicts,
         );
+      }
+      if (result.unresolvedContainerConflicts.isNotEmpty) {
+        summary.writeln(
+          l10n.summaryUnfixableContainerIds(
+            result.unresolvedContainerConflicts.length,
+          ),
+        );
+        for (final c in result.unresolvedContainerConflicts) {
+          summary.writeln('    ${c.mod}  ↔  ${c.conflictsWith}');
+        }
       }
       summary.writeln("---");
 
@@ -1577,27 +1623,43 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       }
 
       // 3. Mostrar el nuevo diálogo de resumen
-      await showDialog(
+      await showIosDialog<void>(
         context: context,
-        builder: (summaryContext) => AlertDialog(
-          backgroundColor: const Color(0xFF2a2a2a),
-          title: Text(l10n.patcherSummaryDialogTitle),
-          content: SingleChildScrollView(
-            child: SelectableText(summary.toString()),
+        builder: (summaryContext) => IosDialogShell(
+          title: l10n.patcherSummaryDialogTitle,
+          width: 460,
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 320),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0x14FFFFFF),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  summary.toString(),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    height: 1.4,
+                    color: IosColors.label,
+                  ),
+                ),
+              ),
+            ),
           ),
           actions: [
-            TextButton(
+            IosDialogButton(
+              label: l10n.dialogActionClose,
               onPressed: () => Navigator.of(summaryContext).pop(),
-              child: Text(l10n.dialogActionClose),
             ),
             // El botón "MOSTRAR LOG COMPLETO"
-            ElevatedButton(
-              child: Text(l10n.dialogActionShowFullLog),
+            IosDialogButton(
+              label: l10n.dialogActionShowFullLog,
+              bold: true,
               onPressed: () {
-                Navigator.of(
-                  summaryContext,
-                ).pop(); // Cierra el diálogo de resumen
-                _showFullPatcherLog(fullLog); // Abre el diálogo de log completo
+                Navigator.of(summaryContext).pop(); // Cierra el resumen
+                _showFullPatcherLog(fullLog); // Abre el log completo
               },
             ),
           ],
@@ -1626,61 +1688,126 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     }
   }
 
+  /// Revierte los parches del Patcher de Conflictos (restaura los *.cnsbak).
+  Future<void> _revertConflictPatches() async {
+    final l10n = AppLocalizations.of(context)!;
+
+    if (_genericModsPath == null ||
+        !await Directory(_genericModsPath!).exists()) {
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.error,
+        title: l10n.errorDialogTitle,
+        description: l10n.statusGamePathNotFound,
+      );
+      return;
+    }
+
+    final bool? confirmed = await showIosDialog<bool>(
+      context: context,
+      builder: (ctx) => IosDialogShell(
+        title: l10n.revertPatchesConfirmTitle,
+        message: l10n.revertPatchesConfirmMessage,
+        actions: [
+          IosDialogButton(
+            label: l10n.dialogActionCancel,
+            onPressed: () => Navigator.of(ctx).pop(false),
+          ),
+          IosDialogButton(
+            label: l10n.revertPatchesAction,
+            bold: true,
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final int restored =
+          await PatcherService.restoreOriginals(_genericModsPath!);
+      if (!mounted) return;
+      NotificationService.instance.show(
+        context: context,
+        type: restored > 0 ? NotificationType.success : NotificationType.info,
+        title: restored > 0
+            ? l10n.revertPatchesDone(restored)
+            : l10n.revertPatchesNothing,
+      );
+      await _loadAllMods();
+    } catch (e) {
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: l10n.errorDialogTitle,
+          description: e.toString(),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   // ++ AÑADE ESTA NUEVA FUNCIÓN DE AYUDA (para no repetir código) ++
   void _showFullPatcherLog(List<LogEntry> logEntries) {
     final l10n = AppLocalizations.of(context)!;
 
-    // Función de ayuda para mapear el tipo a un color
+    // Función de ayuda para mapear el tipo a un color (colores de sistema iOS)
     Color _getLogColor(LogEntryType type) {
       switch (type) {
         case LogEntryType.success:
-          return Colors.greenAccent; // VERDE
+          return IosColors.green;
         case LogEntryType.error:
-          return Colors.redAccent; // ROJO
+          return IosColors.red;
         case LogEntryType.info:
-          return Colors.lightBlueAccent; // AZUL
+          return IosColors.blue;
         case LogEntryType.normal:
         default:
-          return Colors.white; // BLANCO
+          return IosColors.label;
       }
     }
 
-    showDialog(
+    showIosDialog<void>(
       context: context,
-      builder: (logContext) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.fullLogDialogTitle),
-        // Hacemos el diálogo más grande para el log
+      builder: (logContext) => IosDialogShell(
+        title: l10n.fullLogDialogTitle,
+        width: 720,
         content: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.7,
-          height: MediaQuery.of(context).size.height * 0.7,
-          child: SingleChildScrollView(
-            // Usamos SelectableText.rich para los TextSpans
-            child: SelectableText.rich(
-              TextSpan(
-                // Estilo por defecto
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontFamily:
-                      'Consolas', // Una fuente monoespaciada es mejor para logs
-                  fontSize: 12,
-                  height: 1.4,
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0x14FFFFFF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: SingleChildScrollView(
+              // SelectableText.rich para los TextSpans coloreados
+              child: SelectableText.rich(
+                TextSpan(
+                  style: const TextStyle(
+                    color: IosColors.label,
+                    fontFamily: 'Consolas', // monoespaciada, mejor para logs
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                  children: logEntries.map((entry) {
+                    return TextSpan(
+                      text: "${entry.text}\n",
+                      style: TextStyle(color: _getLogColor(entry.type)),
+                    );
+                  }).toList(),
                 ),
-                children: logEntries.map((entry) {
-                  // Mapea cada LogEntry a un TextSpan con su color
-                  return TextSpan(
-                    text: "${entry.text}\n", // Añade el salto de línea
-                    style: TextStyle(color: _getLogColor(entry.type)),
-                  );
-                }).toList(),
               ),
             ),
           ),
         ),
         actions: [
-          TextButton(
+          IosDialogButton(
+            label: l10n.dialogActionClose,
+            bold: true,
             onPressed: () => Navigator.of(logContext).pop(),
-            child: Text(l10n.dialogActionClose),
           ),
         ],
       ),
@@ -1715,117 +1842,33 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     return false;
   }
   
-  Future<bool> _show7zipRequiredDialog() async {
-    bool isInstalled = false;
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            String dialogMessage = AppLocalizations.of(
-              context,
-            )!.dialogContent7zip;
-            Color messageColor = Colors.white;
-
-            return AlertDialog(
-              backgroundColor: const Color(0xFF2a2a2a),
-              title: Text(AppLocalizations.of(context)!.dialogTitle7zip),
-              content: Text(
-                dialogMessage,
-                style: TextStyle(color: messageColor),
-              ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(AppLocalizations.of(context)!.dialogActionCancel),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    final url = Uri.parse('https://www.7-zip.org/');
-                    await launchUrl(url);
-                  },
-                  child: Text(
-                    AppLocalizations.of(context)!.dialogActionGoToDownload,
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    await _find7zipPath();
-                    if (_7zipPath != null) {
-                      isInstalled = true;
-                      Navigator.of(context).pop();
-                    } else {
-                      setDialogState(() {
-                        dialogMessage = AppLocalizations.of(
-                          context,
-                        )!.dialogContent7zipNotFound;
-                        messageColor = Colors.redAccent;
-                      });
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.tealAccent,
-                    foregroundColor: Colors.black,
-                  ),
-                  child: Text(
-                    AppLocalizations.of(
-                      context,
-                    )!.dialogActionConfirmInstallation,
-                  ),
-                ),
-              ],
-            );
-          },
-        );
+  Future<bool> _show7zipRequiredDialog() {
+    return InstallDialogs.sevenZipRequired(
+      context,
+      onVerify: () async {
+        await _find7zipPath();
+        return _7zipPath != null;
       },
     );
-    return isInstalled;
   }
 
   Future<bool> _promptAndInstallUE4SS(Directory sourceDir) async {
     final l10n = AppLocalizations.of(context)!;
 
     if (_isUe4ssInstalled) {
-      final reinstall = await showDialog<bool>(
+      final reinstall = await SettingsDialogs.confirm(
         context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF2a2a2a),
-          title: Text(l10n.dialogTitleUE4SSReinstall),
-          content: Text(l10n.dialogContentUE4SSReinstall),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(l10n.dialogActionCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.orangeAccent),
-              child: Text(l10n.dialogActionReinstall),
-            ),
-          ],
-        ),
+        title: l10n.dialogTitleUE4SSReinstall,
+        message: l10n.dialogContentUE4SSReinstall,
+        confirmLabel: l10n.dialogActionReinstall,
       );
       if (reinstall != true) return false;
     } else {
-      final confirm = await showDialog<bool>(
+      final confirm = await SettingsDialogs.confirm(
         context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF2a2a2a),
-          title: Text(l10n.dialogTitleUE4SS),
-          content: Text(l10n.dialogContentUE4SS),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(l10n.dialogActionCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
-              child: Text(l10n.dialogActionInstallTool),
-            ),
-          ],
-        ),
+        title: l10n.dialogTitleUE4SS,
+        message: l10n.dialogContentUE4SS,
+        confirmLabel: l10n.dialogActionInstallTool,
       );
       if (confirm != true) {
         setState(() => _statusMessage = l10n.statusUE4SSInstallCancelled);
@@ -1885,10 +1928,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   });
 
   try {
-    if (_tempExtractionDir != null && await _tempExtractionDir!.exists()) {
-      await _tempExtractionDir!.delete(recursive: true);
-    }
-    _tempExtractionDir = Directory.systemTemp.createTempSync('mod_manager_');
+  if (_tempExtractionDir != null && await _tempExtractionDir!.exists()) {
+    // Usar el FileManagerService
+    await FileManagerService.deleteDirectoryWithRetry(_tempExtractionDir!);
+  }
+  _tempExtractionDir = Directory.systemTemp.createTempSync('mod_manager_');
 
     final result = await ArchiveService.processArchives(
       archives: archives,
@@ -1967,7 +2011,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
     for (final preparedMod in _preparedMods) {
       // 1. Intenta obtener el nombre del .json (para mods CNS)
-      String? displayName = await ModManagerService.getDisplayNameForMod(preparedMod.sourceDir);
+      String? displayName = preparedMod.preferredDisplayName ??
+          await ModManagerService.getDisplayNameForMod(preparedMod.sourceDir);
 
       // 2. Si falla (es null), usa el nombre del zip (para mods Genéricos)
       displayName ??= preparedMod.archiveName;
@@ -2030,8 +2075,28 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           }
         }
 
-        // 5. Asigna la lista COMPLETA al mapa
-        previewMap[finalFolderName] = allFileDisplayPaths;
+        // 5. Etiqueta lo que va a pasar con este archivo: actualizar una
+        //    edición instalada o añadir una edición nueva de un mod existente.
+        String previewLabel = finalFolderName;
+        final previewNexusId = preparedMod.nexusId;
+        if (previewNexusId != null && l10n != null) {
+          final sameMod =
+              _allMods.where((m) => m.nexusId == previewNexusId).toList();
+          if (sameMod.isNotEmpty) {
+            final isUpdate =
+                await _findInstalledByFileLineage(preparedMod, sameMod) != null ||
+                    sameMod.any((m) =>
+                        _isSameEditionByName(m, preparedMod, displayName!));
+            if (isUpdate) {
+              previewLabel = '$finalFolderName  ·  ${l10n.previewTagUpdate}';
+            } else if (_isNewEditionOfSameMod(preparedMod)) {
+              previewLabel = '$finalFolderName  ·  ${l10n.previewTagNewEdition}';
+            }
+          }
+        }
+
+        // 6. Asigna la lista COMPLETA al mapa
+        previewMap[previewLabel] = allFileDisplayPaths;
       }
     }
 
@@ -2050,39 +2115,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     final l10n = AppLocalizations.of(context)!;
 
     if (!_isUe4ssInstalled) {
-      await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF2a2a2a),
-          title: Text(l10n.ue4ssRequiredTitle),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(l10n.ue4ssRequiredContent),
-              const SizedBox(height: 20),
-              InkWell(
-                onTap: () => launchUrl(
-                  Uri.parse("https://github.com/Chrisr0/RE-UE4SS/releases"),
-                ),
-                child: const Text(
-                  "https://github.com/Chrisr0/RE-UE4SS/releases",
-                  style: TextStyle(
-                    color: Colors.tealAccent,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(l10n.dialogActionClose),
-            ),
-          ],
-        ),
-      );
+      await InstallDialogs.ue4ssRequired(context);
       return false; // Detiene la instalación si UE4SS no está presente.
     }
 
@@ -2121,45 +2154,20 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         actionText = l10n.dialogActionReinstall;
       }
 
-      final confirm = await showDialog<bool>(
+      final confirm = await SettingsDialogs.confirm(
         context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF2a2a2a),
-          title: Text(title),
-          content: Text(content),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(l10n.dialogActionCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: actionColor),
-              child: Text(actionText),
-            ),
-          ],
-        ),
+        title: title,
+        message: content,
+        confirmLabel: actionText,
+        destructive: comparison < 0,
       );
       if (confirm != true) return false;
     } else {
-      final confirm = await showDialog<bool>(
+      final confirm = await SettingsDialogs.confirm(
         context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF2a2a2a),
-          title: Text(l10n.dialogTitleCNSInstall),
-          content: Text(l10n.dialogContentCNSInstall),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(l10n.dialogActionCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
-              child: Text(l10n.dialogActionInstall),
-            ),
-          ],
-        ),
+        title: l10n.dialogTitleCNSInstall,
+        message: l10n.dialogContentCNSInstall,
+        confirmLabel: l10n.dialogActionInstall,
       );
       if (confirm != true) {
         setState(() => _statusMessage = l10n.statusUpdateSystemCancelled);
@@ -2353,7 +2361,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       //await _loadAllMods(clearHighlight: false);
       try {
         if (_tempExtractionDir != null && await _tempExtractionDir!.exists()) {
-          await _tempExtractionDir!.delete(recursive: true);
+          // Usar el FileManagerService
+          await FileManagerService.deleteDirectoryWithRetry(_tempExtractionDir!);
         }
         _tempExtractionDir = null;
         await _cleanUpOrphanedTempDirs();
@@ -2381,6 +2390,92 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
   Future<String> _getComparableNameForMod(ModInfo mod) async {
     return mod.displayName;
+  }
+
+  /// file_id de Nexus guardado en el nexus_info.json de un mod instalado.
+  Future<String?> _readNexusFileId(ModInfo mod) async {
+    try {
+      final infoFile = File(p.join(mod.directory.path, 'nexus_info.json'));
+      if (!await infoFile.exists()) return null;
+      final data = json.decode(await infoFile.readAsString());
+      return data['nexusFileId']?.toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Busca entre [candidates] el mod instalado que corresponde al mismo archivo
+  /// de Nexus que [preparedMod] (mismo file_id) o a una versión anterior suya.
+  Future<ModInfo?> _findInstalledByFileLineage(
+    PreparedMod preparedMod,
+    Iterable<ModInfo> candidates,
+  ) async {
+    final lineage = preparedMod.identity?.lineageFileIds ?? const <String>[];
+    if (lineage.isEmpty) return null;
+    for (final candidate in candidates) {
+      final fileId = await _readNexusFileId(candidate);
+      if (fileId != null && lineage.contains(fileId)) return candidate;
+    }
+    return null;
+  }
+
+  /// Normaliza un nombre para compararlo (sin mayúsculas, espacios ni símbolos).
+  String _compactName(String s) =>
+      s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  /// Nombre de edición de un mod ya instalado. Los mods instalados antes de
+  /// que existieran las ediciones solo tienen `displayName`, que entonces era
+  /// el nombre del archivo de Nexus (= la edición).
+  String _editionNameOf(ModInfo mod) => mod.editionName ?? mod.displayName;
+
+  /// ¿Es [candidate] la MISMA edición que el archivo nuevo? (misma edición
+  /// = se puede actualizar / reinstalar; otra edición = se instala aparte).
+  bool _isSameEditionByName(
+    ModInfo candidate,
+    PreparedMod preparedMod,
+    String baseDisplayName,
+  ) {
+    final newEdition = preparedMod.editionName;
+    if (newEdition != null &&
+        _compactName(_editionNameOf(candidate)) == _compactName(newEdition)) {
+      return true;
+    }
+    return _compactName(candidate.displayName) == _compactName(baseDisplayName);
+  }
+
+  /// true cuando se sabe con certeza que el archivo nuevo es OTRA EDICIÓN de
+  /// un mod de Nexus que ya tienes instalado (p. ej. tienes "CNS" y ahora
+  /// instalas "Replacer"): Nexus confirmó el archivo (tiene file_id) y ningún
+  /// mod instalado corresponde a su misma línea de versiones ni a su nombre.
+  bool _isNewEditionOfSameMod(PreparedMod preparedMod) =>
+      preparedMod.identity?.fileId != null;
+
+  /// Mods instalados que son ediciones del mismo mod de Nexus que [mod]
+  /// (incluido [mod]). Vacío si el mod no tiene ID de Nexus.
+  List<ModInfo> _installedEditionsOf(ModInfo mod) {
+    final id = mod.nexusId;
+    if (id == null || id.isEmpty || id == _cnsNexusId) return const [];
+    return _allMods.where((m) => m.nexusId == id).toList();
+  }
+
+  /// Otros mods instalados con el mismo ID de Nexus (sin contar a [mod]).
+  List<ModInfo> _otherEditionsOf(ModInfo mod) => _installedEditionsOf(mod)
+      .where((m) => m.directory.path != mod.directory.path)
+      .toList();
+
+  /// Si [name] ya lo usa un mod instalado de OTRO mod de Nexus, le añade el ID
+  /// de Nexus para que las carpetas y los nombres no choquen.
+  /// (Pasa, p. ej., sin API key: dos mods distintos con una edición llamada
+  /// "CNS compatible" no se pueden distinguir por el nombre del archivo.)
+  String _disambiguateAcrossMods(String name, String? nexusId) {
+    if (nexusId == null) return name;
+    final target = name.toLowerCase();
+    final clash = _allMods.any((m) =>
+        m.nexusId != null &&
+        m.nexusId != nexusId &&
+        (m.displayName.toLowerCase() == target ||
+            p.basename(m.directory.path).toLowerCase() == target));
+    return clash ? '$name [$nexusId]' : name;
   }
 
   Future<AlternativeVersionAction?> _showSmartInstallDialog({
@@ -2428,31 +2523,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       );
     }
 
-    return showDialog<AlternativeVersionAction>(
+    final bool isDowngrade = title == l10n.dialogTitleDowngrade;
+    final bool replace = await SettingsDialogs.confirm(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(title),
-        content: Text(content),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () =>
-                Navigator.of(context).pop(AlternativeVersionAction.cancel),
-            child: Text(l10n.dialogActionCancel),
-          ),
-          ElevatedButton(
-            onPressed: () =>
-                Navigator.of(context).pop(AlternativeVersionAction.replace),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.tealAccent,
-              foregroundColor: Colors.black,
-            ),
-            child: Text(replaceActionText),
-          ),
-        ],
-      ),
+      title: title,
+      message: content,
+      confirmLabel: replaceActionText,
+      destructive: isDowngrade,
     );
+    return replace
+        ? AlternativeVersionAction.replace
+        : AlternativeVersionAction.cancel;
   }
 
   Future<String?> _installSingleMod(
@@ -2490,6 +2571,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     final tildeModsDir = preparedMod.tildeModsDir;
 
     String? preservedCustomName;
+    // Estado de endorse del mod que se reemplaza (se copia al nuevo nexus_info.json).
+    EndorseRecord? preservedEndorse;
     String? selectedOutfit;
 
     // 1. CLASIFICAR EL MOD Y OBTENER SUS DATOS
@@ -2517,7 +2600,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
     if (modType == ModDirectoryType.logicMod) {
       // Es un LogicMod: Lógica de instalación dividida
-      baseDisplayName = preparedMod.archiveName;
+      baseDisplayName = _disambiguateAcrossMods(preparedMod.archiveName, nexusId);
       fitMeshType = "Logic"; // Etiqueta
 
       // --- 1. Definir rutas ---
@@ -2555,14 +2638,26 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       // La parte de UE4SS se considera una dependencia permanente.
 
       ModInfo? oldVersionMod;
-      // Buscamos un mod existente con el mismo nombre Y que sea 'logicMod'
-      try {
-        oldVersionMod = _allMods.firstWhere(
-          (mod) =>
-              mod.displayName == baseDisplayName && mod.modType == 'logicMod',
-        );
-      } catch (e) {
-        oldVersionMod = null; // No se encontró
+      // 1) Mismo archivo de Nexus (file_id) o una versión anterior de él
+      oldVersionMod = await _findInstalledByFileLineage(
+        preparedMod,
+        _allMods.where((mod) => mod.modType == 'logicMod' && mod.nexusId == nexusId),
+      );
+      // 2) Si no, un mod existente con el mismo nombre Y que sea 'logicMod'
+      if (oldVersionMod == null) {
+        try {
+          oldVersionMod = _allMods.firstWhere(
+            (mod) =>
+                mod.displayName == baseDisplayName &&
+                mod.modType == 'logicMod' &&
+                // Un mod de OTRO ID de Nexus nunca es una versión anterior.
+                (mod.nexusId == null ||
+                    nexusId == null ||
+                    mod.nexusId == nexusId),
+          );
+        } catch (e) {
+          oldVersionMod = null; // No se encontró
+        }
       }
 
       AlternativeVersionAction? action;
@@ -2594,6 +2689,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                 if (oldData['customName'] != null) {
                   preservedCustomName = oldData['customName'];
                 }
+                preservedEndorse ??= EndorseRecord.fromInfo(oldData);
               } catch (e) {
                 print('Could not read old custom name. Error: $e');
               }
@@ -2620,24 +2716,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
       // --- 3. Comprobar si la carpeta de destino existe (después del reemplazo) ---
       if (await Directory(logicModDestPath).exists()) {
-        final confirmReinstall = await showDialog<bool>(
+        final confirmReinstall = await SettingsDialogs.confirm(
           context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: const Color(0xFF2a2a2a),
-            title: Text(l10n.dialogTitleModExists),
-            content: Text(l10n.dialogContentModExists(finalFolderName)),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(l10n.dialogActionCancel),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
-                child: Text(l10n.dialogActionUpdate),
-              ),
-            ],
-          ),
+          title: l10n.dialogTitleModExists,
+          message: l10n.dialogContentModExists(finalFolderName),
+          confirmLabel: l10n.dialogActionUpdate,
         );
 
         if (confirmReinstall != true) {
@@ -2651,6 +2734,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
               if (oldData['customName'] != null) {
                 preservedCustomName = oldData['customName'];
               }
+              preservedEndorse ??= EndorseRecord.fromInfo(oldData);
             } catch (e) {
               print('Could not read old custom name. Error: $e');
             }
@@ -2735,6 +2819,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         'displayName': baseDisplayName,
         'customName': preservedCustomName ?? baseDisplayName,
         'installedVersion': versionForFile,
+        'nexusFileId': preparedMod.identity?.fileId,
+        'modName': preparedMod.nexusModName,
+        'editionName': preparedMod.editionName,
+        'nexusFileName': preparedMod.identity?.remoteFileName,
+        'identifiedBy': preparedMod.identity?.source.name,
         'installDate': DateTime.now().toIso8601String(),
         'managerVersion': _appVersion,
         'fitMeshType': fitMeshType,
@@ -2745,6 +2834,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         'ue4ssLooseFiles': looseFilesLog.isNotEmpty ? looseFilesLog : null, // Guardamos registro de los archivos raíz instalados
       };
       modData.removeWhere((key, value) => value == null); // Limpia nulos
+      preservedEndorse?.applyTo(modData);
 
       if (nexusId != null) {
         final nexusData = await NexusApiService.fetchNexusModData(nexusId, _apiKey);
@@ -2769,7 +2859,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       return finalFolderName; // Devuelve el nombre para el snackbar
     } else if (modType == ModDirectoryType.cns) {
       // Es un mod CNS: obtenemos el nombre y la etiqueta desde sus .json
-      baseDisplayName = await ModManagerService.getCompositeDisplayName(modDir);
+      // Nombre oficial del archivo en Nexus; si no se reconoce, el de los .json
+      baseDisplayName = preparedMod.preferredDisplayName ??
+          await ModManagerService.getCompositeDisplayName(modDir);
       fitMeshType = await ModManagerService.getFitMeshTypeForMod(modDir);
       installPath = _finalModsPath; // Se instala en la carpeta CNS
     } else if (modType == ModDirectoryType.genericPak) {
@@ -2877,11 +2969,18 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       throw Exception(l10n.errorInstallPathUndetermined);
     }
 
+    // Si otro mod de Nexus (distinto ID) ya usa este mismo nombre, se
+    // diferencia para que no se confunda con él ni comparta carpeta.
+    baseDisplayName = _disambiguateAcrossMods(baseDisplayName, nexusId);
     finalFolderName = baseDisplayName;
 
-    // 2. LÓGICA DE REEMPLAZO/ACTUALIZACIÓN (Esto permanece igual que antes)
+    // 2. LÓGICA DE REEMPLAZO/ACTUALIZACIÓN
+    //    - Misma EDICIÓN (mismo archivo de Nexus o una versión anterior) -> actualizar.
+    //    - OTRA edición del mismo mod                                    -> instalar aparte.
+    //    - Otro mod con el mismo nombre de archivo                       -> nunca reemplaza.
     ModInfo? oldVersionMod;
     AlternativeVersionAction? action;
+    ModInfo? siblingEdition; // edición del mismo mod que ya estaba instalada
 
     List<ModInfo> nexusIdMatches = [];
     if (nexusId != null) {
@@ -2889,13 +2988,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     }
 
     if (nexusIdMatches.isNotEmpty) {
-      // ... (La lógica de diálogo de actualización/reemplazo basada en nexusId)
-      // Esta sección no necesita cambios, la copio de tu función original.
-      for (final candidateMod in nexusIdMatches) {
-        final candidateName = await _getComparableNameForMod(candidateMod);
-        if (candidateName.toLowerCase() == baseDisplayName.toLowerCase()) {
-          oldVersionMod = candidateMod;
-          break;
+      // 1) Mismo archivo de Nexus (mismo file_id) o una versión anterior de él.
+      oldVersionMod = await _findInstalledByFileLineage(preparedMod, nexusIdMatches);
+
+      // 2) Si no se pudo por file_id, por el nombre de la EDICIÓN (también
+      //    reconoce mods instalados antes de que existieran las ediciones).
+      if (oldVersionMod == null) {
+        for (final candidateMod in nexusIdMatches) {
+          if (_isSameEditionByName(candidateMod, preparedMod, baseDisplayName)) {
+            oldVersionMod = candidateMod;
+            break;
+          }
         }
       }
 
@@ -2905,44 +3008,34 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           baseDisplayName: baseDisplayName,
           newVersion: nexusVersion,
         );
+      } else if (_isNewEditionOfSameMod(preparedMod)) {
+        // Es otra EDICIÓN del mismo mod (p. ej. "CNS" y "Replacer"): se instala
+        // aparte sin preguntar, porque Nexus confirma que no es una versión
+        // de ninguna de las que ya tienes. Más abajo se avisa al usuario.
+        siblingEdition = nexusIdMatches.first;
+        action = AlternativeVersionAction.installAsNew;
       } else {
         final existingModExample = nexusIdMatches.first.customName;
-        action = await showDialog<AlternativeVersionAction>(
+        action = await SettingsDialogs.confirm(
           context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            backgroundColor: const Color(0xFF2a2a2a),
-            title: Text(l10n.dialogTitleAlternativeVersion),
-            content: Text(
-              l10n.dialogContentAlternativeVersion(
-                existingModExample,
-                baseDisplayName!,
-                finalFolderName,
-              ),
-            ),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(AlternativeVersionAction.cancel),
-                child: Text(l10n.dialogActionCancel),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(
-                  context,
-                ).pop(AlternativeVersionAction.installAsNew),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.tealAccent,
-                  foregroundColor: Colors.black,
-                ),
-                child: Text(l10n.dialogActionInstallAsNew),
-              ),
-            ],
+          title: l10n.dialogTitleAlternativeVersion,
+          message: l10n.dialogContentAlternativeVersion(
+            existingModExample,
+            baseDisplayName!,
+            finalFolderName,
           ),
-        );
+          confirmLabel: l10n.dialogActionInstallAsNew,
+        )
+            ? AlternativeVersionAction.installAsNew
+            : AlternativeVersionAction.cancel;
       }
     } else {
       for (final existingMod in _allMods) {
-        if (existingMod.displayName == baseDisplayName) {
+        // Un mod de OTRO ID de Nexus nunca es una versión anterior de este.
+        final differentNexusMod = existingMod.nexusId != null &&
+            nexusId != null &&
+            existingMod.nexusId != nexusId;
+        if (!differentNexusMod && existingMod.displayName == baseDisplayName) {
           oldVersionMod = existingMod;
           break;
         }
@@ -2972,6 +3065,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                 preservedCustomName = oldData['customName'];
                 print('Preserving custom name: $preservedCustomName');
               }
+              preservedEndorse ??= EndorseRecord.fromInfo(oldData);
             } catch (e) {
               print('Could not read old custom name. Defaulting. Error: $e');
             }
@@ -3002,25 +3096,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     final newModPath = p.join(installPath, finalFolderName);
 
     if (await Directory(newModPath).exists()) {
-      final confirmReinstall = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF2a2a2a),
-          title: Text(l10n.dialogTitleModExists),
-          content: Text(l10n.dialogContentModExists(finalFolderName)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(l10n.dialogActionCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
-              child: Text(l10n.dialogActionUpdate),
-            ),
-          ],
-        ),
-      );
+      final confirmReinstall = await SettingsDialogs.confirm(
+          context: context,
+          title: l10n.dialogTitleModExists,
+          message: l10n.dialogContentModExists(finalFolderName),
+          confirmLabel: l10n.dialogActionUpdate,
+        );
 
       if (confirmReinstall != true) {
         throw Exception(l10n.errorInstallModExists);
@@ -3033,6 +3114,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
               preservedCustomName = oldData['customName'];
               print('Preserving custom name: $preservedCustomName');
             }
+            preservedEndorse ??= EndorseRecord.fromInfo(oldData);
           } catch (e) {
             print('Could not read old custom name. Defaulting. Error: $e');
           }
@@ -3075,6 +3157,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       'displayName': baseDisplayName,
       'customName': preservedCustomName ?? baseDisplayName,
       'installedVersion': versionForFile,
+      'nexusFileId': preparedMod.identity?.fileId,
+      'modName': preparedMod.nexusModName,
+      'editionName': preparedMod.editionName,
+      'nexusFileName': preparedMod.identity?.remoteFileName,
+      'identifiedBy': preparedMod.identity?.source.name,
       'installDate': DateTime.now().toIso8601String(),
       'managerVersion': _appVersion,
       'fitMeshType': fitMeshType, // <-- "Generic" o el tipo de CNS
@@ -3098,6 +3185,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     };
     // Limpia valores nulos para no ensuciar el JSON
     modData.removeWhere((key, value) => value == null);
+    preservedEndorse?.applyTo(modData);
 
     if (nexusId != null) {
       final nexusData = await NexusApiService.fetchNexusModData(nexusId, _apiKey);
@@ -3174,6 +3262,18 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       await ModManagerService.cacheNexusThumbnail(apiKey: _apiKey,
         modDirectory: Directory(newModPath),
         nexusId: nexusId,
+      );
+    }
+
+    // Avisa de que es una edición más de un mod que ya estaba instalado.
+    if (siblingEdition != null && mounted) {
+      final int editionsNow =
+          _allMods.where((m) => m.nexusId == nexusId).length + 1;
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.info,
+        title: l10n.snackBarNewEditionInstalled(baseDisplayName),
+        description: l10n.snackBarNewEditionInstalledDesc(editionsNow),
       );
     }
     return finalFolderName;
@@ -3261,109 +3361,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         }
 
         // Ahora el diálogo devuelve un booleano (true = forzar activación)
-        final bool? forceActivate = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false, // No permitir cerrar sin elegir
-          builder: (context) => AlertDialog(
-            backgroundColor: const Color(0xFF2a2a2a),
-            title: Text(l10n.dialogTitleOutfitConflict),
-
-            // Reemplazamos el 'content: Text(...)' por 'content: RichText(...)'
-            content: RichText(
-              text: TextSpan(
-                // Usar el estilo de texto por defecto del diálogo
-                style:
-                    Theme.of(context).dialogTheme.contentTextStyle ??
-                    const TextStyle(color: Colors.white, height: 1.5),
-                children: [
-                  // Parte 1 del texto
-                  TextSpan(text: part1),
-
-                  // Widget 1: El nombre del traje (interactivo)
-                  WidgetSpan(
-                    alignment: PlaceholderAlignment.middle,
-                    child: MouseRegion(
-                      onEnter: (event) {
-                        _cursorPosition = event.position;
-                        _hoverTimer?.cancel();
-                        _hoverTimer = Timer(
-                          const Duration(milliseconds: 800),
-                          () {
-                            if (mounted) {
-                              _showPreviewOverlay(
-                                context,
-                                outfitName, // El nombre del traje
-                                _cursorPosition,
-                              );
-                            }
-                          },
-                        );
-                      },
-                      onExit: (event) => _hidePreviewOverlay(),
-                      onHover: (event) => _cursorPosition = event.position,
-                      child: Text(
-                        outfitName, // El nombre resaltado
-                        style: const TextStyle(
-                          color: Colors.tealAccent,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Parte 2 del texto
-                  TextSpan(text: part2),
-
-                  // Widget 2: El nombre del mod (interactivo)
-                  WidgetSpan(
-                    alignment: PlaceholderAlignment.middle,
-                    child: InkWell(
-                      onTap: () {
-                        // Cierra el diálogo actual (con 'false' para cancelar la activación)
-                        //Navigator.of(context).pop(false);
-                        // Abre el panel de detalles del mod en conflicto
-                        _showDetailsPage(conflictingMod!);
-                      },
-                      child: Text(
-                        modName, // El nombre resaltado
-                        style: const TextStyle(
-                          color: Colors.yellowAccent,
-                          fontWeight: FontWeight.bold,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Parte 3 del texto
-                  TextSpan(text: part3),
-                ],
-              ),
-            ),
-
-            actions: [
-              // Botón de Cancelar
-              TextButton(
-                onPressed: () {
-                  _hidePreviewOverlay(); // Oculta la vista previa si está visible
-                  Navigator.of(context).pop(false);
-                },
-                child: Text(l10n.dialogActionCancel),
-              ),
-              // Botón de Activar y Desactivar
-              ElevatedButton(
-                onPressed: () {
-                  _hidePreviewOverlay(); // Oculta la vista previa si está visible
-                  Navigator.of(context).pop(true);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.tealAccent,
-                  foregroundColor: Colors.black,
-                ),
-                child: Text(l10n.dialogActionActivateAndDisable),
-              ),
-            ],
-          ),
+        final bool? forceActivate = await _showOutfitConflictDialog(
+          part1: part1,
+          outfitName: outfitName,
+          part2: part2,
+          modName: modName,
+          part3: part3,
+          conflictingMod: conflictingMod,
         );
 
         // Si el usuario no forzó la activación (canceló)
@@ -4158,24 +4162,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     }
 
     final modName = modInfo.customName;
-    final confirm = await showDialog<bool>(
+    final confirm = await SettingsDialogs.confirm(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.dialogTitleDeleteMod),
-        content: Text(l10n.dialogContentDeleteMod(modName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.dialogActionCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: Text(l10n.dialogActionDelete),
-          ),
-        ],
-      ),
+      title: l10n.dialogTitleDeleteMod,
+      message: l10n.dialogContentDeleteMod(modName),
+      confirmLabel: l10n.dialogActionDelete,
+      destructive: true,
     );
 
     if (confirm != true) return;
@@ -4235,24 +4227,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       return 0;
     });
 
-    final confirm = await showDialog<bool>(
+    final confirm = await SettingsDialogs.confirm(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.dialogTitleEnableAll),
-        content: Text(l10n.dialogContentEnableAll(disabledMods.length)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.dialogActionCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.greenAccent),
-            child: Text(l10n.enableMod),
-          ),
-        ],
-      ),
+      title: l10n.dialogTitleEnableAll,
+      message: l10n.dialogContentEnableAll(disabledMods.length),
+      confirmLabel: l10n.enableMod,
     );
 
     if (confirm != true) return;
@@ -4349,24 +4328,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       return;
     }
 
-    final confirm = await showDialog<bool>(
+    final confirm = await SettingsDialogs.confirm(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.dialogTitleDisableAll),
-        content: Text(l10n.dialogContentDisableAll(enabledMods.length)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.dialogActionCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.orangeAccent),
-            child: Text(l10n.disableMod),
-          ),
-        ],
-      ),
+      title: l10n.dialogTitleDisableAll,
+      message: l10n.dialogContentDisableAll(enabledMods.length),
+      confirmLabel: l10n.disableMod,
     );
 
     if (confirm != true) return;
@@ -4416,24 +4382,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       return;
     }
 
-    final confirm = await showDialog<bool>(
+    final confirm = await SettingsDialogs.confirm(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.dialogTitleDeleteAll),
-        content: Text(l10n.dialogContentDeleteAll(disabledMods.length)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.dialogActionCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: Text(l10n.dialogActionDelete),
-          ),
-        ],
-      ),
+      title: l10n.dialogTitleDeleteAll,
+      message: l10n.dialogContentDeleteAll(disabledMods.length),
+      confirmLabel: l10n.dialogActionDelete,
+      destructive: true,
     );
 
     if (confirm != true) return;
@@ -4522,226 +4476,82 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   }
 
   void _showLanguageDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF2a2a2a),
-          title: Text(AppLocalizations.of(context)!.language),
-          content: SizedBox(
-            width: double.minPositive,
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                _languageTile('en', 'English'),
-                _languageTile('es', 'Español'),
-                _languageTile('pt', 'Português'),
-                _languageTile('ru', 'Русский'),
-                _languageTile('de', 'Deutsch'),
-                _languageTile('zh', '中文'),
-                _languageTile('ja', '日本語'),
-                _languageTile('ko', '한국어'),
-                _languageTile('it', 'Italiano'),
-                _languageTile('fr', 'Français'),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(AppLocalizations.of(context)!.dialogActionClose),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _languageTile(String languageCode, String languageName) {
-    return ListTile(
-      title: Text(languageName),
-      onTap: () async {
+    SettingsDialogs.language(
+      context,
+      current: Localizations.localeOf(context).languageCode,
+      onSelected: (code) async {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('languageCode', languageCode);
-        ModInstallerApp.setLocale(context, Locale(languageCode));
-        Navigator.of(context).pop();
+        await prefs.setString('languageCode', code);
+        if (mounted) ModInstallerApp.setLocale(context, Locale(code));
       },
     );
   }
 
   void _showAboutDialog() {
-    final l10n = AppLocalizations.of(context)!;
-    _versionTapCount = 0;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.aboutTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.aboutContent),
-            const SizedBox(height: 12),
-            StatefulBuilder(
-              builder: (BuildContext context, StateSetter setDialogState) {
-                return GestureDetector(
-                  onTap: () {
-                    setDialogState(() {
-                      _versionTapCount++;
-                    });
-
-                    if (_versionTapCount >= 7) {
-                      setState(() {
-                        _developerModeEnabled = true;
-                      });
-                      Navigator.of(context).pop(); // Cierra el diálogo
-                      NotificationService.instance.show(
-                        context: context,
-                        type: NotificationType.success,
-                        title: AppLocalizations.of(context)!.snackBarDeveloperModeEnabled,
-                      );
-                    }
-                  },
-                  child: Text(l10n.aboutVersion(_appVersion)),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            InkWell(
-              child: Text(
-                l10n.aboutLinkText,
-                style: const TextStyle(
-                  color: Colors.tealAccent,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-              onTap: () => launchUrl(Uri.parse(l10n.creatorProfileUrl)),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.dialogActionClose),
-          ),
-        ],
-      ),
+    SettingsDialogs.about(
+      context,
+      version: _appVersion,
+      onDeveloperModeUnlocked: () {
+        setState(() => _developerModeEnabled = true);
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.success,
+          title: AppLocalizations.of(context)!.snackBarDeveloperModeEnabled,
+        );
+      },
     );
   }
 
-  Future<String?> _showApiKeyDialog() async {
+  Future<String?> _showApiKeyDialog() {
     final l10n = AppLocalizations.of(context)!;
-    final apiKeyController = TextEditingController(text: _apiKey);
-
-    return showDialog<String>(
+    return SettingsDialogs.apiKey(
       context: context,
-      barrierDismissible: true,
-      builder: (BuildContext context) {
-        bool isChecking = false;
-        String? errorMessage;
-
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: const Color(0xFF2a2a2a),
-              title: Text(l10n.dialogTitleApiKey),
-              content: SingleChildScrollView(
-                child: ListBody(
-                  children: <Widget>[
-                    Text(l10n.dialogContentApiKey),
-                    const SizedBox(height: 16),
-                    Text(
-                      l10n.dialogContentApiKeyInstructions,
-                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: apiKeyController,
-                      decoration: InputDecoration(
-                        border: const OutlineInputBorder(),
-                        labelText: l10n.apiKey,
-                        hintText: l10n.apiKeyHintText,
-                        errorText: errorMessage,
-                      ),
-                      onChanged: (_) {
-                        if (errorMessage != null) {
-                          setDialogState(() {
-                            errorMessage = null;
-                          });
-                        }
-                      },
-                    ),
-                    if (isChecking)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 16.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const CircularProgressIndicator(),
-                            const SizedBox(width: 16),
-                            Text(l10n.validatingApiKey),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              actions: <Widget>[
-                TextButton(
-                  child: Text(l10n.dialogActionCancel),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                ),
-                ElevatedButton(
-                  onPressed: isChecking
-                      ? null
-                      : () async {
-                          final keyToValidate = apiKeyController.text;
-                          if (keyToValidate.isEmpty) {
-                            await _saveApiKey('');
-                            if (mounted) {
-                              NotificationService.instance.show(
-                                context: context,
-                                type: NotificationType.info,
-                                title: l10n.apiKeyRemoved,
-                              );
-                              Navigator.of(context).pop('');
-                            }
-                            return;
-                          }
-
-                          setDialogState(() {
-                            isChecking = true;
-                            errorMessage = null;
-                          });
-
-                          final bool isValid = await NexusApiService.validateApiKey(keyToValidate);
-
-                          if (mounted) {
-                            if (isValid) {
-                              await _saveApiKey(keyToValidate);
-                              NotificationService.instance.show(
-                                context: context,
-                                type: NotificationType.success,
-                                title: l10n.snackBarApiKeySaved,
-                              );
-                              Navigator.of(context).pop(keyToValidate);
-                            } else {
-                              setDialogState(() {
-                                isChecking = false;
-                                errorMessage = l10n.invalidApiKeyError;
-                              });
-                            }
-                          }
-                        },
-                  child: Text(l10n.dialogActionSave),
-                ),
-              ],
+      initialKey: _apiKey,
+      onSubmit: (key) async {
+        if (key.isEmpty) {
+          if (mounted) {
+            setState(() {
+              _nexusUserName = null;
+              _isNexusPremium = false;
+              _nexusAvatarUrl = null;
+            });
+          }
+          await _saveApiKey('');
+          if (mounted) {
+            NotificationService.instance.show(
+              context: context,
+              type: NotificationType.info,
+              title: l10n.apiKeyRemoved,
             );
-          },
-        );
+          }
+          return true;
+        }
+
+        final profileData = await NexusApiService.validateAndGetProfile(key);
+        if (profileData == null || profileData['isValid'] != true) return false;
+
+        // Perfil disponible al instante (avatar, nombre y plan) sin reiniciar la app.
+        if (mounted) {
+          setState(() {
+            _nexusUserName = profileData['name'];
+            _isNexusPremium = profileData['isPremium'] == true;
+            _nexusAvatarUrl = profileData['profileUrl'];
+          });
+        }
+        await _saveApiKey(key);
+        final isPremium = profileData['isPremium'] == true;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('is_premium', isPremium);
+        DownloadManager.instance.isUserPremium = isPremium;
+
+        if (mounted) {
+          NotificationService.instance.show(
+            context: context,
+            type: NotificationType.success,
+            title: l10n.snackBarApiKeySaved,
+          );
+        }
+        return true;
       },
     );
   }
@@ -4799,6 +4609,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         userNotes: mod.userNotes,
         sourceUrl: mod.sourceUrl,
         customSourceUrl: mod.customSourceUrl,
+        modName: mod.modName,
+        editionName: mod.editionName,
       );
     } catch (e) {
       setState(() {
@@ -4807,6 +4619,302 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       });
       return null;
     }
+  }
+
+  // ID de Stellar Blade en Steam (permite lanzarlo con steam://rungameid/...)
+  static const String _stellarBladeSteamAppId = '3489700';
+
+  /// true si el juego está dentro de una biblioteca de Steam (.../steamapps/...).
+  bool _isSteamInstall(String root) =>
+      p.split(root).any((part) => part.toLowerCase() == 'steamapps');
+
+  /// Lanza el juego a través de Steam. Así Steam se abre solo si estaba cerrado
+  /// e inicializa el juego correctamente (y respeta las opciones de lanzamiento
+  /// del juego, p. ej. el .bat del mod 801).
+  Future<bool> _launchViaSteam() async {
+    try {
+      return await launchUrl(
+        Uri.parse('steam://rungameid/$_stellarBladeSteamAppId'),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Lanza el .exe directamente, desacoplado de la app y sin pasar por cmd
+  /// (evita los problemas de comillas/espacios de `cmd /c start`).
+  Future<void> _launchExecutable(String exe) async {
+    await Process.start(
+      exe,
+      const [],
+      workingDirectory: p.dirname(exe),
+      mode: ProcessStartMode.detached,
+    );
+  }
+
+  // Procesos que identifican a Stellar Blade en ejecución (nombres en minúsculas).
+  static const Set<String> _gameProcessNames = {
+    'sb-win64-shipping.exe',
+    'stellarblade-win64-shipping.exe',
+    'stellarblade.exe',
+  };
+
+  /// Devuelve los procesos del juego que están corriendo ahora mismo
+  /// (conjunto vacío = el juego no está abierto) o null si no se pudo consultar.
+  Future<Set<String>?> _findGameProcesses() async {
+    if (!Platform.isWindows) return null;
+    try {
+      final result = await Process.run('tasklist', ['/FO', 'CSV', '/NH']);
+      if (result.exitCode != 0) return null;
+      final found = <String>{};
+      for (final line in result.stdout.toString().split('\n')) {
+        final t = line.trim();
+        if (!t.startsWith('"')) continue;
+        final end = t.indexOf('"', 1);
+        if (end < 0) continue;
+        final name = t.substring(1, end).toLowerCase();
+        if (_gameProcessNames.contains(name)) found.add(name);
+      }
+      return found;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool> _isGameProcessRunning() async {
+    final procs = await _findGameProcesses();
+    return procs != null && procs.isNotEmpty;
+  }
+
+  /// Vigila cada pocos segundos si el juego está abierto (también si se lanzó
+  /// desde fuera de la app) para poner el botón en rojo / verde.
+  void _startGameWatcher() {
+    if (!Platform.isWindows) return;
+    _refreshGameRunning();
+    _gameWatcher = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => _refreshGameRunning(),
+    );
+  }
+
+  Future<void> _refreshGameRunning() async {
+    if (_gameCheckInFlight) return;
+    _gameCheckInFlight = true;
+    try {
+      final procs = await _findGameProcesses();
+      if (procs == null) return; // no se pudo consultar: no cambiamos el estado
+      final running = procs.isNotEmpty;
+      if (mounted && running != _isGameRunning) {
+        setState(() => _isGameRunning = running);
+      }
+    } finally {
+      _gameCheckInFlight = false;
+    }
+  }
+
+  /// Cierra el juego: primero con una petición de cierre normal y, si no
+  /// responde en unos segundos, de forma forzada.
+  Future<void> _stopGame() async {
+    if (_isStoppingGame) return;
+    final l10n = AppLocalizations.of(context)!;
+
+    final confirm = await SettingsDialogs.confirm(
+      context: context,
+      title: l10n.dialogTitleStopGame,
+      message: l10n.dialogContentStopGame,
+      confirmLabel: l10n.dialogActionStopGame,
+      destructive: true,
+    );
+    if (!confirm || !mounted) return;
+
+    setState(() => _isStoppingGame = true);
+    try {
+      // 1) Cierre normal (WM_CLOSE)
+      for (final name in await _findGameProcesses() ?? <String>{}) {
+        await Process.run('taskkill', ['/IM', name, '/T']);
+      }
+      bool gone = false;
+      for (int i = 0; i < 8 && !gone; i++) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        final procs = await _findGameProcesses();
+        gone = procs != null && procs.isEmpty;
+      }
+
+      // 2) Si sigue abierto, cierre forzado
+      if (!gone) {
+        for (final name in await _findGameProcesses() ?? <String>{}) {
+          await Process.run('taskkill', ['/F', '/IM', name, '/T']);
+        }
+        await Future.delayed(const Duration(seconds: 1));
+        final procs = await _findGameProcesses();
+        gone = procs != null && procs.isEmpty;
+      }
+
+      if (!gone) throw Exception(l10n.errorStoppingGame);
+
+      if (mounted) {
+        setState(() => _isGameRunning = false);
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.info,
+          title: l10n.notificationGameStopped,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: l10n.errorStoppingGame,
+          description: e.toString(),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isStoppingGame = false);
+    }
+  }
+
+  /// Lanza el juego sin tocar la interfaz (Steam o .exe). Lo reutiliza
+  /// también "Reparar inicio del juego".
+  Future<void> _launchGameRaw() async {
+    bool launched = false;
+
+    // 1) Instalación de Steam: lanzar vía Steam (lo más fiable).
+    if (Platform.isWindows && _isSteamInstall(_gameRootPath!)) {
+      launched = await _launchViaSteam();
+    }
+
+    // 2) Respaldo (Epic u otras rutas, o si Steam no respondió): lanzar el .exe.
+    if (!launched) {
+      final possibleExes = [
+        p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'StellarBlade-Win64-Shipping.exe'),
+        p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'SB-Win64-Shipping.exe'),
+        p.join(_gameRootPath!, 'StellarBlade.exe'),
+        p.join(_gameRootPath!, 'SB.exe'),
+      ];
+
+      String? exeToLaunch;
+      for (final exe in possibleExes) {
+        if (await File(exe).exists()) {
+          exeToLaunch = exe;
+          break;
+        }
+      }
+
+      if (exeToLaunch == null) {
+        throw Exception(AppLocalizations.of(context)!.errorGameExeNotFound);
+      }
+      await _launchExecutable(exeToLaunch);
+    }
+  }
+
+  /// Ajustes > "Reparar que el juego no inicia".
+  /// Desinstala UE4SS y CNS (guardando sus archivos), inicia el juego hasta que
+  /// arranque, lo cierra solo, reinstala todo y vuelve a lanzar el juego. El
+  /// progreso se muestra en una ventana emergente siempre al frente.
+  Future<void> _runGameStartupRepair({bool skipConfirm = false}) async {
+    if (_gameRootPath == null || _isLaunchingGame) {
+      if (mounted && _gameRootPath == null) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.error,
+          title: AppLocalizations.of(context)!.notificationTitleError,
+          description: AppLocalizations.of(context)!.errorGamePathNotFoundNotification,
+        );
+      }
+      return;
+    }
+
+    final l10n = AppLocalizations.of(context)!;
+    if (!skipConfirm) {
+      final confirm = await SettingsDialogs.confirm(
+        context: context,
+        title: l10n.repairConfirmTitle,
+        message: l10n.repairConfirmMessage,
+        confirmLabel: l10n.repairConfirmAction,
+      );
+      if (!confirm || !mounted) return;
+    }
+
+    // Reutilizamos el estado "lanzando" para bloquear el botón de jugar.
+    setState(() => _isLaunchingGame = true);
+    try {
+      await RepairGameDialog.run(
+        context: context,
+        gameRootPath: _gameRootPath!,
+        launchGame: _launchGameRaw,
+        findGameProcesses: _findGameProcesses,
+      );
+    } finally {
+      await _checkCoreInstallations();
+      await _readCNSData();
+      await _refreshGameRunning();
+      if (mounted) setState(() => _isLaunchingGame = false);
+    }
+  }
+
+  /// Si una reparación anterior se interrumpió (la app se cerró o crasheó a
+  /// mitad), devuelve UE4SS y CNS a su sitio al iniciar.
+  Future<void> _recoverInterruptedRepair() async {
+    final root = _gameRootPath;
+    if (root == null) return;
+    try {
+      if (!await CoreInstallerService.hasPendingRepair(root)) return;
+      // Con el juego abierto sus archivos están bloqueados: se reintenta en el
+      // próximo inicio.
+      if (await _isGameProcessRunning()) return;
+
+      await CoreInstallerService.recoverPendingRepair(root);
+      await _checkCoreInstallations();
+
+      if (mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.info,
+          title: AppLocalizations.of(context)!.repairRecoveredNotice,
+        );
+      }
+    } catch (e) {
+      print('Could not recover interrupted repair: $e');
+    }
+  }
+
+  /// Espera a que el juego aparezca como proceso y se mantenga estable.
+  /// true  = arrancó y sigue abierto tras la ventana de estabilidad.
+  /// false = nunca apareció (máx. [appearTimeout]) o se cerró enseguida
+  ///         (crash al iniciar).
+  Future<bool> _waitForStableGameStart({
+    Duration appearTimeout = const Duration(seconds: 45),
+    Duration stableFor = const Duration(seconds: 12),
+  }) async {
+    await Future.delayed(const Duration(seconds: 2));
+
+    // 1) Esperar a que aparezca el proceso (Steam puede tardar en abrirse).
+    final appearDeadline = DateTime.now().add(appearTimeout);
+    bool appeared = false;
+    while (mounted && DateTime.now().isBefore(appearDeadline)) {
+      if (await _isGameProcessRunning()) {
+        appeared = true;
+        break;
+      }
+      await Future.delayed(const Duration(seconds: 1));
+    }
+    if (!appeared) return false;
+    if (mounted) setState(() => _isGameRunning = true);
+
+    // 2) Comprobar que no se cierra de inmediato.
+    final stableDeadline = DateTime.now().add(stableFor);
+    while (mounted && DateTime.now().isBefore(stableDeadline)) {
+      await Future.delayed(const Duration(seconds: 1));
+      final procs = await _findGameProcesses();
+      // Si no se pudo consultar (null) no lo damos por caído.
+      if (procs != null && procs.isEmpty) {
+        if (mounted) setState(() => _isGameRunning = false);
+        return false;
+      }
+    }
+    return true;
   }
 
   Future<void> _launchGame() async {
@@ -4827,46 +4935,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       _isLaunchingGame = true;
     });
 
+    bool offerRepair = false;
     try {
-      final possibleExes = [
-        p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'StellarBlade-Win64-Shipping.exe'),
-        p.join(_gameRootPath!, 'SB', 'Binaries', 'Win64', 'SB-Win64-Shipping.exe'),
-        p.join(_gameRootPath!, 'StellarBlade.exe'),
-        p.join(_gameRootPath!, 'SB.exe'),
-      ];
+      // Hasta 2 intentos: si el primero no arranca (o se cierra enseguida),
+      // se vuelve a lanzar una vez.
+      bool started = false;
+      for (int attempt = 1; attempt <= 2 && !started && mounted; attempt++) {
+        await _launchGameRaw();
 
-      String? exeToLaunch;
-      for (final exe in possibleExes) {
-        if (await File(exe).exists()) {
-          exeToLaunch = exe;
-          break;
-        }
-      }
-
-      if (exeToLaunch != null) {
-        // MEJORA 1: El directorio de trabajo debe ser la carpeta donde vive el ejecutable.
-        final workingDir = p.dirname(exeToLaunch);
-
-        // MEJORA 2 y 3: Usar el comando 'start' nativo de Windows a través de CMD
-        if (Platform.isWindows) {
-          // El primer par de comillas vacías '""' previene errores si la ruta tiene espacios
-          await Process.start(
-            'cmd',
-            ['/c', 'start', '""', exeToLaunch],
-            workingDirectory: workingDir,
-            runInShell: true, 
-          );
-        } else {
-          // Fallback por si la app se compila para otro OS en el futuro
-          await Process.start(
-            exeToLaunch, 
-            [], 
-            workingDirectory: workingDir,
-            runInShell: true
-          );
-        }
-        
-        if (mounted) {
+        if (mounted && attempt == 1) {
           NotificationService.instance.show(
             context: context,
             type: NotificationType.success,
@@ -4874,13 +4951,23 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           );
         }
 
-        // Damos un margen de tiempo artificial de 4 segundos antes de volver 
-        // a habilitar el botón, permitiendo que el juego abra su ventana real.
-        await Future.delayed(const Duration(seconds: 4));
+        started = await _waitForStableGameStart();
 
-      } else {
-        throw Exception(AppLocalizations.of(context)!.errorGameExeNotFound);
+        // Si quedó algún proceso a medias, se limpia antes de reintentar.
+        if (!started && attempt == 1 && mounted) {
+          for (final name in await _findGameProcesses() ?? <String>{}) {
+            try {
+              await Process.run('taskkill', ['/F', '/IM', name, '/T']);
+            } catch (_) {}
+          }
+          await Future.delayed(const Duration(seconds: 2));
+        }
       }
+
+      // Solo se sugiere la reparación si hay algo que reparar (UE4SS o CNS).
+      offerRepair = !started &&
+          mounted &&
+          (_isUe4ssInstalled || _isCnsCoreInstalled);
     } catch (e) {
       if (mounted) {
         NotificationService.instance.show(
@@ -4896,6 +4983,18 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           _isLaunchingGame = false;
         });
       }
+    }
+
+    if (offerRepair && mounted) {
+      final l10n = AppLocalizations.of(context)!;
+      final bool fix = await SettingsDialogs.confirm(
+        context: context,
+        title: l10n.launchRetryTitle,
+        message: l10n.launchRetryMessage,
+        confirmLabel: l10n.launchRetryAction,
+      );
+      // Ya se ha confirmado aquí: se omite el segundo aviso.
+      if (fix && mounted) await _runGameStartupRepair(skipConfirm: true);
     }
   }
 
@@ -4951,18 +5050,32 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     ModInfo modInfo, {
     int initialIndex = 0,
     String? initialImage,
+    bool prewarmOnly = false,
   }) {
     final l10n = AppLocalizations.of(context)!;
-    final List<String> images = (modInfo.gallery ?? [])
-        .map((img) => img['image'] as String)
-        .toList();
+    // Prefiere la copia local de cada imagen (carga instantánea y funciona
+    // sin conexión); si falta, usa la URL de Nexus.
+    final List<String> images = (modInfo.gallery ?? []).map<String>((img) {
+      final String? local = img['localImage'] as String?;
+      if (local != null && local.isNotEmpty) {
+        final String fullPath = p.join(modInfo.directory.path, local);
+        if (File(fullPath).existsSync()) return fullPath;
+      }
+      return img['image'] as String;
+    }).toList();
 
     if (modInfo.customCoverPath != null) {
       final customCoverFullPath = p.join(
         modInfo.directory.path,
         modInfo.customCoverPath!,
       );
-      if (!images.contains(customCoverFullPath)) {
+      // `_nexus_cover.*` es solo la copia automática de la primera imagen de la
+      // galería: añadirla duplicaría esa imagen en el visor.
+      final bool isAutoNexusCover =
+          p.basename(customCoverFullPath).toLowerCase().startsWith('_nexus_cover');
+      final bool galleryHasImages = (modInfo.gallery ?? const []).isNotEmpty;
+      if (!images.contains(customCoverFullPath) &&
+          !(isAutoNexusCover && galleryHasImages)) {
         images.insert(0, customCoverFullPath);
       }
     }
@@ -4971,6 +5084,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       // No hacer nada si no hay imágenes
       return;
     }
+    if (prewarmOnly) {                 // <-- nuevo
+    prewarmImageViewer(context, images, initialIndex: initialIndex);
+    return;
+  }
 
     // Determina el índice inicial si se pasó una imagen específica
     int finalInitialIndex = initialIndex;
@@ -4981,50 +5098,110 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       }
     }
 
-    final pageController = PageController(initialPage: finalInitialIndex);
+    showImageViewer(
+      context,
+      images: images,
+      initialIndex: finalInitialIndex,
+      modPath: modInfo.directory.path,
+      closeTooltip: l10n.dialogActionClose,
+    );
+  }
 
-    showDialog(
+  /// Alerta iOS para el conflicto de trajes (el nombre del traje enseña la
+  /// vista previa al pasar el ratón; el nombre del mod abre sus detalles).
+  Future<bool?> _showOutfitConflictDialog({
+    required String part1,
+    required String outfitName,
+    required String part2,
+    required String modName,
+    required String part3,
+    required ModInfo conflictingMod,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    return showIosDialog<bool>(
       context: context,
-      builder: (context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.zero,
-          child: Stack(
-            children: <Widget>[
-              PageView.builder(
-                controller: pageController,
-                itemCount: images.length,
-                itemBuilder: (context, index) {
-                  final imageUrl = images[index];
-                  final isLocal = !imageUrl.startsWith('http');
-                  return InteractiveViewer(
-                    panEnabled: true,
-                    minScale: 1.0,
-                    maxScale: 4.0,
-                    child: Center(
-                      child: isLocal
-                          ? Image.file(File(imageUrl))
-                          : Image.network(imageUrl),
+      barrierDismissible: false, // No permitir cerrar sin elegir
+      builder: (ctx) => IosDialogShell(
+        title: l10n.dialogTitleOutfitConflict,
+        width: 360,
+        content: RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            style: const TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              color: IosColors.secondaryLabel,
+            ),
+            children: [
+              TextSpan(text: part1),
+              // Nombre del traje (vista previa al mantener el ratón encima)
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: MouseRegion(
+                  onEnter: (event) {
+                    _cursorPosition = event.position;
+                    _hoverTimer?.cancel();
+                    _hoverTimer = Timer(const Duration(milliseconds: 800), () {
+                      if (mounted) {
+                        _showPreviewOverlay(context, outfitName, _cursorPosition);
+                      }
+                    });
+                  },
+                  onExit: (event) => _hidePreviewOverlay(),
+                  onHover: (event) => _cursorPosition = event.position,
+                  child: Text(
+                    outfitName,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600,
+                      color: IosColors.label,
                     ),
-                  );
-                },
-              ),
-              Positioned(
-                top: 15,
-                right: 15,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withOpacity(0.5),
                   ),
-                  onPressed: () => Navigator.of(context).pop(),
-                  tooltip: l10n.dialogActionClose,
                 ),
               ),
+              TextSpan(text: part2),
+              // Nombre del mod en conflicto (abre su panel de detalles)
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () => _showDetailsPage(conflictingMod),
+                    child: Text(
+                      modName,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                        color: IosColors.blue,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              TextSpan(text: part3),
             ],
           ),
-        );
-      },
+        ),
+        actions: [
+          IosDialogButton(
+            label: l10n.dialogActionCancel,
+            onPressed: () {
+              _hidePreviewOverlay();
+              Navigator.of(ctx).pop(false);
+            },
+          ),
+          IosDialogButton(
+            label: l10n.dialogActionActivateAndDisable,
+            bold: true,
+            onPressed: () {
+              _hidePreviewOverlay();
+              Navigator.of(ctx).pop(true);
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -5033,6 +5210,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     required String nexusId,
     required int fileId,
     required String uniqueIdentifier,
+    // Edición concreta a la que se refiere el aviso. Con ella, "Omitir esta
+    // versión" solo afecta a esa edición y no a todo el mod.
+    ModInfo? mod,
   }) async {
     final l10n = AppLocalizations.of(context)!;
     final String cleanedVersion = newVersion.toLowerCase().startsWith('v')
@@ -5041,82 +5221,90 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
     // Busca el nombre del mod para mostrarlo en la notificación.
     // Incluye un respaldo para el CNS, que no está en la lista general de mods.
-    final modName = _allMods
-        .firstWhere(
-          (m) => m.nexusId == nexusId,
-          orElse: () => ModInfo(
-            directory: Directory(''),
-            customName: l10n.cnsCoreSystem,
-            displayName: '',
-            isEnabled: false,
-            lastModified: DateTime.now(),
-          ),
-        )
-        .customName;
+    final ModInfo? namedMod = mod ??
+        _allMods.cast<ModInfo?>().firstWhere(
+              (m) => m!.nexusId == nexusId,
+              orElse: () => null,
+            );
+    final String modName = namedMod?.customName ?? l10n.cnsCoreSystem;
 
-    // El diálogo ahora devuelve un booleano: 'true' si la notificación se ocultó.
-    final bool? result = await showDialog<bool>(
+    // El diálogo devuelve 'true' si la notificación se ocultó (ignorar/omitir)
+    // y 'false' si se fue a la descarga o se cerró sin elegir.
+    final bool? result = await showIosDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.updateAvailable(cleanedVersion)),
-        content: Text(l10n.dialogContentUpdateOptions),
+      builder: (ctx) => IosDialogShell(
+        title: l10n.updateAvailable(cleanedVersion),
+        message: '$modName\n${l10n.dialogContentUpdateOptions}',
+        stacked: true,
         actions: [
-          TextButton(
+          IosDialogButton(
+            label: l10n.dialogActionGoToDownloadPage,
+            bold: true,
+            onPressed: () async {
+              // nmm=1 abre directamente la descarga con "Mod manager download"
+              // (en vez de la pestaña de descarga manual).
+              final url = Uri.parse(
+                'https://www.nexusmods.com/stellarblade/mods/$nexusId?tab=files&file_id=$fileId&nmm=1',
+              );
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url);
+              }
+              if (ctx.mounted) Navigator.of(ctx).pop(false); // Devuelve 'false'
+            },
+          ),
+          IosDialogButton(
+            label: l10n.dialogActionSkipVersion,
+            onPressed: () async {
+              setState(() {
+                if (mod != null) {
+                  // Por EDICIÓN: solo se omite la de este mod, las demás
+                  // ediciones del mismo mod siguen avisando.
+                  _skippedVersions[UpdateService.editionSkipKey(mod)] =
+                      newVersion;
+                  if (_installedEditionsOf(mod).length <= 1) {
+                    // Clave antigua (por mod) ya sustituida por la de edición.
+                    _skippedVersions.remove(nexusId);
+                  }
+                  _modUpdates.remove(mod.directory.path);
+                } else {
+                  _skippedVersions[nexusId] = newVersion;
+                  if (nexusId == _cnsNexusId) {
+                    _cnsUpdateInfo = null;
+                  } else {
+                    final stale = _modUpdates.keys.where((key) {
+                      final i = _allMods.indexWhere(
+                        (m) => m.directory.path == key,
+                      );
+                      return i != -1 && _allMods[i].nexusId == nexusId;
+                    }).toList();
+                    for (final key in stale) {
+                      _modUpdates.remove(key);
+                    }
+                  }
+                }
+              });
+              await _saveSkippedVersions();
+              NotificationService.instance.show(
+                context: ctx,
+                type: NotificationType.info,
+                title: l10n.snackBarVersionSkipped(modName, newVersion),
+              );
+              if (ctx.mounted) Navigator.of(ctx).pop(true); // Devuelve 'true'
+            },
+          ),
+          IosDialogButton(
+            label: l10n.dialogActionIgnoreVersion,
             onPressed: () {
               setState(() {
                 _ignoredUpdates.add(uniqueIdentifier);
               });
               NotificationService.instance.show(
-                context: context,
+                context: ctx,
                 type: NotificationType.info,
                 title: l10n.snackBarUpdateIgnored(modName),
               );
-              Navigator.of(context).pop(true); // Devuelve 'true'
+              Navigator.of(ctx).pop(true); // Devuelve 'true'
             },
-            child: Text(l10n.dialogActionIgnoreVersion),
-          ),
-          TextButton(
-            onPressed: () async {
-              setState(() {
-                _skippedVersions[nexusId] = newVersion;
-                if (nexusId == _cnsNexusId) {
-                  _cnsUpdateInfo = null;
-                } else {
-                  _modUpdates.removeWhere(
-                    (key, value) =>
-                        _allMods
-                            .firstWhere((mod) => mod.directory.path == key)
-                            .nexusId ==
-                        nexusId,
-                  );
-                }
-              });
-              await _saveSkippedVersions();
-              NotificationService.instance.show(
-                context: context,
-                type: NotificationType.info,
-                title: l10n.snackBarVersionSkipped(modName, newVersion),
-              );
-              Navigator.of(context).pop(true); // Devuelve 'true'
-            },
-            child: Text(l10n.dialogActionSkipVersion),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final url = Uri.parse(
-                'https://www.nexusmods.com/stellarblade/mods/$nexusId?tab=files&file_id=$fileId',
-              );
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url);
-              }
-              Navigator.of(context).pop(false); // Devuelve 'false'
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.tealAccent,
-              foregroundColor: Colors.black,
-            ),
-            child: Text(l10n.dialogActionGoToDownloadPage),
           ),
         ],
       ),
@@ -5125,70 +5313,25 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     return result ?? false;
   }
 
-  Future<void> _manageSkippedVersions() async {
-    final l10n = AppLocalizations.of(context)!;
+  Future<void> _manageSkippedVersions() {
+    final items = _skippedVersions.entries.map((entry) {
+      // La clave es "<nexusId>#<edición>" (nueva) o solo "<nexusId>" (antigua).
+      final i = _allMods.indexWhere((m) =>
+          m.nexusId != null &&
+          (entry.key == UpdateService.editionSkipKey(m) ||
+              entry.key == m.nexusId));
+      final nexusIdOfKey = entry.key.split('#').first;
+      return SkippedVersionItem(
+        id: entry.key,
+        name: i != -1 ? _allMods[i].customName : 'ID: $nexusIdOfKey',
+        version: entry.value,
+      );
+    }).toList();
 
-    await showDialog(
+    return SettingsDialogs.skippedVersions(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final skippedEntries = _skippedVersions.entries.toList();
-
-            return AlertDialog(
-              backgroundColor: const Color(0xFF2a2a2a),
-              title: Text(l10n.dialogTitleSkippedVersions),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: skippedEntries.isEmpty
-                    ? Center(child: Text(l10n.dialogNoSkippedVersions))
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: skippedEntries.length,
-                        itemBuilder: (context, index) {
-                          final entry = skippedEntries[index];
-                          final mod = _allMods.firstWhere(
-                            (m) => m.nexusId == entry.key,
-                            orElse: () => ModInfo(
-                              directory: Directory(''),
-                              lastModified: DateTime.now(),
-                              isEnabled: false,
-                              displayName: 'ID: ${entry.key}',
-                              customName: 'ID: ${entry.key}',
-                              gallery: null,
-                              origin: null,
-                            ),
-                          );
-                          final modName = mod.directory.path.isNotEmpty
-                              ? mod.customName
-                              : 'ID: ${entry.key}';
-
-                          return ListTile(
-                            title: Text(modName),
-                            subtitle: Text(
-                              '${l10n.dialogSkippedVersions}: ${entry.value}',
-                            ),
-                            trailing: IconButton(
-                              icon: const HugeIcon(icon: HugeIcons.strokeRoundedDelete01, color: Colors.redAccent, size: 24.0),
-                              onPressed: () async {
-                                await _removeSkippedVersion(entry.key);
-                                setDialogState(() {});
-                              },
-                            ),
-                          );
-                        },
-                      ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.dialogActionClose),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      items: items,
+      onRemove: (id) => _removeSkippedVersion(id),
     );
   }
 
@@ -5313,21 +5456,40 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: IosColors.bar,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        toolbarHeight: 52,
+        centerTitle: false,
+        titleSpacing: 16,
+        shape: const Border(
+          bottom: BorderSide(color: IosColors.separator, width: 0.5),
+        ),
         title: Row(
           children: [
-            Text(
-              _cnsVersion != null
-                  ? l10n.appTitleWithVersion(_cnsVersion!)
-                  : l10n.appTitleNoCns,
-            ), // Usará el nuevo texto cuando no haya versión
+            Flexible(
+              child: Text(
+                _cnsVersion != null
+                    ? l10n.appTitleWithVersion(_cnsVersion!)
+                    : l10n.appTitleNoCns,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                  color: IosColors.label,
+                ),
+              ),
+            ),
             if (_cnsUpdateInfo != null && !cnsIsIgnored)
               Padding(
                 padding: const EdgeInsets.only(left: 8.0),
-                child: IconButton(
+                child: IosToolbarButton(
                   icon: const HugeIcon(
                     icon: HugeIcons.strokeRoundedNotification01,
-                    color: Colors.yellowAccent,
-                    size: 24.0,
+                    color: IosColors.yellow,
+                    size: 20.0,
                   ),
                   tooltip: l10n.updateAvailable(_cnsUpdateInfo!['version']),
                   onPressed: () {
@@ -5344,32 +5506,67 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
               ),
           ],
         ),
-        backgroundColor: const Color(0xFF2a2a2a),
         actions: [
-          IconButton(
-            icon: _isLaunchingGame
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.tealAccent,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : const Icon(Icons.sports_esports, color: Colors.tealAccent, size: 26.0),
-            tooltip: AppLocalizations.of(context)!.launchGameText,
-            // Disables the button automatically while loading to prevent multi-clicks
-            onPressed: (_isLoading || _gameRootPath == null || _isLaunchingGame) ? null : _launchGame,
+          // Botón "Jugar / Detener": cápsula verde para lanzar el juego y roja
+          // mientras está en ejecución (al pulsarla lo cierra).
+          IosToolbarButton(
+            width: 44,
+            height: 28,
+            background: _isGameRunning ? IosColors.red : IosColors.green,
+            // 'busy' ignora los clics sin atenuar el botón, para que se vea el spinner.
+            busy: _isLaunchingGame || _isStoppingGame,
+            icon: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(
+                  scale: Tween<double>(begin: 0.6, end: 1.0).animate(animation),
+                  child: child,
+                ),
+              ),
+              child: (_isLaunchingGame || _isStoppingGame)
+                  ? const CupertinoActivityIndicator(
+                      key: ValueKey('game-spinner'),
+                      radius: 8,
+                      color: Colors.white,
+                    )
+                  : (_isGameRunning
+                      ? const Icon(
+                          Icons.stop_rounded,
+                          key: ValueKey('game-stop'),
+                          color: Colors.white,
+                          size: 20.0,
+                        )
+                      : const Icon(
+                          Icons.sports_esports_rounded,
+                          key: ValueKey('game-play'),
+                          color: Colors.white,
+                          size: 18.0,
+                        )),
+            ),
+            tooltip: _isGameRunning
+                ? AppLocalizations.of(context)!.stopGameText
+                : AppLocalizations.of(context)!.launchGameText,
+            onPressed: _isGameRunning
+                ? _stopGame
+                : ((_isLoading || _gameRootPath == null) ? null : _launchGame),
           ),
-          IconButton(
-            icon: const HugeIcon(icon: HugeIcons.strokeRoundedWifiSync, color: Colors.white, size: 24.0),
+          const SizedBox(width: 8),
+          IosToolbarButton(
+            icon: _isCheckingForUpdates
+                ? const CupertinoActivityIndicator(radius: 8)
+                : const HugeIcon(icon: HugeIcons.strokeRoundedWifiSync, color: IosColors.icon, size: 20.0),
             tooltip: l10n.checkForUpdates,
             onPressed: _isLoading || _isCheckingForUpdates
                 ? null
                 : _checkForUpdates,
           ),
-          IconButton(
-            icon: const HugeIcon(icon: HugeIcons.strokeRoundedSetting07, color: Colors.white, size: 24.0),
+          if (_apiKey != null && _apiKey!.isNotEmpty)
+            _buildUserProfileMenu(),
+          IosToolbarButton(
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedSetting07, color: IosColors.icon, size: 20.0),
             tooltip: l10n.settings,
             onPressed: () {
               Navigator.push(
@@ -5406,12 +5603,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                     },
                     onShowAboutDialog: _showAboutDialog,
                     onRunSelfHealing: _showSelfHealConfirmationDialog,
+                    onRepairGameStartup: _runGameStartupRepair,
                     onRunConflictPatcher: _runConflictPatcher,
+                    onRevertConflictPatches: _revertConflictPatches,
                   ),
                 ),
               );
             },
           ),
+          const SizedBox(width: 10),
         ],
       ),
 
@@ -5469,14 +5669,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  LinearProgressIndicator(
+                                  IosProgressBar(
                                     value: _metadataUpdateProgress,
-                                    backgroundColor: Colors.grey[800],
-                                    valueColor:
-                                        const AlwaysStoppedAnimation<Color>(
-                                          Colors
-                                              .lightBlueAccent, // Color distintivo
-                                        ),
                                   ),
                                 ],
                               )
@@ -5497,25 +5691,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  LinearProgressIndicator(
-                                    value: null,
-                                    backgroundColor: Colors.grey[800],
-                                    valueColor:
-                                        const AlwaysStoppedAnimation<Color>(
-                                          Colors.tealAccent,
-                                        ),
-                                  ),
+                                  const IosProgressBar(),
                                 ],
                               )
                             else if (_isLoading)
                               Center(
                                 child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Theme.of(context).colorScheme.primary,
-                                    ),
-                                  ),
+                                  padding: EdgeInsets.all(8.0),
+                                  child: IosSpinner(radius: 12),
                                 ),
                               )
                             else
@@ -5534,13 +5717,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                 if (_isDragging)
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
+                      color: Colors.black.withOpacity(0.72),
                       border: Border.all(
-                        color: Colors.tealAccent,
-                        width: 3,
-                        style: BorderStyle.solid,
+                        color: IosColors.blue,
+                        width: 2,
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Center(
                       child: Column(
@@ -5549,7 +5731,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                           const HugeIcon(
                             icon: HugeIcons.strokeRoundedArchiveArrowDown,
                             size: 80,
-                            color: Colors.tealAccent,
+                            color: IosColors.blue,
                           ),
                           const SizedBox(height: 20),
                           Text(
@@ -5636,6 +5818,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
   return ModGridCard(
     modInfo: modInfo,
+    editionCount: _installedEditionsOf(modInfo).length,
     l10n: l10n,
     thumbnailService: _thumbnailService,
     updateInfo: updateInfo,
@@ -5651,6 +5834,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           nexusId: modInfo.nexusId!,
           fileId: updateInfo['fileId'],
           uniqueIdentifier: updateIdentifier,
+          mod: modInfo,
         );
       }
     },
@@ -5730,6 +5914,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
   return ModListTile(
     modInfo: modInfo,
+    editionCount: _installedEditionsOf(modInfo).length,
     l10n: l10n,
     updateInfo: updateInfo,
     isIgnored: isIgnored,
@@ -5744,6 +5929,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           nexusId: modInfo.nexusId!,
           fileId: updateInfo['fileId'],
           uniqueIdentifier: updateIdentifier,
+          mod: modInfo,
         );
       }
     },
@@ -5774,292 +5960,178 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     bool hasEnabledMods,
     bool hasDisabledMods,
   ) {
-    // 1. Calcula los estados basándose en la lista 'mods' (la vista actual)
+    // Estados calculados sobre la vista actual (ya filtrada)
     final bool hasEnabledModsInView = mods.any((mod) => mod.isEnabled);
     final bool hasDisabledModsInView = mods.any((mod) => !mod.isEnabled);
+
+    // Mismo orden que el enum ModTypeFilter
+    final typeLabels = <ModTypeFilter, String>{
+      ModTypeFilter.all: l10n.filterAll,
+      ModTypeFilter.cns: l10n.modTypeCNS,
+      ModTypeFilter.replacement: l10n.modTypeReplacement,
+      ModTypeFilter.movies: l10n.modTypeMovies,
+      ModTypeFilter.logicMod: l10n.modTypeLogic,
+      ModTypeFilter.generic: l10n.modTypeGeneric,
+      ModTypeFilter.save: l10n.modTypeSave,
+      ModTypeFilter.config: l10n.modTypeConfig,
+      ModTypeFilter.splash: l10n.modTypeSplash,
+    };
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            ElevatedButton.icon(
-              icon: const HugeIcon(icon: HugeIcons.strokeRoundedAddCircle, color: Colors.white, size: 24.0),
-              label: Text(
-                l10n.installNewMod,
-              ), // Asegúrate de tener esta traducción
-              onPressed:
-                  _showInstallationPanel, // Este método lo crearemos a continuación
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 16,
-                ),
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-              ),
+            IosButton(
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedAddCircle, color: Colors.white, size: 18.0),
+              label: l10n.installNewMod,
+              onPressed: _showInstallationPanel,
             ),
-            const SizedBox(width: 0),
+            const SizedBox(width: 10),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: SizedBox(
-                  height: 40,
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: l10n.searchMods,
-                      hintStyle: TextStyle(color: Colors.grey[400]),
-                      prefixIcon: const Icon(
-                        Icons.search,
-                        color: Colors.grey,
-                        size: 20,
-                      ),
-                      filled: true,
-                      fillColor: Colors.black.withOpacity(0.3),
-                      contentPadding: const EdgeInsets.symmetric(
-                        vertical: 0,
-                        horizontal: 16,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[700]!),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[700]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.tealAccent),
-                      ),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, color: Colors.grey),
-                              onPressed: () {
-                                _searchController.clear();
-                              },
-                            )
-                          : null,
-                    ),
-                  ),
-                ),
+              child: IosSearchField(
+                controller: _searchController,
+                placeholder: l10n.searchMods,
               ),
             ),
-            Row(
-              children: [
-                ToggleButtons(
-                  isSelected: [
-                    _viewMode == ModListViewMode.grid,
-                    _viewMode == ModListViewMode.list,
-                  ],
-                  onPressed: (index) async {
-                    final newMode = index == 0
-                        ? ModListViewMode.grid
-                        : ModListViewMode.list;
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setInt(AppPrefs.viewMode, newMode.index);
-                    setState(() => _viewMode = newMode);
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  constraints: const BoxConstraints(
-                    minHeight: 36,
-                    minWidth: 36,
-                  ),
-                  children: [
-                    Tooltip(
-                      message: l10n.viewTypeGrid,
-                      child: HugeIcon(icon: HugeIcons.strokeRoundedLayoutGrid, size: 20),
-                    ),
-                    Tooltip(
-                      message: l10n.viewTypeList,
-                      child: HugeIcon(icon: HugeIcons.strokeRoundedLeftToRightListBullet, size: 20),
-                    ),
-                  ],
+            const SizedBox(width: 10),
+            IosSegmented<ModListViewMode>(
+              value: _viewMode,
+              onChanged: (newMode) async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setInt(AppPrefs.viewMode, newMode.index);
+                setState(() => _viewMode = newMode);
+              },
+              children: {
+                ModListViewMode.grid: Tooltip(
+                  message: l10n.viewTypeGrid,
+                  child: const HugeIcon(icon: HugeIcons.strokeRoundedLayoutGrid, color: IosColors.label, size: 17.0),
                 ),
-                PopupMenuButton<ModFilter>(
-                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedFilter, size: 20),
-                  tooltip: l10n.filterBy,
-                  onSelected: (ModFilter result) async {
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setInt(AppPrefs.filterMode, result.index);
-                    setState(() {
-                      _currentFilter = result;
-                    });
-                  },
-                  itemBuilder: (BuildContext context) {
-                    // ++ LISTA SIMPLIFICADA ++
-                    final filterOptions = [
-                      {'value': ModFilter.all, 'text': l10n.filterAll},
-                      {'value': ModFilter.enabled, 'text': l10n.filterEnabled},
-                      {
-                        'value': ModFilter.disabled,
-                        'text': l10n.filterDisabled,
-                      },
-                      {
-                        'value': ModFilter.updatesAvailable,
-                        'text': l10n.filterUpdatesAvailable,
-                      },
-                    ];
-
-                    // ++ CONSTRUCTOR SIMPLIFICADO ++
-                    return filterOptions.map((option) {
-                      return PopupMenuItem<ModFilter>(
-                        value: option['value'] as ModFilter,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(option['text'] as String),
-                            if (_currentFilter == option['value'])
-                              const HugeIcon(icon: HugeIcons.strokeRoundedTick02, color: Colors.tealAccent),
-                          ],
-                        ),
-                      );
-                    }).toList();
-                  },
+                ModListViewMode.list: Tooltip(
+                  message: l10n.viewTypeList,
+                  child: const HugeIcon(icon: HugeIcons.strokeRoundedLeftToRightListBullet, color: IosColors.label, size: 17.0),
                 ),
-                PopupMenuButton<ModSort>(
-                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedSorting01, size: 20),
-                  tooltip: l10n.sortBy,
-                  onSelected: (ModSort result) async {
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setInt(AppPrefs.sortMode, result.index);
-                    setState(() {
-                      _currentSort = result;
-                    });
-                  },
-                  itemBuilder: (BuildContext context) {
-                    final sortOptions = [
-                      {'value': ModSort.date, 'text': l10n.sortByDate},
-                      {'value': ModSort.name, 'text': l10n.sortByName},
-                    ];
-                    return sortOptions.map((option) {
-                      return PopupMenuItem<ModSort>(
-                        value: option['value'] as ModSort,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(option['text'] as String),
-                            if (_currentSort == option['value'])
-                              const HugeIcon(icon: HugeIcons.strokeRoundedTick02, color: Colors.tealAccent),
-                          ],
-                        ),
-                      );
-                    }).toList();
-                  },
+              },
+            ),
+            const SizedBox(width: 6),
+            IosMenuButton<ModFilter>(
+              tooltip: l10n.filterBy,
+              // El icono se pinta de azul cuando hay un filtro activo
+              icon: HugeIcon(
+                icon: HugeIcons.strokeRoundedFilter,
+                size: 20.0,
+                color: _currentFilter != ModFilter.all ? IosColors.blue : IosColors.icon,
+              ),
+              onSelected: (ModFilter result) async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setInt(AppPrefs.filterMode, result.index);
+                setState(() => _currentFilter = result);
+              },
+              itemBuilder: (context) => [
+                iosMenuItem<ModFilter>(value: ModFilter.all, label: l10n.filterAll, selected: _currentFilter == ModFilter.all),
+                iosMenuItem<ModFilter>(value: ModFilter.enabled, label: l10n.filterEnabled, selected: _currentFilter == ModFilter.enabled),
+                iosMenuItem<ModFilter>(value: ModFilter.disabled, label: l10n.filterDisabled, selected: _currentFilter == ModFilter.disabled),
+                iosMenuItem<ModFilter>(value: ModFilter.updatesAvailable, label: l10n.filterUpdatesAvailable, selected: _currentFilter == ModFilter.updatesAvailable),
+              ],
+            ),
+            IosMenuButton<ModSort>(
+              tooltip: l10n.sortBy,
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedSorting01, color: IosColors.icon, size: 20.0),
+              onSelected: (ModSort result) async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setInt(AppPrefs.sortMode, result.index);
+                setState(() => _currentSort = result);
+              },
+              itemBuilder: (context) => [
+                iosMenuItem<ModSort>(value: ModSort.date, label: l10n.sortByDate, selected: _currentSort == ModSort.date),
+                iosMenuItem<ModSort>(value: ModSort.name, label: l10n.sortByName, selected: _currentSort == ModSort.name),
+              ],
+            ),
+            IosToolbarButton(
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedFolderSymlink, color: IosColors.icon, size: 20.0),
+              tooltip: l10n.openModsFolder,
+              onPressed: _isLoading
+                  ? null
+                  : () {
+                      if (_finalModsPath != null) {
+                        _showInExplorer(Directory(_finalModsPath!));
+                      }
+                    },
+            ),
+            IosToolbarButton(
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedRefresh01, color: IosColors.icon, size: 20.0),
+              tooltip: l10n.refreshList,
+              onPressed: _isLoading ? null : () => _loadAllMods(clearHighlight: true),
+            ),
+            // Acciones masivas agrupadas en un solo menú (⋯)
+            IosMenuButton<String>(
+              icon: const Icon(Icons.more_horiz_rounded, color: IosColors.icon, size: 22),
+              onSelected: (action) {
+                switch (action) {
+                  case 'enable_all':
+                    _enableAllMods(mods);
+                    break;
+                  case 'disable_all':
+                    _disableAllMods(mods);
+                    break;
+                  case 'delete_disabled':
+                    _deleteDisabledMods(mods);
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                iosMenuItem<String>(
+                  value: 'enable_all',
+                  label: l10n.enableAllModsTooltip,
+                  enabled: !_isLoading && hasDisabledModsInView,
+                  leading: const HugeIcon(icon: HugeIcons.strokeRoundedPower, color: IosColors.green, size: 16.0),
                 ),
-                IconButton(
-                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedFolderSymlink, size: 20),
-                  onPressed: _isLoading
-                      ? null
-                      : () {
-                          if (_finalModsPath != null) {
-                            _showInExplorer(Directory(_finalModsPath!));
-                          }
-                        },
-                  tooltip: l10n.openModsFolder,
+                iosMenuItem<String>(
+                  value: 'disable_all',
+                  label: l10n.disableAllModsTooltip,
+                  enabled: !_isLoading && hasEnabledModsInView,
+                  leading: const HugeIcon(icon: HugeIcons.strokeRoundedPowerOff, color: IosColors.orange, size: 16.0),
                 ),
-                IconButton(
-                  icon: HugeIcon(
-                    icon: HugeIcons.strokeRoundedPower,
-                    // ++ MODIFICADO: Usa el booleano de la vista actual
-                    color: (_isLoading || !hasDisabledModsInView)
-                        ? Colors.greenAccent.withOpacity(0.4)
-                        : Colors.greenAccent,
-                  ),
-                  // ++ MODIFICADO: Usa el booleano y pasa la lista 'mods'
-                  onPressed: _isLoading || !hasDisabledModsInView
-                      ? null
-                      : () => _enableAllMods(mods),
-                  tooltip: l10n.enableAllModsTooltip,
-                ),
-                IconButton(
-                  icon: HugeIcon(
-                    icon: HugeIcons.strokeRoundedPowerOff,
-                    // ++ MODIFICADO: Usa el booleano de la vista actual
-                    color: (_isLoading || !hasEnabledModsInView)
-                        ? Colors.orangeAccent.withOpacity(0.4)
-                        : Colors.orangeAccent,
-                  ),
-                  // ++ MODIFICADO: Usa el booleano y pasa la lista 'mods'
-                  onPressed: _isLoading || !hasEnabledModsInView
-                      ? null
-                      : () => _disableAllMods(mods),
-                  tooltip: l10n.disableAllModsTooltip,
-                ),
-                IconButton(
-                  icon: HugeIcon(
-                    icon: HugeIcons.strokeRoundedDelete04,
-                    // ++ MODIFICADO: Usa el booleano de la vista actual
-                    color: (_isLoading || !hasDisabledModsInView)
-                        ? Colors.redAccent.withOpacity(0.4)
-                        : Colors.redAccent,
-                  ),
-                  // ++ MODIFICADO: Usa el booleano y pasa la lista 'mods'
-                  onPressed: _isLoading || !hasDisabledModsInView
-                      ? null
-                      : () => _deleteDisabledMods(mods),
-                  tooltip: l10n.deleteAllModsTooltip,
-                ),
-                IconButton(
-                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedRefresh01),
-                  onPressed: _isLoading
-                      ? null
-                      : () => _loadAllMods(clearHighlight: true),
-                  tooltip: l10n.refreshList,
+                const PopupMenuDivider(height: 8),
+                iosMenuItem<String>(
+                  value: 'delete_disabled',
+                  label: l10n.deleteAllModsTooltip,
+                  destructive: true,
+                  enabled: !_isLoading && hasDisabledModsInView,
+                  leading: const HugeIcon(icon: HugeIcons.strokeRoundedDelete04, color: IosColors.red, size: 16.0),
                 ),
               ],
             ),
           ],
         ),
-        Padding(
-          padding: const EdgeInsets.only(top: 12.0),
-          child: Container(
-            width: double.infinity, // Ocupa todo el ancho
-            alignment: Alignment.center, // Centra los botones
-            child: SingleChildScrollView(
-              // Permite scroll horizontal en ventanas pequeñas
-              scrollDirection: Axis.horizontal,
-              child: ToggleButtons(
-                isSelected: ModTypeFilter.values
-                    .map((type) => type == _currentModTypeFilter)
-                    .toList(),
-                onPressed: (index) async {
-                  final newTypeFilter = ModTypeFilter.values[index];
-                  final prefs = await SharedPreferences.getInstance();
-                  // Guardamos la nueva preferencia
-                  await prefs.setInt(
-                    AppPrefs.modTypeFilterMode,
-                    newTypeFilter.index,
-                  );
-                  setState(() {
-                    _currentModTypeFilter = newTypeFilter;
-                  });
-                },
-                borderRadius: BorderRadius.circular(8),
-                constraints: const BoxConstraints(minHeight: 36), // Altura fija
-                children: [
-                  _buildNavButton(l10n.filterAll),
-                  _buildNavButton(l10n.modTypeCNS),
-                  _buildNavButton(l10n.modTypeReplacement),
-                  _buildNavButton(l10n.modTypeMovies),
-                  _buildNavButton(l10n.modTypeLogic),
-                  _buildNavButton(l10n.modTypeGeneric),
-                  _buildNavButton(l10n.modTypeSave),
-                  _buildNavButton(l10n.modTypeConfig),
-                  _buildNavButton(l10n.modTypeSplash),
-                ],
-              ),
-            ),
-          ),
+        const SizedBox(height: 12),
+        // Filtros por tipo: control segmentado centrado y adaptable. Reduce su
+        // tamaño al estrecharse la ventana y, si no cabe, pasa a ser un
+        // selector desplegable.
+        IosAdaptiveSegmented<ModTypeFilter>(
+          value: _currentModTypeFilter,
+          labels: typeLabels,
+          onChanged: (newFilter) async {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setInt(AppPrefs.modTypeFilterMode, newFilter.index);
+            setState(() => _currentModTypeFilter = newFilter);
+          },
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Expanded(
           child: mods.isEmpty
               ? Center(
-                  child: Text(
-                    l10n.noModsFound,
-                    style: const TextStyle(color: Colors.grey),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.inventory_2_outlined, size: 44, color: IosColors.tertiaryLabel),
+                      const SizedBox(height: 12),
+                      Text(
+                        l10n.noModsFound,
+                        style: const TextStyle(fontSize: 14, color: IosColors.secondaryLabel),
+                      ),
+                    ],
                   ),
                 )
               : AnimatedSwitcher(
@@ -6067,15 +6139,18 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                   child: _viewMode == ModListViewMode.grid
                       ? GridView.builder(
                           key: const ValueKey('grid'),
-                          //cacheExtent:
-                              //4000.0, // Mejora el rendimiento al hacer scroll
-                          padding: const EdgeInsets.all(4),
+                          controller: _gridScrollController,
+                          // Construye (y decodifica las portadas de) unas filas
+                          // por delante de lo visible: al hacer scroll las
+                          // tarjetas ya están listas al entrar en pantalla.
+                          cacheExtent: 700,
+                          padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
                           gridDelegate:
                               const SliverGridDelegateWithMaxCrossAxisExtent(
                                 maxCrossAxisExtent: 220,
                                 childAspectRatio: 3 / 4.5,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
+                                crossAxisSpacing: 14,
+                                mainAxisSpacing: 14,
                               ),
                           itemCount: mods.length,
                           itemBuilder: (context, index) {
@@ -6084,8 +6159,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                         )
                       : ListView.builder(
                           key: const ValueKey('list'),
-                          //cacheExtent:
-                              //4000.0, // Mejora el rendimiento al hacer scroll
+                          controller: _listScrollController,
+                          cacheExtent: 700,
+                          padding: const EdgeInsets.only(bottom: 12),
                           itemCount: mods.length,
                           itemBuilder: (context, index) {
                             return _buildModListTile(mods[index], l10n);
@@ -6262,8 +6338,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      // Subida más larga y con la curva de las hojas de iOS (arranque rápido,
+      // frenado muy suave). El panel monta su contenido pesado al terminar.
+      sheetAnimationStyle: AnimationStyle(
+        duration: const Duration(milliseconds: 380),
+        curve: IosMotion.sheet,
+        reverseDuration: const Duration(milliseconds: 260),
+        reverseCurve: Curves.easeInCubic,
+      ),
       builder: (context) => ModDetailsPanel(
         initialModInfo: modInfo,
+        otherEditions: _otherEditionsOf(modInfo),
         thumbnailService: _thumbnailService,
         onUpdateDetails: _updateModDetails,
         onShowInExplorer: _showInExplorer,
@@ -6276,9 +6361,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         updateInfo: updateInfo,
         isIgnored: isIgnored,
         onShowUpdateDialog: _showUpdateOptionsDialog,
+        // API key de Nexus: necesaria para el botón de endorse del panel.
+        apiKey: _apiKey,
         // ++ FIN DE LA MODIFICACIÓN ++
       ),
     );
+    Future<void>.delayed(const Duration(milliseconds: 600), () {
+  if (mounted) _showImageGalleryDialog(modInfo, prewarmOnly: true);
+});
   }
 
   /// Guarda una propiedad personalizada (versión o etiqueta) en el JSON y actualiza el estado.
@@ -6342,6 +6432,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         userNotes: mod.userNotes,
         sourceUrl: mod.sourceUrl,
         customSourceUrl: mod.customSourceUrl,
+        modName: mod.modName,
+        editionName: mod.editionName,
       );
     } catch (e) {
       print('Error updating custom property: $e');
@@ -6429,109 +6521,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
               }
             }
 
-            final bool? forceActivate = await showDialog<bool>(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => AlertDialog(
-                backgroundColor: const Color(0xFF2a2a2a),
-                title: Text(l10n.dialogTitleOutfitConflict),
-
-                // Reemplazamos el 'content: Text(...)' por 'content: RichText(...)'
-                content: RichText(
-                  text: TextSpan(
-                    // Usar el estilo de texto por defecto del diálogo
-                    style:
-                        Theme.of(context).dialogTheme.contentTextStyle ??
-                        const TextStyle(color: Colors.white, height: 1.5),
-                    children: [
-                      // Parte 1 del texto
-                      TextSpan(text: part1),
-
-                      // Widget 1: El nombre del traje (interactivo)
-                      WidgetSpan(
-                        alignment: PlaceholderAlignment.middle,
-                        child: MouseRegion(
-                          onEnter: (event) {
-                            _cursorPosition = event.position;
-                            _hoverTimer?.cancel();
-                            _hoverTimer = Timer(
-                              const Duration(milliseconds: 800),
-                              () {
-                                if (mounted) {
-                                  _showPreviewOverlay(
-                                    context,
-                                    outfitName, // El nombre del traje
-                                    _cursorPosition,
-                                  );
-                                }
-                              },
-                            );
-                          },
-                          onExit: (event) => _hidePreviewOverlay(),
-                          onHover: (event) => _cursorPosition = event.position,
-                          child: Text(
-                            outfitName, // El nombre resaltado
-                            style: const TextStyle(
-                              color: Colors.tealAccent,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Parte 2 del texto
-                      TextSpan(text: part2),
-
-                      // Widget 2: El nombre del mod (interactivo)
-                      WidgetSpan(
-                        alignment: PlaceholderAlignment.middle,
-                        child: InkWell(
-                          onTap: () {
-                            // ¡YA NO CERRAMOS LA ALERTA!
-                            // Abre el panel de detalles del mod en conflicto
-                            _showDetailsPage(conflictingMod!);
-                          },
-                          child: Text(
-                            modName, // El nombre resaltado
-                            style: const TextStyle(
-                              color: Colors.yellowAccent,
-                              fontWeight: FontWeight.bold,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Parte 3 del texto
-                      TextSpan(text: part3),
-                    ],
-                  ),
-                ),
-
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      _hidePreviewOverlay(); // Oculta la vista previa si está visible
-                      Navigator.of(context).pop(false);
-                    },
-                    child: Text(l10n.dialogActionCancel),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      _hidePreviewOverlay(); // Oculta la vista previa si está visible
-                      Navigator.of(context).pop(true);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.tealAccent,
-                      foregroundColor: Colors.black,
-                    ),
-                    child: Text(
-                      l10n.dialogActionActivateAndDisable,
-                    ), // Reutilizamos el l10n
-                  ),
-                ],
-              ),
-            );
+            final bool? forceActivate = await _showOutfitConflictDialog(
+          part1: part1,
+          outfitName: outfitName,
+          part2: part2,
+          modName: modName,
+          part3: part3,
+          conflictingMod: conflictingMod,
+        );
 
             // 4. Si el usuario canceló, detenemos el guardado
             if (forceActivate != true) {
@@ -6752,6 +6749,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         sourceUrl: data['sourceUrl'] ?? mod.sourceUrl,
         customSourceUrl: data['customSourceUrl'],
         replacesOutfits: data['replacesOutfits'] != null ? List<String>.from(data['replacesOutfits']) : null,
+        modName: data['modName'] ?? mod.modName,
+        editionName: data['editionName'] ?? mod.editionName,
       );
     } catch (e) {
       print('Error updating mod details: $e');
@@ -6771,27 +6770,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   /// Displays a confirmation dialog and then proceeds to delete all nexus_info.json files.
   Future<void> _deleteAllNexusInfoFiles() async {
     final l10n = AppLocalizations.of(context)!;
-    final confirm = await showDialog<bool>(
+    final confirm = await SettingsDialogs.confirm(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.devConfirmDeleteTitle),
-        content: Text(l10n.devConfirmDeleteDesc),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.dialogActionCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: Text(l10n.dialogActionDelete),
-          ),
-        ],
-      ),
+      title: l10n.devConfirmDeleteTitle,
+      message: l10n.devConfirmDeleteDesc,
+      confirmLabel: l10n.dialogActionDelete,
+      destructive: true,
     );
 
-    if (confirm != true) return;
+    if (!confirm) return;
 
     setState(() => _isLoading = true);
     int deleteCount = 0;
@@ -6834,27 +6821,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   /// Extracts mod identifiers to a JSON file on the user's desktop.
   Future<void> _extractModIdentifiers() async {
     final l10n = AppLocalizations.of(context)!;
-    final confirm = await showDialog<bool>(
+    final confirm = await SettingsDialogs.confirm(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2a2a2a),
-        title: Text(l10n.devConfirmExtractTitle),
-        content: Text(l10n.devConfirmExtractDesc),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.dialogActionCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
-            child: Text(l10n.devExtractAction),
-          ),
-        ],
-      ),
+      title: l10n.devConfirmExtractTitle,
+      message: l10n.devConfirmExtractDesc,
+      confirmLabel: l10n.devExtractAction,
     );
 
-    if (confirm != true) return;
+    if (!confirm) return;
 
     setState(() => _isLoading = true);
     try {
@@ -7128,6 +7102,317 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     _hoverTimer?.cancel(); // Cancela el temporizador si está activo
     _previewOverlay?.remove(); // Elimina el overlay de la pantalla
     _previewOverlay = null; // Limpia la referencia
+  }
+
+  // ---------------------------------------------------------------------------
+  //  PERFIL DE NEXUS MODS · estilo iOS / macOS
+  // ---------------------------------------------------------------------------
+
+  // Colores del sistema de Apple (modo oscuro)
+  static const Color _iosBlue = Color(0xFF0A84FF);
+  static const Color _iosGreen = Color(0xFF30D158);
+  static const Color _iosYellow = Color(0xFFFFD60A);
+  static const Color _iosRed = Color(0xFFFF453A);
+  static const Color _iosOrange = Color(0xFFFF9F0A);
+  static const Color _iosLabelSecondary = Color(0x99EBEBF5); // 60 %
+  static const Color _iosLabelTertiary = Color(0x4DEBEBF5); // 30 %
+
+  Widget _buildNexusAvatar(double radius, Color accent) {
+    final hasAvatar = _nexusAvatarUrl != null && _nexusAvatarUrl!.isNotEmpty;
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: accent,
+      backgroundImage: hasAvatar ? NetworkImage(_nexusAvatarUrl!) : null,
+      child: hasAvatar
+          ? null
+          : Text(
+              (_nexusUserName != null && _nexusUserName!.isNotEmpty)
+                  ? _nexusUserName![0].toUpperCase()
+                  : 'U',
+              style: TextStyle(
+                fontSize: radius * 0.95,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+    );
+  }
+
+  String _formatThousands(int n) {
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
+  }
+
+  /// Fila estilo "Ajustes" de iOS: icono en cuadrado redondeado de color,
+  /// título, valor a la derecha y una barra de progreso fina.
+  Widget _buildApiLimitRow({
+    required IconData icon,
+    required Color iconBg,
+    required String label,
+    required String remaining,
+    required String limit,
+    required int fallbackMax,
+  }) {
+    final int? value = int.tryParse(remaining);
+    // Límite real informado por Nexus. Si todavía no se conoce (la API no lo
+    // envió), se usa un valor de respaldo según el plan. El límite NUNCA se
+    // deriva de las solicitudes restantes: así no baja al consumirlas.
+    final int effectiveMax = int.tryParse(limit) ?? fallbackMax;
+    final double ratio = value == null ? 0.0 : (value / effectiveMax).clamp(0.0, 1.0);
+
+    final Color barColor = value == null
+        ? _iosLabelTertiary
+        : ratio > 0.5
+            ? _iosGreen
+            : ratio > 0.2
+                ? _iosYellow
+                : _iosRed;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Icon(icon, size: 18, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      value == null ? 'N/A' : _formatThousands(value),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        letterSpacing: -0.2,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    if (value != null)
+                      Text(
+                        ' / ${_formatThousands(effectiveMax)}',
+                        style: const TextStyle(fontSize: 12, color: _iosLabelTertiary),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 7),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: Stack(
+                    children: [
+                      Container(height: 4, color: Colors.white.withOpacity(0.12)),
+                      AnimatedFractionallySizedBox(
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.easeOutCubic,
+                        widthFactor: ratio,
+                        child: Container(height: 4, color: barColor),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserProfileMenu() {
+    final Color planColor = _isNexusPremium ? _iosOrange : _iosBlue;
+    // Valores de respaldo por si Nexus no informa el límite real en los headers.
+    final int dailyFallback = _isNexusPremium ? 20000 : 2500;
+    final int hourlyFallback = _isNexusPremium ? 500 : 100;
+
+    return PopupMenuButton<String>(
+      tooltip: 'Perfil de Nexus Mods',
+      offset: const Offset(0, 45),
+      color: Colors.transparent,
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      icon: Container(
+        padding: const EdgeInsets.all(1.5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white.withOpacity(0.25), width: 1),
+        ),
+        child: _buildNexusAvatar(12.5, planColor),
+      ),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          enabled: false,
+          padding: EdgeInsets.zero,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Container(
+                width: 284,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2C2C2E).withOpacity(0.78),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white.withOpacity(0.14), width: 0.8),
+                ),
+                // Datos en tiempo real al abrir el menú
+                child: FutureBuilder<Map<String, dynamic>?>(
+                  future: NexusApiService.validateAndGetProfile(_apiKey ?? ''),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox(
+                        height: 150,
+                        child: Center(child: IosSpinner(radius: 10)),
+                      );
+                    }
+
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // ---------- CABECERA (centrada, como macOS) ----------
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 14),
+                          child: Column(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.35),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                child: _buildNexusAvatar(30, planColor),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                _nexusUserName ?? 'Usuario',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                  letterSpacing: -0.4,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: planColor.withOpacity(0.18),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _isNexusPremium
+                                          ? Icons.workspace_premium_rounded
+                                          : Icons.person_rounded,
+                                      size: 13,
+                                      color: planColor,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _isNexusPremium ? 'Premium' : 'Estándar',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: planColor,
+                                        letterSpacing: -0.1,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // ---------- GRUPO "SOLICITUDES DE API" ----------
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(28, 4, 16, 6),
+                          child: Text(
+                            'SOLICITUDES RESTANTES DE API',
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: _iosLabelSecondary,
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.07),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Column(
+                            children: [
+                              _buildApiLimitRow(
+                                icon: Icons.calendar_today_rounded,
+                                iconBg: _iosBlue,
+                                label: 'Diarias',
+                                remaining: NexusApiService.dailyRemaining,
+                                limit: NexusApiService.dailyLimit,
+                                fallbackMax: dailyFallback,
+                              ),
+                              // Separador fino con sangría (como UITableView)
+                              Container(
+                                height: 0.5,
+                                margin: const EdgeInsets.only(left: 54),
+                                color: Colors.white.withOpacity(0.15),
+                              ),
+                              _buildApiLimitRow(
+                                icon: Icons.schedule_rounded,
+                                iconBg: _iosOrange,
+                                label: 'Por hora',
+                                remaining: NexusApiService.hourlyRemaining,
+                                limit: NexusApiService.hourlyLimit,
+                                fallbackMax: hourlyFallback,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

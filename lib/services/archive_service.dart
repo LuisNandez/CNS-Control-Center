@@ -4,7 +4,7 @@ import 'package:path/path.dart' as p;
 import '../l10n/app_localizations.dart';
 import '../mod_classifier_service.dart';
 import '../models/installation_models.dart';
-import 'nexus_api_service.dart';
+import 'nexus_file_identifier.dart';
 import 'file_manager_service.dart';
 import 'special_mods_handler.dart';
 
@@ -14,44 +14,18 @@ class ArchiveService {
     return name.replaceAll(regex, '').trim();
   }
 
+  /// Nombre "limpio" del mod a partir del nombre del archivo descargado
+  /// (sin consultar la API). Si el archivo sigue el patrón de Nexus
+  /// (`Nombre-modId-versión-fecha`) devuelve solo la parte del nombre.
   static String cleanNexusFileName(String fileName) {
-    final nexusIdRegex = RegExp(r'-(\d{2,6})-');
-    final match = nexusIdRegex.firstMatch(fileName);
-    if (match != null) {
-      return fileName.substring(0, match.start);
-    } else {
-      return stripVersionFromFolderName(fileName);
+    final parsed = NexusFileNameParser.bestGuess(fileName);
+    if (parsed != null) {
+      return NexusFileNameParser.sanitizeDisplayName(
+        parsed.name,
+        version: NexusFileNameParser.normalizeVersion(parsed.version),
+      );
     }
-  }
-
-  static Future<Map<String, String>?> extractNexusInfoFromName(String name, String? apiKey) async {
-    if (apiKey == null || apiKey.isEmpty) return null;
-    try {
-      final potentialIdsRegex = RegExp(r'-(\d{2,6})-');
-      final matches = potentialIdsRegex.allMatches(name);
-
-      for (final match in matches) {
-        final potentialId = match.group(1);
-        if (potentialId == null) continue;
-
-        if (await NexusApiService.isValidNexusId(potentialId, apiKey)) {
-          final validId = potentialId;
-          final remainingString = name.substring(match.end);
-          final lastHyphenIndex = remainingString.lastIndexOf('-');
-
-          if (lastHyphenIndex != -1) {
-            String version = remainingString.substring(0, lastHyphenIndex);
-            version = version.replaceAll('-', '.');
-            if (version.toLowerCase().startsWith('v')) version = version.substring(1);
-            if (version.toLowerCase().startsWith('cns.')) version = version.substring(4);
-            return {'id': validId, 'version': version};
-          }
-        }
-      }
-    } catch (e) {
-      print('An error occurred during smart Nexus info extraction: $e');
-    }
-    return null;
+    return stripVersionFromFolderName(NexusFileNameParser.baseName(fileName));
   }
 
   static Future<Directory?> findUE4SSRoot(Directory root) async {
@@ -107,7 +81,12 @@ class ArchiveService {
 
       onProgress((i + 1) / archives.length, l10n.statusExtractingMultipleFiles(i + 1, fileName, archives.length));
 
-      final nexusInfo = await extractNexusInfoFromName(fileName, apiKey);
+      // Reconoce el archivo: mod, versión y nombre oficiales (API / MD5 / nombre).
+      final NexusFileIdentity? identity = await NexusFileIdentifier.identify(
+        archive: archiveFile,
+        apiKey: apiKey,
+      );
+      final Map<String, String>? nexusInfo = identity?.toLegacyInfo();
       final String? nexusId = nexusInfo?['id'];
       final bool isLogicModById = (nexusId != null && logicModIds.contains(nexusId));
       final bool isSpecialModById = (nexusId != null && SpecialModsHandler.isSpecialMod(nexusId));
@@ -131,7 +110,10 @@ class ArchiveService {
       }
 
       final baseArchiveName = p.basenameWithoutExtension(archiveFile.path);
-      final archiveName = cleanNexusFileName(baseArchiveName);
+      // Nombre oficial de Nexus si se reconoció el archivo; si no, el del zip.
+      final archiveName = (identity != null && identity.name.isNotEmpty)
+          ? identity.fullName
+          : cleanNexusFileName(baseArchiveName);
 
       final allModFiles = await FileManagerService.findAllModFilesRecursive(archiveTempDir);
       final hasPaks = allModFiles.any((f) => ['.pak', '.ucas', '.utoc'].contains(p.extension(f.path).toLowerCase()));
@@ -158,7 +140,7 @@ class ArchiveService {
           ue4ssDir: null,
           tildeModsDir: null,
           nexusId: nexusInfo?['id'],
-          nexusVersion: nexusInfo?['version'],
+          nexusVersion: nexusInfo?['version'], identity: identity,
           archiveName: archiveName,
           modType: ModDirectoryType.movies,
         ));
@@ -173,7 +155,7 @@ class ArchiveService {
           ue4ssDir: null,
           tildeModsDir: null,
           nexusId: nexusInfo?['id'],
-          nexusVersion: nexusInfo?['version'],
+          nexusVersion: nexusInfo?['version'], identity: identity,
           archiveName: archiveName,
           modType: ModDirectoryType.splash,
         ));
@@ -218,7 +200,7 @@ class ArchiveService {
           ue4ssDir: hasUe4ssDir ? ue4ssSourceDir : null,
           tildeModsDir: tildeModsExists ? tildeModsSourceDir : null,
           nexusId: nexusInfo?['id'],
-          nexusVersion: nexusInfo?['version'],
+          nexusVersion: nexusInfo?['version'], identity: identity,
           archiveName: archiveName,
           modType: ModDirectoryType.logicMod,
         ));
@@ -256,7 +238,7 @@ class ArchiveService {
           ue4ssDir: nestedUe4ssModsDir,
           tildeModsDir: null,
           nexusId: nexusInfo?['id'],
-          nexusVersion: nexusInfo?['version'],
+          nexusVersion: nexusInfo?['version'], identity: identity,
           archiveName: archiveName,
           modType: ModDirectoryType.logicMod,
         ));
@@ -276,7 +258,7 @@ class ArchiveService {
           ue4ssDir: null,
           tildeModsDir: null,
           nexusId: nexusId,
-          nexusVersion: nexusInfo?['version'],
+          nexusVersion: nexusInfo?['version'], identity: identity,
           archiveName: archiveName,
           modType: targetType, 
         ));
@@ -296,7 +278,7 @@ class ArchiveService {
               sourceDir: modDir,
               ue4ssDir: null,
               nexusId: nexusInfo?['id'],
-              nexusVersion: nexusInfo?['version'],
+              nexusVersion: nexusInfo?['version'], identity: identity,
               archiveName: archiveName,
               modType: modType,
             ));
@@ -326,33 +308,45 @@ class ArchiveService {
             await modFile.copy(p.join(consolidatedDir.path, p.basename(modFile.path)));
           }
         }
-        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.cns, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version']));
+        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.cns, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version'], identity: identity));
       } else if (jsonFiles.isEmpty && pakFiles.isNotEmpty) {
         final consolidatedDir = await Directory(p.join(archiveTempDir.path, '_consolidated_')).create();
         for (final modFile in pakFiles) {
           await modFile.copy(p.join(consolidatedDir.path, p.basename(modFile.path)));
         }
-        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.genericPak, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version']));
+        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.genericPak, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version'], identity: identity));
       } else if (jsonFiles.isEmpty && pakFiles.isEmpty && bk2Files.isNotEmpty) {
         final consolidatedDir = await Directory(p.join(archiveTempDir.path, '_consolidated_')).create();
         for (final modFile in bk2Files) {
           await modFile.copy(p.join(consolidatedDir.path, p.basename(modFile.path)));
         }
-        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.movies, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version']));
+        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.movies, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version'], identity: identity));
       }
       else if (saveFiles.isNotEmpty) {
         final consolidatedDir = await Directory(p.join(archiveTempDir.path, '_consolidated_')).create();
         for (final modFile in saveFiles) {
           await modFile.copy(p.join(consolidatedDir.path, p.basename(modFile.path)));
         }
-        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.save, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version']));
+        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.save, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version'], identity: identity));
       } else if (configFiles.isNotEmpty) {
         final consolidatedDir = await Directory(p.join(archiveTempDir.path, '_consolidated_')).create();
         for (final modFile in configFiles) {
           await modFile.copy(p.join(consolidatedDir.path, p.basename(modFile.path)));
         }
-        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.config, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version']));
+        preparedMods.add(PreparedMod(sourceDir: consolidatedDir, archiveName: archiveName, modType: ModDirectoryType.config, nexusId: nexusInfo?['id'], nexusVersion: nexusInfo?['version'], identity: identity));
       }
+    }
+
+    // Si un mismo archivo contiene varios mods, el nombre del archivo no sirve
+    // para distinguirlos (cada uno conserva su propio nombre interno).
+    final Map<NexusFileIdentity, int> modsPerIdentity = {};
+    for (final m in preparedMods) {
+      final id = m.identity;
+      if (id != null) modsPerIdentity[id] = (modsPerIdentity[id] ?? 0) + 1;
+    }
+    for (final m in preparedMods) {
+      final id = m.identity;
+      m.soleModInArchive = id == null || modsPerIdentity[id] == 1;
     }
 
     return ArchiveProcessingResult(preparedMods: preparedMods, preparedUE4SS: preparedUE4SS);

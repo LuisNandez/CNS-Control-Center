@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
@@ -6,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:hugeicons/hugeicons.dart';
 import '../../l10n/app_localizations.dart';
 import '../../notification_service.dart';
+import '../theme/ios_theme.dart';
+import '../widgets/ios_widgets.dart';
 
 class Mod801SteamDialog extends StatefulWidget {
   final String gameRootPath;
@@ -13,7 +14,7 @@ class Mod801SteamDialog extends StatefulWidget {
   const Mod801SteamDialog({super.key, required this.gameRootPath});
 
   static Future<void> show(BuildContext context, String gameRootPath) async {
-    await showDialog(
+    await showIosDialog<void>(
       context: context,
       barrierDismissible: false, // Obliga al usuario a interactuar o cerrar explícitamente
       builder: (context) => Mod801SteamDialog(gameRootPath: gameRootPath),
@@ -30,11 +31,12 @@ class _Mod801SteamDialogState extends State<Mod801SteamDialog> {
 
   void _generatePath() {
     final l10n = AppLocalizations.of(context)!;
-    // Generamos la ruta dinámica real basada en la instalación del usuario
-    // Manteniendo exactamente el formato SplashRandomizer.bat
-    final batPath = p.join(widget.gameRootPath, 'SB', 'Content', 'Splash', 'ModSplash', 'SplashRandomizer.bat');
+    // Ruta dinámica real basada en la instalación del usuario,
+    // manteniendo exactamente el formato SplashRandomizer.bat
+    final batPath = p.join(widget.gameRootPath, 'SB', 'Content', 'Splash',
+        'ModSplash', 'SplashRandomizer.bat');
     final command = '"$batPath" %command%';
-    
+
     setState(() {
       _pathController.text = command;
       _isGenerated = true;
@@ -79,86 +81,126 @@ class _Mod801SteamDialogState extends State<Mod801SteamDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    return AlertDialog(
-      backgroundColor: const Color(0xFF2a2a2a),
-      title: Row(
+    final steps = [
+      l10n.mod801Step1,
+      l10n.mod801Step2,
+      l10n.mod801Step3,
+      l10n.mod801Step4,
+    ];
+
+    return IosDialogShell(
+      title: l10n.mod801DialogTitle,
+      message: l10n.mod801DialogIntro,
+      width: 480,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const HugeIcon(icon: HugeIcons.strokeRounded3DView, color: Colors.white, size: 28),
-          const SizedBox(width: 10),
-          Text(l10n.mod801DialogTitle, style: const TextStyle(color: Colors.white)),
-        ],
-      ),
-      content: SizedBox(
-        width: 500,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.mod801DialogIntro, style: const TextStyle(color: Colors.white70)),
-            const SizedBox(height: 20),
-            
-            // Instrucciones paso a paso
-            Text(l10n.mod801Step1, style: const TextStyle(color: Colors.tealAccent)),
-            const SizedBox(height: 6),
-            Text(l10n.mod801Step2, style: const TextStyle(color: Colors.tealAccent)),
-            const SizedBox(height: 6),
-            Text(l10n.mod801Step3, style: const TextStyle(color: Colors.tealAccent)),
-            const SizedBox(height: 6),
-            Text(l10n.mod801Step4, style: const TextStyle(color: Colors.tealAccent)),
-            
-            const SizedBox(height: 24),
-            
-            // Botones de acción principal (Generar y Steam)
-            Row(
+          // Instrucciones paso a paso
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            decoration: BoxDecoration(
+              color: const Color(0x14FFFFFF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ElevatedButton.icon(
-                  onPressed: _generatePath,
-                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedSettings02, color: Colors.black, size: 20),
-                  label: Text(l10n.mod801BtnGenerate),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.tealAccent,
-                    foregroundColor: Colors.black,
+                for (int i = 0; i < steps.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 8),
+                  Text(
+                    steps[i],
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.3,
+                      letterSpacing: -0.1,
+                      color: IosColors.label,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                OutlinedButton.icon(
-                  onPressed: _openSteam,
-                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedLinkSquare01, color: Colors.white, size: 20),
-                  label: Text(l10n.mod801BtnSteam),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.grey),
-                  ),
-                ),
+                ],
               ],
             ),
-            
-            const SizedBox(height: 16),
-            
-            // Campo de texto con ruta generada y botón de copiar integrado
-            if (_isGenerated)
-              TextField(
-                controller: _pathController,
-                readOnly: true,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: Colors.white),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.black45,
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: const HugeIcon(icon: HugeIcons.strokeRoundedCopy01, color: Colors.tealAccent, size: 20),
-                    onPressed: _copyToClipboard,
-                    tooltip: l10n.mod801BtnCopy,
+          ),
+          const SizedBox(height: 14),
+
+          // Acciones principales (Generar y Steam)
+          Row(
+            children: [
+              Expanded(
+                child: IosActionButton(
+                  label: l10n.mod801BtnGenerate,
+                  style: IosButtonStyle.filled,
+                  iconBuilder: (c) => HugeIcon(
+                    icon: HugeIcons.strokeRoundedSettings02,
+                    color: c,
+                    size: 18.0,
                   ),
+                  onPressed: _generatePath,
                 ),
               ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: IosActionButton(
+                  label: l10n.mod801BtnSteam,
+                  style: IosButtonStyle.gray,
+                  color: IosColors.label,
+                  iconBuilder: (c) => HugeIcon(
+                    icon: HugeIcons.strokeRoundedLinkSquare01,
+                    color: c,
+                    size: 18.0,
+                  ),
+                  onPressed: _openSteam,
+                ),
+              ),
+            ],
+          ),
+
+          // Ruta generada con botón de copiar integrado
+          if (_isGenerated) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+              decoration: BoxDecoration(
+                color: IosColors.fill,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SelectableText(
+                      _pathController.text,
+                      style: const TextStyle(
+                        fontFamily: 'Menlo',
+                        fontFamilyFallback: ['SF Mono', 'Consolas', 'monospace'],
+                        fontSize: 11.5,
+                        height: 1.35,
+                        color: IosColors.label,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  IosToolbarButton(
+                    width: 32,
+                    height: 32,
+                    tooltip: l10n.mod801BtnCopy,
+                    icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedCopy01,
+                      color: IosColors.blue,
+                      size: 18.0,
+                    ),
+                    onPressed: _copyToClipboard,
+                  ),
+                ],
+              ),
+            ),
           ],
-        ),
+        ],
       ),
       actions: [
-        TextButton(
+        IosDialogButton(
+          label: l10n.dialogActionClose,
+          bold: true,
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.dialogActionClose, style: const TextStyle(color: Colors.grey)),
         ),
       ],
     );

@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -6,83 +7,96 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../models/mod_info.dart';
 import '../../l10n/app_localizations.dart';
+import '../theme/ios_theme.dart';
+import '../widgets/ios_widgets.dart';
 import '../widgets/mod_image_widgets.dart';
 
 class EditDialogs {
-  static Future<String?> showEditModNameDialog(BuildContext context, ModInfo modInfo) async {
-    final nameController = TextEditingController(text: modInfo.customName);
+  /// Libera un controlador una vez terminada la animación de salida del
+  /// diálogo (el campo sigue montado unos milisegundos tras cerrarlo).
+  static void _disposeLater(List<TextEditingController> controllers) {
+    Future.delayed(const Duration(milliseconds: 400), () {
+      for (final c in controllers) {
+        c.dispose();
+      }
+    });
+  }
+
+  /// Alerta de vidrio con un único campo de texto (nombre, versión, etiqueta…).
+  static Future<String?> _showTextFieldDialog({
+    required BuildContext context,
+    required String title,
+    required String label,
+    required String initialValue,
+    String? hint,
+    String? defaultValue,
+    int? maxLength,
+  }) async {
+    final controller = TextEditingController(text: initialValue);
     final l10n = AppLocalizations.of(context)!;
 
-    final newName = await showDialog<String>(
+    final result = await showIosDialog<String>(
       context: context,
-      builder: (BuildContext context) {
+      builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return Dialog(
-              backgroundColor: const Color(0xFF2a2a2a),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0),
+          builder: (ctx, setDialogState) {
+            return IosDialogShell(
+              title: title,
+              width: 380,
+              content: IosFormField(
+                label: label,
+                controller: controller,
+                hint: hint,
+                autofocus: true,
+                maxLength: maxLength,
+                onChanged: (_) => setDialogState(() {}),
+                onSubmitted: (v) => Navigator.of(dialogContext).pop(v),
+                resetLabel: l10n.dialogActionResetToDefault,
+                onReset: defaultValue == null
+                    ? null
+                    : () => setDialogState(() {
+                        controller.text = defaultValue;
+                        controller.selection = TextSelection.fromPosition(
+                          TextPosition(offset: controller.text.length),
+                        );
+                      }),
+                canReset: controller.text != (defaultValue ?? ''),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    Text(
-                      l10n.dialogTitleEditModName,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: nameController,
-                      autofocus: true,
-                      onChanged: (value) => setDialogState(() {}),
-                      decoration: InputDecoration(
-                        labelText: l10n.dialogLabelNewName,
-                        hintText: modInfo.customName,
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        TextButton(
-                          onPressed: nameController.text == modInfo.displayName
-                              ? null
-                              : () {
-                                  setDialogState(
-                                    () => nameController.text = modInfo.displayName,
-                                  );
-                                },
-                          child: Text(l10n.dialogActionResetToDefault),
-                        ),
-                        Row(
-                          children: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: Text(l10n.dialogActionCancel),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              onPressed: () => Navigator.of(context).pop(nameController.text),
-                              child: Text(l10n.dialogActionSave),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
+              actions: [
+                IosDialogButton(
+                  label: l10n.dialogActionCancel,
+                  onPressed: () => Navigator.of(dialogContext).pop(),
                 ),
-              ),
+                IosDialogButton(
+                  label: l10n.dialogActionSave,
+                  bold: true,
+                  onPressed: () =>
+                      Navigator.of(dialogContext).pop(controller.text),
+                ),
+              ],
             );
           },
         );
       },
     );
 
-    return newName;
+    _disposeLater([controller]);
+    return result;
+  }
+
+  static Future<String?> showEditModNameDialog(
+    BuildContext context,
+    ModInfo modInfo,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+    return _showTextFieldDialog(
+      context: context,
+      title: l10n.dialogTitleEditModName,
+      label: l10n.dialogLabelNewName,
+      initialValue: modInfo.customName,
+      hint: modInfo.customName,
+      defaultValue: modInfo.displayName,
+    );
   }
 
   static Future<ModInfo?> showEditDialog({
@@ -94,54 +108,14 @@ class EditDialogs {
     required Future<ModInfo?> Function(String) onSave,
     int? maxLength,
   }) async {
-    final controller = TextEditingController(text: initialValue);
-    final l10n = AppLocalizations.of(context)!;
-
-    final newValue = await showDialog<String>(
+    final newValue = await _showTextFieldDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final bool isCurrentlyDefault = controller.text == defaultValue;
-            return AlertDialog(
-              title: Text(title),
-              content: TextField(
-                controller: controller,
-                autofocus: true,
-                maxLength: maxLength,
-                onChanged: (value) => setDialogState(() {}),
-                decoration: InputDecoration(labelText: label),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isCurrentlyDefault
-                      ? null
-                      : () {
-                          setDialogState(() {
-                            controller.text = defaultValue;
-                            controller.selection = TextSelection.fromPosition(
-                              TextPosition(offset: controller.text.length),
-                            );
-                          });
-                        },
-                  child: Text(l10n.dialogActionResetToDefault),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.dialogActionCancel),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(controller.text),
-                  child: Text(l10n.dialogActionSave),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      title: title,
+      label: label,
+      initialValue: initialValue,
+      defaultValue: defaultValue,
+      maxLength: maxLength,
     );
-
-    controller.dispose();
 
     if (newValue != null) {
       return await onSave(newValue);
@@ -170,104 +144,108 @@ class EditDialogs {
     File? newCoverFile;
     Alignment? newCoverAlignment;
 
-    final updatedData = await showDialog<Map<String, dynamic>>(
+    final updatedData = await showIosDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
+      builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final bool canResetName = nameController.text != modInfo.displayName;
-            final bool canResetAuthor = authorController.text != (modInfo.author ?? '');
-            final bool canResetUrl = urlController.text != (modInfo.sourceUrl ?? '');
+          builder: (ctx, setDialogState) {
+            final bool canResetName =
+                nameController.text != modInfo.displayName;
+            final bool canResetAuthor =
+                authorController.text != (modInfo.author ?? '');
+            final bool canResetUrl = urlController.text != defaultUrl;
+            final double maxContentHeight =
+                MediaQuery.of(ctx).size.height * 0.6;
 
-            return AlertDialog(
-              title: Text(l10n.editModTitle),
-              content: SizedBox(
-                width: 500,
+            return IosDialogShell(
+              title: l10n.editModTitle,
+              width: 520,
+              content: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxContentHeight),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: nameController,
-                              onChanged: (v) => setDialogState(() {}),
-                              decoration: InputDecoration(
-                                labelText: l10n.modNameLabel,
-                              ),
+                      IosFormField(
+                        label: l10n.modNameLabel,
+                        controller: nameController,
+                        onChanged: (_) => setDialogState(() {}),
+                        resetLabel: l10n.dialogActionResetToDefault,
+                        canReset: canResetName,
+                        onReset: () => setDialogState(
+                          () => nameController.text = modInfo.displayName,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      IosFormField(
+                        label: l10n.authorLabel,
+                        controller: authorController,
+                        onChanged: (_) => setDialogState(() {}),
+                        resetLabel: l10n.dialogActionResetToDefault,
+                        canReset: canResetAuthor,
+                        onReset: () => setDialogState(
+                          () => authorController.text = modInfo.author ?? '',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      IosFormField(
+                        label: l10n.urlLabel,
+                        controller: urlController,
+                        onChanged: (_) => setDialogState(() {}),
+                        resetLabel: l10n.dialogActionResetToDefault,
+                        canReset: canResetUrl,
+                        onReset: () => setDialogState(
+                          () => urlController.text = defaultUrl,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      if (newCoverFile != null) ...[
+                        Container(
+                          height: 110,
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.35),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: const Color(0x1FFFFFFF),
+                              width: 0.5,
                             ),
                           ),
-                          TextButton(
-                            onPressed: !canResetName
-                                ? null
-                                : () => setDialogState(
-                                    () => nameController.text = modInfo.displayName,
-                                  ),
-                            child: Text(l10n.dialogActionResetToDefault),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: authorController,
-                              onChanged: (v) => setDialogState(() {}),
-                              decoration: InputDecoration(
-                                labelText: l10n.authorLabel,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: !canResetAuthor
-                                ? null
-                                : () => setDialogState(
-                                    () => authorController.text = modInfo.author ?? '',
-                                  ),
-                            child: Text(l10n.dialogActionResetToDefault),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: urlController,
-                              onChanged: (v) => setDialogState(() {}),
-                              decoration: InputDecoration(
-                                labelText: l10n.urlLabel,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: !canResetUrl
-                                ? null
-                                : () => setDialogState(
-                                    () => urlController.text = defaultUrl,
-                                  ),
-                            child: Text(l10n.dialogActionResetToDefault),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      if (newCoverFile != null) Image.file(newCoverFile!, height: 100),
-                      ElevatedButton.icon(
-                        icon: const HugeIcon(icon: HugeIcons.strokeRoundedImageAdd02),
-                        label: Text(l10n.changeCoverButton),
+                          child: Image.file(newCoverFile!, fit: BoxFit.contain),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      IosActionButton(
+                        label: l10n.changeCoverButton,
+                        style: IosButtonStyle.gray,
+                        iconBuilder: (c) => HugeIcon(
+                          icon: HugeIcons.strokeRoundedImageAdd02,
+                          size: 18,
+                          color: c,
+                        ),
                         onPressed: () async {
-                          FilePickerResult? result = await FilePicker.platform.pickFiles(
-                            type: FileType.custom,
-                            allowedExtensions: [
-                              'png', 'jpg', 'jpeg', 'webp', 'bmp', 'pwebp', 'tiff'
-                            ],
-                          );
-                          if (result != null && result.files.single.path != null) {
+                          FilePickerResult? result =
+                              await FilePicker.platform.pickFiles(
+                                type: FileType.custom,
+                                allowedExtensions: [
+                                  'png',
+                                  'jpg',
+                                  'jpeg',
+                                  'webp',
+                                  'bmp',
+                                  'pwebp',
+                                  'tiff',
+                                ],
+                              );
+                          if (result != null &&
+                              result.files.single.path != null) {
                             final pickedFile = File(result.files.single.path!);
-                            final alignment = await showCoverAlignmentDialog(context, pickedFile);
+                            final alignment = await showCoverAlignmentDialog(
+                              ctx,
+                              pickedFile,
+                            );
                             if (alignment != null) {
                               setDialogState(() {
                                 newCoverFile = pickedFile;
@@ -282,11 +260,13 @@ class EditDialogs {
                 ),
               ),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.dialogActionCancel),
+                IosDialogButton(
+                  label: l10n.dialogActionCancel,
+                  onPressed: () => Navigator.of(dialogContext).pop(),
                 ),
-                ElevatedButton(
+                IosDialogButton(
+                  label: l10n.dialogActionSave,
+                  bold: true,
                   onPressed: () {
                     final Map<String, dynamic> dataToSave = {
                       'customName': nameController.text,
@@ -297,9 +277,8 @@ class EditDialogs {
                       dataToSave['newCoverFile'] = newCoverFile;
                       dataToSave['newCoverAlignment'] = newCoverAlignment;
                     }
-                    Navigator.of(context).pop(dataToSave);
+                    Navigator.of(dialogContext).pop(dataToSave);
                   },
-                  child: Text(l10n.dialogActionSave),
                 ),
               ],
             );
@@ -308,39 +287,47 @@ class EditDialogs {
       },
     );
 
-    nameController.dispose();
-    authorController.dispose();
-    urlController.dispose();
+    _disposeLater([nameController, authorController, urlController]);
 
     return updatedData;
   }
 
-  static Future<Alignment?> showCoverAlignmentDialog(BuildContext context, File imageFile) async {
+  static Future<Alignment?> showCoverAlignmentDialog(
+    BuildContext context,
+    File imageFile,
+  ) async {
     final image = await decodeImageFromList(imageFile.readAsBytesSync());
     final imageSize = Size(image.width.toDouble(), image.height.toDouble());
     final l10n = AppLocalizations.of(context)!;
     Offset offset = Offset.zero;
 
-    return showDialog<Alignment>(
+    return showIosDialog<Alignment>(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
+      builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (ctx, setDialogState) {
             Size? containerSize;
             Size? scaledImageSize;
             Rect? initialImageRect;
             double? cropWidth;
             double? cropHeight;
 
-            return AlertDialog(
-              title: Text(l10n.setCoverText),
-              contentPadding: EdgeInsets.zero,
-              backgroundColor: const Color(0xFF2d2d2d),
-              content: SizedBox(
-                width: 500,
-                height: 600,
-                child: LayoutBuilder(
+            // El recuadro se adapta al tamaño de la ventana.
+            final Size screen = MediaQuery.of(ctx).size;
+            final double boxWidth = min(500.0, max(260.0, screen.width - 120));
+            final double boxHeight = min(560.0, max(260.0, screen.height * 0.6));
+
+            return IosDialogShell(
+              title: l10n.setCoverText,
+              width: boxWidth + 40,
+              content: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: boxWidth,
+                  height: boxHeight,
+                  decoration: const BoxDecoration(color: Color(0xFF1C1C1E)),
+                  child: LayoutBuilder(
                   builder: (context, constraints) {
                     containerSize = Size(constraints.maxWidth, constraints.maxHeight);
                     final fittedSizes = applyBoxFit(BoxFit.contain, imageSize, containerSize!);
@@ -408,33 +395,44 @@ class EditDialogs {
                     );
                   },
                 ),
+                ),
               ),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.dialogActionCancel),
+                IosDialogButton(
+                  label: l10n.dialogActionCancel,
+                  onPressed: () => Navigator.of(dialogContext).pop(),
                 ),
-                ElevatedButton(
+                IosDialogButton(
+                  label: l10n.dialogActionSave,
+                  bold: true,
                   onPressed: () {
-                    if (scaledImageSize == null || initialImageRect == null || cropWidth == null || cropHeight == null) return;
+                    if (scaledImageSize == null ||
+                        initialImageRect == null ||
+                        cropWidth == null ||
+                        cropHeight == null) {
+                      return;
+                    }
                     final extraWidth = scaledImageSize!.width - cropWidth!;
                     final extraHeight = scaledImageSize!.height - cropHeight!;
                     final centerOffset = offset;
-                    final alignmentX = extraWidth > 0 ? (centerOffset.dx / (extraWidth / 2)) * -1 : 0.0;
-                    final alignmentY = extraHeight > 0 ? (centerOffset.dy / (extraHeight / 2)) * -1 : 0.0;
+                    final alignmentX = extraWidth > 0
+                        ? (centerOffset.dx / (extraWidth / 2)) * -1
+                        : 0.0;
+                    final alignmentY = extraHeight > 0
+                        ? (centerOffset.dy / (extraHeight / 2)) * -1
+                        : 0.0;
                     final finalAlignment = Alignment(
                       alignmentX.clamp(-1.0, 1.0),
                       alignmentY.clamp(-1.0, 1.0),
                     );
-                    Navigator.of(context).pop(finalAlignment);
+                    Navigator.of(dialogContext).pop(finalAlignment);
                   },
-                  child: Text(l10n.dialogActionSave),
                 ),
               ],
             );
           },
         );
-      }
+      },
     );
   }
 }

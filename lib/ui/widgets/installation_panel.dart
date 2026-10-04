@@ -1,7 +1,30 @@
+// ignore_for_file: deprecated_member_use
 import 'dart:io';
+import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import '../../l10n/app_localizations.dart';
+import '../theme/ios_theme.dart';
+import 'ios_progress_bar.dart';
+import 'ios_widgets.dart';
+
+/// Traduce los colores Material que envía main.dart ("statusColor") a la
+/// paleta de sistema de iOS.
+Color _iosStatusTone(Color c) {
+  final v = c.value;
+  if (v == Colors.redAccent.value || v == Colors.red.value) return IosColors.red;
+  if (v == Colors.greenAccent.value || v == Colors.green.value) {
+    return IosColors.green;
+  }
+  if (v == Colors.orangeAccent.value || v == Colors.orange.value) {
+    return IosColors.orange;
+  }
+  if (v == Colors.tealAccent.value || v == Colors.lightBlueAccent.value) {
+    return IosColors.blue;
+  }
+  if (v == Colors.white.value) return IosColors.secondaryLabel;
+  return c;
+}
 
 class InstallationPanelContent extends StatelessWidget {
   final AppLocalizations l10n;
@@ -48,7 +71,8 @@ class InstallationPanelContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canInstall = hasPreparedMods && !isLoading && !isExtracting && !isInstalling;
+    final busy = isLoading || isExtracting || isInstalling;
+    final canInstall = hasPreparedMods && !busy;
 
     return DropTarget(
       onDragDone: (details) async {
@@ -62,48 +86,57 @@ class InstallationPanelContent extends StatelessWidget {
       child: Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Indicador de arrastre de la hoja
                 Center(
                   child: Container(
                     height: 5,
-                    width: 40,
-                    margin: const EdgeInsets.only(bottom: 20),
+                    width: 36,
+                    margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: Colors.grey[700],
-                      borderRadius: BorderRadius.circular(5),
+                      color: IosColors.tertiaryLabel,
+                      borderRadius: BorderRadius.circular(3),
                     ),
                   ),
                 ),
                 Text(
                   l10n.installNewMod,
-                  style: Theme.of(context).textTheme.headlineSmall,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                    color: IosColors.label,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.archive),
-                        label: Text(l10n.selectModArchive),
-                        onPressed: (isLoading || isExtracting || isInstalling)
-                            ? null
-                            : onPickArchive,
+                      child: IosActionButton(
+                        label: l10n.selectModArchive,
+                        height: 42,
+                        style: IosButtonStyle.tinted,
+                        iconBuilder: (c) =>
+                            Icon(Icons.archive_rounded, size: 18, color: c),
+                        onPressed: busy ? null : onPickArchive,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.download_for_offline),
-                        label: Text(l10n.installSelectedMod),
-                        onPressed: canInstall ? onInstallMod : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: canInstall ? Colors.tealAccent : Colors.grey[700],
-                          foregroundColor: Colors.black87,
+                      child: IosActionButton(
+                        label: l10n.installSelectedMod,
+                        height: 42,
+                        style: IosButtonStyle.filled,
+                        iconBuilder: (c) => Icon(
+                          Icons.download_for_offline_rounded,
+                          size: 18,
+                          color: c,
                         ),
+                        onPressed: canInstall ? onInstallMod : null,
                       ),
                     ),
                   ],
@@ -115,82 +148,74 @@ class InstallationPanelContent extends StatelessWidget {
                     isInstalling: isInstalling,
                     onCancel: onCancelSelection,
                   ),
-                const SizedBox(height: 20),
                 if (isExtracting)
-                  Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Text(
-                          extractionStatus,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white70),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      LinearProgressIndicator(
-                        value: extractionProgress,
-                        backgroundColor: Colors.grey[800],
-                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.tealAccent),
-                      ),
-                    ],
+                  _ProgressBlock(
+                    status: extractionStatus,
+                    value: extractionProgress,
+                    color: IosColors.blue,
                   )
                 else if (isInstalling)
-                  Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Text(
-                          installationStatus,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white70),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      LinearProgressIndicator(
-                        value: installationProgress,
-                        backgroundColor: Colors.grey[800],
-                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.greenAccent),
-                      ),
-                    ],
+                  _ProgressBlock(
+                    status: installationStatus,
+                    value: installationProgress,
+                    color: IosColors.green,
                   )
                 else if (hasPreparedMods || statusColor != Colors.white)
-                  Text(
-                    statusMessage,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: statusColor,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 18),
+                    child: Text(
+                      statusMessage,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.3,
+                        letterSpacing: -0.1,
+                        color: _iosStatusTone(statusColor),
+                      ),
                     ),
                   ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 6),
               ],
             ),
           ),
           if (isDragging)
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                border: Border.all(color: Colors.tealAccent, width: 3),
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.download_for_offline,
-                      size: 80,
-                      color: Colors.tealAccent,
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      l10n.dropTargetOverlay,
-                      style: const TextStyle(color: Colors.white, fontSize: 24),
-                    ),
-                  ],
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xE61C1C1E),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(14)),
+                  border: Border.all(color: IosColors.blue, width: 2),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: IosColors.blue.withOpacity(0.18),
+                        ),
+                        child: const Icon(
+                          Icons.file_download_rounded,
+                          size: 38,
+                          color: IosColors.blue,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        l10n.dropTargetOverlay,
+                        style: const TextStyle(
+                          color: IosColors.label,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -200,7 +225,60 @@ class InstallationPanelContent extends StatelessWidget {
   }
 }
 
-class InstallationPreviewSection extends StatelessWidget {
+/// Texto de estado + porcentaje y barra fina.
+class _ProgressBlock extends StatelessWidget {
+  const _ProgressBlock({
+    required this.status,
+    required this.value,
+    required this.color,
+  });
+
+  final String status;
+  final double value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  status,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    letterSpacing: -0.1,
+                    color: IosColors.secondaryLabel,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '${(value.clamp(0.0, 1.0) * 100).round()}%',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: IosColors.secondaryLabel,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          IosProgressBar(value: value, color: color, height: 5),
+        ],
+      ),
+    );
+  }
+}
+
+class InstallationPreviewSection extends StatefulWidget {
   final AppLocalizations l10n;
   final Map<String, List<String>> modsToInstallPreviewMap;
   final bool isInstalling;
@@ -215,126 +293,160 @@ class InstallationPreviewSection extends StatelessWidget {
   });
 
   @override
+  State<InstallationPreviewSection> createState() =>
+      _InstallationPreviewSectionState();
+}
+
+class _InstallationPreviewSectionState
+    extends State<InstallationPreviewSection> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final modEntries = modsToInstallPreviewMap.entries.toList();
-    final scrollController = ScrollController();
+    final l10n = widget.l10n;
+    final modEntries = widget.modsToInstallPreviewMap.entries.toList();
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              l10n.previewInstallTitle,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.previewInstallTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.3,
+                    color: IosColors.label,
+                  ),
+                ),
               ),
-            ),
-            TextButton.icon(
-              icon: const Icon(Icons.cancel_outlined, size: 20),
-              label: Text(l10n.cancelSelection),
-              onPressed: isInstalling ? null : onCancel,
-              style: TextButton.styleFrom(
-                disabledForegroundColor: Colors.redAccent.withOpacity(0.4),
-                foregroundColor: Colors.redAccent,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              IosTextButton(
+                label: l10n.cancelSelection,
+                color: IosColors.red,
+                onPressed: widget.isInstalling ? null : widget.onCancel,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        const Divider(height: 20, color: Colors.white24),
+        const SizedBox(height: 6),
         Container(
-          constraints: const BoxConstraints(maxHeight: 280),
+          constraints: const BoxConstraints(maxHeight: 260),
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(8),
+            color: IosColors.card,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0x0FFFFFFF), width: 0.5),
           ),
           child: Scrollbar(
-            controller: scrollController,
+            controller: _scrollController,
             thumbVisibility: true,
             child: SingleChildScrollView(
-              controller: scrollController,
-              padding: const EdgeInsets.all(12.0),
+              controller: _scrollController,
               child: Column(
-                children: List.generate(modEntries.length, (index) {
-                  final entry = modEntries[index];
-                  final folderName = entry.key;
-                  final files = entry.value;
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.folder_zip_outlined,
-                              size: 20,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                folderName,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 30.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: files.map((file) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 3.0),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.insert_drive_file_outlined,
-                                      size: 14,
-                                      color: Colors.grey[400],
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        file,
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.grey[300],
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                        if (index < modEntries.length - 1)
-                          const Divider(height: 24, color: Colors.white10),
-                      ],
+                children: [
+                  for (int index = 0; index < modEntries.length; index++) ...[
+                    if (index > 0)
+                      Container(height: 0.5, color: IosColors.separator),
+                    _PreviewFolder(
+                      name: modEntries[index].key,
+                      files: modEntries[index].value,
                     ),
-                  );
-                }),
+                  ],
+                ],
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PreviewFolder extends StatelessWidget {
+  const _PreviewFolder({required this.name, required this.files});
+
+  final String name;
+  final List<String> files;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.folder_zip_rounded,
+                size: 20,
+                color: IosColors.blue,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                    color: IosColors.label,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (files.isNotEmpty) const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 30),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final file in files)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.5),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.insert_drive_file_outlined,
+                          size: 14,
+                          color: IosColors.tertiaryLabel,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            file,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              color: IosColors.secondaryLabel,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

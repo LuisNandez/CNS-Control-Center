@@ -1,6 +1,12 @@
 import 'dart:io';
 import 'dart:async';
-import 'package:path/path.dart' as p;
+
+class ExpiredLinkException implements Exception {
+  final String message;
+  ExpiredLinkException(this.message);
+  @override
+  String toString() => message;
+}
 
 class DownloadController {
   StreamSubscription<List<int>>? subscription;
@@ -17,45 +23,73 @@ class DownloadController {
 }
 
 class DownloadService {
-  /// Descarga un archivo desde una URL y reporta el progreso, soportando pausa y cancelación.
+  /// Descarga un archivo desde una URL y reporta el progreso, soportando pausa, reanudación nativa y cancelación.
   static Future<File?> downloadFile({
     required String url,
-    required String fileName,
+    required File targetFile, // AHORA RECIBE EL ARCHIVO DIRECTAMENTE
     required Function(double progress, String speed, String downloadedStr) onProgress,
     DownloadController? controller,
   }) async {
     try {
       final client = HttpClient();
       final request = await client.getUrl(Uri.parse(url));
+
+      // 1. Verificamos si ya tenemos una parte del archivo en el disco
+      int existingBytes = 0;
+      if (await targetFile.exists()) {
+        existingBytes = await targetFile.length();
+        if (existingBytes > 0) {
+          // Solicitamos al servidor que empiece desde el byte que nos falta
+          request.headers.add(HttpHeaders.rangeHeader, 'bytes=$existingBytes-');
+        }
+      }
+
       final response = await request.close();
 
-      if (response.statusCode != 200 && response.statusCode != 206) {
+      // 2. Manejo de enlace expirado (clave para el flujo del Manager)
+      if (response.statusCode == 403 || response.statusCode == 410) {
+        throw ExpiredLinkException('El enlace de Nexus ha expirado (${response.statusCode})');
+      }
+
+      if (response.statusCode != 200 && response.statusCode != 206 && response.statusCode != 416) {
         throw Exception('Error HTTP: ${response.statusCode}');
       }
 
-      final totalBytes = response.contentLength;
-      int receivedBytes = 0;
+      // 3. Determinar el comportamiento según la respuesta del servidor
+      bool isAppending = response.statusCode == 206; // 206 significa que aceptó el Range
+      int totalBytes = response.contentLength;
 
-      // Usamos un directorio temporal del sistema para la descarga parcial
-      final tempDir = Directory.systemTemp.createTempSync('sb_downloads_');
-      final file = File(p.join(tempDir.path, fileName));
-      final sink = file.openWrite();
+      if (isAppending) {
+        totalBytes += existingBytes; // El peso total es lo que ya teníamos + lo que enviará
+      } else if (response.statusCode == 200) {
+        existingBytes = 0; // El servidor ignoró el Range (no lo soporta), toca empezar de cero
+      } else if (response.statusCode == 416) {
+        // 416 (Range Not Satisfiable) suele significar que el archivo ya se descargó completo
+        return targetFile; 
+      }
+
+      int receivedBytes = existingBytes;
+      
+      // Abrimos el archivo en modo "append" si estamos reanudando, o "write" si empezamos de cero
+      final sink = targetFile.openWrite(mode: isAppending ? FileMode.append : FileMode.write);
 
       final stopwatch = Stopwatch()..start();
-      int lastBytes = 0;
+      int lastBytesForSpeed = receivedBytes;
       final completer = Completer<File?>();
 
-      // Lógica de cancelación
       controller?.onCancel = () async {
         await sink.close();
-        if (await file.exists()) {
-          await file.delete();
-        }
+        // IMPORTANTE: NO borramos el archivo aquí. Así permitimos reanudar luego.
         if (!completer.isCompleted) completer.complete(null);
       };
 
-      // Sustituimos el "await for" por un listener controlable
-      controller?.subscription = response.listen(
+      controller?.subscription = response.timeout(
+        const Duration(seconds: 15),
+        onTimeout: (sink) {
+          // Si pasan 15 segundos sin recibir ni un byte, forzamos un corte
+          sink.addError(const SocketException("Timeout: No se reciben datos de red"));
+        },
+      ).listen(
         (chunk) {
           if (controller?.isCancelled ?? false) return;
 
@@ -64,23 +98,29 @@ class DownloadService {
 
           if (totalBytes > 0) {
             final elapsed = stopwatch.elapsedMilliseconds;
-            // Actualizar la UI cada 300ms para no saturar el hilo principal
             if (elapsed > 300) {
-              final speedBps = ((receivedBytes - lastBytes) / (elapsed / 1000)).round();
+              // La velocidad se calcula solo con lo descargado en esta sesión, no con los bytes totales
+              final speedBps = ((receivedBytes - lastBytesForSpeed) / (elapsed / 1000)).round();
               final speedStr = '${(speedBps / 1024 / 1024).toStringAsFixed(2)} MB/s';
               final downloadedStr = '${(receivedBytes / 1024 / 1024).toStringAsFixed(2)} / ${(totalBytes / 1024 / 1024).toStringAsFixed(2)} MB';
 
               onProgress(receivedBytes / totalBytes, speedStr, downloadedStr);
 
               stopwatch.reset();
-              lastBytes = receivedBytes;
+              lastBytesForSpeed = receivedBytes;
             }
           }
         },
         onDone: () async {
           if (controller?.isCancelled ?? false) return;
           await sink.close();
-          if (!completer.isCompleted) completer.complete(file);
+
+          if (totalBytes > 0) {
+             final finalStr = '${(totalBytes / 1024 / 1024).toStringAsFixed(2)} / ${(totalBytes / 1024 / 1024).toStringAsFixed(2)} MB';
+             onProgress(1.0, '0 MB/s', finalStr);
+          }
+
+          if (!completer.isCompleted) completer.complete(targetFile);
         },
         onError: (e) async {
           print("Error en el stream de descarga: $e");
@@ -92,7 +132,8 @@ class DownloadService {
 
       return await completer.future;
     } catch (e) {
-      print("Error en la descarga: $e");
+      if (e is ExpiredLinkException) rethrow; // Pasamos la excepción al Manager
+      print("Error general en la descarga: $e");
       return null;
     }
   }

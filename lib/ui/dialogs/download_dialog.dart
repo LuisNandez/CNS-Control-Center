@@ -1,8 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import '../../l10n/app_localizations.dart';
 import '../../services/nexus_api_service.dart';
 import '../../services/download_service.dart';
+import '../theme/ios_theme.dart';
+import '../widgets/ios_progress_bar.dart';
+import '../widgets/ios_widgets.dart';
 
 class DownloadModDialog extends StatefulWidget {
   final String nxmUrl;
@@ -41,7 +45,7 @@ class _DownloadModDialogState extends State<DownloadModDialog> {
     try {
       // 1. Obtener el enlace directo del CDN
       final linkData = await NexusApiService.getDownloadLinkFromNxm(widget.nxmUrl, widget.apiKey);
-      
+
       if (!mounted) return;
 
       if (linkData == null) {
@@ -63,10 +67,17 @@ class _DownloadModDialogState extends State<DownloadModDialog> {
       final String extractedModId = linkData['modId']!;
       final String extractedVersion = linkData['version']!;
 
+      // Ruta persistente para el targetFile, igual que en el gestor global
+      final tempDir = Directory(p.join(Directory.systemTemp.path, 'sb_control_downloads'));
+      if (!await tempDir.exists()) {
+        await tempDir.create(recursive: true);
+      }
+      final targetFile = File(p.join(tempDir.path, _fileName));
+
       // 2. Descargar el archivo
       final downloadedFile = await DownloadService.downloadFile(
         url: linkData['url']!,
-        fileName: _fileName,
+        targetFile: targetFile,
         controller: _controller,
         onProgress: (progress, speed, downloadedStr) {
           if (mounted && !_controller.isCancelled) {
@@ -84,7 +95,6 @@ class _DownloadModDialogState extends State<DownloadModDialog> {
 
       if (downloadedFile != null) {
         widget.onDownloadComplete(downloadedFile, extractedModId, extractedVersion);
-        
       } else {
         setState(() {
           _isDownloading = false;
@@ -110,62 +120,74 @@ class _DownloadModDialogState extends State<DownloadModDialog> {
     // Si el mensaje es null, mostramos el mensaje por defecto (obteniendo datos)
     final displayMessage = _statusMessage ?? l10n.downloadStatusFetching;
 
-    return AlertDialog(
-      backgroundColor: const Color(0xFF2a2a2a),
-      title: Text(l10n.dialogTitleDownloadModManager),
-      content: SizedBox(
+    // Dialog transparente: funciona tanto con showDialog como con showIosDialog.
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.all(24),
+      child: IosDialogShell(
+        title: l10n.dialogTitleDownloadModManager,
         width: 400,
-        child: Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               displayMessage,
+              textAlign: TextAlign.center,
               style: TextStyle(
-                color: _hasError ? Colors.redAccent : Colors.white70,
-                fontSize: 14,
+                color: _hasError ? IosColors.red : IosColors.secondaryLabel,
+                fontSize: 13,
+                height: 1.3,
               ),
             ),
-            const SizedBox(height: 20),
-            if (_isFetchingLink)
-              const Center(child: CircularProgressIndicator(color: Colors.tealAccent))
-            else if (_isDownloading)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+            if (_isFetchingLink) ...[
+              const SizedBox(height: 16),
+              const Center(child: IosSpinner(radius: 10)),
+            ] else if (_isDownloading) ...[
+              const SizedBox(height: 16),
+              IosProgressBar(value: _progress),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  LinearProgressIndicator(
-                    value: _progress,
-                    backgroundColor: Colors.grey[800],
-                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.tealAccent),
+                  Text(
+                    _downloaded,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: IosColors.secondaryLabel,
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(_downloaded, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                      Text(_speed, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                    ],
+                  Text(
+                    _speed,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: IosColors.secondaryLabel,
+                    ),
                   ),
                 ],
               ),
+            ],
           ],
         ),
+        actions: [
+          if (_hasError)
+            IosDialogButton(
+              label: l10n.dialogActionClose,
+              bold: true,
+              onPressed: () => Navigator.of(context).pop(),
+            )
+          else
+            // Cancelar disponible mientras se obtiene el enlace y durante la descarga.
+            IosDialogButton(
+              label: l10n.dialogActionCancel,
+              onPressed: () {
+                _controller.cancel();
+                Navigator.of(context).pop();
+              },
+            ),
+        ],
       ),
-      actions: [
-        if (_isDownloading && !_hasError)
-          TextButton(
-            onPressed: () {
-              _controller.cancel();
-              Navigator.of(context).pop();
-            },
-            child: Text(l10n.dialogActionCancel), // Botón cancelar activo durante la descarga
-          ),
-        if (_hasError)
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.dialogActionClose), // Se reutiliza "Cerrar" existente
-          ),
-      ],
     );
   }
 }

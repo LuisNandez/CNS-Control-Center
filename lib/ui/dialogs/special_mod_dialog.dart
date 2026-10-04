@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/special_mods_handler.dart';
 import '../../l10n/app_localizations.dart';
+import '../theme/ios_theme.dart';
+import '../widgets/ios_widgets.dart';
 
 class SpecialModSelectionDialog extends StatefulWidget {
   final SpecialModData modData;
@@ -9,7 +11,7 @@ class SpecialModSelectionDialog extends StatefulWidget {
 
   /// Muestra el diálogo y devuelve 'true' si el usuario confirmó la selección
   static Future<bool> show(BuildContext context, SpecialModData modData) async {
-    final result = await showDialog<bool>(
+    final result = await showIosDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (context) => SpecialModSelectionDialog(modData: modData),
@@ -18,92 +20,94 @@ class SpecialModSelectionDialog extends StatefulWidget {
   }
 
   @override
-  State<SpecialModSelectionDialog> createState() => _SpecialModSelectionDialogState();
+  State<SpecialModSelectionDialog> createState() =>
+      _SpecialModSelectionDialogState();
 }
 
 class _SpecialModSelectionDialogState extends State<SpecialModSelectionDialog> {
+  bool _showNoSelectionError = false;
+
+  void _onTapOption(int index) {
+    setState(() {
+      _showNoSelectionError = false;
+      final options = widget.modData.options;
+      if (widget.modData.isSingleSelection) {
+        // Selección única (como un grupo de radio)
+        for (var o in options) {
+          o.isSelected = false;
+        }
+        options[index].isSelected = true;
+      } else {
+        options[index].isSelected = !options[index].isSelected;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    
-    return AlertDialog(
-      backgroundColor: const Color(0xFF2a2a2a),
-      title: Text(l10n.dialogTitleSpecialModSelection(widget.modData.nexusId)),
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 400, // Altura fija para que la lista sea scrolleable
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              // Si quieres, puedes poner un texto diferente dependiendo de si es selección única
-              widget.modData.isSingleSelection 
-                  ? l10n.dialogContentSpecialModSingleSelection
-                  : l10n.dialogContentSpecialModSelection,
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
+    final options = widget.modData.options;
+
+    return IosDialogShell(
+      title: l10n.dialogTitleSpecialModSelection(widget.modData.nexusId),
+      message: widget.modData.isSingleSelection
+          ? l10n.dialogContentSpecialModSingleSelection
+          : l10n.dialogContentSpecialModSelection,
+      width: 420,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 340),
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: const Color(0x14FFFFFF),
+                borderRadius: BorderRadius.circular(10),
+              ),
               child: ListView.builder(
                 shrinkWrap: true,
-                itemCount: widget.modData.options.length,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                itemCount: options.length,
                 itemBuilder: (context, index) {
-                  final option = widget.modData.options[index];
-                  return CheckboxListTile(
-                    title: Text(
-                      option.name,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    value: option.isSelected,
-                    activeColor: Colors.tealAccent,
-                    checkColor: Colors.black,
-                    // NUEVO: Le damos forma de círculo si es de selección única
-                    checkboxShape: widget.modData.isSingleSelection 
-                        ? const CircleBorder() 
-                        : null,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        if (widget.modData.isSingleSelection) {
-                          // Lógica de selección única (Radio Button)
-                          for (var o in widget.modData.options) {
-                            o.isSelected = false; // Desmarcamos todos
-                          }
-                          option.isSelected = true; // Marcamos solo el actual
-                        } else {
-                          // Lógica normal de selección múltiple
-                          option.isSelected = value ?? false;
-                        }
-                      });
-                    },
+                  final option = options[index];
+                  return IosCheckRow(
+                    label: option.name,
+                    selected: option.isSelected,
+                    onTap: () => _onTapOption(index),
                   );
                 },
               ),
             ),
-          ],
-        ),
+          ),
+          if (_showNoSelectionError)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                l10n.snackBarSpecialModNoSelection,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12.5, color: IosColors.red),
+              ),
+            ),
+        ],
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false), // Cancela
-          child: Text(l10n.dialogActionCancel, style: const TextStyle(color: Colors.grey)),
+        IosDialogButton(
+          label: l10n.dialogActionCancel,
+          onPressed: () => Navigator.of(context).pop(false),
         ),
-        ElevatedButton(
+        IosDialogButton(
+          label: l10n.dialogActionInstallSelection,
+          bold: true,
           onPressed: () {
-            // Verifica que haya seleccionado al menos una opción
-            final hasSelection = widget.modData.options.any((o) => o.isSelected);
+            final hasSelection = options.any((o) => o.isSelected);
             if (!hasSelection) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.snackBarSpecialModNoSelection)),
-              );
+              setState(() => _showNoSelectionError = true);
               return;
             }
-            Navigator.of(context).pop(true); // Confirma
+            Navigator.of(context).pop(true);
           },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.tealAccent,
-            foregroundColor: Colors.black,
-          ),
-          child: Text(l10n.dialogActionInstallSelection),
         ),
       ],
     );

@@ -31,6 +31,14 @@ class ModInfo {
   final String? customSourceUrl;
   final List<String>? replacesOutfits;
 
+  /// Nombre del MOD en Nexus (p. ej. "Alt Goth Mini Set"). Null en mods
+  /// instalados antes de que la app distinguiera ediciones.
+  final String? modName;
+
+  /// Nombre de la EDICIÓN dentro del mod (el archivo de Nexus, p. ej.
+  /// "CNS compatible"). Un mismo mod puede tener varias ediciones instaladas.
+  final String? editionName;
+
   ModInfo({
     required this.directory,
     this.nexusId,
@@ -59,6 +67,8 @@ class ModInfo {
     this.sourceUrl,
     this.customSourceUrl,
     this.replacesOutfits,
+    this.modName,
+    this.editionName,
   });
 
   ModInfo copyWith({
@@ -89,6 +99,8 @@ class ModInfo {
     String? sourceUrl,
     String? customSourceUrl,
     List<String>? replacesOutfits,
+    String? modName,
+    String? editionName,
   }) {
     return ModInfo(
       directory: directory ?? this.directory,
@@ -119,6 +131,8 @@ class ModInfo {
       sourceUrl: sourceUrl ?? this.sourceUrl,
       customSourceUrl: customSourceUrl ?? this.customSourceUrl,
       replacesOutfits: replacesOutfits ?? this.replacesOutfits,
+      modName: modName ?? this.modName,
+      editionName: editionName ?? this.editionName,
     );
   }
 

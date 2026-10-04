@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 import '../../models/mod_info.dart';
 import '../../l10n/app_localizations.dart';
+import '../theme/ios_theme.dart';
+import 'animated_mod_switch.dart';
+import 'ios_widgets.dart';
 
 class ModListTile extends StatelessWidget {
   final ModInfo modInfo;
@@ -9,6 +13,9 @@ class ModListTile extends StatelessWidget {
   final bool isIgnored;
   final bool isHighlighted;
   final bool isLoading;
+
+  /// Ediciones instaladas de este mismo mod (mismo ID de Nexus).
+  final int editionCount;
 
   final VoidCallback onRepairedInfoTap;
   final VoidCallback onDeleteTap;
@@ -28,6 +35,7 @@ class ModListTile extends StatelessWidget {
     required this.isIgnored,
     required this.isHighlighted,
     required this.isLoading,
+    this.editionCount = 1,
     required this.onRepairedInfoTap,
     required this.onDeleteTap,
     required this.onUpdateAvailableTap,
@@ -39,132 +47,212 @@ class ModListTile extends StatelessWidget {
     required this.onDisable,
   });
 
+  Widget _action({
+    required dynamic icon,
+    required String tooltip,
+    required VoidCallback? onPressed,
+    Color color = IosColors.icon,
+  }) {
+    return IosToolbarButton(
+      width: 30,
+      height: 30,
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: HugeIcon(icon: icon, size: 17, color: color),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final hasUpdate = updateInfo != null;
+    final bool showUpdate = updateInfo != null && !isIgnored;
+    final bool enabled = modInfo.isEnabled;
+    final bool hasVersion =
+        modInfo.localVersion != null && modInfo.localVersion!.isNotEmpty;
 
-    return Card(
-      key: UniqueKey(), 
-      margin: const EdgeInsets.symmetric(vertical: 4.0),
-      color: isHighlighted
-          ? Colors.teal.withOpacity(0.3)
-          : (modInfo.isEnabled ? Colors.grey[850] : Colors.orange[900]?.withOpacity(0.2)),
-      shape: RoundedRectangleBorder(
-        side: BorderSide(
-          color: hasUpdate && !isIgnored
-              ? Colors.yellowAccent
-              : (isHighlighted ? Colors.tealAccent : Colors.transparent),
-          width: hasUpdate && !isIgnored ? 2.0 : 1.5,
-        ),
-        borderRadius: BorderRadius.circular(8),
+    final Color ringColor = showUpdate
+        ? IosColors.yellow
+        : (isHighlighted ? IosColors.blue : const Color(0x14FFFFFF));
+    final bool hasRing = showUpdate || isHighlighted;
+
+    String? updateVersionText;
+    if (showUpdate) {
+      final v = updateInfo!['version'] as String;
+      updateVersionText = v.toLowerCase().startsWith('v') ? v.substring(1) : v;
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isHighlighted
+            ? Color.alphaBlend(IosColors.blue.withOpacity(0.16), IosColors.card)
+            : IosColors.card,
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: ListTile(
-        dense: true,
-        visualDensity: VisualDensity.compact,
-        leading: Icon(
-          Icons.extension,
-          color: modInfo.isEnabled ? Colors.tealAccent : Colors.grey,
-        ),
-        title: Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Flexible(
-              child: Text(
-                modInfo.customName,
-                style: TextStyle(
-                  color: modInfo.isEnabled ? Colors.white : Colors.grey,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
+      foregroundDecoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: ringColor, width: hasRing ? 1.5 : 0.5),
+      ),
+      child: Row(
+        children: [
+          // Icono "squircle" como en Ajustes de iOS.
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: enabled
+                  ? IosColors.blue.withOpacity(0.18)
+                  : IosColors.chip,
+              borderRadius: BorderRadius.circular(9),
             ),
-            if (modInfo.localVersion != null && modInfo.localVersion!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 8.0),
-                child: Text(
-                  'v${modInfo.localVersion}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
+            child: Icon(
+              Icons.extension_rounded,
+              size: 18,
+              color: enabled ? IosColors.blue : IosColors.tertiaryLabel,
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: Row(
+              children: [
+                if (isHighlighted)
+                  Container(
+                    width: 7,
+                    height: 7,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: const BoxDecoration(
+                      color: IosColors.blue,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                Flexible(
+                  child: Text(
+                    modInfo.customName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
+                      color: enabled
+                          ? IosColors.label
+                          : IosColors.secondaryLabel,
+                    ),
                   ),
                 ),
-              ),
-          ],
-        ),
-        subtitle: Row(
-          children: [
-            if (isHighlighted)
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: Icon(Icons.new_releases, color: Colors.yellow[700], size: 18),
-              ),
-            if (modInfo.origin == 'repaired')
-              IconButton(
-                padding: const EdgeInsets.only(right: 8.0),
-                constraints: const BoxConstraints(),
-                icon: Icon(Icons.build, color: Colors.amber[700], size: 16),
-                onPressed: onRepairedInfoTap,
-                tooltip: l10n.repairedModTooltip,
-                splashRadius: 16,
-              ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!modInfo.isEnabled)
-              IconButton(
-                icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
-                onPressed: isLoading ? null : onDeleteTap,
-                tooltip: l10n.deletePermanently,
-              ),
-            if (hasUpdate && !isIgnored)
-              IconButton(
-                icon: const Icon(Icons.notification_important, color: Colors.yellowAccent),
-                tooltip: l10n.updateAvailable(
-                  (updateInfo!['version'] as String).toLowerCase().startsWith('v')
-                      ? (updateInfo!['version'] as String).substring(1)
-                      : updateInfo!['version'],
-                ),
+                if (editionCount > 1)
+                  Tooltip(
+                    message: l10n.editionsInstalledTooltip(editionCount),
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.layers_rounded,
+                            size: 13,
+                            color: IosColors.purple,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            '$editionCount',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: IosColors.purple,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (hasVersion)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Text(
+                      'v${modInfo.localVersion}',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: IosColors.secondaryLabel,
+                      ),
+                    ),
+                  ),
+                if (modInfo.origin == 'repaired')
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: IosToolbarButton(
+                      width: 26,
+                      height: 26,
+                      tooltip: l10n.repairedModTooltip,
+                      onPressed: onRepairedInfoTap,
+                      icon: const Icon(
+                        Icons.build_rounded,
+                        size: 15,
+                        color: IosColors.orange,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // ---------- ACCIONES ----------
+          if (showUpdate)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: IosToolbarButton(
+                width: 26,
+                height: 26,
+                background: IosColors.yellow,
+                tooltip: l10n.updateAvailable(updateVersionText!),
                 onPressed: onUpdateAvailableTap,
+                icon: const Icon(
+                  Icons.arrow_upward_rounded,
+                  size: 16,
+                  color: Colors.black,
+                ),
               ),
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.white70),
-              onPressed: isLoading ? null : onEditNameTap,
-              tooltip: l10n.editModNameTooltip,
             ),
-            IconButton(
-              icon: const Icon(Icons.folder_open, color: Colors.white70),
-              onPressed: isLoading ? null : onShowFolderTap,
-              tooltip: l10n.showInFolder,
+          _action(
+            icon: HugeIcons.strokeRoundedEdit01,
+            tooltip: l10n.editModNameTooltip,
+            onPressed: isLoading ? null : onEditNameTap,
+          ),
+          _action(
+            icon: HugeIcons.strokeRoundedFolderInput,
+            tooltip: l10n.showInFolder,
+            onPressed: isLoading ? null : onShowFolderTap,
+          ),
+          if (modInfo.nexusId != null)
+            _action(
+              icon: HugeIcons.strokeRoundedAlbum02,
+              tooltip: l10n.viewImageGallery,
+              onPressed: onShowGalleryTap,
             ),
-            if (modInfo.nexusId != null)
-              IconButton(
-                icon: const Icon(Icons.photo_library_outlined, color: Colors.purpleAccent),
-                onPressed: onShowGalleryTap,
-                tooltip: l10n.viewImageGallery,
-              ),
-            if (modInfo.nexusId != null)
-              IconButton(
-                icon: const Icon(Icons.open_in_browser_outlined, color: Colors.lightBlueAccent),
-                onPressed: onOpenNexusTap,
-                tooltip: l10n.openInNexusMods,
-              ),
-            if (modInfo.isEnabled)
-              IconButton(
-                icon: const Icon(Icons.power_settings_new, color: Colors.orangeAccent),
-                onPressed: isLoading ? null : () => onDisable(modInfo),
-                tooltip: l10n.disableMod,
-              )
-            else
-              IconButton(
-                icon: const Icon(Icons.power_settings_new, color: Colors.greenAccent),
-                onPressed: isLoading ? null : () => onEnable(modInfo),
-                tooltip: l10n.enableMod,
-              ),
-          ],
-        ),
+          if (modInfo.nexusId != null)
+            _action(
+              icon: HugeIcons.strokeRoundedLinkSquare02,
+              tooltip: l10n.openInNexusMods,
+              onPressed: onOpenNexusTap,
+            ),
+          if (!enabled)
+            _action(
+              icon: HugeIcons.strokeRoundedDelete04,
+              tooltip: l10n.deletePermanently,
+              color: IosColors.red,
+              onPressed: isLoading ? null : onDeleteTap,
+            ),
+          const SizedBox(width: 8),
+          AnimatedModSwitch(
+            key: ValueKey('switch-list-${modInfo.directory.path}'),
+            modInfo: modInfo,
+            isLoading: isLoading,
+            onEnable: onEnable,
+            onDisable: onDisable,
+            scale: 0.8,
+          ),
+        ],
       ),
     );
   }

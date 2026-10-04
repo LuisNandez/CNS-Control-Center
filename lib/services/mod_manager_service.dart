@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import '../models/mod_info.dart';
-import '../utils/version_utils.dart';
+import 'mod_metadata_migrator.dart';
 import 'archive_service.dart';
 import 'nexus_api_service.dart';
 import 'package:flutter/material.dart';
@@ -114,6 +114,15 @@ class ModManagerService {
     final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
     if (!await infoFile.exists()) return;
 
+    // La galería completa se guarda ANTES de leer el JSON de la portada: ambas
+    // escriben nexus_info.json y así no se pisan. Es independiente de si el
+    // usuario tiene una portada personalizada.
+    await cacheNexusGallery(
+      modDirectory: modDirectory,
+      nexusId: nexusId,
+      apiKey: apiKey,
+    );
+
     try {
       Map<String, dynamic> data = json.decode(await infoFile.readAsString());
 
@@ -147,6 +156,229 @@ class ModManagerService {
       }
     } catch (e) {
       print('No se pudo cachear la portada de Nexus para ${p.basename(modDirectory.path)}: $e');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  //  GALERÍA DE NEXUS: todas las imágenes del mod, guardadas en local
+  //
+  //  Estructura dentro de la carpeta del mod:
+  //    <mod>/_nexus_gallery/01_<nombre>.jpg, 02_<nombre>.png, ...
+  //  (el prefijo numérico conserva el orden de la página del mod).
+  //  En nexus_info.json cada entrada de `gallery` conserva `image`/`thumbnail`
+  //  (URLs) y gana `localImage` (ruta RELATIVA a la carpeta del mod, así sigue
+  //  valiendo al activar/desactivar el mod, que mueve la carpeta).
+  // ---------------------------------------------------------------------------
+
+  /// Súbelo si cambia el formato de la galería local para volver a bajarla.
+  static const int _gallerySchema = 1;
+  static const String galleryDirName = '_nexus_gallery';
+  static const int _galleryParallelDownloads = 3;
+  static const int _galleryMinHourlyRemaining = 5;
+
+  /// Mods cuya galería falló en esta sesión: no se reintentan hasta reiniciar
+  /// (loadMods se ejecuta en cada recarga de la lista).
+  static final Set<String> _galleryFailedThisSession = {};
+
+  /// ¿Este nexus_info.json aún no tiene la galería completa en local?
+  static bool needsGalleryCache(Map<String, dynamic> data) {
+    final nexusId = data['nexusId']?.toString();
+    if (nexusId == null || nexusId.isEmpty) return false;
+    final v = data['galleryCacheSchema'];
+    if (v is int && v >= _gallerySchema) return false;
+    // Último intento incompleto reciente: no se repite en cada arranque.
+    final last = DateTime.tryParse(data['galleryAttemptAt']?.toString() ?? '');
+    if (last != null && DateTime.now().difference(last) < _galleryRetryAfter) {
+      return false;
+    }
+    return true;
+  }
+
+  static const Duration _galleryRetryAfter = Duration(days: 7);
+
+  /// Borra la carpeta `_nexus_gallery` y las rutas locales de `gallery`.
+  /// Se usa cuando la galería solo tiene la portada: esa imagen ya está
+  /// guardada como `_nexus_cover.*` y copiarla otra vez la duplicaría.
+  static Future<void> _removeGalleryCopy(Directory modDirectory, Map<String, dynamic> data) async {
+    final dir = Directory(p.join(modDirectory.path, galleryDirName));
+    try {
+      if (await dir.exists()) await dir.delete(recursive: true);
+    } catch (e) {
+      print('[NexusGallery] No se pudo borrar $galleryDirName: $e');
+    }
+    final g = data['gallery'];
+    if (g is List) {
+      for (final e in g) {
+        if (e is Map) e.remove('localImage');
+      }
+    }
+  }
+
+  /// ¿Vale la pena intentar bajar la galería de este mod ahora?
+  static bool canCacheGallery(String modPath) {
+    if (_galleryFailedThisSession.contains(modPath)) return false;
+    final remaining = int.tryParse(NexusApiService.hourlyRemaining);
+    return remaining == null || remaining >= _galleryMinHourlyRemaining;
+  }
+
+  static List<Map<String, dynamic>> _galleryEntriesFrom(dynamic raw) {
+    final out = <Map<String, dynamic>>[];
+    if (raw is! List) return out;
+    for (final e in raw) {
+      if (e is! Map) continue;
+      final image = e['image']?.toString() ?? '';
+      if (image.isEmpty) continue;
+      out.add(Map<String, dynamic>.from(e));
+    }
+    return out;
+  }
+
+  static String _galleryFileName(int index, String url) {
+    const allowed = {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'};
+    final uri = Uri.tryParse(url);
+    final last = (uri != null && uri.pathSegments.isNotEmpty)
+        ? uri.pathSegments.last
+        : 'image';
+    var ext = p.extension(last).toLowerCase();
+    if (!allowed.contains(ext)) ext = '.jpg';
+    var base = p.basenameWithoutExtension(last).replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    if (base.length > 60) base = base.substring(0, 60);
+    if (base.isEmpty) base = 'image';
+    return '${(index + 1).toString().padLeft(2, '0')}_$base$ext';
+  }
+
+  /// Descarga TODAS las imágenes de la galería de Nexus del mod a
+  /// `<mod>/_nexus_gallery/` y guarda en nexus_info.json la ruta local de cada
+  /// una (`localImage`). Es idempotente: lo ya descargado no se vuelve a bajar
+  /// y, una vez completa, no gasta solicitudes de la API.
+  ///
+  /// Devuelve true si la galería quedó completa.
+  static Future<bool> cacheNexusGallery({
+    required Directory modDirectory,
+    required String nexusId,
+    required String? apiKey,
+  }) async {
+    if (apiKey == null || apiKey.isEmpty) return false;
+    if (_galleryFailedThisSession.contains(modDirectory.path)) return false;
+
+    final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
+    if (!await infoFile.exists()) return false;
+    final encoder = JsonEncoder.withIndent('  ');
+
+    try {
+      final Map<String, dynamic> data = json.decode(await infoFile.readAsString());
+      final bool flagged = data['galleryCacheSchema'] is int &&
+          (data['galleryCacheSchema'] as int) >= _gallerySchema;
+
+      // Copia duplicada de la portada de una versión anterior: se limpia ya.
+      final oldGalleryDir = Directory(p.join(modDirectory.path, galleryDirName));
+      if (!flagged && await oldGalleryDir.exists()) {
+        final files = await oldGalleryDir.list().where((e) => e is File).length;
+        if (files <= 1) {
+          await _removeGalleryCopy(modDirectory, data);
+          await infoFile.writeAsString(encoder.convert(data));
+        }
+      }
+
+      var entries = _galleryEntriesFrom(data['gallery']);
+      var complete = flagged;
+
+      if (flagged && entries.isEmpty) return true; // mod sin imágenes, ya comprobado
+
+      // Solo se consulta la API si la galería local aún no está marcada como
+      // completa; si lo está, únicamente se rellenan archivos que falten.
+      if (!flagged || entries.isEmpty) {
+        // Aquí sí hace falta la API: se respeta el límite horario.
+        if (!canCacheGallery(modDirectory.path)) return false;
+        final nexusData = await NexusApiService.fetchNexusModData(nexusId, apiKey);
+        if (nexusData == null) {
+          _galleryFailedThisSession.add(modDirectory.path);
+          return false;
+        }
+        entries = _galleryEntriesFrom(nexusData['gallery']);
+        complete = nexusData['galleryComplete'] == true;
+      }
+
+      // Sin galería real (no se obtuvo la lista completa, o el mod solo tiene
+      // una imagen): esa única imagen es la portada, que ya está guardada como
+      // `_nexus_cover.*`. No se copia a `_nexus_gallery` para no duplicarla, y
+      // se limpia la copia que hubiera de versiones anteriores.
+      if (!complete || entries.length <= 1) {
+        final latest = Map<String, dynamic>.from(json.decode(await infoFile.readAsString()));
+        await _removeGalleryCopy(modDirectory, latest);
+        if (complete) {
+          latest['galleryCacheSchema'] = _gallerySchema;
+        } else {
+          latest['galleryAttemptAt'] = DateTime.now().toIso8601String();
+          _galleryFailedThisSession.add(modDirectory.path);
+        }
+        await infoFile.writeAsString(encoder.convert(latest));
+        return complete;
+      }
+
+      final galleryDir = Directory(p.join(modDirectory.path, galleryDirName));
+      await galleryDir.create(recursive: true);
+
+      final keep = <String>{};
+      var failures = 0;
+
+      for (var start = 0; start < entries.length; start += _galleryParallelDownloads) {
+        final batch = <Future<void>>[];
+        for (var i = start; i < entries.length && i < start + _galleryParallelDownloads; i++) {
+          final entry = entries[i];
+          final url = entry['image'] as String;
+          final fileName = _galleryFileName(i, url);
+          keep.add(fileName);
+          batch.add(() async {
+            final file = File(p.join(galleryDir.path, fileName));
+            if (await file.exists() && await file.length() > 0) {
+              entry['localImage'] = '$galleryDirName/$fileName';
+              return;
+            }
+            try {
+              final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
+              if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+                await file.writeAsBytes(response.bodyBytes);
+                entry['localImage'] = '$galleryDirName/$fileName';
+              } else {
+                failures++;
+                print('[NexusGallery] HTTP ${response.statusCode} al bajar $url');
+              }
+            } catch (e) {
+              failures++;
+              print('[NexusGallery] No se pudo bajar $url: $e');
+            }
+          }());
+        }
+        await Future.wait(batch);
+      }
+
+      // Borra archivos huérfanos (imágenes quitadas o reordenadas en Nexus).
+      await for (final e in galleryDir.list()) {
+        if (e is File && !keep.contains(p.basename(e.path))) {
+          try {
+            await e.delete();
+          } catch (_) {}
+        }
+      }
+
+      // Se relee el JSON justo antes de escribir para no pisar otros cambios.
+      final latest = Map<String, dynamic>.from(json.decode(await infoFile.readAsString()));
+      latest['gallery'] = entries;
+      final done = complete && failures == 0;
+      if (done) latest['galleryCacheSchema'] = _gallerySchema;
+      latest['galleryCachedAt'] = DateTime.now().toIso8601String();
+      await infoFile.writeAsString(encoder.convert(latest));
+
+      if (!done) _galleryFailedThisSession.add(modDirectory.path);
+      print('[NexusGallery] ${p.basename(modDirectory.path)}: '
+          '${entries.length - failures}/${entries.length} imágenes en local'
+          '${done ? '' : ' (incompleta, se reintentará)'}');
+      return done;
+    } catch (e) {
+      _galleryFailedThisSession.add(modDirectory.path);
+      print('[NexusGallery] Error en ${p.basename(modDirectory.path)}: $e');
+      return false;
     }
   }
 
@@ -202,6 +434,8 @@ class ModManagerService {
             String? sourceUrl;
             String? customSourceUrl;
             List<String>? replacesOutfits;
+            String? modName;
+            String? editionName;
 
             bool isEnabledForMod = isEnabled;
             DateTime? installDate;
@@ -213,26 +447,25 @@ class ModManagerService {
               final content = await infoFile.readAsString();
               Map<String, dynamic> data = json.decode(content);
 
-              final String? modManagerVersion = data['managerVersion'];
-              final String? nexusIdForCheck = data['nexusId'];
-
-              bool needsMetadataUpdate = modManagerVersion == null || (VersionUtils.compareVersions(appVersion, modManagerVersion) > 0);
-
-              if (needsMetadataUpdate && nexusIdForCheck != null) {
+              // Adapta mods antiguos al formato actual (edición, archivo de
+              // Nexus, nombre del mod...). Se hace aquí también para los mods
+              // de rutas que el arranque no recorre.
+              if (ModMetadataMigrator.needsMigration(data, appVersion)) {
                 print('Auto-updating metadata for mod: ${data['displayName']}');
-                final nexusData = await NexusApiService.fetchNexusModData(nexusIdForCheck, apiKey);
-
-                if (nexusData != null) {
-                  data['summary'] ??= nexusData['summary'];
-                  data['author'] ??= nexusData['author'];
-                  data['gallery'] ??= nexusData['gallery'];
-                  data['description'] ??= nexusData['description'];
-                  data['sourceUrl'] ??= 'https://www.nexusmods.com/stellarblade/mods/$nexusIdForCheck';
-                  data['managerVersion'] = appVersion;
-
-                  final encoder = JsonEncoder.withIndent('  ');
-                  await infoFile.writeAsString(encoder.convert(data));
-                  await cacheNexusThumbnail(modDirectory: entity, nexusId: nexusIdForCheck, apiKey: apiKey);
+                final migrated = await ModMetadataMigrator.migrate(
+                  modDirectory: entity,
+                  data: data,
+                  appVersion: appVersion,
+                  apiKey: apiKey,
+                );
+                if (migrated) {
+                  await cacheNexusThumbnail(
+                    modDirectory: entity,
+                    nexusId: data['nexusId'].toString(),
+                    apiKey: apiKey,
+                  );
+                  // cacheNexusThumbnail reescribe el JSON (portada): recargar.
+                  data = json.decode(await infoFile.readAsString());
                 }
               }
 
@@ -253,6 +486,8 @@ class ModManagerService {
               userNotes = data['userNotes'];
               sourceUrl = data['sourceUrl'];
               customSourceUrl = data['customSourceUrl'];
+              modName = data['modName'] as String?;
+              editionName = data['editionName'] as String?;
               if (data['replacesOutfits'] != null) {
                 replacesOutfits = List<String>.from(data['replacesOutfits']);
               } else if (data['replacesOutfit'] != null) {
@@ -375,6 +610,8 @@ class ModManagerService {
               sourceUrl: sourceUrl,
               customSourceUrl: customSourceUrl,
               replacesOutfits: replacesOutfits,
+              modName: modName,
+              editionName: editionName,
             ));
           } catch (e) {
             print("Error processing directory ${entity.path}: $e");

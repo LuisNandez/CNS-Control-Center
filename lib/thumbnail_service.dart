@@ -2,6 +2,8 @@
 //para que la decodificación y redimensionamiento de las portadas se haga en un hilo secundario y no congele la interfaz de
 // la aplicación.
 
+import 'dart:async';
+import 'dart:collection';
 import 'dart:io';
 import 'dart:convert';
 import 'package:image/image.dart' as img;
@@ -103,6 +105,41 @@ Future<File?> _processImageIsolate(_ProcessImageRequest request) async {
 }
 
 
+// --- LIMITADOR DE TRABAJO PESADO ---
+//
+// Sin límite, al hacer scroll rápido por una lista con muchas portadas sin
+// miniatura se lanzaban decenas de isolates y descargas a la vez, y la
+// aplicación se quedaba a tirones. Con esto solo se procesan unas pocas a la
+// vez, y las más recientes (las que el usuario está viendo ahora) pasan
+// primero.
+class _TaskGate {
+  _TaskGate(this.limit);
+
+  final int limit;
+  int _running = 0;
+  final Queue<Completer<void>> _waiters = Queue<Completer<void>>();
+
+  Future<T> run<T>(Future<T> Function() task) async {
+    if (_running < limit) {
+      _running++;
+    } else {
+      final waiter = Completer<void>();
+      _waiters.addLast(waiter);
+      await waiter.future; // el hueco se traspasa tal cual (no se recuenta)
+    }
+    try {
+      return await task();
+    } finally {
+      if (_waiters.isNotEmpty) {
+        // LIFO: la última petición suele ser la que está en pantalla.
+        _waiters.removeLast().complete();
+      } else {
+        _running--;
+      }
+    }
+  }
+}
+
 // --- CLASE PRINCIPAL DEL SERVICIO ---
 
 class ThumbnailService {
@@ -115,6 +152,13 @@ class ThumbnailService {
   bool _isInitialized = false;
 
   final Map<String, File> _inMemoryCache = {};
+
+  /// Peticiones en curso por clave: si dos tarjetas piden la misma portada a
+  /// la vez (p. ej. al cambiar de cuadrícula a lista) se comparte el trabajo.
+  final Map<String, Future<File?>> _inFlight = {};
+
+  /// Máximo de portadas descargándose / comprimiéndose a la vez.
+  final _TaskGate _gate = _TaskGate(2);
 
   Future<void> initialize() async {
     // ... (Esta función initialize() no cambia)
@@ -157,8 +201,6 @@ class ThumbnailService {
     File thumbnailFile,
   ) async {
     try {
-      print("⚡ Enviando a ISOLATE para compresión: ${p.basename(originalFile.path)}");
-
       // 1. Prepara los datos para enviar
       final request = _ProcessImageRequest(
         originalPath: originalFile.absolute.path,
@@ -170,7 +212,6 @@ class ThumbnailService {
 
       // 3. 'compute' ha terminado, recibimos el resultado
       if (resultFile != null) {
-        print("👍 Compresión (en Isolate) exitosa: ${p.basename(resultFile.path)}");
         return resultFile;
       } else {
         print("⚠️ Compresión (en Isolate) falló para: ${p.basename(originalFile.path)}");
@@ -182,8 +223,29 @@ class ThumbnailService {
     }
   }
 
-  // ... (Esta función getThumbnail() no cambia)
   Future<File?> getThumbnail(
+    String cacheKey,
+    String sourcePath, {
+    bool isLocalFile = false,
+  }) {
+    final File? cached = _inMemoryCache[cacheKey];
+    if (cached != null) return Future<File?>.value(cached);
+
+    final Future<File?>? running = _inFlight[cacheKey];
+    if (running != null) return running;
+
+    final Future<File?> future = _getThumbnailImpl(
+      cacheKey,
+      sourcePath,
+      isLocalFile: isLocalFile,
+    );
+    _inFlight[cacheKey] = future;
+    // .ignore(): el error (si lo hay) le llega a quien espera `future`.
+    future.whenComplete(() => _inFlight.remove(cacheKey)).ignore();
+    return future;
+  }
+
+  Future<File?> _getThumbnailImpl(
     String cacheKey,
     String sourcePath, {
     bool isLocalFile = false,
@@ -193,12 +255,6 @@ class ThumbnailService {
 
     final String logName = p.basename(sourcePath);
 
-    // 1. Revisar caché en memoria (usando la cacheKey)
-    if (_inMemoryCache.containsKey(cacheKey)) {
-      print("✅ CACHÉ MEMORIA (Rápido): $logName");
-      return _inMemoryCache[cacheKey];
-    }
-
     // Nombres de archivo (usando la cacheKey)
     final hashedName = _getHashedFileName(cacheKey);
     final thumbnailFile =
@@ -206,7 +262,35 @@ class ThumbnailService {
 
     // 2. Revisar caché en disco (thumbnail) (usando la cacheKey)
     if (await thumbnailFile.exists()) {
-      print("📀 CACHÉ DISCO THUMBNAIL (Procesada): $logName");
+      _inMemoryCache[cacheKey] = thumbnailFile;
+      return thumbnailFile;
+    }
+
+    // 3 y 4 (descargar + comprimir) es lo pesado: se hace de pocas en pocas.
+    return _gate.run(
+      () => _createThumbnail(
+        cacheKey,
+        sourcePath,
+        thumbnailFile,
+        hashedName,
+        logName,
+        isLocalFile,
+      ),
+    );
+  }
+
+  Future<File?> _createThumbnail(
+    String cacheKey,
+    String sourcePath,
+    File thumbnailFile,
+    String hashedName,
+    String logName,
+    bool isLocalFile,
+  ) async {
+    // Mientras esperaba su turno otra petición pudo dejarla ya lista.
+    final File? alreadyThere = _inMemoryCache[cacheKey];
+    if (alreadyThere != null) return alreadyThere;
+    if (await thumbnailFile.exists()) {
       _inMemoryCache[cacheKey] = thumbnailFile;
       return thumbnailFile;
     }
@@ -216,7 +300,6 @@ class ThumbnailService {
 
     if (isLocalFile) {
       // 3a. Es un archivo local.
-      print("⚙️ PROCESANDO (Desde Archivo Local): $logName");
       // ++ CORREGIDO: Usa sourcePath para encontrar el archivo ++
       final localFile = File(sourcePath);
       if (await localFile.exists()) {
@@ -235,11 +318,9 @@ class ThumbnailService {
           p.join(_imageCacheDir!.path, '$hashedName$originalExtension'));
 
       if (await originalFile.exists()) {
-        print("⚙️ PROCESANDO (Desde Original en disco): $logName");
         fileToProcess = originalFile;
       } else {
         try {
-          print("🌍 DESCARGANDO Y PROCESANDO (Red): $logName");
           // ++ CORREGIDO: Usa sourcePath para descargar ++
           final response = await http.get(Uri.parse(sourcePath));
           if (response.statusCode == 200) {
@@ -264,7 +345,6 @@ class ThumbnailService {
 
       if (processedFile != null) {
         // --- ÉXITO ---
-        print("👍 Usando miniatura procesada para: $logName");
         // ++ CORREGIDO: Almacena en caché usando la cacheKey ++
         _inMemoryCache[cacheKey] = processedFile;
         return processedFile;

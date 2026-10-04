@@ -128,4 +128,151 @@ class CoreInstallerService {
     final destinationSBDir = Directory(p.join(gameRootPath, 'SB'));
     await FileManagerService.copyDirectory(sourceSBDir, destinationSBDir);
   }
+
+  // ---------------------------------------------------------------------------
+  //  Apartar / restaurar componentes (usado por "Reparar inicio del juego")
+  //  Los archivos NO se borran: se MUEVEN a una carpeta de respaldo y luego se
+  //  devuelven a su sitio, junto con su manifiesto de instalación.
+  // ---------------------------------------------------------------------------
+
+  static String repairBackupPath(String gameRootPath) => p.join(
+        gameRootPath, 'SB', 'Binaries', 'Win64', '_manager_metadata', '_repair_backup');
+
+  static File _repairJournalFile(String gameRootPath) =>
+      File(p.join(repairBackupPath(gameRootPath), 'journal.json'));
+
+  static String _coreBaseDir(bool isUe4ss, String gameRootPath) => isUe4ss
+      ? p.join(gameRootPath, 'SB', 'Binaries', 'Win64')
+      : p.join(gameRootPath, 'SB');
+
+  static File _coreManifestFile(bool isUe4ss, String gameRootPath) => File(
+        p.join(
+          gameRootPath, 'SB', 'Binaries', 'Win64', '_manager_metadata',
+          isUe4ss ? 'ue4ss_manifest.json' : 'cns_manifest.json',
+        ),
+      );
+
+  static String _stashName(bool isUe4ss) => isUe4ss ? 'ue4ss' : 'cns';
+
+  /// Mueve un archivo (rename; si falla, copia + borra). Sobrescribe el destino.
+  static Future<void> _moveFile(File src, String destPath) async {
+    await Directory(p.dirname(destPath)).create(recursive: true);
+    final dest = File(destPath);
+    if (await dest.exists()) await dest.delete();
+    try {
+      await src.rename(destPath);
+    } on FileSystemException {
+      await src.copy(destPath);
+      await src.delete();
+    }
+  }
+
+  /// Crea la marca que indica "hay una reparación en curso". Si la app se
+  /// cierra a mitad, en el siguiente inicio se recuperan los archivos.
+  static Future<void> beginRepairJournal(String gameRootPath) async {
+    final journal = _repairJournalFile(gameRootPath);
+    await journal.parent.create(recursive: true);
+    await journal.writeAsString(
+      json.encode({'startedAt': DateTime.now().toIso8601String()}),
+    );
+  }
+
+  static Future<bool> hasPendingRepair(String gameRootPath) =>
+      _repairJournalFile(gameRootPath).exists();
+
+  /// Desinstala un componente guardando sus archivos para reinstalarlo luego.
+  /// Devuelve false si el componente no estaba instalado (no hay nada que hacer).
+  static Future<bool> stashCoreComponent({
+    required bool isUe4ss,
+    required String gameRootPath,
+  }) async {
+    final manifestFile = _coreManifestFile(isUe4ss, gameRootPath);
+    if (!await manifestFile.exists()) return false;
+
+    final relativePaths = List<String>.from(
+      json.decode(await manifestFile.readAsString()),
+    );
+
+    final stashDir = p.join(repairBackupPath(gameRootPath), _stashName(isUe4ss));
+    final filesDir = p.join(stashDir, 'files');
+    await Directory(filesDir).create(recursive: true);
+    // El manifiesto se guarda ANTES de mover nada.
+    await manifestFile.copy(p.join(stashDir, 'manifest.json'));
+
+    final baseDir = _coreBaseDir(isUe4ss, gameRootPath);
+
+    // 1) Mover los archivos al respaldo.
+    for (final rel in relativePaths) {
+      final fullPath = p.join(baseDir, rel);
+      final type = await FileSystemEntity.type(fullPath, followLinks: false);
+      if (type == FileSystemEntityType.file) {
+        await _moveFile(File(fullPath), p.join(filesDir, rel));
+      }
+    }
+
+    // 2) Quitar las carpetas que hayan quedado vacías (de la más profunda a la
+    //    más superficial). Si una carpeta aún tiene archivos de otros mods,
+    //    simplemente no se borra.
+    for (final rel in relativePaths.reversed) {
+      final fullPath = p.join(baseDir, rel);
+      try {
+        final type = await FileSystemEntity.type(fullPath, followLinks: false);
+        if (type == FileSystemEntityType.directory) {
+          await Directory(fullPath).delete();
+        }
+      } catch (_) {}
+    }
+
+    await manifestFile.delete();
+    return true;
+  }
+
+  /// Devuelve a su sitio los archivos apartados con [stashCoreComponent] y
+  /// restaura el manifiesto. Devuelve false si no había nada apartado.
+  static Future<bool> restoreStashedComponent({
+    required bool isUe4ss,
+    required String gameRootPath,
+  }) async {
+    final stashDir = Directory(
+      p.join(repairBackupPath(gameRootPath), _stashName(isUe4ss)),
+    );
+    if (!await stashDir.exists()) return false;
+
+    final baseDir = _coreBaseDir(isUe4ss, gameRootPath);
+    final filesDir = Directory(p.join(stashDir.path, 'files'));
+
+    if (await filesDir.exists()) {
+      final files = await filesDir
+          .list(recursive: true, followLinks: false)
+          .where((e) => e is File)
+          .toList();
+      for (final entity in files) {
+        final rel = p.relative(entity.path, from: filesDir.path);
+        await _moveFile(entity as File, p.join(baseDir, rel));
+      }
+    }
+
+    final stashedManifest = File(p.join(stashDir.path, 'manifest.json'));
+    if (await stashedManifest.exists()) {
+      final dest = _coreManifestFile(isUe4ss, gameRootPath);
+      await dest.parent.create(recursive: true);
+      await stashedManifest.copy(dest.path);
+    }
+
+    await stashDir.delete(recursive: true);
+    return true;
+  }
+
+  /// Borra la carpeta de respaldo y la marca de reparación en curso.
+  static Future<void> cleanupRepairBackup(String gameRootPath) async {
+    final dir = Directory(repairBackupPath(gameRootPath));
+    if (await dir.exists()) await dir.delete(recursive: true);
+  }
+
+  /// Recupera una reparación interrumpida: devuelve UE4SS y CNS a su sitio.
+  static Future<void> recoverPendingRepair(String gameRootPath) async {
+    await restoreStashedComponent(isUe4ss: true, gameRootPath: gameRootPath);
+    await restoreStashedComponent(isUe4ss: false, gameRootPath: gameRootPath);
+    await cleanupRepairBackup(gameRootPath);
+  }
 }

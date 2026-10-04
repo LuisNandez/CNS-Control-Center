@@ -1,8 +1,100 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../utils/version_utils.dart';
+import 'endorse_info_store.dart';
+
+/// Motivo por el que no se pudo cambiar el endorse de un mod.
+enum EndorseFailure {
+  /// El usuario no ha introducido su API key.
+  noApiKey,
+
+  /// Nexus rechazó la API key (401).
+  invalidKey,
+
+  /// Nexus solo deja endorsar mods descargados con la cuenta.
+  notDownloaded,
+
+  /// Hay que esperar 15 min desde la descarga (TOO_SOON_AFTER_DOWNLOAD).
+  tooSoon,
+
+  /// El usuario es el autor del mod.
+  ownMod,
+
+  /// Límite de solicitudes alcanzado (429).
+  rateLimited,
+
+  /// El mod ya no existe en Nexus (404).
+  notFound,
+
+  /// Sin conexión / tiempo de espera agotado.
+  network,
+
+  /// Cualquier otro error.
+  unknown,
+}
+
+/// Resultado de endorsar (o quitar el endorse de) un mod.
+class EndorseResult {
+  final bool ok;
+
+  /// 'Endorsed' o 'Abstained' cuando [ok] es true.
+  final String? status;
+  final EndorseFailure? failure;
+
+  const EndorseResult.success(this.status) : ok = true, failure = null;
+  const EndorseResult.failure(this.failure) : ok = false, status = null;
+}
+
+class _FilesCacheEntry {
+  final Map<String, dynamic> data;
+  final DateTime time;
+  _FilesCacheEntry(this.data, this.time);
+}
+
+/// Resultado interno de la construcción de la galería de un mod.
+class _GalleryResult {
+  final List<Map<String, dynamic>> items;
+
+  /// true solo si la lista completa de imágenes se obtuvo de Nexus. Si es
+  /// false (sin red, API caída...) `items` puede traer solo la portada y el
+  /// llamador NO debe dar la galería por "terminada".
+  final bool complete;
+  _GalleryResult(this.items, this.complete);
+}
+
+class _CachedModData {
+  final Map<String, dynamic> data;
+  final DateTime time;
+  _CachedModData(this.data, this.time);
+}
 
 class NexusApiService {
+  // --- VARIABLES ESTÁTICAS PARA LÍMITES GLOBALES ---
+  static String dailyRemaining = 'N/A';
+  static String hourlyRemaining = 'N/A';
+
+  // Límites REALES de la cuenta, tal como los informa Nexus en cada respuesta
+  // (x-rl-daily-limit / x-rl-hourly-limit). No cambian al consumir solicitudes.
+  static String dailyLimit = 'N/A';
+  static String hourlyLimit = 'N/A';
+
+  // --- FUNCIÓN INTERNA PARA ACTUALIZAR LOS LÍMITES ---
+  static void _updateLimitsFromHeaders(http.Response response) {
+    if (response.headers.containsKey('x-rl-daily-remaining')) {
+      dailyRemaining = response.headers['x-rl-daily-remaining']!;
+    }
+    if (response.headers.containsKey('x-rl-hourly-remaining')) {
+      hourlyRemaining = response.headers['x-rl-hourly-remaining']!;
+    }
+    // Solo se guardan si son números válidos y mayores que 0.
+    final dLimit = int.tryParse(response.headers['x-rl-daily-limit'] ?? '');
+    if (dLimit != null && dLimit > 0) dailyLimit = dLimit.toString();
+    final hLimit = int.tryParse(response.headers['x-rl-hourly-limit'] ?? '');
+    if (hLimit != null && hLimit > 0) hourlyLimit = hLimit.toString();
+  }
+
   static Future<bool> validateApiKey(String apiKey) async {
     if (apiKey.isEmpty) return false;
     try {
@@ -10,6 +102,7 @@ class NexusApiService {
         Uri.parse('https://api.nexusmods.com/v1/users/validate.json'),
         headers: {'apikey': apiKey, 'accept': 'application/json'},
       );
+      _updateLimitsFromHeaders(response); // <-- Actualizamos aquí
       return response.statusCode == 200;
     } catch (e) {
       print('Error validating API key: $e');
@@ -17,11 +110,25 @@ class NexusApiService {
     }
   }
 
+  // Caché corta de los datos del mod: instalar un mod, cachear su portada y
+  // cachear su galería consultan el mismo mod seguidos; así se hace una sola
+  // vez (REST v1 + GraphQL) en lugar de tres.
+  static final Map<String, _CachedModData> _modDataCache = {};
+  static const Duration _modDataCacheTtl = Duration(minutes: 10);
+
+  /// Datos del mod. Devuelve (entre otros):
+  ///  * `gallery`: lista COMPLETA de imágenes `[{image, thumbnail}, ...]` en el
+  ///    orden de la página del mod (o solo la portada si GraphQL falla).
+  ///  * `galleryComplete`: true si la lista completa se obtuvo de Nexus.
+  ///  * `gameId`: id numérico del juego (lo pide GraphQL).
   static Future<Map<String, dynamic>?> fetchNexusModData(String nexusId, String? apiKey) async {
-    if (apiKey == null || apiKey.isEmpty) {
-      print("API Key not configured, not fetching Nexus data.");
-      return null;
+    if (apiKey == null || apiKey.isEmpty) return null;
+
+    final cached = _modDataCache[nexusId];
+    if (cached != null && DateTime.now().difference(cached.time) < _modDataCacheTtl) {
+      return cached.data;
     }
+
     final headers = {'apikey': apiKey, 'accept': 'application/json'};
 
     try {
@@ -29,37 +136,465 @@ class NexusApiService {
         'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId.json',
       );
       var response = await http.get(modDetailsUrl, headers: headers);
+      _updateLimitsFromHeaders(response);
 
       if (response.statusCode == 200) {
         final modDetails = json.decode(response.body);
-
         final pictureUrl = modDetails['picture_url'] as String?;
         String? summary = modDetails['summary'] as String?;
-        if (summary != null) {
-          summary = summary.replaceAll('<br />', '\n');
-        }
+        if (summary != null) summary = summary.replaceAll('<br />', '\n');
         String? description = modDetails['description'] as String?;
-        if (description != null) {
-          description = description.replaceAll('<br />', '\n');
-        }
+        if (description != null) description = description.replaceAll('<br />', '\n');
         final author = modDetails['author'] as String?;
+        // Título de la página del mod (sirve para identificar ediciones).
+        final modName = (modDetails['name'] as String?)?.trim();
+        final gameId = int.tryParse((modDetails['game_id'] ?? '').toString());
 
-        List<Map<String, dynamic>>? gallery;
-        if (pictureUrl != null && pictureUrl.isNotEmpty) {
-          gallery = [{"image": pictureUrl, "thumbnail": pictureUrl}];
-        }
+        final galleryResult = await _buildFullGallery(
+          nexusId: nexusId,
+          gameId: gameId,
+          pictureUrl: pictureUrl,
+          apiKey: apiKey,
+        );
 
-        return {
-          'gallery': gallery,
+        final result = <String, dynamic>{
+          'gallery': galleryResult.items.isEmpty ? null : galleryResult.items,
+          'galleryComplete': galleryResult.complete,
+          'gameId': gameId,
           'summary': summary,
           'author': author,
           'description': description,
+          'modName': modName,
         };
+
+        // Se cachea siempre (10 min): instalar, cachear portada y cachear
+        // galería consultan el mismo mod seguidos y así no se repite la
+        // petición. El reintento de una galería incompleta lo controla
+        // `galleryAttemptAt` en el nexus_info.json del mod.
+        _modDataCache[nexusId] = _CachedModData(result, DateTime.now());
+        return result;
       }
-      print("Failed to fetch Nexus data for mod $nexusId (code: ${response.statusCode}).");
       return null;
     } catch (e) {
-      print("An exception occurred while fetching Nexus data for mod $nexusId: $e");
+      print("Error fetchNexusModData: $e");
+      return null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  //  GALERÍA COMPLETA (GraphQL v2)
+  //
+  //  La API REST (v1) solo da `picture_url` y el OpenAPI v3.0.0 no tiene
+  //  endpoint de galería: la lista completa de imágenes de la página del mod
+  //  solo se puede pedir por GraphQL v2, con la misma API key.
+  // ---------------------------------------------------------------------------
+
+  static const String _graphqlUrl = 'https://api.nexusmods.com/v2/graphql';
+
+  /// Fallos seguidos al pedir galerías. Si el esquema de GraphQL no coincide
+  /// (o no hay red) no se sigue insistiendo con cada mod: se reintenta en el
+  /// próximo arranque.
+  static int _galleryFailStreak = 0;
+  static const int _galleryMaxFailStreak = 3;
+
+  static Future<_GalleryResult> _buildFullGallery({
+    required String nexusId,
+    required int? gameId,
+    required String? pictureUrl,
+    required String apiKey,
+  }) async {
+    final items = <Map<String, dynamic>>[];
+    var complete = false;
+
+    if (gameId != null) {
+      final urls = await fetchModGalleryImages(
+        nexusId: nexusId,
+        gameId: gameId,
+        apiKey: apiKey,
+      );
+      if (urls != null) {
+        complete = true;
+        for (final url in urls) {
+          if (!items.any((e) => e['image'] == url)) {
+            items.add({'image': url, 'thumbnail': url});
+          }
+        }
+      }
+    }
+
+    // Respaldo: sin lista de GraphQL, al menos la portada (comportamiento
+    // anterior). Si la lista existe, la portada ya es su primera imagen.
+    if (items.isEmpty && pictureUrl != null && pictureUrl.isNotEmpty) {
+      items.add({'image': pictureUrl, 'thumbnail': pictureUrl});
+    }
+    return _GalleryResult(items, complete);
+  }
+
+  /// URLs de TODAS las imágenes de la galería del mod, en el orden de la
+  /// página. Lista vacía = el mod no tiene imágenes (o ya no es accesible).
+  /// null = no se pudo obtener (error de red/API/esquema): el llamador debe
+  /// reintentar más tarde.
+  ///
+  /// La galería NO es un campo de `Mod`: está en la consulta de nivel superior
+  /// `media`, que se filtra por juego y mod. Como el esquema no está
+  /// documentado con detalle, la consulta se CONSTRUYE por introspección.
+  static Future<List<String>?> fetchModGalleryImages({
+    required String nexusId,
+    required int gameId,
+    required String apiKey,
+  }) async {
+    if (_galleryFailStreak >= _galleryMaxFailStreak) return null;
+
+    _mediaPlan ??= await _buildMediaPlan(apiKey);
+    final plan = _mediaPlan;
+    if (plan == null) {
+      _galleryFailStreak++;
+      return null;
+    }
+
+    final urls = await _runMediaPlan(plan, nexusId, gameId, apiKey);
+    if (urls == null) {
+      _galleryFailStreak++;
+      return null;
+    }
+    _galleryFailStreak = 0;
+    print('[NexusGallery] mod $nexusId: ${urls.length} imágenes (media)');
+    return urls;
+  }
+
+  // --- Introspección -------------------------------------------------------
+
+  static _MediaPlan? _mediaPlan;
+
+  static const String _typeRefFragment =
+      r'fragment TR on __Type { name kind ofType { name kind ofType { name kind '
+      r'ofType { name kind ofType { name kind } } } } }';
+
+  static String? _namedType(dynamic t) {
+    String? name;
+    while (t is Map) {
+      if (t['name'] != null) name = t['name'].toString();
+      t = t['ofType'];
+    }
+    return name;
+  }
+
+  /// `[Foo!]!` -> texto GraphQL para declarar una variable de ese tipo.
+  static String _typeRefToString(dynamic t) {
+    if (t is! Map) return 'String';
+    final kind = t['kind']?.toString();
+    if (kind == 'NON_NULL') return '${_typeRefToString(t['ofType'])}!';
+    if (kind == 'LIST') return '[${_typeRefToString(t['ofType'])}]';
+    return t['name']?.toString() ?? 'String';
+  }
+
+  static Future<Map<String, dynamic>?> _introspectType(String name, String apiKey) async {
+    final body = await _graphql(
+      'query(\$n: String!) { __type(name: \$n) { name kind '
+      'fields { name args { name type { ...TR } } type { ...TR } } '
+      'inputFields { name type { ...TR } } '
+      'possibleTypes { name } enumValues { name } } } $_typeRefFragment',
+      {'n': name},
+      apiKey,
+    );
+    final data = body?['data'];
+    final t = data is Map ? data['__type'] : null;
+    return t is Map ? Map<String, dynamic>.from(t) : null;
+  }
+
+  static List<Map<String, dynamic>> _mapList(dynamic v) =>
+      v is List ? v.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : [];
+
+  static Map<String, dynamic>? _byName(List<Map<String, dynamic>> list, String name,
+      {bool ignoreCase = false}) {
+    for (final e in list) {
+      final n = e['name']?.toString() ?? '';
+      if (ignoreCase ? n.toLowerCase() == name.toLowerCase() : n == name) return e;
+    }
+    return null;
+  }
+
+  static void _logSchemaHint(String why, {List<String>? modFields, List<String>? mediaArgs}) {
+    print('[NexusGallery] Esquema GraphQL no reconocido: $why');
+    if (modFields != null) print('[NexusGallery]   campos de Mod: ${modFields.join(', ')}');
+    if (mediaArgs != null) print('[NexusGallery]   argumentos de media: ${mediaArgs.join(', ')}');
+  }
+
+  /// Averigua cómo se llama el filtro de `media`, qué campos tiene y qué
+  /// forma tienen los resultados. Devuelve null si no encaja.
+  static Future<_MediaPlan?> _buildMediaPlan(String apiKey) async {
+    final qBody = await _graphql(
+      '{ __schema { queryType { name } } }',
+      const {},
+      apiKey,
+    );
+    final qData = qBody?['data'];
+    final schema = qData is Map ? qData['__schema'] : null;
+    final queryTypeName =
+        (schema is Map && schema['queryType'] is Map) ? schema['queryType']['name']?.toString() : null;
+    if (queryTypeName == null) {
+      _logSchemaHint('no se pudo leer el esquema (¿introspección desactivada o sin red?)');
+      return null;
+    }
+
+    final root = await _introspectType(queryTypeName, apiKey);
+    final media = _byName(_mapList(root?['fields']), 'media');
+    if (media == null) {
+      _logSchemaHint('no existe la consulta "media"');
+      return null;
+    }
+
+    final args = _mapList(media['args']);
+    final argNames = args.map((a) => a['name'].toString()).toList();
+    final filterArg = _byName(args, 'filter');
+    final filterTypeName = filterArg == null ? null : _namedType(filterArg['type']);
+    if (filterArg == null || filterTypeName == null) {
+      _logSchemaHint('"media" no tiene argumento filter', mediaArgs: argNames);
+      return null;
+    }
+
+    final filterType = await _introspectType(filterTypeName, apiKey);
+    final filterFields = _mapList(filterType?['inputFields']);
+    final modFilter = _byName(filterFields, 'modId', ignoreCase: true);
+    final gameFilter = _byName(filterFields, 'gameId', ignoreCase: true);
+    if (modFilter == null) {
+      _logSchemaHint(
+        'el filtro $filterTypeName no permite filtrar por modId '
+        '(campos: ${filterFields.map((f) => f['name']).join(', ')})',
+        mediaArgs: argNames,
+      );
+      return null;
+    }
+
+    // Forma de cada valor de filtro (esperado: { value, op }).
+    final valueTypeName = _namedType(modFilter['type']);
+    String opField = 'op';
+    String valueField = 'value';
+    String opValue = 'EQUALS';
+    if (valueTypeName != null) {
+      final vt = await _introspectType(valueTypeName, apiKey);
+      final vf = _mapList(vt?['inputFields']);
+      if (_byName(vf, 'value') == null || vf.isEmpty) {
+        _logSchemaHint('forma inesperada de $valueTypeName (${vf.map((f) => f['name']).join(', ')})');
+        return null;
+      }
+      final opF = _byName(vf, 'op') ?? _byName(vf, 'operator');
+      if (opF != null) {
+        opField = opF['name'].toString();
+        final opType = _namedType(opF['type']);
+        if (opType != null) {
+          final et = await _introspectType(opType, apiKey);
+          final values = _mapList(et?['enumValues']).map((e) => e['name'].toString()).toList();
+          if (values.isNotEmpty && !values.contains(opValue)) opValue = values.first;
+        }
+      }
+    }
+
+    // Forma de los resultados.
+    final retName = _namedType(media['type']);
+    final ret = retName == null ? null : await _introspectType(retName, apiKey);
+    if (ret == null) {
+      _logSchemaHint('no se pudo leer el tipo de retorno de media', mediaArgs: argNames);
+      return null;
+    }
+    final retFields = _mapList(ret['fields']);
+    final nodesField = _byName(retFields, 'nodes');
+    final itemTypeName = nodesField != null ? _namedType(nodesField['type']) : retName;
+    final itemType =
+        itemTypeName == null ? null : (itemTypeName == retName ? ret : await _introspectType(itemTypeName, apiKey));
+    if (itemType == null) {
+      _logSchemaHint('no se pudo leer el tipo de cada elemento de media', mediaArgs: argNames);
+      return null;
+    }
+
+    // Selección: solo imágenes (se excluyen vídeos e imágenes de supporter).
+    final possible = _mapList(itemType['possibleTypes']).map((e) => e['name'].toString()).toList();
+    final candidateTypes = possible.isNotEmpty ? possible : [itemTypeName!];
+    final selections = <String>[];
+    var selectionHasModId = false;
+    for (final tn in candidateTypes) {
+      final lower = tn.toLowerCase();
+      if (!lower.contains('image') || lower.contains('supporter')) continue;
+      final t = tn == itemTypeName ? itemType : await _introspectType(tn, apiKey);
+      final fields = _mapList(t?['fields']);
+      if (_byName(fields, 'url') == null) continue;
+      final pick = <String>['url'];
+      if (_byName(fields, 'order') != null) pick.add('order');
+      if (_byName(fields, 'modId') != null) {
+        pick.add('modId');
+        selectionHasModId = true;
+      }
+      selections.add(possible.isNotEmpty ? '... on $tn { ${pick.join(' ')} }' : pick.join(' '));
+    }
+    if (selections.isEmpty) {
+      _logSchemaHint('no se encontró un tipo de imagen con campo url en media '
+          '(tipos: ${candidateTypes.join(', ')})', mediaArgs: argNames);
+      return null;
+    }
+
+    final countArg = _byName(args, 'count');
+    final offsetArg = _byName(args, 'offset');
+    final paged = countArg != null && offsetArg != null;
+
+    final selection = selections.join(' ');
+    final varDecls = <String>['\$f: ${_typeRefToString(filterArg['type'])}'];
+    final callArgs = <String>['filter: \$f'];
+    if (paged) {
+      varDecls..add('\$c: ${_typeRefToString(countArg['type'])}')..add('\$o: ${_typeRefToString(offsetArg['type'])}');
+      callArgs..add('count: \$c')..add('offset: \$o');
+    }
+    final body = nodesField != null ? 'nodes { $selection }' : selection;
+    final query = 'query ModGalleryMedia(${varDecls.join(', ')}) { media(${callArgs.join(', ')}) { $body } }';
+
+    print('[NexusGallery] Plan media: $query');
+    return _MediaPlan(
+      query: query,
+      modField: modFilter['name'].toString(),
+      gameField: gameFilter?['name']?.toString(),
+      valueField: valueField,
+      opField: opField,
+      opValue: opValue,
+      paged: paged,
+      hasNodes: nodesField != null,
+      selectionHasModId: selectionHasModId,
+    );
+  }
+
+  static Future<List<String>?> _runMediaPlan(
+    _MediaPlan plan,
+    String nexusId,
+    int gameId,
+    String apiKey,
+  ) async {
+    Map<String, dynamic> cond(String v) => {plan.valueField: v, plan.opField: plan.opValue};
+    final filter = <String, dynamic>{
+      plan.modField: [cond(nexusId)],
+      if (plan.gameField != null) plan.gameField!: [cond(gameId.toString())],
+    };
+
+    const pageSize = 50;
+    final raw = <Map>[];
+    for (var page = 0; page < 10; page++) {
+      final vars = <String, dynamic>{'f': filter};
+      if (plan.paged) {
+        vars['c'] = pageSize;
+        vars['o'] = page * pageSize;
+      }
+      final body = await _graphql(plan.query, vars, apiKey);
+      if (body == null) return null;
+      if (body['errors'] != null) {
+        final errs = body['errors'];
+        final msg = errs is List && errs.isNotEmpty && errs.first is Map
+            ? (errs.first as Map)['message']
+            : errs;
+        print('[NexusGallery] media devolvió error: $msg');
+        return null;
+      }
+      final data = body['data'];
+      final media = data is Map ? data['media'] : null;
+      final list = plan.hasNodes ? (media is Map ? media['nodes'] : null) : media;
+      if (list is! List) return null;
+      final maps = list.whereType<Map>().toList();
+      raw.addAll(maps);
+      if (!plan.paged || maps.length < pageSize) break;
+    }
+
+    // Seguridad: si la API devuelve el id del mod, se descarta lo que sea de
+    // otro mod (un filtro ignorado traería imágenes ajenas).
+    final own = raw.where((e) {
+      if (!plan.selectionHasModId || e['modId'] == null) return true;
+      return e['modId'].toString() == nexusId;
+    }).toList();
+    if (!plan.selectionHasModId && raw.length > 60) {
+      print('[NexusGallery] media sin modId y con ${raw.length} resultados: se descarta por seguridad');
+      return null;
+    }
+    return _parseImageUrls(own);
+  }
+
+  /// Ordena por `order` (numérico si todos lo son, texto si no) y devuelve
+  /// solo URLs únicas y válidas.
+  static List<String> _parseImageUrls(List raw) {
+    final entries = <_RawImage>[];
+    for (var i = 0; i < raw.length; i++) {
+      final e = raw[i];
+      if (e is! Map) continue;
+      final url = e['url']?.toString().trim() ?? '';
+      if (!url.startsWith('http')) continue;
+      entries.add(_RawImage(url, e['order']?.toString(), i));
+    }
+    final allNumeric = entries.isNotEmpty &&
+        entries.every((e) => e.order != null && num.tryParse(e.order!) != null);
+    entries.sort((a, b) {
+      int c = 0;
+      if (a.order != null && b.order != null) {
+        c = allNumeric
+            ? num.parse(a.order!).compareTo(num.parse(b.order!))
+            : a.order!.compareTo(b.order!);
+      }
+      return c != 0 ? c : a.index.compareTo(b.index);
+    });
+    final seen = <String>{};
+    return [for (final e in entries) if (seen.add(e.url)) e.url];
+  }
+
+  /// POST a la API GraphQL v2. Devuelve el cuerpo completo (`data` y/o
+  /// `errors`) o null si falló la petición.
+  static Future<Map<String, dynamic>?> _graphql(
+    String query,
+    Map<String, dynamic> variables,
+    String apiKey,
+  ) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse(_graphqlUrl),
+            headers: {
+              'apikey': apiKey,
+              'content-type': 'application/json',
+              'accept': 'application/json',
+            },
+            body: json.encode({'query': query, 'variables': variables}),
+          )
+          .timeout(const Duration(seconds: 20));
+      _updateLimitsFromHeaders(response);
+      if (response.statusCode != 200) {
+        print('[NexusGallery] GraphQL HTTP ${response.statusCode}');
+        return null;
+      }
+      final body = json.decode(response.body);
+      return body is Map<String, dynamic> ? body : null;
+    } catch (e) {
+      print('[NexusGallery] Error GraphQL: $e');
+      return null;
+    }
+  }
+
+  // Caché de nombres de mod: varias ediciones del mismo mod (o varios mods
+  // soltados a la vez) no repiten la misma petición.
+  static final Map<String, String> _modNameCache = {};
+
+  /// Nombre del mod en Nexus (el título de la página del mod, NO el nombre del
+  /// archivo). Sirve para distinguir ediciones con el mismo nombre de archivo,
+  /// p. ej. "Alt Goth Mini Set" y "Obsidian Set" con una edición "CNS compatible".
+  static Future<String?> fetchModName(String nexusId, String? apiKey) async {
+    if (apiKey == null || apiKey.isEmpty) return null;
+    final cached = _modNameCache[nexusId];
+    if (cached != null) return cached;
+    try {
+      final response = await http.get(
+        Uri.parse('https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId.json'),
+        headers: {'apikey': apiKey, 'accept': 'application/json'},
+      );
+      _updateLimitsFromHeaders(response);
+      if (response.statusCode != 200) return null;
+      final data = json.decode(response.body);
+      final name = (data is Map ? data['name'] : null)?.toString().trim();
+      if (name == null || name.isEmpty) return null;
+      _modNameCache[nexusId] = name;
+      return name;
+    } catch (e) {
+      print('Error fetchModName($nexusId): $e');
       return null;
     }
   }
@@ -72,6 +607,7 @@ class NexusApiService {
         'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId/files.json',
       );
       final response = await http.get(url, headers: headers);
+      _updateLimitsFromHeaders(response); // <-- Actualizamos aquí
 
       if (response.statusCode != 200) return null;
 
@@ -83,16 +619,91 @@ class NexusApiService {
       
       for (final file in allFiles) {
         final currentVersion = file['version'] as String?;
-        if (currentVersion != null &&
-            VersionUtils.compareVersions(currentVersion, highestVersion) > 0) {
+        if (currentVersion != null && VersionUtils.compareVersions(currentVersion, highestVersion) > 0) {
           highestVersion = currentVersion;
           highestVersionFile = file;
         }
       }
       return highestVersionFile?['version'];
     } catch (e) {
-      print('Error fetching latest version for mod $nexusId: $e');
       return null;
+    }
+  }
+
+  // Caché corta de files.json: al soltar varios archivos del mismo mod
+  // (p. ej. las variantes "CNS" y "Replacer") solo se consulta una vez.
+  static final Map<String, _FilesCacheEntry> _filesCache = {};
+  static const Duration _filesCacheTtl = Duration(minutes: 10);
+
+  /// Devuelve el JSON completo de files.json (`files` + `file_updates`) o null
+  /// si falla / el mod no existe. Con [includeOldVersions] también pide los
+  /// archivos antiguos, que la API no devuelve por defecto.
+  static Future<Map<String, dynamic>?> fetchModFiles(
+    String modId,
+    String? apiKey, {
+    bool includeOldVersions = false,
+  }) async {
+    if (apiKey == null || apiKey.isEmpty) return null;
+
+    final cacheKey = '$modId|${includeOldVersions ? 'all' : 'default'}';
+    final cached = _filesCache[cacheKey];
+    if (cached != null && DateTime.now().difference(cached.time) < _filesCacheTtl) {
+      return cached.data;
+    }
+
+    try {
+      var uri = Uri.parse(
+        'https://api.nexusmods.com/v1/games/stellarblade/mods/$modId/files.json',
+      );
+      if (includeOldVersions) {
+        uri = uri.replace(queryParameters: {
+          'category': 'main,update,optional,old_version,miscellaneous',
+        });
+      }
+      final response = await http.get(
+        uri,
+        headers: {'apikey': apiKey, 'accept': 'application/json'},
+      );
+      _updateLimitsFromHeaders(response);
+      if (response.statusCode != 200) return null;
+
+      final data = json.decode(response.body);
+      if (data is! Map<String, dynamic>) return null;
+      _filesCache[cacheKey] = _FilesCacheEntry(data, DateTime.now());
+      return data;
+    } catch (e) {
+      print('Error fetchModFiles($modId): $e');
+      return null;
+    }
+  }
+
+  /// Busca un archivo por su hash MD5 (identifica el mod y el archivo exactos
+  /// aunque el usuario haya renombrado el zip). Cada elemento trae `mod` y
+  /// `file_details`. Lista vacía si no hay coincidencias o falla la petición.
+  static Future<List<Map<String, dynamic>>> findFilesByMd5(
+    String md5Hash,
+    String? apiKey,
+  ) async {
+    if (apiKey == null || apiKey.isEmpty) return [];
+    try {
+      final response = await http.get(
+        Uri.parse(
+          'https://api.nexusmods.com/v1/games/stellarblade/mods/md5_search/$md5Hash.json',
+        ),
+        headers: {'apikey': apiKey, 'accept': 'application/json'},
+      );
+      _updateLimitsFromHeaders(response);
+      if (response.statusCode != 200) return [];
+
+      final data = json.decode(response.body);
+      if (data is! List) return [];
+      return data
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } catch (e) {
+      print('Error findFilesByMd5: $e');
+      return [];
     }
   }
 
@@ -106,19 +717,17 @@ class NexusApiService {
         uri,
         headers: {'apikey': apiKey, 'accept': 'application/json'},
       );
+      _updateLimitsFromHeaders(response); // <-- Actualizamos aquí
       return response.statusCode == 200;
     } catch (e) {
-      print('Error during API validation for mod ID $modId: $e');
       return false;
     }
   }
 
-  /// Procesa el enlace nxm:// de Nexus Mods y devuelve el enlace de descarga del CDN y el nombre del archivo.
   static Future<Map<String, String>?> getDownloadLinkFromNxm(String nxmUrl, String? apiKey) async {
     if (apiKey == null || apiKey.isEmpty) return null;
 
     try {
-      // Formato esperado: nxm://stellarblade/mods/123/files/456?key=abc&expires=123&user_id=123
       final uri = Uri.parse(nxmUrl);
       final gameDomain = uri.host;
       final modId = uri.pathSegments[1];
@@ -132,66 +741,271 @@ class NexusApiService {
       );
 
       final response = await http.get(apiUrl, headers: {'apikey': apiKey, 'accept': 'application/json'});
+      _updateLimitsFromHeaders(response); // <-- Actualizamos aquí
       
       if (response.statusCode == 200) {
+        // ... (el resto de tu lógica de NXM sigue exactamente igual)
         final List<dynamic> links = json.decode(response.body);
         if (links.isNotEmpty) {
-          // Dar prioridad al servidor Premium si está disponible, si no, tomar el primero
           final bestLink = links.firstWhere((link) => link['short_name'] == 'Premium', orElse: () => links.first);
           final cdnUrl = bestLink['URI'] as String;
-          
-          // Extraer el nombre del archivo de la URI directa del CDN
           String fileName = Uri.parse(cdnUrl).pathSegments.last;
           String exactVersion = '1';
           
-          // --- NUEVA LÓGICA DE VALIDACIÓN DE NOMBRE ---
-          // Si el CDN nos da un UUID sin extensión, hacemos una consulta rápida para obtener el nombre real
-          if (!fileName.toLowerCase().endsWith('.zip') && 
-              !fileName.toLowerCase().endsWith('.rar') && 
-              !fileName.toLowerCase().endsWith('.7z')) {
+          if (!fileName.toLowerCase().endsWith('.zip') && !fileName.toLowerCase().endsWith('.rar') && !fileName.toLowerCase().endsWith('.7z')) {
             try {
-            final fileDetailsUrl = Uri.parse('https://api.nexusmods.com/v1/games/$gameDomain/mods/$modId/files/$fileId.json');
-            final fileDetailsResponse = await http.get(fileDetailsUrl, headers: {'apikey': apiKey, 'accept': 'application/json'});
-            
-            if (fileDetailsResponse.statusCode == 200) {
-              final fileDetails = json.decode(fileDetailsResponse.body);
+              final fileDetailsUrl = Uri.parse('https://api.nexusmods.com/v1/games/$gameDomain/mods/$modId/files/$fileId.json');
+              final fileDetailsResponse = await http.get(fileDetailsUrl, headers: {'apikey': apiKey, 'accept': 'application/json'});
+              _updateLimitsFromHeaders(fileDetailsResponse); // <-- ¡También lo atrapamos aquí por si acaso!
               
-              // 1. Obtenemos el nombre real
-              final realFileName = fileDetails['file_name'] as String?;
-              if (realFileName != null && realFileName.isNotEmpty) {
-                fileName = realFileName;
+              if (fileDetailsResponse.statusCode == 200) {
+                final fileDetails = json.decode(fileDetailsResponse.body);
+                final realFileName = fileDetails['file_name'] as String?;
+                if (realFileName != null && realFileName.isNotEmpty) fileName = realFileName;
+                if (fileDetails['version'] != null) exactVersion = fileDetails['version'].toString();
               }
-              
-              // 2. Obtenemos la versión oficial (ej. "1.1", "v2.0")
-              if (fileDetails['version'] != null) {
-                exactVersion = fileDetails['version'].toString();
-              }
+            } catch (e) {
+              print("Error al consultar detalles: $e");
             }
-          } catch (e) {
-            print("Error al consultar detalles del archivo: $e");
+            if (!fileName.toLowerCase().endsWith('.zip') && !fileName.toLowerCase().endsWith('.rar') && !fileName.toLowerCase().endsWith('.7z')) {
+              fileName = '$fileName.zip';
+            }
           }
-          // Fallback de extensión por si falla la API y el CDN nos dio un UUID
-          if (!fileName.toLowerCase().endsWith('.zip') && 
-              !fileName.toLowerCase().endsWith('.rar') && 
-              !fileName.toLowerCase().endsWith('.7z')) {
-            fileName = '$fileName.zip';
-          }
-          }
-          // ---------------------------------------------
-          
-          return {
-            'url': cdnUrl,
-            'fileName': fileName,
-            'modId': modId, // Devolvemos el ID para que main.dart lo procese
-            'version': exactVersion
-          };
+          return {'url': cdnUrl, 'fileName': fileName, 'modId': modId, 'version': exactVersion};
         }
-      } else {
-        print("Error API Nexus Mods NXM. Estado: ${response.statusCode}");
       }
     } catch (e) {
-      print("Error al procesar el enlace nxm:// : $e");
+      print("Error nxm:// : $e");
     }
     return null;
   }
+
+  static Future<Map<String, dynamic>?> validateAndGetProfile(String apiKey) async {
+    if (apiKey.isEmpty) return null;
+    try {
+      final response = await http.get(
+        Uri.parse('https://api.nexusmods.com/v1/users/validate.json'),
+        headers: {'apikey': apiKey, 'accept': 'application/json'},
+      );
+      _updateLimitsFromHeaders(response); // <-- Actualizamos aquí
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return {
+          'isValid': true,
+          'isPremium': data['is_premium'] ?? false,
+          'name': data['name'] ?? 'Usuario',
+          'profileUrl': data['profile_url'],
+        };
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  //  ENDORSE
+  //
+  //  Aquí no se guarda nada en memoria ni en disco: cada llamada pregunta a
+  //  Nexus. Quien llama decide cuándo (el panel lo hace cada 10 min por mod) y
+  //  guarda el resultado en el nexus_info.json del mod (EndorseInfoStore).
+  // ---------------------------------------------------------------------------
+
+  /// Lista de endorsements de TODA la cuenta (una sola petición). null si no
+  /// se pudo obtener.
+  static Future<Map<String, String>?> _fetchUserEndorsements(String apiKey) async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('https://api.nexusmods.com/v1/user/endorsements.json'),
+            headers: {'apikey': apiKey, 'accept': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 20));
+      _updateLimitsFromHeaders(response);
+      if (response.statusCode != 200) return null;
+
+      final data = json.decode(response.body);
+      if (data is! List) return null;
+      final map = <String, String>{};
+      for (final e in data) {
+        if (e is! Map) continue;
+        if (e['domain_name']?.toString() != 'stellarblade') continue;
+        final status = EndorseRecord.normalize(e['status']);
+        final id = e['mod_id']?.toString();
+        if (status != null && id != null) map[id] = status;
+      }
+      return map;
+    } catch (e) {
+      print('Error _fetchUserEndorsements: $e');
+      return null;
+    }
+  }
+
+  /// Estado de endorse del usuario para este mod, preguntado a Nexus ahora
+  /// mismo: 'Endorsed', 'Abstained' o 'Undecided'. null = NO SE SABE (sin API
+  /// key, sin red, Nexus no informó el dato...): quien llame debe conservar el
+  /// último estado guardado.
+  ///
+  /// Fuentes: el campo `endorsement` de la ficha del mod y la lista de
+  /// endorsements de la cuenta. Si la ficha no dice nada o dice "no endorsado"
+  /// se contrasta con la lista, porque equivocarse en ese sentido es lo que
+  /// hacía que un mod endorsado pareciera sin endorsar.
+  static Future<String?> fetchEndorseStatus(String nexusId, String? apiKey) async {
+    if (apiKey == null || apiKey.isEmpty) return null;
+
+    String? status;
+    try {
+      final response = await http
+          .get(
+            Uri.parse(
+              'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId.json',
+            ),
+            headers: {'apikey': apiKey, 'accept': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 20));
+      _updateLimitsFromHeaders(response);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final endorsement = data is Map ? data['endorsement'] : null;
+        if (endorsement is Map) {
+          status = EndorseRecord.normalize(endorsement['endorse_status']);
+        }
+      }
+    } catch (e) {
+      print('Error fetchEndorseStatus($nexusId): $e');
+    }
+
+    if (status == null || status == 'Undecided') {
+      final all = await _fetchUserEndorsements(apiKey);
+      final fromList = all?[nexusId];
+      if (fromList != null) status = fromList;
+    }
+    return status;
+  }
+
+  static EndorseFailure? _endorseFailureFromMessage(String upperMessage) {
+    if (upperMessage.contains('TOO_SOON')) return EndorseFailure.tooSoon;
+    if (upperMessage.contains('NOT_DOWNLOADED')) {
+      return EndorseFailure.notDownloaded;
+    }
+    if (upperMessage.contains('OWN_MOD')) return EndorseFailure.ownMod;
+    return null;
+  }
+
+  /// Endorsa ([endorse] = true) o quita el endorse ([endorse] = false) de un
+  /// mod. [version] es la versión instalada, que Nexus guarda junto al voto.
+  ///
+  /// Nexus responde con errores propios que se traducen a [EndorseFailure]:
+  /// `NOT_DOWNLOADED_MOD`, `TOO_SOON_AFTER_DOWNLOAD` (15 min desde la
+  /// descarga) e `IS_OWN_MOD`.
+  static Future<EndorseResult> setEndorsement({
+    required String nexusId,
+    required String? apiKey,
+    required bool endorse,
+    String? version,
+  }) async {
+    if (apiKey == null || apiKey.isEmpty) {
+      return const EndorseResult.failure(EndorseFailure.noApiKey);
+    }
+
+    try {
+      final cleanVersion = version?.trim() ?? '';
+      final response = await http
+          .post(
+            Uri.parse(
+              'https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId/'
+              '${endorse ? 'endorse' : 'abstain'}.json',
+            ),
+            headers: {
+              'apikey': apiKey,
+              'accept': 'application/json',
+              'content-type': 'application/json',
+            },
+            body: json.encode({
+              if (cleanVersion.isNotEmpty) 'Version': cleanVersion,
+            }),
+          )
+          .timeout(const Duration(seconds: 20));
+      _updateLimitsFromHeaders(response);
+
+      // El motivo del rechazo viaja en `message`.
+      var message = '';
+      try {
+        final body = json.decode(response.body);
+        if (body is Map) {
+          message = (body['message'] ?? body['error'] ?? '').toString();
+        }
+      } catch (_) {
+        message = response.body;
+      }
+      final upper = message.toUpperCase();
+
+      // Ya estaba endorsado: el resultado deseado ya se cumple.
+      if (endorse && upper.contains('ALREADY_ENDORSED')) {
+        return const EndorseResult.success('Endorsed');
+      }
+
+      final byMessage = _endorseFailureFromMessage(upper);
+      if (byMessage != null) return EndorseResult.failure(byMessage);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final status = endorse ? 'Endorsed' : 'Abstained';
+        return EndorseResult.success(status);
+      }
+
+      print('Endorse HTTP ${response.statusCode}: $message');
+      switch (response.statusCode) {
+        case 401:
+          return const EndorseResult.failure(EndorseFailure.invalidKey);
+        case 404:
+          return const EndorseResult.failure(EndorseFailure.notFound);
+        case 429:
+          return const EndorseResult.failure(EndorseFailure.rateLimited);
+        default:
+          return const EndorseResult.failure(EndorseFailure.unknown);
+      }
+    } on TimeoutException {
+      return const EndorseResult.failure(EndorseFailure.network);
+    } on SocketException {
+      return const EndorseResult.failure(EndorseFailure.network);
+    } on http.ClientException {
+      return const EndorseResult.failure(EndorseFailure.network);
+    } catch (e) {
+      print('Error setEndorsement($nexusId): $e');
+      return const EndorseResult.failure(EndorseFailure.unknown);
+    }
+  }
+}
+
+class _RawImage {
+  final String url;
+  final String? order;
+  final int index;
+  _RawImage(this.url, this.order, this.index);
+}
+
+/// Consulta `media` ya resuelta por introspección (se reutiliza para todos
+/// los mods de la sesión).
+class _MediaPlan {
+  final String query;
+  final String modField;
+  final String? gameField;
+  final String valueField;
+  final String opField;
+  final String opValue;
+  final bool paged;
+  final bool hasNodes;
+  final bool selectionHasModId;
+  _MediaPlan({
+    required this.query,
+    required this.modField,
+    required this.gameField,
+    required this.valueField,
+    required this.opField,
+    required this.opValue,
+    required this.paged,
+    required this.hasNodes,
+    required this.selectionHasModId,
+  });
 }

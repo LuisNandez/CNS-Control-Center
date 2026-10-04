@@ -1,7 +1,13 @@
-import 'dart:ui';
+// ignore_for_file: deprecated_member_use
+import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui' show FontFeature, lerpDouble;
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/download_manager.dart';
+import '../theme/ios_theme.dart';
+import 'ios_progress_bar.dart';
+import 'ios_widgets.dart';
 
 class DownloadOverlay {
   static OverlayEntry? _overlayEntry;
@@ -11,7 +17,7 @@ class DownloadOverlay {
 
     _overlayEntry = OverlayEntry(
       builder: (context) => const Positioned(
-        top: 4, 
+        top: 8,
         left: 0,
         right: 0,
         child: SafeArea(
@@ -32,91 +38,159 @@ class DownloadPillWidget extends StatefulWidget {
 }
 
 class _DownloadPillWidgetState extends State<DownloadPillWidget> {
+  /// Tras expandirse sola (descarga nueva o error), la píldora se minimiza
+  /// después de este tiempo si el ratón no está encima y no hay errores.
+  static const Duration _autoCollapseDelay = Duration(seconds: 5);
+
+  // Material translúcido (como las barras de macOS / centros de control de iOS).
+  static const Color _collapsedColor = Color(0xCC3A3A3C);
+  static const Color _expandedColor = Color(0xEB2C2C2E);
+  static const Color _glassBorder = Color(0x2EFFFFFF);
+
   bool _isExpanded = false;
-  int _previousTaskCount = 0; 
+  bool _hovering = false; // ratón sobre la píldora (cualquier estado)
+  bool _hoverCollapsed = false;
+  bool _pressedCollapsed = false;
+  int _previousUnfinished = 0;
+  int _previousErrors = 0;
+  Timer? _collapseTimer;
+
+  DownloadManager get _manager => DownloadManager.instance;
+
+  int _errorCount() => _manager.activeDownloads
+      .where((t) => t.status == DownloadStatus.error)
+      .length;
+
+  @override
+  void initState() {
+    super.initState();
+    // La píldora puede crearse DESPUÉS de que se añadió la primera descarga.
+    _previousUnfinished = _manager.unfinishedCount;
+    _previousErrors = _errorCount();
+    if (_previousUnfinished > 0) {
+      _isExpanded = true;
+      _scheduleAutoCollapse();
+    }
+    _manager.addListener(_onManagerChanged);
+  }
+
+  @override
+  void dispose() {
+    _manager.removeListener(_onManagerChanged);
+    _collapseTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onManagerChanged() {
+    if (!mounted) return;
+    final unfinished = _manager.unfinishedCount;
+    final errors = _errorCount();
+    bool changed = false;
+
+    if (unfinished == 0) {
+      // Todo terminó: la píldora desaparece y vuelve a empezar minimizada.
+      _collapseTimer?.cancel();
+      if (_isExpanded || _hovering) {
+        _isExpanded = false;
+        _hovering = false;
+        changed = true;
+      }
+    } else if (unfinished > _previousUnfinished || errors > _previousErrors) {
+      // Descarga nueva o un error nuevo: se muestra el detalle un momento.
+      if (!_isExpanded) {
+        _isExpanded = true;
+        changed = true;
+      }
+      _scheduleAutoCollapse();
+    }
+
+    _previousUnfinished = unfinished;
+    _previousErrors = errors;
+    if (changed) setState(() {});
+  }
+
+  void _scheduleAutoCollapse() {
+    _collapseTimer?.cancel();
+    _collapseTimer = Timer(_autoCollapseDelay, () {
+      if (!mounted || !_isExpanded) return;
+      if (_errorCount() > 0) return; // un error espera acción del usuario
+      if (_hovering) {
+        _scheduleAutoCollapse(); // el usuario está leyendo: espera más
+        return;
+      }
+      setState(() => _isExpanded = false);
+    });
+  }
+
+  void _expand() {
+    _collapseTimer?.cancel();
+    setState(() {
+      _isExpanded = true;
+      _pressedCollapsed = false;
+    });
+  }
+
+  void _collapse() {
+    _collapseTimer?.cancel();
+    if (_isExpanded) setState(() => _isExpanded = false);
+  }
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: DownloadManager.instance,
+      listenable: _manager,
       builder: (context, _) {
-        final tasks = DownloadManager.instance.activeDownloads;
-        final currentTaskCount = tasks.length;
-        
-        if (currentTaskCount > _previousTaskCount) {
-          _isExpanded = true;
-        } else if (currentTaskCount == 0) {
-          _isExpanded = false;
-        }
-        
-        _previousTaskCount = currentTaskCount;
-
-        final totalProgress = tasks.isEmpty 
-            ? 0.0 
-            : tasks.fold(0.0, (sum, task) => sum + task.progress) / tasks.length;
-            
-        final downloadingTasks = tasks.where((t) => t.status == DownloadStatus.downloading).length;
+        final all = _manager.activeDownloads;
+        final unfinished = all.where((t) => !t.isFinished).toList();
+        final bool visible = unfinished.isNotEmpty;
 
         return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 400),
+          duration: const Duration(milliseconds: 380),
           switchInCurve: Curves.easeOutBack,
-          switchOutCurve: Curves.easeInBack,
+          switchOutCurve: Curves.easeInCubic,
           transitionBuilder: (child, animation) {
+            final slide = Tween<Offset>(
+              begin: const Offset(0, -0.5),
+              end: Offset.zero,
+            ).animate(animation);
             return FadeTransition(
               opacity: animation,
-              child: ScaleTransition(
-                scale: animation,
-                child: child,
+              child: SlideTransition(
+                position: slide,
+                child: ScaleTransition(
+                  scale: Tween<double>(begin: 0.86, end: 1.0).animate(animation),
+                  child: child,
+                ),
               ),
             );
           },
-          child: tasks.isEmpty
+          // Sin descargas pendientes la píldora se cierra de inmediato, aunque
+          // la lista aún conserve tareas terminadas unos instantes.
+          child: !visible
               ? const SizedBox.shrink(key: ValueKey('empty_pill'))
               : Center(
                   key: const ValueKey('active_pill'),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(_isExpanded ? 24 : 32),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.4),
-                          blurRadius: 15,
-                          spreadRadius: 2,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(_isExpanded ? 24 : 32),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                        child: Material(
-                          color: const Color(0xFF1E1E1E).withOpacity(0.85),
-                          child: InkWell(
-                            onTap: () => setState(() => _isExpanded = !_isExpanded),
-                            highlightColor: Colors.tealAccent.withOpacity(0.1),
-                            splashColor: Colors.tealAccent.withOpacity(0.2),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: Colors.tealAccent.withOpacity(0.3), 
-                                  width: 1,
-                                ),
-                                borderRadius: BorderRadius.circular(_isExpanded ? 24 : 32),
-                              ),
-                              child: AnimatedSize(
-                                duration: const Duration(milliseconds: 350),
-                                curve: Curves.easeOutExpo,
-                                alignment: Alignment.topCenter,
-                                child: AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 200),
-                                  child: _isExpanded 
-                                      ? _buildExpandedList(context, tasks) // NUEVO: Se pasa el context
-                                      : _buildCollapsedPill(context, downloadingTasks, totalProgress), // NUEVO: Se pasa el context
-                                ),
-                              ),
-                            ),
-                          ),
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: TapRegion(
+                      onTapOutside: (_) => _collapse(),
+                      child: MouseRegion(
+                        onEnter: (_) => _hovering = true,
+                        onExit: (_) {
+                          _hovering = false;
+                          if (_isExpanded && _errorCount() == 0) {
+                            _scheduleAutoCollapse();
+                          }
+                        },
+                        child: AnimatedScale(
+                          duration: const Duration(milliseconds: 160),
+                          curve: Curves.easeOutCubic,
+                          scale: _isExpanded
+                              ? 1.0
+                              : (_pressedCollapsed
+                                  ? 0.96
+                                  : (_hoverCollapsed ? 1.03 : 1.0)),
+                          child: _buildGlass(context, all),
                         ),
                       ),
                     ),
@@ -127,193 +201,468 @@ class _DownloadPillWidgetState extends State<DownloadPillWidget> {
     );
   }
 
-  // NUEVO: Recibe BuildContext
-  Widget _buildCollapsedPill(BuildContext context, int count, double progress) {
-    final l10n = AppLocalizations.of(context)!; // Instancia de traducciones
+  Widget _buildGlass(BuildContext context, List<DownloadTask> all) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: _isExpanded ? 1.0 : 0.0),
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, _) {
+        final radius = lerpDouble(20, 22, t)!;
+        return IosGlass(
+          shadow: true,
+          blur: 34,
+          color: Color.lerp(_collapsedColor, _expandedColor, t)!,
+          borderColor: _glassBorder,
+          borderRadius: BorderRadius.circular(radius),
+          child: DecoratedBox(
+            // Brillo suave arriba, como el vidrio de macOS (se apaga al expandir).
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(radius),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color.fromRGBO(255, 255, 255, 0.16 * (1 - t)),
+                  const Color(0x00FFFFFF),
+                ],
+              ),
+            ),
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: _isExpanded
+                    ? _buildExpandedList(context, all)
+                    : _buildCollapsedPill(context, all),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
-    return Container(
-      key: const ValueKey('collapsed'), 
-      width: 260,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(
-              value: progress > 0 ? progress : null, 
-              color: Colors.tealAccent, 
-              backgroundColor: Colors.grey[800],
-              strokeWidth: 2.5,
-            ),
+  // --------------------------------------------------------------------------
+  //  Píldora compacta
+  // --------------------------------------------------------------------------
+  Widget _buildCollapsedPill(BuildContext context, List<DownloadTask> all) {
+    final l10n = AppLocalizations.of(context)!;
+
+    final fetching =
+        all.where((t) => t.status == DownloadStatus.fetching).length;
+    final downloading =
+        all.where((t) => t.status == DownloadStatus.downloading).length;
+    final errors = all.where((t) => t.status == DownloadStatus.error).length;
+    final inProgress = fetching + downloading;
+
+    // Progreso global: las terminadas cuentan 100 % para que la barra no
+    // retroceda cuando una descarga acaba mientras otras siguen.
+    final counted = all.where((t) =>
+        t.status != DownloadStatus.error && t.status != DownloadStatus.cancelled);
+    final double progress = counted.isEmpty
+        ? 0.0
+        : counted.fold<double>(0.0, (s, t) => s + t.progress) / counted.length;
+
+    Widget leading;
+    String label;
+    const Color labelColor = IosColors.label;
+    bool showPercent = false;
+
+    if (inProgress > 0) {
+      leading = (downloading == 0 || progress <= 0)
+          ? const IosSpinner(radius: 8)
+          : _ProgressRing(progress: progress);
+      label = l10n.downloadingModsCount(inProgress);
+      showPercent = downloading > 0 && progress > 0;
+    } else if (errors > 0) {
+      leading = const Icon(Icons.error_rounded, size: 18, color: IosColors.red);
+      label = l10n.downloadError;
+    } else {
+      leading =
+          const Icon(Icons.pause_circle_filled_rounded, size: 18, color: IosColors.orange);
+      label = l10n.downloadPausedStatus;
+      showPercent = progress > 0;
+    }
+
+    return MouseRegion(
+      key: const ValueKey('collapsed'),
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hoverCollapsed = true),
+      onExit: (_) => setState(() {
+        _hoverCollapsed = false;
+        _pressedCollapsed = false;
+      }),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => setState(() => _pressedCollapsed = true),
+        onTapCancel: () => setState(() => _pressedCollapsed = false),
+        onTap: _expand,
+        child: Container(
+          height: 40,
+          constraints: const BoxConstraints(minWidth: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(width: 18, height: 18, child: Center(child: leading)),
+              const SizedBox(width: 10),
+              Text(
+                label,
+                style: TextStyle(
+                  color: labelColor,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              if (showPercent) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '${(progress * 100).round()}%',
+                  style: const TextStyle(
+                    color: IosColors.secondaryLabel,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(width: 12),
-          Text(
-            l10n.downloadingModsCount(count), // NUEVO: Texto localizado con pluralización
-            style: const TextStyle(
-              color: Colors.white, 
-              fontSize: 14, 
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.3,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  // NUEVO: Recibe BuildContext
+  // --------------------------------------------------------------------------
+  //  Lista expandida
+  // --------------------------------------------------------------------------
   Widget _buildExpandedList(BuildContext context, List<DownloadTask> tasks) {
     final l10n = AppLocalizations.of(context)!;
+    final bool isPremium = _manager.isUserPremium;
 
     return Container(
       key: const ValueKey('expanded'),
       width: 400,
-      constraints: const BoxConstraints(maxHeight: 400),
+      constraints: const BoxConstraints(maxHeight: 420),
       child: Column(
-        mainAxisSize: MainAxisSize.min, 
+        mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.fromLTRB(18, 12, 12, 10),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  l10n.activeDownloads,
-                  style: const TextStyle(
-                    color: Colors.white, 
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => setState(() => _isExpanded = false),
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      shape: BoxShape.circle,
+                Expanded(
+                  child: Text(
+                    l10n.activeDownloads,
+                    style: const TextStyle(
+                      color: IosColors.label,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      letterSpacing: -0.3,
                     ),
-                    child: const Icon(Icons.close, color: Colors.white70, size: 16),
                   ),
                 ),
+                IosCloseButton(onPressed: _collapse),
               ],
             ),
           ),
-          Divider(height: 1, color: Colors.white.withOpacity(0.1)),
+          Container(height: 0.5, color: const Color(0x1FFFFFFF)),
           Flexible(
             child: ListView.separated(
               shrinkWrap: true,
               padding: const EdgeInsets.all(12),
               itemCount: tasks.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final task = tasks[index];
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        task.fileName, 
-                        style: const TextStyle(
-                          color: Colors.white, 
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ), 
-                        maxLines: 1, 
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 10),
-                      if (task.status == DownloadStatus.fetching)
-                        const LinearProgressIndicator(color: Colors.tealAccent)
-                      else if (task.status == DownloadStatus.error)
-                        Text(
-                          task.errorMessage ?? l10n.downloadError,
-                          style: const TextStyle(color: Colors.redAccent, fontSize: 12),
-                        )
-                      else if (task.status == DownloadStatus.cancelled)
-                        Text(
-                          l10n.downloadCancelled, // Nueva l10n requerida
-                          style: const TextStyle(color: Colors.orangeAccent, fontSize: 12),
-                        )
-                      else ...[
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: task.progress, 
-                            backgroundColor: Colors.white.withOpacity(0.1), 
-                            color: task.status == DownloadStatus.paused ? Colors.grey : Colors.tealAccent,
-                            minHeight: 6,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    task.downloaded, 
-                                    style: TextStyle(fontSize: 11, color: Colors.grey[400]),
-                                  ),
-                                  Text(
-                                    task.speed, 
-                                    style: TextStyle(fontSize: 11, color: task.status == DownloadStatus.paused ? Colors.orangeAccent : Colors.grey[400]),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (task.status == DownloadStatus.downloading)
-                                  IconButton(
-                                    icon: const Icon(Icons.pause, color: Colors.white70, size: 20),
-                                    onPressed: () => DownloadManager.instance.pauseTask(
-                                      task.id,
-                                      pausedText: l10n.downloadPausedStatus, // Texto localizado
-                                    ),
-                                    tooltip: l10n.downloadPause,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                  )
-                                else if (task.status == DownloadStatus.paused)
-                                  IconButton(
-                                    icon: const Icon(Icons.play_arrow, color: Colors.tealAccent, size: 20),
-                                    onPressed: () => DownloadManager.instance.resumeTask(task.id),
-                                    tooltip: l10n.downloadResume, // Nueva l10n requerida
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                  ),
-                                const SizedBox(width: 16),
-                                IconButton(
-                                  icon: const Icon(Icons.close, color: Colors.redAccent, size: 20),
-                                  onPressed: () => DownloadManager.instance.cancelTask(task.id),
-                                  tooltip: l10n.downloadCancel, // Nueva l10n requerida
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ]
-                    ],
-                  ),
-                );
-              },
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) =>
+                  _buildTaskCard(context, tasks[index], l10n, isPremium),
             ),
           ),
+          if (!isPremium)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 13,
+                    color: IosColors.tertiaryLabel,
+                  ),
+                  SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      "Cuentas gratuitas limitadas a 3 MB/s por Nexus Mods",
+                      style: TextStyle(
+                        color: IosColors.secondaryLabel,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
   }
+
+  Widget _buildTaskCard(
+    BuildContext context,
+    DownloadTask task,
+    AppLocalizations l10n,
+    bool isPremium,
+  ) {
+    final bool paused = task.status == DownloadStatus.paused;
+
+    Widget body;
+    if (task.status == DownloadStatus.fetching) {
+      body = const IosProgressBar();
+    } else if (task.status == DownloadStatus.complete) {
+      body = Row(
+        children: [
+          const Expanded(
+            child: IosProgressBar(value: 1.0, color: IosColors.green),
+          ),
+          const SizedBox(width: 10),
+          const Icon(
+            Icons.check_circle_rounded,
+            color: IosColors.green,
+            size: 18,
+          ),
+          const SizedBox(width: 4),
+        ],
+      );
+    } else if (task.status == DownloadStatus.error) {
+      body = Row(
+        children: [
+          Expanded(
+            child: Text(
+              task.errorMessage ?? "Download failed",
+              style: const TextStyle(color: IosColors.red, fontSize: 12),
+            ),
+          ),
+          IosToolbarButton(
+            width: 30,
+            height: 30,
+            tooltip: "Reintentar",
+            icon: const Icon(
+              Icons.refresh_rounded,
+              color: IosColors.blue,
+              size: 19,
+            ),
+            onPressed: () => _manager.retryTask(task.id),
+          ),
+          const SizedBox(width: 2),
+          // Antes una descarga con error no se podía descartar y la píldora
+          // se quedaba para siempre.
+          IosToolbarButton(
+            width: 30,
+            height: 30,
+            tooltip: l10n.downloadCancel,
+            icon: const Icon(
+              Icons.close_rounded,
+              color: IosColors.red,
+              size: 20,
+            ),
+            onPressed: () => _manager.cancelTask(task.id),
+          ),
+        ],
+      );
+    } else if (task.status == DownloadStatus.cancelled) {
+      body = Text(
+        l10n.downloadCancelled,
+        style: const TextStyle(color: IosColors.orange, fontSize: 12),
+      );
+    } else {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          IosProgressBar(
+            value: task.progress,
+            color: paused ? IosColors.gray : IosColors.blue,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      task.downloaded,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: IosColors.secondaryLabel,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(
+                          task.speed,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: paused
+                                ? IosColors.orange
+                                : IosColors.secondaryLabel,
+                          ),
+                        ),
+                        if (isPremium) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: IosColors.yellow.withOpacity(0.18),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              "PREMIUM",
+                              style: TextStyle(
+                                fontSize: 9,
+                                letterSpacing: 0.4,
+                                fontWeight: FontWeight.w700,
+                                color: IosColors.yellow,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (task.status == DownloadStatus.downloading)
+                IosToolbarButton(
+                  width: 30,
+                  height: 30,
+                  tooltip: l10n.downloadPause,
+                  icon: const Icon(
+                    Icons.pause_rounded,
+                    color: IosColors.icon,
+                    size: 20,
+                  ),
+                  onPressed: () => _manager.pauseTask(
+                    task.id,
+                    pausedText: l10n.downloadPausedStatus,
+                  ),
+                )
+              else if (paused)
+                IosToolbarButton(
+                  width: 30,
+                  height: 30,
+                  tooltip: l10n.downloadResume,
+                  icon: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: IosColors.blue,
+                    size: 22,
+                  ),
+                  onPressed: () => _manager.resumeTask(task.id),
+                ),
+              const SizedBox(width: 2),
+              IosToolbarButton(
+                width: 30,
+                height: 30,
+                tooltip: l10n.downloadCancel,
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: IosColors.red,
+                  size: 20,
+                ),
+                onPressed: () => _manager.cancelTask(task.id),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 10, 10),
+      decoration: BoxDecoration(
+        color: const Color(0x14FFFFFF),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Text(
+              task.fileName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: IosColors.label,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          body,
+        ],
+      ),
+    );
+  }
+}
+
+/// Anillo de progreso estilo Safari / Finder de macOS: pista tenue y arco azul
+/// con extremos redondeados que avanza suavemente.
+class _ProgressRing extends StatelessWidget {
+  const _ProgressRing({required this.progress, this.size = 17});
+
+  final double progress;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: progress.clamp(0.0, 1.0)),
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, _) => SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(painter: _RingPainter(value)),
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  _RingPainter(this.progress);
+
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 2.6;
+    final rect = Offset.zero & size;
+    final arcRect = rect.deflate(stroke / 2);
+
+    final track = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..color = const Color(0x33FFFFFF);
+    canvas.drawArc(arcRect, 0, math.pi * 2, false, track);
+
+    if (progress <= 0) return;
+    final arc = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = stroke
+      ..color = IosColors.blue;
+    canvas.drawArc(arcRect, -math.pi / 2, math.pi * 2 * progress, false, arc);
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) => old.progress != progress;
 }

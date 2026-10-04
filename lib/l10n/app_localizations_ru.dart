@@ -507,7 +507,10 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get dialogContentApiKeyInstructions =>
-      '1. Перейдите на Nexus Mods и войдите в систему.\n2. Нажмите на свой аватар и перейдите в \'Настройки сайта\'.\n3. Перейдите на вкладку \'API\'.\n4. Нажмите \'Сгенерировать новый ключ API\'.\n5. Скопируйте ключ и вставьте его сюда.';
+      '1. Нажмите кнопку ниже, чтобы открыть Nexus Mods, и войдите в аккаунт.\n2. Прокрутите страницу до самого низа, до раздела \'Personal API Key\'.\n3. Запросите ключ, если его ещё нет, и скопируйте его.\n4. Вставьте его сюда.';
+
+  @override
+  String get apiKeyOpenNexusPage => 'Открыть страницу ключей API';
 
   @override
   String get apiKey => 'Ключ API';
@@ -529,7 +532,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get errorApiKeyMissing =>
-      'Ключ API Nexus Mods не настроен. Пожалуйста, добавьте его через значок ключа в верхней панели.';
+      'Ключ API Nexus Mods не настроен. Добавьте его в разделе Настройки › Подключение и обновления › Ключ API Nexus Mods.';
 
   @override
   String get statusCheckingUpdates => 'Проверка обновлений модов...';
@@ -1445,6 +1448,25 @@ class AppLocalizationsRu extends AppLocalizations {
   String get launchGameText => 'Запустить Stellar Blade';
 
   @override
+  String get stopGameText => 'Закрыть Stellar Blade';
+
+  @override
+  String get dialogTitleStopGame => 'Закрыть Stellar Blade?';
+
+  @override
+  String get dialogContentStopGame =>
+      'Игра будет закрыта. Несохранённый прогресс будет потерян.';
+
+  @override
+  String get dialogActionStopGame => 'Закрыть';
+
+  @override
+  String get notificationGameStopped => 'Игра закрыта';
+
+  @override
+  String get errorStoppingGame => 'Не удалось закрыть игру';
+
+  @override
   String get mod801DialogTitle => 'Требуется настройка Steam';
 
   @override
@@ -1768,4 +1790,347 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get downloadPausedStatus => 'На паузе';
+
+  @override
+  String get settingsFixGameStartup => 'Исправить незапуск игры';
+
+  @override
+  String get settingsFixGameStartupDesc =>
+      'Используйте, если игра закрывается или вылетает при запуске. UE4SS и CNS временно удаляются, игра запускается один раз, после чего они устанавливаются заново.';
+
+  @override
+  String get repairConfirmTitle => 'Исправить запуск игры?';
+
+  @override
+  String get repairConfirmMessage =>
+      'UE4SS и CNS будут удалены (их файлы сохраняются), игра автоматически запустится и закроется, затем всё будет установлено заново и игра запустится снова. Не закрывайте приложение во время процесса.';
+
+  @override
+  String get repairConfirmAction => 'Начать';
+
+  @override
+  String get launchRetryTitle => 'Game didn\'t start';
+
+  @override
+  String get launchRetryMessage =>
+      'Stellar Blade didn\'t start after two attempts. This is usually caused by UE4SS or CNS. \"Fix game not starting\" temporarily uninstalls them, launches the game once and reinstalls them. Run it now?';
+
+  @override
+  String get launchRetryAction => 'Fix now';
+
+  @override
+  String get repairOverlayTitle => 'Исправление запуска игры';
+
+  @override
+  String get repairOverlayWarning =>
+      'Не закрывайте приложение и игру вручную, пока идёт процесс.';
+
+  @override
+  String get repairStepCloseGame => 'Закрытие игры, если она запущена';
+
+  @override
+  String get repairStepStashCns => 'Удаление CNS (файлы сохраняются)';
+
+  @override
+  String get repairStepStashUe4ss => 'Удаление UE4SS (файлы сохраняются)';
+
+  @override
+  String get repairStepLaunchClean => 'Запуск игры без UE4SS и CNS';
+
+  @override
+  String get repairStepWaitInit => 'Ожидание загрузки игры';
+
+  @override
+  String get repairStepCloseAuto => 'Автоматическое закрытие игры';
+
+  @override
+  String get repairStepRestoreUe4ss => 'Повторная установка UE4SS';
+
+  @override
+  String get repairStepRestoreCns => 'Повторная установка CNS';
+
+  @override
+  String get repairStepLaunchFinal => 'Запуск игры';
+
+  @override
+  String get repairStatusSkipped => 'пропущено';
+
+  @override
+  String get repairResultSuccess => 'Исправление завершено. Игра запущена.';
+
+  @override
+  String get repairResultErrorRestored =>
+      'Исправление не удалось, но UE4SS и CNS возвращены на место.';
+
+  @override
+  String get repairResultErrorRestoreFailed =>
+      'Исправление не удалось, и файлы пока не восстановлены. Они будут восстановлены автоматически при следующем запуске приложения.';
+
+  @override
+  String get repairErrorGameNotStarted => 'Игра не запустилась вовремя.';
+
+  @override
+  String get repairButtonClose => 'Закрыть';
+
+  @override
+  String get repairRecoveredNotice =>
+      'Обнаружено прерванное исправление: файлы UE4SS и CNS восстановлены.';
+
+  @override
+  String snackBarNewEditionInstalled(Object name) {
+    return 'Установлен новый вариант: $name';
+  }
+
+  @override
+  String snackBarNewEditionInstalledDesc(Object count) {
+    return 'Теперь у этого мода установлено вариантов: $count.';
+  }
+
+  @override
+  String get previewTagNewEdition => 'новый вариант';
+
+  @override
+  String get previewTagUpdate => 'обновление';
+
+  @override
+  String editionsInstalledTooltip(Object count) {
+    return 'Установлено вариантов этого мода: $count';
+  }
+
+  @override
+  String editionLabelValue(Object edition) {
+    return 'Вариант: $edition';
+  }
+
+  @override
+  String get otherEditionsTitle => 'Другие установленные варианты';
+
+  @override
+  String get detailsStatusEnabled => 'Enabled';
+
+  @override
+  String get detailsStatusDisabled => 'Disabled';
+
+  @override
+  String get detailsInformation => 'Information';
+
+  @override
+  String get detailsRowAuthor => 'Author';
+
+  @override
+  String get detailsRowType => 'Type';
+
+  @override
+  String get detailsRowInstalled => 'Installed';
+
+  @override
+  String get detailsRowModified => 'Last modified';
+
+  @override
+  String get detailsRowNexusId => 'Nexus ID';
+
+  @override
+  String get detailsRowFolder => 'Folder';
+
+  @override
+  String get detailsCopyPath => 'Copy path';
+
+  @override
+  String get detailsCopied => 'Copied to clipboard';
+
+  @override
+  String get detailsEndorse => 'Endorse';
+
+  @override
+  String get detailsEndorsed => 'Endorsed';
+
+  @override
+  String endorseWaitLabel(Object minutes) {
+    return 'Wait $minutes min';
+  }
+
+  @override
+  String get endorseSuccessTitle => 'Mod endorsed';
+
+  @override
+  String get endorseRemovedTitle => 'Endorsement removed';
+
+  @override
+  String get endorseFailedTitle => 'Couldn\'t update endorsement';
+
+  @override
+  String get endorseErrNotNexus =>
+      'This mod isn\'t linked to a Nexus Mods page, so it can\'t be endorsed.';
+
+  @override
+  String get endorseErrNoApiKey =>
+      'Add your Nexus Mods API key in Settings to endorse mods.';
+
+  @override
+  String endorseErrWait(Object minutes) {
+    return 'Nexus requires waiting 15 minutes after downloading a mod before you can endorse it. Try again in $minutes min.';
+  }
+
+  @override
+  String get endorseErrNotDownloaded =>
+      'Nexus only lets you endorse mods you\'ve downloaded with your account.';
+
+  @override
+  String get endorseErrOwnMod => 'You can\'t endorse your own mod.';
+
+  @override
+  String get endorseErrRateLimit =>
+      'You\'ve reached the Nexus request limit. Try again later.';
+
+  @override
+  String get endorseErrInvalidKey =>
+      'Nexus rejected your API key. Check it in Settings.';
+
+  @override
+  String get endorseErrNetwork =>
+      'Couldn\'t reach Nexus Mods. Check your connection and try again.';
+
+  @override
+  String get endorseErrUnknown =>
+      'Nexus couldn\'t process the request. Try again later.';
+
+  @override
+  String get endorseRemoveConfirmTitle => 'Remove endorsement?';
+
+  @override
+  String endorseRemoveConfirmMessage(Object name) {
+    return '$name will no longer be endorsed on Nexus Mods.';
+  }
+
+  @override
+  String get endorseRemoveConfirmAction => 'Remove';
+
+  @override
+  String get detailsUpdateAction => 'Update';
+
+  @override
+  String get detailsShowMore => 'Show more';
+
+  @override
+  String get detailsShowLess => 'Show less';
+
+  @override
+  String get detailsAddNote => 'Add a note';
+
+  @override
+  String outfitsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count outfits',
+      one: '1 outfit',
+      zero: 'No outfits',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String outfitsSelectedCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get outfitsChoose => 'Choose outfits';
+
+  @override
+  String get outfitsDone => 'Done';
+
+  @override
+  String get outfitsFilterAll => 'All';
+
+  @override
+  String get outfitsFilterSelected => 'Selected';
+
+  @override
+  String get outfitsClearAll => 'Clear all';
+
+  @override
+  String get outfitsRemove => 'Remove';
+
+  @override
+  String get outfitsActionSelect => 'Select';
+
+  @override
+  String get outfitsActionDeselect => 'Deselect';
+
+  @override
+  String outfitsNoResults(String query) {
+    return 'No results for \"$query\"';
+  }
+
+  @override
+  String get outfitsSelectedEmpty => 'No outfits selected yet.';
+
+  @override
+  String get outfitsNoPreview => 'No preview available';
+
+  @override
+  String get replacementOffConfirmTitle => 'Turn off replacement mod?';
+
+  @override
+  String replacementOffConfirmMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'The $count selected outfits will be removed from this mod.',
+      one: 'The selected outfit will be removed from this mod.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get replacementOffConfirmAction => 'Turn off';
+
+  @override
+  String patcherSharedWith(String owner) {
+    return '  Same Container ID as: $owner';
+  }
+
+  @override
+  String patcherIdChange(String oldId, String newId) {
+    return '  Container ID $oldId → $newId';
+  }
+
+  @override
+  String get patcherBackupSaved => '  Originals kept as .cnsbak (restorable).';
+
+  @override
+  String patcherLeftUntouched(String reason) {
+    return '  Left untouched (not safe to patch): $reason';
+  }
+
+  @override
+  String summaryUnfixableContainerIds(int count) {
+    return '⚠️ $count mod(s) share a Container ID but could not be fixed safely (left untouched; they may not appear in CNS):';
+  }
+
+  @override
+  String get revertPatchesTitle => 'Revert conflict patches';
+
+  @override
+  String get revertPatchesDesc =>
+      'Restores the original mod files changed by the Conflict Patcher.';
+
+  @override
+  String get revertPatchesConfirmTitle => 'Revert conflict patches?';
+
+  @override
+  String get revertPatchesConfirmMessage =>
+      'The original files saved by the Conflict Patcher (.cnsbak) will be restored. Close the game first. Conflicting mods may stop showing up in CNS again.';
+
+  @override
+  String get revertPatchesAction => 'Revert';
+
+  @override
+  String revertPatchesDone(int count) {
+    return 'Restored $count file(s).';
+  }
+
+  @override
+  String get revertPatchesNothing => 'No patched files to revert.';
 }

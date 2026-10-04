@@ -3,11 +3,13 @@ import 'package:path/path.dart' as p;
 import '../../models/mod_info.dart';
 import '../../l10n/app_localizations.dart';
 import '../../thumbnail_service.dart';
+import '../theme/ios_theme.dart';
 import 'mod_image_widgets.dart';
 import 'animated_mod_switch.dart';
+import 'ios_widgets.dart';
 import 'package:hugeicons/hugeicons.dart';
 
-class ModGridCard extends StatelessWidget {
+class ModGridCard extends StatefulWidget {
   final ModInfo modInfo;
   final AppLocalizations l10n;
   final ThumbnailService thumbnailService;
@@ -17,6 +19,10 @@ class ModGridCard extends StatelessWidget {
   final bool showModTypeTags;
   final bool isLoading;
 
+  /// Cuántas ediciones de este mismo mod (mismo ID de Nexus) hay instaladas.
+  /// Con 2 o más se muestra un indicador junto al nombre.
+  final int editionCount;
+
   final VoidCallback onTapDetails;
   final VoidCallback onUpdateAvailableTap;
   final VoidCallback onEditVersionTap;
@@ -24,7 +30,7 @@ class ModGridCard extends StatelessWidget {
   final void Function(Offset, String) onHoverEnter;
   final void Function(Offset) onHoverMove;
   final VoidCallback onHoverExit;
-  
+
   final Future<bool> Function(ModInfo) onEnable;
   final Future<bool> Function(ModInfo) onDisable;
 
@@ -46,6 +52,7 @@ class ModGridCard extends StatelessWidget {
     required this.isHighlighted,
     required this.showModTypeTags,
     required this.isLoading,
+    this.editionCount = 1,
     required this.onTapDetails,
     required this.onUpdateAvailableTap,
     required this.onEditVersionTap,
@@ -64,56 +71,124 @@ class ModGridCard extends StatelessWidget {
     required this.onDeleteTap,
   });
 
+  @override
+  State<ModGridCard> createState() => _ModGridCardState();
+}
+
+class _ModGridCardState extends State<ModGridCard> {
+  bool _hover = false;
+
+  // Estado del resaltado de la portada (hover / presionado). Se dibuja dentro
+  // de la propia tarjeta, así que se recorta junto con ella.
+  bool _coverHover = false;
+  bool _coverPressed = false;
+
+  /// Capa de resaltado de la portada. Vive dentro del Stack de la tarjeta (que
+  /// ya está recortada con esquinas redondeadas), por eso nunca se sale del
+  /// borde de la tarjeta ni del área visible del scroll.
+  Widget _coverHighlight() {
+    final double alpha = _coverPressed ? 0.14 : (_coverHover ? 0.07 : 0.0);
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
+          color: Colors.white.withOpacity(alpha),
+        ),
+      ),
+    );
+  }
+
+  /// Etiqueta flotante sobre la portada: fondo oscuro translúcido con un
+  /// punto de color (sin desenfoque, para que la cuadrícula siga siendo fluida).
+  Widget _overlayPill(String text, Color dot) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.58),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildModTypeBadge() {
-    final String modTypeString;
-    final Color modTypeColor;
-    final String? modType = modInfo.modType;
+    final l10n = widget.l10n;
+    final String? modType = widget.modInfo.modType;
+    final String text;
+    final Color dot;
 
     if (modType == 'replacement') {
-      modTypeString = l10n.modTypeReplacement;
-      modTypeColor = const Color.fromARGB(255, 182, 33, 135);
+      text = l10n.modTypeReplacement;
+      dot = IosColors.purple;
     } else if (modType == 'genericPak') {
-      modTypeString = l10n.modTypeGeneric;
-      modTypeColor = const Color.fromARGB(255, 63, 63, 63);
+      text = l10n.modTypeGeneric;
+      dot = IosColors.gray;
     } else if (modType == 'movies') {
-      modTypeString = l10n.modTypeMovies;
-      modTypeColor = const Color.fromARGB(255, 153, 49, 49);
+      text = l10n.modTypeMovies;
+      dot = IosColors.red;
     } else if (modType == 'logicMod') {
-      modTypeString = l10n.modTypeLogic;
-      modTypeColor = const Color.fromARGB(255, 26, 99, 151);
+      text = l10n.modTypeLogic;
+      dot = IosColors.blue;
     } else if (modType == 'save') {
-      modTypeString = l10n.modTypeSave;
-      modTypeColor = Colors.green.shade600; // Puedes ajustar el color
+      text = l10n.modTypeSave;
+      dot = IosColors.green;
     } else if (modType == 'config') {
-      modTypeString = l10n.modTypeConfig;
-      modTypeColor = Colors.blueGrey.shade600; // Puedes ajustar el color
+      text = l10n.modTypeConfig;
+      dot = IosColors.teal;
     } else if (modType == 'splash') {
-      modTypeString = l10n.modTypeSplash;
-      modTypeColor = Colors.deepOrange.shade600; // Puedes ajustar el color
+      text = l10n.modTypeSplash;
+      dot = IosColors.orange;
     } else {
-      modTypeString = l10n.modTypeCNS;
-      modTypeColor = Colors.teal.shade600;
+      text = l10n.modTypeCNS;
+      dot = IosColors.teal;
     }
+    return _overlayPill(text, dot);
+  }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: modTypeColor.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        modTypeString,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
+  PopupMenuEntry<String> _menuItem(
+    String value,
+    dynamic icon,
+    String label, {
+    bool destructive = false,
+  }) {
+    return iosMenuItem<String>(
+      value: value,
+      label: label,
+      destructive: destructive,
+      leading: HugeIcon(
+        icon: icon,
+        size: 16,
+        color: destructive ? IosColors.red : IosColors.icon,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final modInfo = widget.modInfo;
+    final l10n = widget.l10n;
+    final updateInfo = widget.updateInfo;
+
     String? coverImagePath;
     String? cacheKey;
     bool isLocalFile = false;
@@ -131,232 +206,324 @@ class ModGridCard extends StatelessWidget {
       isLocalFile = false;
     }
 
-    final hasUpdate = updateInfo != null;
+    final bool showUpdate = updateInfo != null && !widget.isIgnored;
     final hasCustomCover = modInfo.customCoverPath != null && modInfo.customCoverPath!.isNotEmpty;
     final displayVersion = modInfo.customVersion ?? modInfo.localVersion;
     final bool isReplacement = modInfo.replacesOutfits != null && modInfo.replacesOutfits!.isNotEmpty;
     final String displayTag = isReplacement
-        ? (modInfo.replacesOutfits!.length > 1 
-            ? '${modInfo.replacesOutfits!.length} Outfits' 
+        ? (modInfo.replacesOutfits!.length > 1
+            ? '${modInfo.replacesOutfits!.length} Outfits'
             : modInfo.replacesOutfits!.first)
         : (modInfo.customFitMeshType ?? modInfo.fitMeshType ?? l10n.modCategoryOther);
 
-    return Card(
+    // Aro de la tarjeta: amarillo si hay actualización, azul si es recién
+    // instalado, y un filo casi invisible en el resto (como en iOS).
+    final bool hasRing = showUpdate || widget.isHighlighted;
+    final Color ringColor = showUpdate
+        ? IosColors.yellow
+        : (widget.isHighlighted ? IosColors.blue : const Color(0x14FFFFFF));
+
+    String? updateVersionText;
+    if (showUpdate) {
+      final v = updateInfo!['version'] as String;
+      updateVersionText = v.toLowerCase().startsWith('v') ? v.substring(1) : v;
+    }
+
+    return MouseRegion(
       key: ValueKey(modInfo.directory.path),
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(
-          color: hasUpdate && !isIgnored
-              ? Colors.yellowAccent
-              : (isHighlighted ? Colors.tealAccent : Colors.transparent),
-          width: 1.5,
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      elevation: 4,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: onTapDetails,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Container(
-                    color: Colors.black.withOpacity(0.5),
-                    child: ModThumbnailImage(
-                      imageUrl: cacheKey,
-                      imagePathToProcess: coverImagePath,
-                      thumbnailService: thumbnailService,
-                      isLocal: isLocalFile,
-                      fit: BoxFit.cover,
-                      alignment: modInfo.customCoverAlignment ?? Alignment.center,
-                    ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        if (!modInfo.isEnabled)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.orangeAccent.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              l10n.modDisabledBadge,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: AnimatedScale(
+        scale: _hover ? 1.015 : 1.0,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOut,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: IosColors.card,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(_hover ? 0.45 : 0.25),
+                blurRadius: _hover ? 22 : 10,
+                offset: Offset(0, _hover ? 10 : 4),
+              ),
+            ],
+          ),
+          // El aro va por encima y no altera el tamaño del contenido.
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: ringColor, width: hasRing ? 1.5 : 0.5),
+          ),
+          // Material local: los InkWell internos (versión, etiqueta, botones)
+          // pintan sobre ESTE Material, que está dentro del recorte de la
+          // tarjeta, y no sobre el Material global (que no se recorta con el
+          // scroll y dejaba el destello fuera de la tarjeta).
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ---------- PORTADA ----------
+              Expanded(
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  onEnter: (_) => setState(() => _coverHover = true),
+                  onExit: (_) => setState(() {
+                    _coverHover = false;
+                    _coverPressed = false;
+                  }),
+                  child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: widget.onTapDetails,
+                  onTapDown: (_) => setState(() => _coverPressed = true),
+                  onTapUp: (_) => setState(() => _coverPressed = false),
+                  onTapCancel: () => setState(() => _coverPressed = false),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Opacity(
+                        opacity: modInfo.isEnabled ? 1.0 : 0.5,
+                        child: Container(
+                          color: Colors.black.withOpacity(0.35),
+                          child: ModThumbnailImage(
+                            imageUrl: cacheKey,
+                            imagePathToProcess: coverImagePath,
+                            thumbnailService: widget.thumbnailService,
+                            isLocal: isLocalFile,
+                            fit: BoxFit.cover,
+                            alignment: modInfo.customCoverAlignment ?? Alignment.center,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if (!modInfo.isEnabled)
+                              _overlayPill(l10n.modDisabledBadge, IosColors.orange),
+                            if (!modInfo.isEnabled && widget.showModTypeTags)
+                              const SizedBox(height: 4),
+                            if (widget.showModTypeTags) _buildModTypeBadge(),
+                          ],
+                        ),
+                      ),
+                      if (showUpdate)
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: IosToolbarButton(
+                            width: 26,
+                            height: 26,
+                            background: IosColors.yellow,
+                            tooltip: l10n.updateAvailable(updateVersionText!),
+                            onPressed: widget.onUpdateAvailableTap,
+                            icon: const Icon(
+                              Icons.arrow_upward_rounded,
+                              size: 16,
+                              color: Colors.black,
                             ),
                           ),
-                        if (!modInfo.isEnabled) const SizedBox(height: 4),
-                        if (showModTypeTags) _buildModTypeBadge(),
-                      ],
-                    ),
+                        ),
+                      // Resaltado de selección (encima de todo, recortado
+                      // por la tarjeta y con sus esquinas redondeadas).
+                      _coverHighlight(),
+                    ],
                   ),
-                  if (hasUpdate && !isIgnored)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.notification_important_rounded,
-                          color: Colors.yellowAccent,
-                        ),
-                        tooltip: l10n.updateAvailable(
-                          (updateInfo!['version'] as String).toLowerCase().startsWith('v')
-                              ? (updateInfo!['version'] as String).substring(1)
-                              : updateInfo!['version'],
-                        ),
-                        onPressed: onUpdateAvailableTap,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Tooltip(
-                    message: modInfo.customName,
-                    child: Text(
-                      modInfo.customName,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
                   ),
                 ),
-                if (displayVersion != null)
-                  InkWell(
-                    onTap: onEditVersionTap,
-                    borderRadius: BorderRadius.circular(4),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-                      child: Text(
-                        'v$displayVersion',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Theme.of(context).colorScheme.primary,
+              ),
+
+              // ---------- INFORMACIÓN ----------
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Expanded(
+                      child: Tooltip(
+                        message: modInfo.customName,
+                        child: Text(
+                          modInfo.customName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13.5,
+                            letterSpacing: -0.2,
+                            color: IosColors.label,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 0, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Listener(
-                    onPointerMove: (event) => onHoverMove(event.position),
-                    child: MouseRegion(
-                      onEnter: (event) {
-                        if (isReplacement) {
-                          onHoverEnter(event.position, modInfo.replacesOutfits!.first);
-                        }
-                      },
-                      onExit: (_) => onHoverExit(),
-                      child: InkWell(
-                        onTap: isReplacement ? null : onEditTagTap,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isReplacement ? Colors.black.withOpacity(0.4) : Colors.grey.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                    if (widget.editionCount > 1)
+                      Tooltip(
+                        message: l10n.editionsInstalledTooltip(widget.editionCount),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 6),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (isReplacement)
-                                HugeIcon(icon: HugeIcons.strokeRoundedDress04, size: 10, color: Colors.purpleAccent.shade100),
-                              if (isReplacement) const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  displayTag,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: isReplacement ? const Color.fromARGB(255, 153, 151, 153) : Colors.white70,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
+                              const Icon(
+                                Icons.layers_rounded,
+                                size: 12,
+                                color: IosColors.purple,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                '${widget.editionCount}',
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: IosColors.purple,
                                 ),
                               ),
                             ],
                           ),
                         ),
                       ),
-                    ),
-                  ),
+                    if (displayVersion != null)
+                      InkWell(
+                        onTap: widget.onEditVersionTap,
+                        borderRadius: BorderRadius.circular(4),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: Text(
+                            'v$displayVersion',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: IosColors.secondaryLabel,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                Row(
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+                child: Row(
                   children: [
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Listener(
+                          onPointerMove: (event) => widget.onHoverMove(event.position),
+                          child: MouseRegion(
+                            onEnter: (event) {
+                              if (isReplacement) {
+                                widget.onHoverEnter(event.position, modInfo.replacesOutfits!.first);
+                              }
+                            },
+                            onExit: (_) => widget.onHoverExit(),
+                            child: InkWell(
+                              onTap: isReplacement ? null : widget.onEditTagTap,
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: IosColors.chip,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (isReplacement) ...[
+                                      HugeIcon(
+                                        icon: HugeIcons.strokeRoundedDress04,
+                                        size: 11,
+                                        color: IosColors.purple,
+                                      ),
+                                      const SizedBox(width: 4),
+                                    ],
+                                    Flexible(
+                                      child: Text(
+                                        displayTag,
+                                        style: const TextStyle(
+                                          fontSize: 10.5,
+                                          color: IosColors.secondaryLabel,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                     AnimatedModSwitch(
                       key: ValueKey('switch-grid-${modInfo.directory.path}'),
                       modInfo: modInfo,
-                      isLoading: isLoading,
-                      onEnable: onEnable,
-                      onDisable: onDisable,
-                      scale: 0.6,
+                      isLoading: widget.isLoading,
+                      onEnable: widget.onEnable,
+                      onDisable: widget.onDisable,
+                      scale: 0.66,
                     ),
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert, size: 20),
+                    IosMenuButton<String>(
+                      width: 28,
+                      height: 28,
+                      icon: const Icon(
+                        Icons.more_horiz_rounded,
+                        size: 18,
+                        color: IosColors.icon,
+                      ),
                       onSelected: (value) {
                         switch (value) {
                           case 'edit':
-                            onEditNameTap();
+                            widget.onEditNameTap();
                             break;
                           case 'set_cover':
-                            onSetCoverTap();
+                            widget.onSetCoverTap();
                             break;
                           case 'revert_cover':
-                            onRevertCoverTap();
+                            widget.onRevertCoverTap();
                             break;
                           case 'folder':
-                            onShowFolderTap();
+                            widget.onShowFolderTap();
                             break;
                           case 'gallery':
-                            onShowGalleryTap();
+                            widget.onShowGalleryTap();
                             break;
                           case 'nexus':
-                            onOpenNexusTap();
+                            widget.onOpenNexusTap();
                             break;
                           case 'delete':
-                            onDeleteTap();
+                            widget.onDeleteTap();
                             break;
                         }
                       },
                       itemBuilder: (context) => [
-                        PopupMenuItem(value: 'edit', child: Row(children: [const HugeIcon(icon: HugeIcons.strokeRoundedEdit01, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.editModNameTooltip))])),
-                        PopupMenuItem(value: 'set_cover', child: Row(children: [const HugeIcon(icon: HugeIcons.strokeRoundedImageAdd02, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.setCoverTooltip))])),
-                        if (hasCustomCover) PopupMenuItem(value: 'revert_cover', child: Row(children: [const HugeIcon(icon: HugeIcons.strokeRoundedImageCounterClockwise, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.restoreOriginalCoverText))])),
-                        PopupMenuItem(value: 'folder', child: Row(children: [const HugeIcon(icon: HugeIcons.strokeRoundedFolderInput, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.showInFolder))])),
-                        if (modInfo.nexusId != null) PopupMenuItem(value: 'gallery', child: Row(children: [const HugeIcon(icon: HugeIcons.strokeRoundedAlbum02, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.viewImageGallery))])),
-                        if (modInfo.nexusId != null) PopupMenuItem(value: 'nexus', child: Row(children: [const HugeIcon(icon: HugeIcons.strokeRoundedLinkSquare02, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.openInNexusMods))])),
-                        if (!modInfo.isEnabled) const PopupMenuDivider(),
-                        if (!modInfo.isEnabled) PopupMenuItem(value: 'delete', child: Row(children: [const HugeIcon(icon: HugeIcons.strokeRoundedDelete04, size: 20), const SizedBox(width: 12), Flexible(child: Text(l10n.deletePermanently, style: const TextStyle(color: Colors.redAccent)))])),
+                        _menuItem('edit', HugeIcons.strokeRoundedEdit01, l10n.editModNameTooltip),
+                        _menuItem('set_cover', HugeIcons.strokeRoundedImageAdd02, l10n.setCoverTooltip),
+                        if (hasCustomCover)
+                          _menuItem('revert_cover', HugeIcons.strokeRoundedImageCounterClockwise, l10n.restoreOriginalCoverText),
+                        _menuItem('folder', HugeIcons.strokeRoundedFolderInput, l10n.showInFolder),
+                        if (modInfo.nexusId != null)
+                          _menuItem('gallery', HugeIcons.strokeRoundedAlbum02, l10n.viewImageGallery),
+                        if (modInfo.nexusId != null)
+                          _menuItem('nexus', HugeIcons.strokeRoundedLinkSquare02, l10n.openInNexusMods),
+                        if (!modInfo.isEnabled) const PopupMenuDivider(height: 8),
+                        if (!modInfo.isEnabled)
+                          _menuItem('delete', HugeIcons.strokeRoundedDelete04, l10n.deletePermanently, destructive: true),
                       ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+          ),
+        ),
       ),
     );
   }

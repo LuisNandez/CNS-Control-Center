@@ -1,8 +1,13 @@
-//Es puramente UI. Es la pantalla de ajustes donde el usuario configura las rutas del juego, 7-Zip, su API Key de Nexus, el 
-//idioma y desinstala componentes core (UE4SS/CNS).
+// Es puramente UI. Es la pantalla de ajustes donde el usuario configura las rutas del juego, 7-Zip, su API Key de Nexus,
+// el idioma y desinstala componentes core (UE4SS/CNS). Diseño de escritorio al estilo Ajustes del Sistema de macOS:
+// barra lateral con categorías a la izquierda y panel de contenido a la derecha que ocupa todo el espacio.
 import 'package:flutter/material.dart';
 import 'l10n/app_localizations.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'ui/theme/ios_theme.dart';
+import 'ui/widgets/ios_widgets.dart';
+import 'ui/widgets/ios_settings_widgets.dart';
+import 'ui/dialogs/settings_dialogs.dart';
 
 class SettingsPage extends StatefulWidget {
   final String? initialGameRootPath;
@@ -10,7 +15,7 @@ class SettingsPage extends StatefulWidget {
   final String? initialApiKey;
   final Map<String, String> skippedVersions;
 
-  // ++ NUEVOS PARÁMETROS PARA GESTIONAR UE4SS Y CNS ++
+  // Gestión de UE4SS y CNS
   final bool isUe4ssInstalled;
   final bool isCnsCoreInstalled;
   final Future<bool> Function() onUninstallUE4SS;
@@ -18,7 +23,6 @@ class SettingsPage extends StatefulWidget {
   final VoidCallback onDeleteAllNexusInfo;
   final VoidCallback onExtractModIds;
   final bool isDeveloperModeEnabled;
-  // ++ FIN DE NUEVOS PARÁMETROS ++
 
   final Future<String?> Function() onSelectGamePath;
   final Future<String?> Function() onSelect7zipPath;
@@ -27,9 +31,11 @@ class SettingsPage extends StatefulWidget {
   final VoidCallback onShowLanguageDialog;
   final VoidCallback onShowAboutDialog;
   final VoidCallback onRunSelfHealing;
+  final Future<void> Function() onRepairGameStartup;
   final bool initialShowModTypeTags;
   final ValueChanged<bool> onShowModTypeTagsChanged;
   final VoidCallback onRunConflictPatcher;
+  final VoidCallback onRevertConflictPatches;
 
   const SettingsPage({
     super.key,
@@ -37,8 +43,6 @@ class SettingsPage extends StatefulWidget {
     required this.initialSevenZipPath,
     required this.initialApiKey,
     required this.skippedVersions,
-    
-    // ++ AÑADIR NUEVOS PARÁMETROS AL CONSTRUCTOR ++
     required this.isUe4ssInstalled,
     required this.isCnsCoreInstalled,
     required this.onUninstallUE4SS,
@@ -46,8 +50,6 @@ class SettingsPage extends StatefulWidget {
     required this.onDeleteAllNexusInfo,
     required this.onExtractModIds,
     required this.isDeveloperModeEnabled,
-    // ++ FIN DE CAMBIOS EN CONSTRUCTOR ++
-
     required this.onSelectGamePath,
     required this.onSelect7zipPath,
     required this.onShowApiKeyDialog,
@@ -55,14 +57,18 @@ class SettingsPage extends StatefulWidget {
     required this.onShowLanguageDialog,
     required this.onShowAboutDialog,
     required this.onRunSelfHealing,
+    required this.onRepairGameStartup,
     required this.initialShowModTypeTags,
     required this.onShowModTypeTagsChanged,
     required this.onRunConflictPatcher,
+    required this.onRevertConflictPatches,
   });
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
 }
+
+enum _Pane { general, paths, core, connectivity, developer }
 
 class _SettingsPageState extends State<SettingsPage> {
   late String? gameRootPath;
@@ -72,6 +78,8 @@ class _SettingsPageState extends State<SettingsPage> {
   late bool isUe4ssInstalled;
   late bool isCnsCoreInstalled;
   late bool _showModTypeTags;
+
+  _Pane _selected = _Pane.general;
 
   @override
   void initState() {
@@ -84,48 +92,275 @@ class _SettingsPageState extends State<SettingsPage> {
     _showModTypeTags = widget.initialShowModTypeTags;
   }
 
+  /// Icono blanco para dentro de una insignia de color.
+  Widget _badgeIcon(dynamic icon) =>
+      HugeIcon(icon: icon, color: Colors.white, size: 16.0);
+
+  // ------------------------------------------------------------------ build
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final bool isApiKeySet = apiKey != null && apiKey!.isNotEmpty;
+
+    final panes = <_PaneInfo>[
+      _PaneInfo(
+        pane: _Pane.general,
+        label: l10n.settingsGeneral,
+        color: IosColors.gray,
+        icon: (s) => HugeIcon(
+          icon: HugeIcons.strokeRoundedSetting07,
+          color: Colors.white,
+          size: s,
+        ),
+      ),
+      _PaneInfo(
+        pane: _Pane.paths,
+        label: l10n.settingsPathsAndTools,
+        color: IosColors.blue,
+        icon: (s) => HugeIcon(
+          icon: HugeIcons.strokeRoundedFolder02,
+          color: Colors.white,
+          size: s,
+        ),
+      ),
+      _PaneInfo(
+        pane: _Pane.core,
+        label: l10n.settingsCoreComponents,
+        color: IosColors.purple,
+        icon: (s) => HugeIcon(
+          icon: HugeIcons.strokeRoundedChip,
+          color: Colors.white,
+          size: s,
+        ),
+      ),
+      _PaneInfo(
+        pane: _Pane.connectivity,
+        label: l10n.settingsConnectivity,
+        color: IosColors.green,
+        icon: (s) => HugeIcon(
+          icon: HugeIcons.strokeRoundedWifiSync,
+          color: Colors.white,
+          size: s,
+        ),
+      ),
+      if (widget.isDeveloperModeEnabled)
+        _PaneInfo(
+          pane: _Pane.developer,
+          label: l10n.settingsDeveloperOptions,
+          color: IosColors.orange,
+          icon: (s) => Icon(Icons.code_rounded, color: Colors.white, size: s),
+        ),
+    ];
+
+    // Si el modo desarrollador se desactivara con el panel abierto, volvemos a General.
+    final current = panes.firstWhere(
+      (p) => p.pane == _selected,
+      orElse: () => panes.first,
+    );
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.settings),
-        backgroundColor: const Color(0xFF2a2a2a),
-      ),
-      body: ListView(
+      backgroundColor: IosColors.background,
+      body: Row(
         children: [
-          _SettingsSectionHeader(title: l10n.settingsGeneral),
-          ListTile(
-            leading: const HugeIcon(icon: HugeIcons.strokeRoundedLanguageSquare, color: Colors.white, size: 24.0),
-            title: Text(l10n.settingsLanguage),
-            subtitle: Text(l10n.settingsLanguageDesc),
+          _buildSidebar(l10n, panes, current),
+          Container(width: 0.5, color: IosColors.separator),
+          Expanded(child: _buildContentPane(l10n, current)),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------- sidebar
+
+  Widget _buildSidebar(
+    AppLocalizations l10n,
+    List<_PaneInfo> panes,
+    _PaneInfo current,
+  ) {
+    return Container(
+      width: 232,
+      color: IosColors.bar,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Volver a la ventana principal
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: IosToolbarButton(
+                width: 34,
+                height: 34,
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 16,
+                  color: IosColors.blue,
+                ),
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 16, 14),
+            child: Text(
+              l10n.settings,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.4,
+                color: IosColors.label,
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 16),
+              children: [
+                for (final p in panes)
+                  _SidebarItem(
+                    label: p.label,
+                    color: p.color,
+                    icon: p.icon,
+                    selected: p.pane == current.pane,
+                    onTap: () => setState(() => _selected = p.pane),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------ content pane
+
+  Widget _buildContentPane(AppLocalizations l10n, _PaneInfo current) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Barra de título del panel (como la de Ajustes del Sistema)
+        Container(
+          height: 56,
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          decoration: const BoxDecoration(
+            color: IosColors.background,
+            border: Border(
+              bottom: BorderSide(color: IosColors.separator, width: 0.5),
+            ),
+          ),
+          child: Text(
+            current.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
+              color: IosColors.label,
+            ),
+          ),
+        ),
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 140),
+            layoutBuilder: (current, previous) => Stack(
+              fit: StackFit.expand,
+              children: [...previous, if (current != null) current],
+            ),
+            child: ListView(
+              key: ValueKey(current.pane),
+              padding: const EdgeInsets.fromLTRB(28, 24, 28, 40),
+              children: _paneSections(l10n, current.pane),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _paneSections(AppLocalizations l10n, _Pane pane) {
+    switch (pane) {
+      case _Pane.general:
+        return _generalSections(l10n);
+      case _Pane.paths:
+        return _pathsSections(l10n);
+      case _Pane.core:
+        return _coreSections(l10n);
+      case _Pane.connectivity:
+        return _connectivitySections(l10n);
+      case _Pane.developer:
+        return _developerSections(l10n);
+    }
+  }
+
+  // ---------------------------------------------------------------- General
+
+  List<Widget> _generalSections(AppLocalizations l10n) {
+    final String langCode = Localizations.localeOf(context).languageCode;
+    return [
+      IosSettingsSection(
+        children: [
+          IosSettingsTile(
+            leading: IosIconBadge(
+              color: IosColors.blue,
+              child: _badgeIcon(HugeIcons.strokeRoundedLanguageSquare),
+            ),
+            title: l10n.settingsLanguage,
+            subtitle: l10n.settingsLanguageDesc,
+            value: SettingsDialogs.languages[langCode] ?? langCode.toUpperCase(),
+            showChevron: true,
             onTap: widget.onShowLanguageDialog,
           ),
-          SwitchListTile(
-            secondary: const HugeIcon(icon: HugeIcons.strokeRoundedLabel, color: Colors.white, size: 24.0),
-            title: Text(l10n.settingsShowModTagsTitle),
-            subtitle: Text(l10n.settingsShowModTagsDesc),
+          IosSettingsSwitchTile(
+            leading: IosIconBadge(
+              color: IosColors.orange,
+              child: _badgeIcon(HugeIcons.strokeRoundedLabel),
+            ),
+            title: l10n.settingsShowModTagsTitle,
+            subtitle: l10n.settingsShowModTagsDesc,
             value: _showModTypeTags,
             onChanged: (bool newValue) {
-              setState(() {
-                _showModTypeTags = newValue;
-              });
+              setState(() => _showModTypeTags = newValue);
               widget.onShowModTypeTagsChanged(newValue);
             },
-            activeColor: Colors.tealAccent,
           ),
-          const Divider(),
-          _SettingsSectionHeader(title: l10n.settingsPathsAndTools),
-          ListTile(
-            leading: const HugeIcon(
-              icon: HugeIcons.strokeRoundedFolder02,
-              color: Colors.white, 
-              size: 24.0
+        ],
+      ),
+      // Acerca de (en macOS vive dentro de General)
+      IosSettingsSection(
+        children: [
+          IosSettingsTile(
+            leading: IosIconBadge(
+              color: IosColors.gray,
+              child: _badgeIcon(HugeIcons.strokeRoundedAlertSquare),
             ),
-            title: Text(l10n.settingsGameFolder),
-            subtitle: Text(gameRootPath ?? l10n.settingsApiKeyNotSet),
+            title: l10n.settingsAbout,
+            subtitle: l10n.settingsAboutDesc,
+            showChevron: true,
+            onTap: widget.onShowAboutDialog,
+          ),
+        ],
+      ),
+    ];
+  }
+
+  // ---------------------------------------------------- Rutas y herramientas
+
+  List<Widget> _pathsSections(AppLocalizations l10n) {
+    return [
+      IosSettingsSection(
+        children: [
+          IosSettingsTile(
+            leading: IosIconBadge(
+              color: IosColors.blue,
+              child: _badgeIcon(HugeIcons.strokeRoundedFolder02),
+            ),
+            title: l10n.settingsGameFolder,
+            subtitle: gameRootPath ?? l10n.settingsApiKeyNotSet,
+            subtitleColor: gameRootPath == null ? IosColors.orange : null,
+            showChevron: true,
             onTap: () async {
               final newPath = await widget.onSelectGamePath();
               if (newPath != null) {
@@ -133,14 +368,14 @@ class _SettingsPageState extends State<SettingsPage> {
               }
             },
           ),
-          ListTile(
-            leading: const HugeIcon(
-              icon: HugeIcons.strokeRoundedFolderZip, 
-              color: Colors.white, // Ajusta el color según tu tema
-              size: 24.0,
+          IosSettingsTile(
+            leading: IosIconBadge(
+              color: IosColors.gray,
+              child: _badgeIcon(HugeIcons.strokeRoundedFolderZip),
             ),
-            title: Text(l10n.settings7zipPath),
-            subtitle: Text(sevenZipPath ?? l10n.settings7zipPathAuto),
+            title: l10n.settings7zipPath,
+            subtitle: sevenZipPath ?? l10n.settings7zipPathAuto,
+            showChevron: true,
             onTap: () async {
               final newPath = await widget.onSelect7zipPath();
               if (newPath != null) {
@@ -148,81 +383,138 @@ class _SettingsPageState extends State<SettingsPage> {
               }
             },
           ),
-          ListTile(
-            leading: const HugeIcon(icon: HugeIcons.strokeRoundedRepair, color: Colors.white, size: 24.0),
-            title: Text(l10n.settingsRepairMods),
-            subtitle: Text(l10n.settingsRepairModsDesc),
+          IosSettingsTile(
+            leading: IosIconBadge(
+              color: IosColors.green,
+              child: _badgeIcon(HugeIcons.strokeRoundedRepair),
+            ),
+            title: l10n.settingsRepairMods,
+            subtitle: l10n.settingsRepairModsDesc,
+            showChevron: true,
             onTap: widget.onRunSelfHealing,
           ),
-          /*ListTile(
-            leading: const Icon(Icons.electrical_services_outlined, color: Colors.orangeAccent),
-            title: Text(l10n.runConflictPatcherTitle),
-            subtitle: Text(l10n.runConflictPatcherSubtitlePython),
-            onTap: widget.onRunConflictPatcher,
-          ),*/
-          
-          // ++ NUEVA SECCIÓN PARA GESTIONAR COMPONENTES PRINCIPALES ++
-          const Divider(),
-          _SettingsSectionHeader(title: l10n.settingsCoreComponents),
-
-          // ListTile para gestionar UE4SS
-          ListTile(
-            leading: const Icon(Icons.shape_line_outlined), // Ícono representativo
-            title: const Text("UE4SS"),
-            subtitle: Text(
-              isUe4ssInstalled ? l10n.installedStatus : l10n.notInstalledStatus,
-              style: TextStyle(color: isUe4ssInstalled ? Colors.greenAccent : Colors.grey),
+          IosSettingsTile(
+            leading: IosIconBadge(
+              color: IosColors.orange,
+              child: _badgeIcon(HugeIcons.strokeRoundedRepair),
             ),
+            title: l10n.runConflictPatcherTitle,
+            subtitle: l10n.runConflictPatcherSubtitlePython,
+            showChevron: true,
+            onTap: widget.onRunConflictPatcher,
+          ),
+          IosSettingsTile(
+            leading: const IosIconBadge(
+              color: IosColors.gray,
+              child: Icon(
+                Icons.settings_backup_restore_rounded,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+            title: l10n.revertPatchesTitle,
+            subtitle: l10n.revertPatchesDesc,
+            showChevron: true,
+            onTap: widget.onRevertConflictPatches,
+          ),
+          IosSettingsTile(
+            leading: const IosIconBadge(
+              color: IosColors.red,
+              child: Icon(
+                Icons.videogame_asset_off_outlined,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+            title: l10n.settingsFixGameStartup,
+            subtitle: l10n.settingsFixGameStartupDesc,
+            showChevron: true,
+            onTap: widget.onRepairGameStartup,
+          ),
+        ],
+      ),
+    ];
+  }
+
+  // ------------------------------------------------- Componentes principales
+
+  List<Widget> _coreSections(AppLocalizations l10n) {
+    return [
+      IosSettingsSection(
+        children: [
+          IosSettingsTile(
+            leading: const IosIconBadge(
+              color: IosColors.purple,
+              child: Icon(
+                Icons.shape_line_outlined,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+            title: 'UE4SS',
+            subtitle:
+                isUe4ssInstalled ? l10n.installedStatus : l10n.notInstalledStatus,
+            subtitleColor:
+                isUe4ssInstalled ? IosColors.green : IosColors.secondaryLabel,
             trailing: isUe4ssInstalled
-                ? TextButton(
+                ? IosTextButton(
+                    label: l10n.uninstallButton,
+                    color: IosColors.red,
                     onPressed: () async {
                       final success = await widget.onUninstallUE4SS();
                       if (success && mounted) {
-                        setState(() {
-                          isUe4ssInstalled = false;
-                        });
+                        setState(() => isUe4ssInstalled = false);
                       }
                     },
-                    child: Text(l10n.uninstallButton, style: const TextStyle(color: Colors.redAccent)),
                   )
                 : null,
           ),
-
-          // ListTile para gestionar el Sistema CNS
-          ListTile(
-            leading: const HugeIcon(icon: HugeIcons.strokeRoundedChip, color: Colors.white, size: 24.0), // Ícono representativo
-            title: Text(l10n.cnsCoreSystem),
-            subtitle: Text(
-              isCnsCoreInstalled ? l10n.installedStatus : l10n.notInstalledStatus,
-              style: TextStyle(color: isCnsCoreInstalled ? Colors.greenAccent : Colors.grey),
+          IosSettingsTile(
+            leading: IosIconBadge(
+              color: IosColors.teal,
+              child: _badgeIcon(HugeIcons.strokeRoundedChip),
             ),
+            title: l10n.cnsCoreSystem,
+            subtitle: isCnsCoreInstalled
+                ? l10n.installedStatus
+                : l10n.notInstalledStatus,
+            subtitleColor:
+                isCnsCoreInstalled ? IosColors.green : IosColors.secondaryLabel,
             trailing: isCnsCoreInstalled
-                ? TextButton(
+                ? IosTextButton(
+                    label: l10n.uninstallButton,
+                    color: IosColors.red,
                     onPressed: () async {
                       final success = await widget.onUninstallCNS();
                       if (success && mounted) {
-                        setState(() {
-                          isCnsCoreInstalled = false;
-                        });
+                        setState(() => isCnsCoreInstalled = false);
                       }
                     },
-                    child: Text(l10n.uninstallButton, style: const TextStyle(color: Colors.redAccent)),
                   )
                 : null,
           ),
-          // ++ FIN DE LA NUEVA SECCIÓN ++
+        ],
+      ),
+    ];
+  }
 
-          const Divider(),
-          _SettingsSectionHeader(title: l10n.settingsConnectivity),
-          ListTile(
-            leading: const HugeIcon(icon: HugeIcons.strokeRoundedKey01, color: Colors.white, size: 24.0),
-            title: Text(l10n.settingsApiKey),
-            subtitle: Text(
-              isApiKeySet ? l10n.settingsApiKeySet : l10n.settingsApiKeyNotSet,
-              style: TextStyle(
-                color: isApiKeySet ? Colors.greenAccent : Colors.orangeAccent,
-              ),
+  // ------------------------------------------------------------ Conectividad
+
+  List<Widget> _connectivitySections(AppLocalizations l10n) {
+    final bool isApiKeySet = apiKey != null && apiKey!.isNotEmpty;
+    return [
+      IosSettingsSection(
+        children: [
+          IosSettingsTile(
+            leading: IosIconBadge(
+              color: IosColors.yellow,
+              child: _badgeIcon(HugeIcons.strokeRoundedKey01),
             ),
+            title: l10n.settingsApiKey,
+            subtitle:
+                isApiKeySet ? l10n.settingsApiKeySet : l10n.settingsApiKeyNotSet,
+            subtitleColor: isApiKeySet ? IosColors.green : IosColors.orange,
+            showChevron: true,
             onTap: () async {
               final newKey = await widget.onShowApiKeyDialog();
               if (newKey != null) {
@@ -230,63 +522,151 @@ class _SettingsPageState extends State<SettingsPage> {
               }
             },
           ),
-          ListTile(
-            leading: const HugeIcon(icon: HugeIcons.strokeRoundedNext, color: Colors.white, size: 24.0),
-            title: Text(l10n.settingsSkippedVersions),
-            subtitle:
-                Text(l10n.settingsSkippedVersionsCount(widget.skippedVersions.length)),
+          IosSettingsTile(
+            leading: IosIconBadge(
+              color: IosColors.red,
+              child: _badgeIcon(HugeIcons.strokeRoundedNext),
+            ),
+            title: l10n.settingsSkippedVersions,
+            subtitle: l10n.settingsSkippedVersionsCount(
+              widget.skippedVersions.length,
+            ),
+            showChevron: true,
             onTap: () async {
               await widget.onManageSkippedVersions();
-              setState(() {});
+              if (mounted) setState(() {});
             },
           ),
-          const Divider(),
-           ListTile(
-            leading: const HugeIcon(icon: HugeIcons.strokeRoundedAlertSquare, color: Colors.white, size: 24.0),
-            title: Text(l10n.settingsAbout),
-            subtitle: Text(l10n.settingsAboutDesc),
-            onTap: widget.onShowAboutDialog,
-          ),
-          
-          // ++ NEW SECTION FOR DEVELOPER OPTIONS ++
-          if (widget.isDeveloperModeEnabled) ...[
-            const Divider(),
-            _SettingsSectionHeader(title: l10n.settingsDeveloperOptions),
-            ListTile(
-              leading: const Icon(Icons.delete_sweep_outlined, color: Colors.orangeAccent),
-              title: Text(l10n.devDeleteNexusInfoTitle),
-              subtitle: Text(l10n.devDeleteNexusInfoDesc),
-              onTap: widget.onDeleteAllNexusInfo,
-            ),
-            ListTile(
-              leading: const Icon(Icons.upload_file_outlined, color: Colors.lightBlueAccent),
-              title: Text(l10n.devExtractIdsTitle),
-              subtitle: Text(l10n.devExtractIdsDesc),
-              onTap: widget.onExtractModIds,
-            ),
-          ]
         ],
       ),
-    );
+    ];
+  }
+
+  // ------------------------------------------------- Opciones de desarrollador
+
+  List<Widget> _developerSections(AppLocalizations l10n) {
+    return [
+      IosSettingsSection(
+        children: [
+          IosSettingsTile(
+            leading: const IosIconBadge(
+              color: IosColors.orange,
+              child: Icon(
+                Icons.delete_sweep_outlined,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+            title: l10n.devDeleteNexusInfoTitle,
+            subtitle: l10n.devDeleteNexusInfoDesc,
+            showChevron: true,
+            onTap: widget.onDeleteAllNexusInfo,
+          ),
+          IosSettingsTile(
+            leading: const IosIconBadge(
+              color: IosColors.blue,
+              child: Icon(
+                Icons.upload_file_outlined,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+            title: l10n.devExtractIdsTitle,
+            subtitle: l10n.devExtractIdsDesc,
+            showChevron: true,
+            onTap: widget.onExtractModIds,
+          ),
+        ],
+      ),
+    ];
   }
 }
 
+/// Datos de una categoría de la barra lateral.
+class _PaneInfo {
+  const _PaneInfo({
+    required this.pane,
+    required this.label,
+    required this.color,
+    required this.icon,
+  });
 
-class _SettingsSectionHeader extends StatelessWidget {
-  final String title;
+  final _Pane pane;
+  final String label;
+  final Color color;
+  final Widget Function(double size) icon;
+}
 
-  const _SettingsSectionHeader({required this.title});
+/// Fila de la barra lateral: insignia de color + nombre. La categoría activa se
+/// resalta con el color de acento, igual que en Ajustes del Sistema de macOS.
+class _SidebarItem extends StatefulWidget {
+  const _SidebarItem({
+    required this.label,
+    required this.color,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color color;
+  final Widget Function(double size) icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  State<_SidebarItem> createState() => _SidebarItemState();
+}
+
+class _SidebarItemState extends State<_SidebarItem> {
+  bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 8.0),
-      child: Text(
-        title,
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
+    final Color bg = widget.selected
+        ? IosColors.blue
+        : (_hover ? const Color(0x14FFFFFF) : Colors.transparent);
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 90),
+          height: 36,
+          margin: const EdgeInsets.symmetric(vertical: 1),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              IosIconBadge(
+                color: widget.color,
+                size: 24,
+                child: widget.icon(15),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  widget.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight:
+                        widget.selected ? FontWeight.w500 : FontWeight.w400,
+                    letterSpacing: -0.15,
+                    color: IosColors.label,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

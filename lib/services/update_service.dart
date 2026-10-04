@@ -25,39 +25,61 @@ class UpdateService {
     return withoutExtension.toLowerCase().replaceAll(RegExp(r'[_ -]'), '');
   }
 
-  static Future<Map<String, dynamic>?> checkSingleModUpdate({
-    required String apiKey,
-    required String nexusId,
-    required String localVersion,
-    required bool hasLocalVersion,
-    required String displayName,
-    required Directory modDirectory,
-    required Map<String, String> skippedVersions,
-  }) async {
-    final headers = {'apikey': apiKey, 'accept': 'application/json'};
-    final url = Uri.parse('https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId/files.json');
-    
-    final response = await http.get(url, headers: headers);
+  static String _compact(String s) =>
+      s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 
-    try {
-      final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
-      if (await infoFile.exists()) {
-        final modData = json.decode(await infoFile.readAsString());
-        modData['lastUpdateCheck'] = {
-          'timestamp': DateTime.now().toIso8601String(),
-          'statusCode': response.statusCode,
-        };
-        await infoFile.writeAsString(JsonEncoder.withIndent('  ').convert(modData));
-      }
-    } catch (e) {
-      print('Could not update lastUpdateCheck for $displayName: $e');
+  /// Clave con la que se guarda "Omitir esta versión" para un mod instalado.
+  /// Es POR EDICIÓN (`<nexusId>#<edición>`): omitir la actualización de
+  /// "Alt Goth Mini Set - CNS" no oculta la de "Alt Goth Mini Set - Replacer".
+  static String editionSkipKey(ModInfo mod) =>
+      '${mod.nexusId}#${_compact(mod.editionName ?? mod.displayName)}';
+
+  /// Versión omitida para [mod]. Primero la de su edición; si no hay, y solo
+  /// cuando es la única edición instalada, se respeta la clave antigua
+  /// (solo `<nexusId>`) guardada antes de que existieran las ediciones.
+  static String? skippedVersionFor(
+    Map<String, String> skipped,
+    ModInfo mod, {
+    required bool soleEdition,
+  }) {
+    final byEdition = skipped[editionSkipKey(mod)];
+    if (byEdition != null) return byEdition;
+    return soleEdition ? skipped[mod.nexusId] : null;
+  }
+
+  /// Sigue `file_updates` desde [fileId] hasta el archivo más reciente de esa
+  /// línea de versiones y devuelve su id (el mismo [fileId] si no hay nuevos).
+  static String _followUpdateChain(String fileId, List<dynamic> fileUpdates) {
+    final Map<String, String> nextOf = {};
+    for (final u in fileUpdates) {
+      if (u is! Map) continue;
+      final oldId = u['old_file_id']?.toString();
+      final newId = u['new_file_id']?.toString();
+      if (oldId != null && newId != null) nextOf[oldId] = newId;
     }
 
-    if (response.statusCode != 200) return null;
+    var current = fileId;
+    final visited = <String>{current};
+    while (nextOf.containsKey(current)) {
+      final next = nextOf[current]!;
+      if (!visited.add(next)) break;
+      current = next;
+    }
+    return current;
+  }
 
-    final jsonResponse = json.decode(response.body);
-    final allFiles = jsonResponse['files'] as List;
-    
+  /// Elige, entre los archivos VIGENTES de un mod (MAIN / OPTIONAL), el que
+  /// corresponde a [displayName]: descarta las variantes "sin CNS", prefiere las
+  /// que llevan "cns" en el nombre y puntúa por coincidencia de nombre/palabras.
+  ///
+  /// Es la heurística que usa la comprobación de actualizaciones para saber a
+  /// qué edición pertenece un mod; el migrador de metadatos la reutiliza para
+  /// identificar la edición de los mods antiguos. Devuelve null si no hay un
+  /// candidato razonable.
+  static dynamic pickBestFileByName({
+    required List allFiles,
+    required String displayName,
+  }) {
     final potentialFiles = allFiles.where((file) =>
         file['category_name'] == 'MAIN' || file['category_name'] == 'OPTIONAL').toList();
 
@@ -103,10 +125,94 @@ class UpdateService {
         bestMatchFile = fileScores.first['file'];
       }
     }
+    return bestMatchFile;
+  }
+
+  static Future<Map<String, dynamic>?> checkSingleModUpdate({
+    required String apiKey,
+    required String nexusId,
+    required String localVersion,
+    required bool hasLocalVersion,
+    required String displayName,
+    required Directory modDirectory,
+    required Map<String, String> skippedVersions,
+    // Edición concreta que se comprueba (null = el CNS u otro sin ediciones).
+    // Con ella, la versión omitida se busca por edición y no por mod.
+    ModInfo? editionMod,
+    bool soleEdition = true,
+  }) async {
+    final String? skippedVersion = editionMod != null
+        ? skippedVersionFor(skippedVersions, editionMod, soleEdition: soleEdition)
+        : skippedVersions[nexusId];
+    final headers = {'apikey': apiKey, 'accept': 'application/json'};
+    final url = Uri.parse('https://api.nexusmods.com/v1/games/stellarblade/mods/$nexusId/files.json');
+
+    // file_id del archivo de Nexus instalado (si se reconoció al instalarlo)
+    String? localFileId;
+    try {
+      final localInfo = File(p.join(modDirectory.path, 'nexus_info.json'));
+      if (await localInfo.exists()) {
+        final localData = json.decode(await localInfo.readAsString());
+        localFileId = localData['nexusFileId']?.toString();
+      }
+    } catch (_) {}
+
+    final response = await http.get(url, headers: headers);
+
+    try {
+      final infoFile = File(p.join(modDirectory.path, 'nexus_info.json'));
+      if (await infoFile.exists()) {
+        final modData = json.decode(await infoFile.readAsString());
+        modData['lastUpdateCheck'] = {
+          'timestamp': DateTime.now().toIso8601String(),
+          'statusCode': response.statusCode,
+        };
+        await infoFile.writeAsString(JsonEncoder.withIndent('  ').convert(modData));
+      }
+    } catch (e) {
+      print('Could not update lastUpdateCheck for $displayName: $e');
+    }
+
+    if (response.statusCode != 200) return null;
+
+    final jsonResponse = json.decode(response.body);
+    final allFiles = jsonResponse['files'] as List;
+
+    // Camino exacto: seguir la cadena de actualizaciones de ESE archivo.
+    if (localFileId != null) {
+      final newestId = _followUpdateChain(
+        localFileId,
+        (jsonResponse['file_updates'] as List?) ?? const [],
+      );
+      dynamic exactFile;
+      for (final f in allFiles) {
+        if (f['file_id']?.toString() == newestId) {
+          exactFile = f;
+          break;
+        }
+      }
+      if (exactFile != null) {
+        final latestVersion = exactFile['version'] as String;
+        final isSkipped = skippedVersion != null &&
+            VersionUtils.compareVersions(latestVersion, skippedVersion) <= 0;
+        if (hasLocalVersion &&
+            !isSkipped &&
+            VersionUtils.compareVersions(latestVersion, localVersion) > 0) {
+          return {
+            'version': latestVersion,
+            'fileId': exactFile['file_id'] as int,
+          };
+        }
+        return null;
+      }
+      // Si el archivo ya no existe en Nexus se usa la búsqueda por nombre.
+    }
+
+    final dynamic bestMatchFile =
+        pickBestFileByName(allFiles: allFiles, displayName: displayName);
 
     if (bestMatchFile != null) {
       final latestVersion = bestMatchFile['version'] as String;
-      final skippedVersion = skippedVersions[nexusId];
       final isSkipped = skippedVersion != null && VersionUtils.compareVersions(latestVersion, skippedVersion) <= 0;
 
       if (hasLocalVersion && !isSkipped && VersionUtils.compareVersions(latestVersion, localVersion) > 0) {
@@ -146,6 +252,10 @@ class UpdateService {
     }
 
     final allModsWithNexusId = allMods.where((mod) => mod.nexusId != null && mod.nexusId!.isNotEmpty).toList();
+    final Map<String, int> editionsPerMod = {};
+    for (final m in allModsWithNexusId) {
+      editionsPerMod[m.nexusId!] = (editionsPerMod[m.nexusId!] ?? 0) + 1;
+    }
     
     for (final mod in allModsWithNexusId) {
       final String versionForCheck = mod.customVersion?.isNotEmpty == true
@@ -160,9 +270,13 @@ class UpdateService {
         nexusId: mod.nexusId!,
         localVersion: versionForCheck,
         hasLocalVersion: hasVersionForCheck,
-        displayName: mod.displayName,
+        // Con ediciones, el nombre de la edición es lo que distingue los archivos
+        // del mod en Nexus (solo se usa si no hay file_id guardado).
+        displayName: mod.editionName ?? mod.displayName,
         modDirectory: mod.directory,
         skippedVersions: skippedVersions,
+        editionMod: mod,
+        soleEdition: editionsPerMod[mod.nexusId!] == 1,
       ));
       paths.add(mod.directory.path);
       isCnsList.add(false);

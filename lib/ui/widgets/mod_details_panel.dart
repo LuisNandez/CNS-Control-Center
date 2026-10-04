@@ -1,19 +1,29 @@
-import 'dart:io';
 import 'dart:async';
+import 'dart:io';
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:translator/translator.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../models/mod_info.dart';
+import '../../services/endorse_info_store.dart';
+import '../../services/nexus_api_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../../thumbnail_service.dart';
 import '../../notification_service.dart';
-import '../../outfit_data.dart';
 import '../../utils/text_utils.dart';
 import 'mod_image_widgets.dart';
+import '../theme/ios_theme.dart';
 import 'bbcode_renderer.dart';
+import 'ios_motion.dart';
+import 'ios_widgets.dart';
+import 'outfit_picker_sheet.dart';
+import 'smooth_scroll.dart';
+import 'image_viewer.dart' show registerGalleryOrigin, imageViewerActive;
 
 class ModDetailsPanel extends StatefulWidget {
   final ModInfo initialModInfo;
@@ -26,7 +36,7 @@ class ModDetailsPanel extends StatefulWidget {
   final Future<Map<String, dynamic>?> Function(ModInfo, BuildContext)
   onShowGeneralEditDialog;
   final Function(ModInfo?) onPanelClosed;
-  // Nuevas propiedades para gestionar la información de la actualización.
+  // Información de la actualización disponible.
   final Map<String, dynamic>? updateInfo;
   final bool isIgnored;
   final Future<bool> Function({
@@ -34,8 +44,17 @@ class ModDetailsPanel extends StatefulWidget {
     required String nexusId,
     required int fileId,
     required String uniqueIdentifier,
+    ModInfo? mod,
   })
   onShowUpdateDialog;
+
+  /// Otras ediciones del mismo mod (mismo ID de Nexus) que también están
+  /// instaladas. Vacío si este mod solo tiene una edición.
+  final List<ModInfo> otherEditions;
+
+  /// API key de Nexus Mods del usuario (null o vacía si no la ha introducido).
+  /// Hace falta para endorsar el mod.
+  final String? apiKey;
 
   const ModDetailsPanel({
     required this.initialModInfo,
@@ -45,10 +64,11 @@ class ModDetailsPanel extends StatefulWidget {
     required this.onShowImageGallery,
     required this.onShowGeneralEditDialog,
     required this.onPanelClosed,
-    // Añadimos los nuevos parámetros al constructor.
     this.updateInfo,
     required this.isIgnored,
     required this.onShowUpdateDialog,
+    this.otherEditions = const [],
+    this.apiKey,
   });
 
   @override
@@ -64,7 +84,61 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
   late bool _isIgnored;
   late bool _isReplacementMod;
 
+  // ---- Endorse ---------------------------------------------------------------
+  /// Nexus exige esperar este tiempo desde la descarga antes de endorsar.
+  static const Duration _endorseMinWait = Duration(minutes: 15);
+
+  /// Cada cuánto se vuelve a preguntar a Nexus por el estado de este mod.
+  static const Duration _endorseRefreshEvery = Duration(minutes: 10);
+
+  /// 'Endorsed' | 'Abstained' | 'Undecided'; null = todavía no se sabe.
+  String? _endorseStatus;
+
+  /// Lo guardado en el nexus_info.json del mod (estado + cuándo se confirmó).
+  EndorseRecord? _endorseRecord;
+  Future<void>? _endorseRestore;
+  bool _endorseBusy = false;
+
+  /// Se incrementa cada vez que el usuario endorsa / quita el endorse: una
+  /// consulta de estado iniciada antes ya está obsoleta y no debe pisar el
+  /// resultado.
+  int _endorseActionSeq = 0;
+
+  /// Minutos que faltan para poder endorsar (0 = ya se puede). Es un notifier
+  /// para que la cuenta atrás solo repinte el botón y no todo el panel.
+  final ValueNotifier<int> _endorseWaitMinutes = ValueNotifier<int>(0);
+  Timer? _endorseWaitTimer;
+
+  /// Espera forzada si Nexus responde TOO_SOON_AFTER_DOWNLOAD aunque la fecha
+  /// de instalación local ya haya pasado los 15 minutos.
+  DateTime? _endorseBlockedUntil;
+
+  /// Se incrementa si falla un guardado, para recrear las tarjetas de trajes
+  /// que se habían "colapsado" visualmente antes de confirmarse.
+  int _outfitsRevision = 0;
+
   final ScrollController _carouselScrollController = ScrollController();
+
+  /// Suavizado de la rueda del ratón, compartido entre el contenido del panel
+  /// y los bordes donde está la barra de scroll.
+  final IosWheelSmoother _wheelSmoother = IosWheelSmoother();
+
+  /// Desplazamiento vertical del contenido (para mostrar el título compacto
+  /// en la cabecera al bajar, como la barra de navegación de iOS).
+  final ValueNotifier<double> _scrollOffset = ValueNotifier<double>(0);
+
+  /// Clave de la portada: el visor de imágenes lee su rectángulo en pantalla.
+  final GlobalKey _coverKey = GlobalKey(debugLabel: 'details-cover');
+
+  // ---- Apertura fluida ------------------------------------------------------
+  // Mientras la hoja sube desde abajo solo se construye lo ligero (cabecera,
+  // portada, título y acciones). El resto (resumen, información, descripción
+  // BBCode, trajes...) se monta justo cuando termina la animación: así la hoja
+  // no compite con el trabajo de construir y pintar todo el contenido.
+  bool _contentReady = false;
+  bool _transitionHooked = false;
+  Animation<double>? _routeAnimation;
+  Timer? _readyFallback;
 
   @override
   void initState() {
@@ -76,22 +150,81 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
         (currentModInfo.modType == 'genericPak' &&
             (currentModInfo.replacesOutfits != null &&
                 currentModInfo.replacesOutfits!.isNotEmpty));
-    // Comprueba si se puede traducir tan pronto como el widget se renderiza por primera vez.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _updateTranslationButtonVisibility();
-    });
+    // La comprobación de traducción (peticiones de red + setState) se lanza en
+    // _markContentReady, cuando ya terminó la animación de apertura.
+    _refreshEndorseWait();
+    _endorseRestore = _restoreEndorseStatus();
   }
 
-  /// El método dispose() se llama AUTOMÁTICAMENTE cuando el widget se va a destruir.
-  // Es el lugar perfecto para nuestra lógica de cierre.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_transitionHooked) return;
+    _transitionHooked = true;
+
+    final Animation<double>? animation = ModalRoute.of(context)?.animation;
+    if (animation == null || animation.status == AnimationStatus.completed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _markContentReady());
+    } else {
+      _routeAnimation = animation;
+      animation.addStatusListener(_onRouteStatus);
+      // Red de seguridad por si la animación nunca llega a "completed".
+      _readyFallback = Timer(
+        const Duration(milliseconds: 800),
+        _markContentReady,
+      );
+    }
+  }
+
+  void _onRouteStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed) _markContentReady();
+  }
+
+  void _markContentReady() {
+    if (_contentReady || !mounted) return;
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    _readyFallback?.cancel();
+    setState(() => _contentReady = true);
+    _updateTranslationButtonVisibility();
+    _loadEndorseStatus();
+  }
+
+  /// Miniatura de la portada que la lista ya tiene en memoria. Se muestra al
+  /// instante mientras llega la imagen a tamaño completo. (La clave es la misma
+  /// que usa ModGridCard.)
+  File? _coverPlaceholder() {
+    final ModInfo mod = currentModInfo;
+    String? key;
+    if (mod.customCoverPath != null && mod.customCoverPath!.isNotEmpty) {
+      key = p.basename(mod.directory.path) + mod.customCoverPath!;
+      if (mod.customCoverLastModified != null) {
+        key += mod.customCoverLastModified!.millisecondsSinceEpoch.toString();
+      }
+    } else if (mod.gallery != null && mod.gallery!.isNotEmpty) {
+      key = mod.gallery!.first['thumbnail'] as String?;
+    }
+    if (key == null) return null;
+    return widget.thumbnailService.getFromMemoryCache(key);
+  }
+
+  /// Se llama AUTOMÁTICAMENTE cuando el widget se va a destruir: entrega al
+  /// widget principal el mod actualizado si hubo cambios.
   @override
   void dispose() {
-    // Llama al "mensajero" y le entrega el mod actualizado si hubo cambios.
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    _readyFallback?.cancel();
+    _endorseWaitTimer?.cancel();
+    _endorseWaitMinutes.dispose();
     widget.onPanelClosed(_needsReloadOnClose ? currentModInfo : null);
+    _wheelSmoother.cancel();
     _carouselScrollController.dispose();
+    _scrollOffset.dispose();
     super.dispose();
   }
 
+  // ---------------------------------------------------------------------------
+  //  TRADUCCIÓN
+  // ---------------------------------------------------------------------------
   Future<bool> _checkIfTextNeedsTranslation(String? text) async {
     if (!mounted) return false;
     if (text == null || text.trim().isEmpty) {
@@ -119,8 +252,6 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
 
   /// Comprueba ambos campos (resumen y descripción) y actualiza la visibilidad de sus botones.
   Future<void> _updateTranslationButtonVisibility() async {
-    // --- Lógica para el botón del RESUMEN ---
-    // Solo mostramos el botón si estamos viendo el resumen original (no uno personalizado).
     final isShowingOriginalSummary =
         currentModInfo.customSummary == null ||
         currentModInfo.customSummary!.isEmpty;
@@ -137,8 +268,6 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
       }
     }
 
-    // --- Lógica para el botón de la DESCRIPCIÓN ---
-    // Solo mostramos el botón si estamos viendo la descripción original.
     final isShowingOriginalDescription =
         currentModInfo.customDescription == null ||
         currentModInfo.customDescription!.isEmpty;
@@ -174,7 +303,7 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
         to: currentLocale,
       );
 
-      // Guardamos la traducción en el campo personalizado 'summary' (que en la función onUpdateDetails se mapea a 'customSummary')
+      // Se guarda en el campo personalizado ('summary' → 'customSummary' en onUpdateDetails).
       final updatedMod = await widget.onUpdateDetails(currentModInfo, {
         'summary': translation.text,
       });
@@ -182,7 +311,6 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
       if (updatedMod != null && mounted) {
         setState(() {
           currentModInfo = updatedMod;
-          // ++ CAMBIO 3: Ocultar solo el botón del resumen ++
           _showTranslateSummaryButton = false;
           _needsReloadOnClose = true;
         });
@@ -224,7 +352,6 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
       if (updatedMod != null && mounted) {
         setState(() {
           currentModInfo = updatedMod;
-          // ++ CAMBIO 4: Ocultar solo el botón de la descripción ++
           _showTranslateDescriptionButton = false;
           _needsReloadOnClose = true;
         });
@@ -241,7 +368,57 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
     }
   }
 
-  // Muestra diálogo para editar un solo campo (notas, descripción)
+  // ---------------------------------------------------------------------------
+  //  UTILIDADES
+  // ---------------------------------------------------------------------------
+
+  /// Copia [text] al portapapeles y avisa con una notificación.
+  Future<void> _copy(String text) async {
+    final l10n = AppLocalizations.of(context)!;
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    NotificationService.instance.show(
+      context: context,
+      type: NotificationType.success,
+      title: l10n.detailsCopied,
+      description: text.length > 90 ? '${text.substring(0, 90)}…' : text,
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final String locale = Localizations.localeOf(context).toString();
+    return DateFormat.yMMMd(locale).format(date.toLocal());
+  }
+
+  /// "1.2.0" → "v1.2.0"; "Final" se deja tal cual.
+  String _prettyVersion(String version) =>
+      RegExp(r'^\d').hasMatch(version) ? 'v$version' : version;
+
+  /// Etiqueta y color del tipo de mod (mismos que en las tarjetas de la lista).
+  (String, Color) _typeInfo(AppLocalizations l10n) {
+    switch (currentModInfo.modType) {
+      case 'replacement':
+        return (l10n.modTypeReplacement, IosColors.purple);
+      case 'genericPak':
+        return (l10n.modTypeGeneric, IosColors.gray);
+      case 'movies':
+        return (l10n.modTypeMovies, IosColors.red);
+      case 'logicMod':
+        return (l10n.modTypeLogic, IosColors.blue);
+      case 'save':
+        return (l10n.modTypeSave, IosColors.green);
+      case 'config':
+        return (l10n.modTypeConfig, IosColors.teal);
+      case 'splash':
+        return (l10n.modTypeSplash, IosColors.orange);
+      default:
+        return (l10n.modTypeCNS, IosColors.teal);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  //  DIÁLOGO DE EDICIÓN DE UN SOLO CAMPO (alerta de vidrio estilo iOS)
+  // ---------------------------------------------------------------------------
   Future<String?> _showSingleFieldEditDialog({
     required String title,
     required String label,
@@ -251,40 +428,75 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
   }) async {
     final controller = TextEditingController(text: initialValue);
     final l10n = AppLocalizations.of(context)!;
-    return await showDialog<String>(
+
+    final String? result = await showIosDialog<String>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (ctx, setDialogState) {
             final bool isCurrentlyDefault =
                 controller.text == (defaultValue ?? '');
-            return AlertDialog(
-              title: Text(title),
-              content: TextField(
-                controller: controller,
-                autofocus: true,
-                decoration: InputDecoration(labelText: label),
-                maxLines: null,
-                maxLength: maxLength,
-                onChanged: (v) => setDialogState(() {}),
+            return IosDialogShell(
+              title: title,
+              width: 380,
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 2, bottom: 6),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: IosColors.secondaryLabel,
+                      ),
+                    ),
+                  ),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    minLines: 1,
+                    maxLines: null,
+                    maxLength: maxLength,
+                    cursorColor: IosColors.blue,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      height: 1.35,
+                      color: IosColors.label,
+                    ),
+                    decoration: iosInputDecoration(),
+                    onChanged: (v) => setDialogState(() {}),
+                  ),
+                  if (defaultValue != null)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: IosTextButton(
+                          label: l10n.dialogActionResetToDefault,
+                          fontSize: 12.5,
+                          onPressed: isCurrentlyDefault
+                              ? null
+                              : () => setDialogState(
+                                  () => controller.text = defaultValue,
+                                ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               actions: [
-                if (defaultValue != null)
-                  TextButton(
-                    onPressed: isCurrentlyDefault
-                        ? null
-                        : () => setDialogState(
-                            () => controller.text = defaultValue,
-                          ),
-                    child: Text(l10n.dialogActionResetToDefault),
-                  ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l10n.dialogActionCancel),
+                IosDialogButton(
+                  label: l10n.dialogActionCancel,
+                  onPressed: () => Navigator.of(dialogContext).pop(),
                 ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(controller.text),
-                  child: Text(l10n.dialogActionSave),
+                IosDialogButton(
+                  label: l10n.dialogActionSave,
+                  bold: true,
+                  onPressed: () =>
+                      Navigator.of(dialogContext).pop(controller.text),
                 ),
               ],
             );
@@ -292,333 +504,357 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
         );
       },
     );
+    // El diálogo sigue en pantalla durante su animación de salida.
+    Future.delayed(const Duration(milliseconds: 400), controller.dispose);
+    return result;
   }
 
-  // Construye las secciones de texto
-  Widget _buildInfoSection({
-    required String title,
-    required String content,
-    required IconData icon,
-    VoidCallback? onEdit,
-  }) {
-    final l10n = AppLocalizations.of(context)!;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    icon,
-                    color: Colors.tealAccent.withOpacity(0.8),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.tealAccent,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  // Botón para traducir el RESUMEN
-                  if (title == l10n.modSummary && _showTranslateSummaryButton)
-                    _isTranslating
-                        ? const Padding(
-                            padding: EdgeInsets.all(4.0),
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : IconButton(
-                            icon: const Icon(
-                              Icons.translate,
-                              color: Colors.white70,
-                              size: 20,
-                            ),
-                            onPressed: _translateSummary,
-                            tooltip: l10n.translateSummary,
-                          ),
+  // ---------------------------------------------------------------------------
+  //  ACCIONES SOBRE EL MOD
+  // ---------------------------------------------------------------------------
+  Future<void> _saveField(Map<String, dynamic> data) async {
+    final updatedMod = await widget.onUpdateDetails(currentModInfo, data);
+    if (updatedMod != null && mounted) {
+      setState(() {
+        currentModInfo = updatedMod;
+        _needsReloadOnClose = true;
+      });
+    }
+  }
 
-                  // Botón para traducir la DESCRIPCIÓN
-                  if (title == l10n.modDescription &&
-                      _showTranslateDescriptionButton)
-                    _isTranslating
-                        ? const Padding(
-                            padding: EdgeInsets.all(4.0),
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : IconButton(
-                            icon: const Icon(
-                              Icons.translate,
-                              color: Colors.white70,
-                              size: 20,
-                            ),
-                            onPressed: _translateDescription,
-                            tooltip: l10n.translateDescription,
-                          ),
+  Future<void> _editVersion(String displayVersion, AppLocalizations l10n) async {
+    final newVersion = await _showSingleFieldEditDialog(
+      title: l10n.editVersionText,
+      label: l10n.customVersionText,
+      initialValue: displayVersion,
+      defaultValue: currentModInfo.localVersion ?? '',
+      maxLength: 15,
+    );
+    if (newVersion == null) return;
+    await _saveField({'customVersion': newVersion});
+  }
 
-                  if (onEdit != null)
-                    IconButton(
-                      icon: const HugeIcon(
-                        icon: HugeIcons.strokeRoundedEdit01,
-                        color: Colors.white70,
-                        size: 20,
-                      ),
-                      onPressed: onEdit,
-                      tooltip: l10n.editButtonTooltip,
-                      splashRadius: 20,
-                      constraints: const BoxConstraints(),
-                      padding: EdgeInsets.zero,
-                    ),
-                ],
-              ),
-            ],
+  Future<void> _editSummary(AppLocalizations l10n) async {
+    final newSummary = await _showSingleFieldEditDialog(
+      title: l10n.modSummary,
+      label: l10n.summaryLabel,
+      initialValue: currentModInfo.customSummary ?? currentModInfo.summary ?? '',
+      defaultValue: currentModInfo.summary ?? '',
+    );
+    if (newSummary != null) await _saveField({'summary': newSummary});
+  }
+
+  Future<void> _editNotes(AppLocalizations l10n) async {
+    final newNotes = await _showSingleFieldEditDialog(
+      title: l10n.personalNotes,
+      label: l10n.notesLabel,
+      initialValue: currentModInfo.userNotes ?? '',
+    );
+    if (newNotes != null) await _saveField({'userNotes': newNotes});
+  }
+
+  Future<void> _onUpdatePressed() async {
+    if (currentModInfo.nexusId == null) return;
+    final updateIdentifier =
+        currentModInfo.directory.path +
+        (widget.updateInfo!['version'] as String);
+
+    // La función devuelve true si el usuario decidió ocultar el aviso.
+    final bool wasHidden = await widget.onShowUpdateDialog(
+      newVersion: widget.updateInfo!['version'],
+      nexusId: currentModInfo.nexusId!,
+      fileId: widget.updateInfo!['fileId'],
+      uniqueIdentifier: updateIdentifier,
+      mod: currentModInfo,
+    );
+    if (wasHidden && mounted) {
+      setState(() => _isIgnored = true);
+    }
+  }
+
+  Future<void> _onGeneralEditPressed() async {
+    final updatedData = await widget.onShowGeneralEditDialog(
+      currentModInfo,
+      context,
+    );
+    if (updatedData == null) return;
+    await _saveField(updatedData);
+  }
+
+  Future<void> _onLinkPressed() async {
+    final urlString = currentModInfo.customSourceUrl ?? currentModInfo.sourceUrl;
+    if (urlString != null && urlString.isNotEmpty) {
+      final url = Uri.parse(urlString);
+      if (await canLaunchUrl(url)) await launchUrl(url);
+    } else {
+      await _onGeneralEditPressed();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  //  ENDORSE (Nexus Mods)
+  // ---------------------------------------------------------------------------
+  bool get _isNexusMod => (currentModInfo.nexusId ?? '').trim().isNotEmpty;
+  bool get _hasApiKey => (widget.apiKey ?? '').trim().isNotEmpty;
+  bool get _isEndorsed => _endorseStatus == 'Endorsed';
+
+  int _minutesCeil(Duration d) =>
+      d <= Duration.zero ? 0 : (d.inSeconds / 60).ceil();
+
+  /// Tiempo que falta para poder endorsar. Se calcula desde la fecha de
+  /// instalación (siempre es posterior a la descarga, así que es una cota
+  /// segura) y desde una espera forzada por Nexus, si la hubo.
+  Duration _endorseWaitLeft() {
+    final DateTime now = DateTime.now();
+    Duration left = Duration.zero;
+
+    final DateTime? installed = currentModInfo.installDate;
+    if (installed != null) {
+      final Duration l = _endorseMinWait - now.difference(installed);
+      if (l > left) left = l;
+    }
+    final DateTime? blocked = _endorseBlockedUntil;
+    if (blocked != null) {
+      final Duration l = blocked.difference(now);
+      if (l > left) left = l;
+    }
+    return left > _endorseMinWait ? _endorseMinWait : left;
+  }
+
+  void _tickEndorseWait() {
+    final int minutes = _minutesCeil(_endorseWaitLeft());
+    if (_endorseWaitMinutes.value != minutes) {
+      _endorseWaitMinutes.value = minutes;
+    }
+    if (minutes <= 0) {
+      _endorseWaitTimer?.cancel();
+      _endorseWaitTimer = null;
+    }
+  }
+
+  /// Recalcula la espera y, si hay, programa la cuenta atrás.
+  void _refreshEndorseWait() {
+    _endorseWaitTimer?.cancel();
+    _endorseWaitTimer = null;
+    _tickEndorseWait();
+    if (_endorseWaitMinutes.value > 0 && _isNexusMod) {
+      _endorseWaitTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        _tickEndorseWait();
+      });
+    }
+  }
+
+  /// Carpetas de TODAS las ediciones instaladas de este mod (incluida la
+  /// actual). El endorse es por mod en Nexus, así que se guarda en todas.
+  List<Directory> _editionDirs() => [
+    currentModInfo.directory,
+    ...widget.otherEditions.map((m) => m.directory),
+  ];
+
+  /// Lee el estado guardado en el nexus_info.json del mod y lo muestra al
+  /// instante, mientras (si hace falta) se confirma con Nexus.
+  Future<void> _restoreEndorseStatus() async {
+    if (!_isNexusMod) return;
+    final int seq = _endorseActionSeq;
+    final EndorseRecord? record = await EndorseInfoStore.read(
+      currentModInfo.directory,
+    );
+    if (record == null || seq != _endorseActionSeq) return;
+    _endorseRecord = record;
+    if (!mounted) return;
+    setState(() => _endorseStatus = record.status);
+  }
+
+  /// Confirma el estado con Nexus si lo guardado tiene más de 10 minutos (o no
+  /// hay nada guardado) y lo escribe en el nexus_info.json del mod.
+  Future<void> _loadEndorseStatus() async {
+    if (!_isNexusMod || !_hasApiKey) return;
+    await _endorseRestore;
+
+    final EndorseRecord? saved = _endorseRecord;
+    if (saved != null && saved.isFresh(_endorseRefreshEvery)) return;
+
+    final int seq = _endorseActionSeq;
+    final List<Directory> dirs = _editionDirs();
+    final String? status = await NexusApiService.fetchEndorseStatus(
+      currentModInfo.nexusId!,
+      widget.apiKey,
+    );
+    // Sin dato: se conserva lo guardado y se reintenta la próxima vez que se
+    // abra el panel (no se marca como "consultado").
+    if (status == null) return;
+    // El usuario endorsó o quitó el endorse mientras tanto: esa acción es más
+    // reciente que esta respuesta.
+    if (seq != _endorseActionSeq || _endorseBusy) return;
+
+    final DateTime now = DateTime.now();
+    _endorseRecord = EndorseRecord(status, now);
+    // Se guarda aunque el panel ya se haya cerrado.
+    await EndorseInfoStore.writeAll(dirs, status, checkedAt: now);
+
+    if (!mounted || seq != _endorseActionSeq || _endorseBusy) return;
+    setState(() => _endorseStatus = status);
+  }
+
+  String _endorseFailureText(AppLocalizations l10n, EndorseFailure failure) {
+    switch (failure) {
+      case EndorseFailure.noApiKey:
+        return l10n.endorseErrNoApiKey;
+      case EndorseFailure.invalidKey:
+        return l10n.endorseErrInvalidKey;
+      case EndorseFailure.notDownloaded:
+        return l10n.endorseErrNotDownloaded;
+      case EndorseFailure.tooSoon:
+        final int minutes = _minutesCeil(_endorseWaitLeft()).clamp(1, 15).toInt();
+        return l10n.endorseErrWait(minutes);
+      case EndorseFailure.ownMod:
+        return l10n.endorseErrOwnMod;
+      case EndorseFailure.rateLimited:
+        return l10n.endorseErrRateLimit;
+      case EndorseFailure.notFound:
+        return l10n.endorseErrNotNexus;
+      case EndorseFailure.network:
+        return l10n.endorseErrNetwork;
+      case EndorseFailure.unknown:
+        return l10n.endorseErrUnknown;
+    }
+  }
+
+  Future<bool> _confirmRemoveEndorse(AppLocalizations l10n) async {
+    final bool? result = await showIosDialog<bool>(
+      context: context,
+      builder: (dialogContext) => IosDialogShell(
+        title: l10n.endorseRemoveConfirmTitle,
+        message: l10n.endorseRemoveConfirmMessage(currentModInfo.customName),
+        actions: [
+          IosDialogButton(
+            label: l10n.dialogActionCancel,
+            onPressed: () => Navigator.of(dialogContext).pop(false),
           ),
-          const SizedBox(height: 10),
-          Text(
-            TextUtils.stripHtml(content), // Limpiamos el HTML siempre antes de mostrar
-            style: TextStyle(
-              color: content.startsWith('No')
-                  ? Colors.white.withOpacity(0.5)
-                  : Colors.white.withOpacity(0.9),
-              fontStyle: content.startsWith('No')
-                  ? FontStyle.italic
-                  : FontStyle.normal,
-              height: 1.5,
-              fontSize: 15,
-            ),
+          IosDialogButton(
+            label: l10n.endorseRemoveConfirmAction,
+            bold: true,
+            destructive: true,
+            onPressed: () => Navigator.of(dialogContext).pop(true),
           ),
         ],
       ),
     );
+    return result ?? false;
   }
 
-  /// Muestra el panel flotante para seleccionar un traje.
-  /// Muestra el panel flotante para seleccionar múltiples trajes.
-  Future<void> _showOutfitSelectionDialog(AppLocalizations l10n) async {
-    final ValueNotifier<String?> hoveredOutfitNotifier = ValueNotifier<String?>(null);
-    String searchQuery = ''; 
-    bool isClosing = false;
-
-    // Clonamos localmente la lista de trajes que ya están guardados en el mod
-    final List<String> localSelectedOutfits = List.from(currentModInfo.replacesOutfits ?? []);
-
-    final List<String>? finalSelection = await showModalBottomSheet<List<String>>(
+  void _endorseNotify(NotificationType type, String title, String description) {
+    NotificationService.instance.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF2d2d2d),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.8,
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setDialogState) {
-            final filteredOutfits = stellarBladeOutfits
-                .where((outfit) => outfit.toLowerCase().contains(searchQuery.toLowerCase()))
-                .toList();
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // --- LADO IZQUIERDO: BÚSQUEDA Y LISTA MULTI-SELECCIÓN (2/3) ---
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    children: [
-                      Container(
-                        height: 5,
-                        width: 40,
-                        margin: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[700],
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                autofocus: true,
-                                onChanged: (value) {
-                                  setDialogState(() {
-                                    searchQuery = value;
-                                  });
-                                },
-                                decoration: InputDecoration(
-                                  hintText: l10n.replacesOutfitSearchHint,
-                                  prefixIcon: const Icon(Icons.search),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            // Botón para confirmar la selección múltiple
-                            ElevatedButton.icon(
-                              icon: const HugeIcon(icon: HugeIcons.strokeRoundedSave, size: 18),
-                              label: Text(l10n.dialogActionSave),
-                              onPressed: () {
-                                isClosing = true;
-                                Navigator.of(context).pop(localSelectedOutfits);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.tealAccent,
-                                foregroundColor: Colors.black,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: MouseRegion(
-                          onExit: (_) {
-                            if (isClosing) return;
-                            if (hoveredOutfitNotifier.value != null) {
-                              hoveredOutfitNotifier.value = null;
-                            }
-                          },
-                          child: ListView.builder(
-                            itemCount: filteredOutfits.length,
-                            itemBuilder: (context, index) {
-                              final outfit = filteredOutfits[index];
-                              final isSelected = localSelectedOutfits.contains(outfit);
-                              
-                              return MouseRegion(
-                                onEnter: (_) {
-                                  if (isClosing) return;
-                                  if (hoveredOutfitNotifier.value != outfit) {
-                                    hoveredOutfitNotifier.value = outfit;
-                                  }
-                                },
-                                child: CheckboxListTile(
-                                  title: Text(outfit),
-                                  value: isSelected,
-                                  activeColor: Colors.tealAccent,
-                                  checkColor: Colors.black,
-                                  controlAffinity: ListTileControlAffinity.leading,
-                                  onChanged: (bool? checked) {
-                                    setDialogState(() {
-                                      if (checked == true) {
-                                        localSelectedOutfits.add(outfit);
-                                      } else {
-                                        localSelectedOutfits.remove(outfit);
-                                      }
-                                    });
-                                  },
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // --- LADO DERECHO: VISTA PREVIA (1/3) ---
-                Expanded(
-                  flex: 1,
-                  child: ValueListenableBuilder<String?>(
-                    valueListenable: hoveredOutfitNotifier,
-                    builder: (context, hoveredOutfitName, child) {
-                      return Container(
-                        height: double.infinity,
-                        color: Colors.black.withOpacity(0.3),
-                        padding: const EdgeInsets.all(16.0),
-                        child: Center(
-                          child: AnimatedCrossFade(
-                            crossFadeState: hoveredOutfitName == null
-                                ? CrossFadeState.showFirst
-                                : CrossFadeState.showSecond,
-                            duration: const Duration(milliseconds: 200),
-                            firstChild: Column(
-                              key: const ValueKey('outfit_placeholder'),
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                HugeIcon(icon: HugeIcons.strokeRoundedImageAdd02, size: 60, color: Colors.grey[700]),
-                                const SizedBox(height: 16),
-                                Text(
-                                  l10n.replacesOutfitHover,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.grey[500]),
-                                ),
-                              ],
-                            ),
-                            secondChild: ClipRRect(
-                              key: ValueKey(hoveredOutfitName),
-                              child: Image.asset(
-                                _generateOutfitImagePath(hoveredOutfitName ?? ''),
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: const HugeIcon(icon: HugeIcons.strokeRoundedImageDelete02, color: Colors.grey, size: 40),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            layoutBuilder: (topChild, topChildKey, bottomChild, bottomChildKey) {
-                              return Stack(
-                                alignment: Alignment.center,
-                                children: [bottomChild, topChild],
-                              );
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      type: type,
+      title: title,
+      description: description,
     );
-
-    isClosing = true;
-    hoveredOutfitNotifier.dispose();
-
-    if (finalSelection != null) {
-      await _onOutfitsSelected(finalSelection);
-    }
   }
 
-  /// Despacha y guarda la lista completa de trajes en el archivo JSON.
-  Future<void> _onOutfitsSelected(List<String> outfits) async {
+  Future<void> _onEndorsePressed() async {
+    if (_endorseBusy) return;
+    final l10n = AppLocalizations.of(context)!;
+
+    // 1. Solo los mods de Nexus se pueden endorsar.
+    if (!_isNexusMod) {
+      _endorseNotify(
+        NotificationType.info,
+        l10n.endorseFailedTitle,
+        l10n.endorseErrNotNexus,
+      );
+      return;
+    }
+
+    // 2. Hace falta la API key.
+    if (!_hasApiKey) {
+      _endorseNotify(
+        NotificationType.info,
+        l10n.endorseFailedTitle,
+        l10n.endorseErrNoApiKey,
+      );
+      return;
+    }
+
+    // 3. Si ya está endorsado, el botón lo quita (previa confirmación). Si no,
+    //    hay que respetar los 15 minutos desde la descarga.
+    final bool removing = _isEndorsed;
+    if (removing) {
+      final bool confirmed = await _confirmRemoveEndorse(l10n);
+      if (!confirmed || !mounted) return;
+    } else {
+      final int wait = _minutesCeil(_endorseWaitLeft());
+      if (wait > 0) {
+        _endorseNotify(
+          NotificationType.info,
+          l10n.endorseFailedTitle,
+          l10n.endorseErrWait(wait),
+        );
+        return;
+      }
+    }
+
+    _endorseActionSeq++;
+    setState(() => _endorseBusy = true);
+    final EndorseResult result = await NexusApiService.setEndorsement(
+      nexusId: currentModInfo.nexusId!,
+      apiKey: widget.apiKey,
+      endorse: !removing,
+      version: currentModInfo.localVersion,
+    );
+    if (!mounted) return;
+
+    final String? newStatus = result.ok ? result.status : null;
+    final DateTime now = DateTime.now();
+    if (newStatus != null) {
+      // Se guarda en el nexus_info.json del mod: así es lo que se verá al
+      // volver a abrir el panel (y durante los próximos 10 minutos).
+      _endorseRecord = EndorseRecord(newStatus, now);
+      unawaited(
+        EndorseInfoStore.writeAll(
+          _editionDirs(),
+          newStatus,
+          checkedAt: now,
+        ),
+      );
+    }
+    setState(() {
+      _endorseBusy = false;
+      if (newStatus != null) _endorseStatus = newStatus;
+    });
+
+    if (result.ok) {
+      _endorseNotify(
+        NotificationType.success,
+        removing ? l10n.endorseRemovedTitle : l10n.endorseSuccessTitle,
+        currentModInfo.customName,
+      );
+      return;
+    }
+
+    final EndorseFailure failure = result.failure ?? EndorseFailure.unknown;
+    if (failure == EndorseFailure.tooSoon) {
+      // Nexus manda: se bloquea el botón y se muestra la cuenta atrás.
+      _endorseBlockedUntil = DateTime.now().add(_endorseMinWait);
+      _refreshEndorseWait();
+    }
+    _endorseNotify(
+      NotificationType.error,
+      l10n.endorseFailedTitle,
+      _endorseFailureText(l10n, failure),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  //  TRAJES QUE REEMPLAZA EL MOD
+  // ---------------------------------------------------------------------------
+
+  /// Guarda la lista completa de trajes. Devuelve true si se guardó.
+  Future<bool> _onOutfitsSelected(List<String> outfits) async {
     final updatedMod = await widget.onUpdateDetails(currentModInfo, {
       'replacesOutfits': outfits.isEmpty ? null : outfits,
     });
@@ -628,162 +864,1079 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
         currentModInfo = updatedMod;
         _needsReloadOnClose = true;
       });
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _openOutfitPicker() async {
+    final List<String>? result = await showOutfitPickerSheet(
+      context,
+      initialSelection: List<String>.from(
+        currentModInfo.replacesOutfits ?? const <String>[],
+      ),
+    );
+    if (result == null || !mounted) return;
+    await _onOutfitsSelected(result);
+  }
+
+  /// Quita un único traje sin abrir el selector.
+  Future<void> _removeOutfit(String outfit) async {
+    final List<String> remaining = List<String>.from(
+      currentModInfo.replacesOutfits ?? const <String>[],
+    )..remove(outfit);
+    final bool ok = await _onOutfitsSelected(remaining);
+    if (!ok && mounted) setState(() => _outfitsRevision++);
+  }
+
+  Future<bool> _confirmDisableReplacement(AppLocalizations l10n, int count) async {
+    final bool? result = await showIosDialog<bool>(
+      context: context,
+      builder: (dialogContext) => IosDialogShell(
+        title: l10n.replacementOffConfirmTitle,
+        message: l10n.replacementOffConfirmMessage(count),
+        actions: [
+          IosDialogButton(
+            label: l10n.dialogActionCancel,
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+          ),
+          IosDialogButton(
+            label: l10n.replacementOffConfirmAction,
+            bold: true,
+            destructive: true,
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  Future<void> _onReplacementSwitchChanged(bool newValue) async {
+    final l10n = AppLocalizations.of(context)!;
+
+    // Apagarlo borra los trajes elegidos: se pide confirmación antes.
+    final int outfitCount = currentModInfo.replacesOutfits?.length ?? 0;
+    if (!newValue && outfitCount > 0) {
+      final bool confirmed = await _confirmDisableReplacement(l10n, outfitCount);
+      if (!confirmed || !mounted) return;
+    }
+
+    final String newModType = newValue ? 'replacement' : 'genericPak';
+    final Map<String, dynamic> dataToSave = {'modType': newModType};
+    if (newValue == false) {
+      dataToSave['replacesOutfits'] = null;
+    }
+
+    // Respuesta inmediata del interruptor (como en iOS); se revierte si falla.
+    setState(() => _isReplacementMod = newValue);
+
+    final updatedMod = await widget.onUpdateDetails(currentModInfo, dataToSave);
+    if (!mounted) return;
+    if (updatedMod != null) {
+      setState(() {
+        currentModInfo = updatedMod;
+        _needsReloadOnClose = true;
+      });
+    } else {
+      setState(() => _isReplacementMod = !newValue);
     }
   }
 
-  /// Genera la ruta del asset para la vista previa de un traje.
-  String _generateOutfitImagePath(String outfitName) {
-    // 1. Minúsculas
-    String safeName = outfitName.toLowerCase();
-    // 2. Quitar (NG+) y caracteres especiales
-    safeName = safeName
-        .replaceAll('(ng+)', 'ng_plus')
-        .replaceAll(RegExp(r'[^\w\s-]'), '');
-    // 3. Reemplazar espacios y guiones con guiones bajos
-    safeName = safeName.replaceAll(RegExp(r'[\s-]+'), '_');
+  // ---------------------------------------------------------------------------
+  //  PIEZAS DE UI
+  // ---------------------------------------------------------------------------
+  Widget _sectionIcon(IconData icon) =>
+      Icon(icon, size: 15, color: IosColors.secondaryLabel);
 
-    // 4. Devolver la ruta completa del asset
-    return 'assets/images/outfits/$safeName.webp'; // Asume .webp
+  /// Botón de traducir / rueda de carga, alineado con las acciones de sección.
+  Widget _translateAction({
+    required VoidCallback onPressed,
+    required String tooltip,
+  }) {
+    if (_isTranslating) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 8),
+        child: IosSpinner(),
+      );
+    }
+    return IosToolbarButton(
+      width: 28,
+      height: 28,
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: const Icon(Icons.translate_rounded, size: 17, color: IosColors.blue),
+    );
   }
 
-  /// Construye la UI para mostrar y gestionar las múltiples portadas de trajes de reemplazo.
-  Widget _buildOutfitReplacementSection(AppLocalizations l10n) {
-    final List<String> replacedOutfits = currentModInfo.replacesOutfits ?? [];
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white12),
+  Widget _editAction({required VoidCallback onPressed, required String tooltip}) {
+    return IosToolbarButton(
+      width: 28,
+      height: 28,
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: const HugeIcon(
+        icon: HugeIcons.strokeRoundedEdit01,
+        color: IosColors.blue,
+        size: 16,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  HugeIcon(
-                    icon: HugeIcons.strokeRoundedArrowReloadHorizontal,
-                    color: Colors.tealAccent.withOpacity(0.8),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    l10n.replacesOutfitTitle,
-                    style: const TextStyle(
-                      color: Colors.tealAccent,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
+    );
+  }
+
+  /// Sección de texto (resumen): título pequeño + tarjeta translúcida, con
+  /// "Mostrar más" si el texto es largo.
+  Widget _buildInfoSection({
+    required AppLocalizations l10n,
+    required String title,
+    required String content,
+    required Widget icon,
+    bool isPlaceholder = false,
+    VoidCallback? onEdit,
+    VoidCallback? onTranslate,
+    String? translateTooltip,
+  }) {
+    return IosGroup(
+      title: title,
+      icon: icon,
+      actions: [
+        if (onTranslate != null)
+          _translateAction(
+            onPressed: onTranslate,
+            tooltip: translateTooltip ?? '',
+          ),
+        if (onEdit != null)
+          _editAction(onPressed: onEdit, tooltip: l10n.editButtonTooltip),
+      ],
+      child: IosCollapsible(
+        enabled: !isPlaceholder,
+        collapsedHeight: 96,
+        moreLabel: l10n.detailsShowMore,
+        lessLabel: l10n.detailsShowLess,
+        child: SizedBox(
+          width: double.infinity,
+          child: Text(
+            TextUtils.stripHtml(content),
+            style: TextStyle(
+              color: isPlaceholder
+                  ? IosColors.tertiaryLabel
+                  : IosColors.label.withOpacity(0.92),
+              fontStyle: isPlaceholder ? FontStyle.italic : FontStyle.normal,
+              height: 1.45,
+              fontSize: 14.5,
+              letterSpacing: -0.15,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Notas personales: toda la tarjeta es pulsable para editar.
+  Widget _buildNotesSection(AppLocalizations l10n) {
+    final bool isEmpty = !(currentModInfo.userNotes?.isNotEmpty ?? false);
+    return IosGroup(
+      title: l10n.personalNotes,
+      icon: _sectionIcon(Icons.edit_note_outlined),
+      actions: [
+        if (!isEmpty)
+          _editAction(
+            onPressed: () => _editNotes(l10n),
+            tooltip: l10n.editButtonTooltip,
+          ),
+      ],
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 300),
+        curve: IosMotion.sheet,
+        alignment: Alignment.topCenter,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          child: isEmpty
+              ? IosPressable(
+                  key: const ValueKey<String>('notes-empty'),
+                  scale: 0.985,
+                  onTap: () => _editNotes(l10n),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.add_circle_outline_rounded,
+                          size: 19,
+                          color: IosColors.blue,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            l10n.detailsAddNote,
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              letterSpacing: -0.15,
+                              color: IosColors.blue,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-              // Botón unificado de configuración/edición múltiple
-              IconButton(
-                icon: HugeIcon(
-                  icon: replacedOutfits.isNotEmpty ? HugeIcons.strokeRoundedHanger : HugeIcons.strokeRoundedHanger,
-                  color: Colors.white70,
-                  size: 20,
+                )
+              : IosPressable(
+                  key: const ValueKey<String>('notes-filled'),
+                  scale: 0.995,
+                  onTap: () => _editNotes(l10n),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Text(
+                      currentModInfo.userNotes!,
+                      style: TextStyle(
+                        color: IosColors.label.withOpacity(0.92),
+                        height: 1.45,
+                        fontSize: 14.5,
+                        letterSpacing: -0.15,
+                      ),
+                    ),
+                  ),
                 ),
-                onPressed: () => _showOutfitSelectionDialog(l10n),
-                tooltip: l10n.replacesOutfitSelectTooltip,
-                splashRadius: 20,
-                constraints: const BoxConstraints(),
-                padding: EdgeInsets.zero,
-              ),
-            ],
-          ),
+        ),
+      ),
+    );
+  }
 
-          if (replacedOutfits.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            // Carrusel horizontal pulido para listar todas las transformaciones asignadas
-            SizedBox(
-              height: 235, // <-- Altura aumentada (antes 175)
-              child: Scrollbar(
-                controller: _carouselScrollController,
-                thumbVisibility: true, // Hace visible la barra siempre
-                trackVisibility: true, // Muestra el riel sutilmente
-                thickness: 6,
-                radius: const Radius.circular(10),
-                child: ListView.builder(
-                  controller: _carouselScrollController,
-                  scrollDirection: Axis.horizontal,
-                  // Añadimos padding abajo para que el scrollbar no pise las tarjetas
-                  padding: const EdgeInsets.only(bottom: 16), 
-                  itemCount: replacedOutfits.length,
-                  itemBuilder: (context, index) {
-                    final outfit = replacedOutfits[index];
-                    return Container(
-                      width: 125, // <-- Anchura aumentada (antes 105)
-                      margin: const EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.4),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.white10),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              child: Image.asset(
-                                _generateOutfitImagePath(outfit),
-                                fit: BoxFit.cover,
-                                // <-- ESTO EVITA QUE SE CORTE LA CABEZA:
-                                alignment: Alignment.topCenter, 
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: Colors.black26,
-                                    child: const HugeIcon(icon: HugeIcons.strokeRoundedImageRemove01, color: Colors.grey, size: 24),
-                                  );
-                                },
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-                              color: Colors.black26,
-                              child: Text(
-                                outfit,
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+  Widget _buildDescriptionSection(AppLocalizations l10n) {
+    final String? raw = currentModInfo.customDescription ??
+        currentModInfo.description;
+    final bool hasDescription = raw != null && raw.trim().isNotEmpty;
+
+    return IosGroup(
+      title: l10n.modDescription,
+      icon: const HugeIcon(
+        icon: HugeIcons.strokeRoundedBook04,
+        color: IosColors.secondaryLabel,
+        size: 15,
+      ),
+      actions: [
+        if (_showTranslateDescriptionButton)
+          _translateAction(
+            onPressed: _translateDescription,
+            tooltip: l10n.translateDescription,
+          ),
+      ],
+      child: IosCollapsible(
+        enabled: hasDescription,
+        collapsedHeight: 240,
+        moreLabel: l10n.detailsShowMore,
+        lessLabel: l10n.detailsShowLess,
+        child: SizedBox(
+          width: double.infinity,
+          child: BBCodeRenderer(
+            data: hasDescription ? raw : l10n.noDescriptionAvailable,
+            defaultStyle: TextStyle(
+              color: hasDescription
+                  ? IosColors.label.withOpacity(0.92)
+                  : IosColors.tertiaryLabel,
+              height: 1.45,
+              fontSize: 14.5,
+              letterSpacing: -0.15,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  //  CABECERA, PORTADA Y TÍTULO
+  // ---------------------------------------------------------------------------
+  double _headerProgress(double offset) =>
+      ((offset - 150) / 70).clamp(0.0, 1.0).toDouble();
+
+  Widget _buildHeader(AppLocalizations l10n) {
+    return SizedBox(
+      height: 58,
+      child: Stack(
+        children: [
+          // Asa de arrastre (grabber) de las hojas de iOS.
+          Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Container(
+                width: 36,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: const Color(0x4DEBEBF5),
+                  borderRadius: BorderRadius.circular(3),
                 ),
               ),
             ),
-          ] else ...[
-            const SizedBox(height: 10),
-            Text(
-              l10n.replacesOutfitNone,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
-                fontStyle: FontStyle.italic,
-                height: 1.5,
-                fontSize: 15,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 14, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Título compacto: aparece al desplazarse (barra de iOS).
+                Expanded(
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: _scrollOffset,
+                    builder: (context, offset, _) {
+                      final double t = _headerProgress(offset);
+                      return Opacity(
+                        opacity: t,
+                        child: Transform.translate(
+                          offset: Offset(0, (1 - t) * 6),
+                          child: Text(
+                            currentModInfo.customName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.2,
+                              color: IosColors.label,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                IosToolbarButton(
+                  width: 30,
+                  height: 30,
+                  tooltip: l10n.editButtonTooltip,
+                  onPressed: _onGeneralEditPressed,
+                  icon: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedPencilEdit02,
+                    size: 18,
+                    color: IosColors.icon,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IosCloseButton(onPressed: () => Navigator.of(context).pop()),
+              ],
+            ),
+          ),
+          // Filo inferior que aparece junto al título compacto.
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: ValueListenableBuilder<double>(
+              valueListenable: _scrollOffset,
+              builder: (context, offset, _) => Opacity(
+                opacity: _headerProgress(offset),
+                child: Container(height: 0.5, color: const Color(0x24FFFFFF)),
               ),
             ),
-          ],
+          ),
         ],
       ),
     );
   }
 
+  Widget _buildCover(String? mainImagePath, AppLocalizations l10n) {
+    final int galleryCount = currentModInfo.gallery?.length ?? 0;
+
+    // La portada ya NO es pulsable: el visor se abre solo con el botón de
+    // pantalla completa (arriba a la derecha).
+    // Se registra la portada para que el visor despegue desde su rectángulo.
+    registerGalleryOrigin(currentModInfo.directory.path, _coverKey);
+    return KeyedSubtree(
+      key: _coverKey,
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.35),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.35),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0x1FFFFFFF), width: 0.5),
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Fundido cruzado al cambiar la portada.
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 380),
+                child: SizedBox.expand(
+                  key: ValueKey<String>(
+                    '${mainImagePath ?? 'none'}|'
+                    '${currentModInfo.customCoverLastModified?.millisecondsSinceEpoch}',
+                  ),
+                  child: mainImagePath != null
+                      ? ModImage(
+                          imageUrl: mainImagePath,
+                          isLocal: !mainImagePath.startsWith('http'),
+                          lastModified: currentModInfo.customCoverLastModified,
+                          decodeToLayout: true,
+                          placeholder: _coverPlaceholder(),
+                        )
+                      : const Center(
+                          child: HugeIcon(
+                            icon: HugeIcons.strokeRoundedPuzzle,
+                            size: 64,
+                            color: IosColors.tertiaryLabel,
+                          ),
+                        ),
+                ),
+              ),
+              // Estado del mod (activado / desactivado).
+              Positioned(
+                top: 10,
+                left: 10,
+                child: _GlassPill(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 240),
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: currentModInfo.isEnabled
+                              ? IosColors.green
+                              : IosColors.gray,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        currentModInfo.isEnabled
+                            ? l10n.detailsStatusEnabled
+                            : l10n.detailsStatusDisabled,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.05,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Botón de pantalla completa: círculo de vidrio sobre la imagen.
+              Positioned(
+                top: 10,
+                right: 10,
+                // Sin BackdropFilter: desenfocar la imagen de detrás en cada
+                // fotograma es muy caro; un fondo oscuro translúcido se ve igual.
+                child: ClipOval(
+                  child: IosToolbarButton(
+                    width: 32,
+                    height: 32,
+                    background: const Color(0x8C000000),
+                    onPressed: () => widget.onShowImageGallery(currentModInfo),
+                    icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedFullscreen,
+                      color: Colors.white,
+                      size: 17,
+                    ),
+                  ),
+                ),
+              ),
+              // Número de imágenes de la galería.
+              if (galleryCount > 1)
+                Positioned(
+                  bottom: 10,
+                  right: 10,
+                  child: _GlassPill(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.photo_library_outlined,
+                          size: 13,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '$galleryCount',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTitleBlock(
+    AppLocalizations l10n,
+    String? author,
+    String displayVersion,
+  ) {
+    final (String typeLabel, Color typeColor) = _typeInfo(l10n);
+    final bool hasEdition = currentModInfo.editionName?.isNotEmpty ?? false;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          currentModInfo.customName,
+          style: const TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.6,
+            height: 1.15,
+            color: IosColors.label,
+          ),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+        if (author?.isNotEmpty ?? false) ...[
+          const SizedBox(height: 4),
+          Text(
+            l10n.byText(author!),
+            style: const TextStyle(
+              fontSize: 14,
+              letterSpacing: -0.1,
+              color: IosColors.secondaryLabel,
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            if (displayVersion.isNotEmpty)
+              _MetaChip(
+                label: _prettyVersion(displayVersion),
+                color: IosColors.blue,
+                tooltip: l10n.editVersionText,
+                onTap: () => _editVersion(displayVersion, l10n),
+              ),
+            _MetaChip(
+              label: typeLabel,
+              color: typeColor,
+              leading: Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: typeColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            if (hasEdition)
+              _MetaChip(
+                label: l10n.editionLabelValue(currentModInfo.editionName!),
+                color: IosColors.purple,
+                leading: const Icon(
+                  Icons.layers_rounded,
+                  size: 13,
+                  color: IosColors.purple,
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Aviso de actualización: aparece y desaparece con animación.
+  Widget _buildUpdateBanner(AppLocalizations l10n, String displayVersion) {
+    final bool show = widget.updateInfo != null && !_isIgnored;
+
+    Widget? banner;
+    if (show) {
+      final String newVersion = widget.updateInfo!['version'].toString();
+      banner = Padding(
+        key: const ValueKey<String>('update-banner'),
+        padding: const EdgeInsets.only(top: 14),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+          decoration: BoxDecoration(
+            color: IosColors.yellow.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: IosColors.yellow.withOpacity(0.35),
+              width: 0.8,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: IosColors.yellow,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.arrow_upward_rounded,
+                  size: 18,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.updateAvailable(newVersion),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.15,
+                        color: IosColors.label,
+                      ),
+                    ),
+                    if (displayVersion.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          '${_prettyVersion(displayVersion)}  →  ${_prettyVersion(newVersion)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: IosColors.secondaryLabel,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              IosPressable(
+                scale: 0.94,
+                onTap: _onUpdatePressed,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: IosColors.yellow,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    l10n.detailsUpdateAction,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.1,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 340),
+      curve: IosMotion.sheet,
+      alignment: Alignment.topCenter,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 240),
+        child:
+            banner ??
+            const SizedBox(
+              key: ValueKey<String>('no-update'),
+              width: double.infinity,
+            ),
+      ),
+    );
+  }
+
+  /// Fila de acciones rápidas (carpeta, enlace, endorse).
+  Widget _buildQuickActions(AppLocalizations l10n, bool hasLink) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ActionTile(
+            label: l10n.showInFolder,
+            iconBuilder: (c) => HugeIcon(
+              icon: HugeIcons.strokeRoundedFolderOpen,
+              size: 21,
+              color: c,
+            ),
+            onTap: () => widget.onShowInExplorer(currentModInfo.directory),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _ActionTile(
+            label: hasLink ? l10n.openLinkButtonText : l10n.addLinkButtonText,
+            tint: hasLink ? IosColors.blue : null,
+            iconBuilder: (c) => HugeIcon(
+              icon: HugeIcons.strokeRoundedLinkSquare02,
+              size: 21,
+              color: c,
+            ),
+            onTap: _onLinkPressed,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: _buildEndorseTile(l10n)),
+      ],
+    );
+  }
+
+  /// Tercer botón: endorsar el mod en Nexus Mods.
+  ///  * Atenuado (pero pulsable, para explicar el motivo) si el mod no es de
+  ///    Nexus, no hay API key, o aún no pasaron 15 min desde la descarga.
+  ///  * Verde y relleno si ya está endorsado (al pulsar se ofrece quitarlo).
+  Widget _buildEndorseTile(AppLocalizations l10n) {
+    return ValueListenableBuilder<int>(
+      valueListenable: _endorseWaitMinutes,
+      builder: (context, waitMinutes, _) {
+        final bool endorsed = _isEndorsed;
+        final bool unavailable = !_isNexusMod || !_hasApiKey;
+        final bool waiting = !unavailable && !endorsed && waitMinutes > 0;
+
+        final String label = endorsed
+            ? l10n.detailsEndorsed
+            : waiting
+                ? l10n.endorseWaitLabel(waitMinutes)
+                : l10n.detailsEndorse;
+        final IconData icon = endorsed
+            ? Icons.thumb_up_alt_rounded
+            : waiting
+                ? Icons.schedule_rounded
+                : Icons.thumb_up_alt_outlined;
+
+        return _ActionTile(
+          label: label,
+          tint: endorsed ? IosColors.green : null,
+          dimmed: unavailable || waiting,
+          busy: _endorseBusy,
+          iconBuilder: (c) => Icon(icon, size: 21, color: c),
+          onTap: _onEndorsePressed,
+        );
+      },
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  //  TARJETA DE INFORMACIÓN (filas estilo Ajustes de iOS)
+  // ---------------------------------------------------------------------------
+  Widget _buildInformationGroup(
+    AppLocalizations l10n,
+    String? author,
+    String displayVersion,
+  ) {
+    final (String typeLabel, Color typeColor) = _typeInfo(l10n);
+    final String nexusId = currentModInfo.nexusId ?? '';
+    final String folderName = p.basename(currentModInfo.directory.path);
+    const Widget copyIcon = Icon(
+      Icons.copy_rounded,
+      size: 15,
+      color: IosColors.tertiaryLabel,
+    );
+
+    final List<Widget> rows = [
+      if (displayVersion.isNotEmpty)
+        _InfoRow(
+          label: l10n.modVersion,
+          value: displayVersion,
+          onTap: () => _editVersion(displayVersion, l10n),
+          trailing: const Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: IosColors.tertiaryLabel,
+          ),
+        ),
+      if (author?.isNotEmpty ?? false)
+        _InfoRow(label: l10n.detailsRowAuthor, value: author!),
+      _InfoRow(
+        label: l10n.detailsRowType,
+        valueWidget: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: typeColor, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(
+                typeLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14,
+                  letterSpacing: -0.15,
+                  color: IosColors.secondaryLabel,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      if (currentModInfo.installDate != null)
+        _InfoRow(
+          label: l10n.detailsRowInstalled,
+          value: _formatDate(currentModInfo.installDate!),
+        ),
+      _InfoRow(
+        label: l10n.detailsRowModified,
+        value: _formatDate(currentModInfo.lastModified),
+      ),
+      if (nexusId.isNotEmpty)
+        _InfoRow(
+          label: l10n.detailsRowNexusId,
+          value: nexusId,
+          onTap: () => _copy(nexusId),
+          trailing: copyIcon,
+        ),
+      _InfoRow(
+        label: l10n.detailsRowFolder,
+        value: folderName,
+        onTap: () => _copy(currentModInfo.directory.path),
+        trailing: copyIcon,
+      ),
+    ];
+
+    final List<Widget> spaced = [];
+    for (int i = 0; i < rows.length; i++) {
+      if (i > 0) {
+        spaced.add(
+          const Divider(
+            height: 0.5,
+            thickness: 0.5,
+            indent: 14,
+            color: Color(0x1FFFFFFF),
+          ),
+        );
+      }
+      spaced.add(rows[i]);
+    }
+
+    return IosGroup(
+      title: l10n.detailsInformation,
+      icon: _sectionIcon(Icons.info_outline_rounded),
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(11),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: spaced,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOtherEditions(AppLocalizations l10n) {
+    return IosGroup(
+      title: l10n.otherEditionsTitle,
+      icon: _sectionIcon(Icons.layers_outlined),
+      child: Column(
+        children: [
+          for (final other in widget.otherEditions)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 240),
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      color: other.isEnabled
+                          ? IosColors.green
+                          : IosColors.tertiaryLabel,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      other.customName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        letterSpacing: -0.1,
+                        color: IosColors.label,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  //  SECCIÓN "REEMPLAZA EL TRAJE"
+  // ---------------------------------------------------------------------------
+  Widget _buildOutfitReplacementSection(AppLocalizations l10n) {
+    final List<String> outfits = currentModInfo.replacesOutfits ?? const [];
+
+    return IosGroup(
+      title: l10n.replacesOutfitTitle,
+      icon: const HugeIcon(
+        icon: HugeIcons.strokeRoundedArrowReloadHorizontal,
+        color: IosColors.secondaryLabel,
+        size: 15,
+      ),
+      actions: [
+        if (outfits.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(right: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+            decoration: BoxDecoration(
+              color: IosColors.chip,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: IosCountText(
+              text: l10n.outfitsCount(outfits.length),
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+                color: IosColors.secondaryLabel,
+              ),
+            ),
+          ),
+        IosToolbarButton(
+          width: 28,
+          height: 28,
+          tooltip: l10n.replacesOutfitSelectTooltip,
+          onPressed: _openOutfitPicker,
+          icon: const HugeIcon(
+            icon: HugeIcons.strokeRoundedHanger,
+            color: IosColors.blue,
+            size: 17,
+          ),
+        ),
+      ],
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 340),
+        curve: IosMotion.sheet,
+        alignment: Alignment.topCenter,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 260),
+          child: outfits.isEmpty
+              ? _buildEmptyOutfits(l10n)
+              : _buildOutfitCarousel(l10n, outfits),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyOutfits(AppLocalizations l10n) {
+    return SizedBox(
+      key: const ValueKey<String>('outfits-empty'),
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: const BoxDecoration(
+                color: IosColors.chip,
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: HugeIcon(
+                  icon: HugeIcons.strokeRoundedHanger,
+                  color: IosColors.secondaryLabel,
+                  size: 22,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              l10n.replacesOutfitNone,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13.5,
+                height: 1.4,
+                color: IosColors.secondaryLabel,
+              ),
+            ),
+            const SizedBox(height: 14),
+            IosActionButton(
+              label: l10n.outfitsChoose,
+              style: IosButtonStyle.filled,
+              iconBuilder: (c) => HugeIcon(
+                icon: HugeIcons.strokeRoundedHanger,
+                size: 18,
+                color: c,
+              ),
+              onPressed: _openOutfitPicker,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOutfitCarousel(AppLocalizations l10n, List<String> outfits) {
+    return SizedBox(
+      key: const ValueKey<String>('outfits-list'),
+      height: 214,
+      child: IosWheelToHorizontal(
+        controller: _carouselScrollController,
+        child: Scrollbar(
+          controller: _carouselScrollController,
+          thumbVisibility: true,
+          thickness: 4,
+          radius: const Radius.circular(10),
+          child: ListView(
+            controller: _carouselScrollController,
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(bottom: 14),
+            children: [
+              for (final outfit in outfits)
+                IosPop(
+                  key: ValueKey<String>('$outfit#$_outfitsRevision'),
+                  child: _OutfitCard(
+                    outfit: outfit,
+                    removeTooltip: l10n.outfitsRemove,
+                    onTap: _openOutfitPicker,
+                    onRemove: () => _removeOutfit(outfit),
+                  ),
+                ),
+              _AddOutfitTile(
+                tooltip: l10n.replacesOutfitSelectTooltip,
+                onTap: _openOutfitPicker,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  //  BUILD
+  // ---------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -791,619 +1944,650 @@ class ModDetailsPanelState extends State<ModDetailsPanel> {
         (currentModInfo.customSourceUrl ?? currentModInfo.sourceUrl)
             ?.isNotEmpty ??
         false;
-    // Determina el nombre del autor
     final author = currentModInfo.customAuthor ?? currentModInfo.author;
+
     String? mainImagePath;
-    // 1. PRIORITIZE the custom cover path. This now includes our cached '_nexus_cover.jpg'.
+    // 1. Prioriza la portada personalizada (incluye '_nexus_cover.jpg' en caché).
     if (currentModInfo.customCoverPath != null &&
         currentModInfo.customCoverPath!.isNotEmpty) {
-      // It's a local file, so we build the full path to it.
       mainImagePath = p.join(
         currentModInfo.directory.path,
         currentModInfo.customCoverPath!,
       );
-      // 2. FALLBACK to the internet URL from the gallery only if no custom/cached cover exists.
+      // 2. Si no hay, usa la imagen de la galería en internet.
     } else if (currentModInfo.gallery != null &&
         currentModInfo.gallery!.isNotEmpty) {
       mainImagePath = currentModInfo.gallery!.first['image'];
     }
 
-    final displayVersion =
-        currentModInfo.customVersion ?? currentModInfo.localVersion;
+    final String displayVersion =
+        currentModInfo.customVersion ?? currentModInfo.localVersion ?? '';
+
+    final bool summaryIsPlaceholder =
+        (currentModInfo.customSummary ?? currentModInfo.summary) == null;
+
+    final bool showReplacementBlock =
+        currentModInfo.modType == 'genericPak' ||
+        currentModInfo.modType == 'replacement' ||
+        (currentModInfo.modType == null &&
+            currentModInfo.replacesOutfits != null);
+
+    // Cada sección entra con un pequeño retraso respecto a la anterior.
+    int order = 0;
+    Widget reveal(String id, Widget child) =>
+        IosReveal(key: ValueKey<String>(id), index: order++, child: child);
+
+    // Las secciones que se montan al terminar la animación de apertura llevan
+    // su propio contador, para que su cascada empiece enseguida.
+    int lateOrder = 0;
+    Widget lateReveal(String id, Widget child) =>
+        IosReveal(key: ValueKey<String>(id), index: lateOrder++, child: child);
+
+    // El contenido se construye UNA vez por rebuild del estado (y no en cada
+    // fotograma del arrastre de la hoja): Flutter reutiliza estos widgets.
+    final List<Widget> sections = [
+      reveal('cover', _buildCover(mainImagePath, l10n)),
+      const SizedBox(height: 18),
+      reveal('title', _buildTitleBlock(l10n, author, displayVersion)),
+      _buildUpdateBanner(l10n, displayVersion),
+      const SizedBox(height: 16),
+      reveal('actions', _buildQuickActions(l10n, hasLink)),
+      // Resto del contenido: se monta cuando termina la animación de apertura.
+      if (_contentReady) ...[
+      if (showReplacementBlock) ...[
+        const SizedBox(height: 22),
+        lateReveal(
+          'replacement',
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              IosGroup(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                child: IosSwitchRow(
+                  title: l10n.replacementModSwitchTitle,
+                  subtitle: l10n.replacementModSwitchDesc,
+                  value: _isReplacementMod,
+                  onChanged: _onReplacementSwitchChanged,
+                ),
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 380),
+                curve: IosMotion.sheet,
+                alignment: Alignment.topCenter,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 260),
+                  child: _isReplacementMod
+                      ? Padding(
+                          key: const ValueKey<String>('outfit-section'),
+                          padding: const EdgeInsets.only(top: 18),
+                          child: _buildOutfitReplacementSection(l10n),
+                        )
+                      : const SizedBox(
+                          key: ValueKey<String>('outfit-section-off'),
+                          width: double.infinity,
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+      const SizedBox(height: 22),
+      lateReveal('info', _buildInformationGroup(l10n, author, displayVersion)),
+      if (widget.otherEditions.isNotEmpty) ...[
+        const SizedBox(height: 18),
+        lateReveal('editions', _buildOtherEditions(l10n)),
+      ],
+      const SizedBox(height: 22),
+      lateReveal(
+        'summary',
+        _buildInfoSection(
+          l10n: l10n,
+          title: l10n.modSummary,
+          icon: _sectionIcon(Icons.description_outlined),
+          content:
+              currentModInfo.customSummary ??
+              currentModInfo.summary ??
+              l10n.noDescriptionAvailable,
+          isPlaceholder: summaryIsPlaceholder,
+          onTranslate: _showTranslateSummaryButton ? _translateSummary : null,
+          translateTooltip: l10n.translateSummary,
+          onEdit: () => _editSummary(l10n),
+        ),
+      ),
+      const SizedBox(height: 18),
+      lateReveal('notes', _buildNotesSection(l10n)),
+      const SizedBox(height: 18),
+      lateReveal('description', _buildDescriptionSection(l10n)),
+      ],
+    ];
 
     return DraggableScrollableSheet(
+      // initial == max: con maxChildSize mayor, la primera vuelta de la rueda
+      // agrandaba la hoja (re-maquetando todo su contenido) antes de desplazar.
       initialChildSize: 0.9,
       minChildSize: 0.5,
-      maxChildSize: 0.95,
+      maxChildSize: 0.9,
       expand: false,
       builder: (_, scrollController) {
-        return Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: const Color(0xFF1e1e1e),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        // Mientras el visor de imágenes está abierto este panel queda tapado
+        // por su fondo oscuro: se pausa el desenfoque (repetirlo en cada
+        // fotograma estorbaba a la animación y al zoom). Al cerrar el visor
+        // vuelve solo. El contenido (`child`) no se reconstruye.
+        return ValueListenableBuilder<bool>(
+          valueListenable: imageViewerActive,
+          builder: (context, viewerOpen, child) => IosGlass(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            // Fondo de cristal original: desenfoque de 40 px y color
+            // translúcido (86 %). Nota: el desenfoque es lo más caro de
+            // pintar; si el scroll se resiente en algún equipo, pon blur: 0 y
+            // color: 0xF21C1C1E.
+            blur: 40,
+            blurEnabled: !viewerOpen,
+            color: const Color(0xDB1C1C1E),
+            child: child!,
           ),
-          child: Scaffold(
-            backgroundColor: Colors.transparent,
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              automaticallyImplyLeading: false,
-              centerTitle: true,
-              leadingWidth:
-                  200, // Aumenta el espacio disponible para el `leading`
-              leading: Padding(
-                padding: const EdgeInsets.only(left: 12.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Versión
-                    if (displayVersion != null && displayVersion.isNotEmpty)
-                      InkWell(
-                        onTap: () async {
-                          final newVersion = await _showSingleFieldEditDialog(
-                            title: l10n.editVersionText,
-                            label: l10n.customVersionText,
-                            initialValue: displayVersion,
-                            defaultValue: currentModInfo.localVersion ?? '',
-                            maxLength: 15,
-                          );
-                          if (newVersion != null) {
-                            final updatedMod = await widget.onUpdateDetails(
-                              currentModInfo,
-                              {'customVersion': newVersion},
-                            );
-                            if (updatedMod != null) {
-                              setState(() {
-                                currentModInfo = updatedMod;
-                                _needsReloadOnClose = true;
-                              });
-                            }
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(4),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 4,
-                          ),
-                          child: Text(
-                            "${l10n.modVersion} $displayVersion",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(context).colorScheme.primary,
-                              //fontWeight: FontWeight.bold,
-                            ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              children: [
+                _buildHeader(l10n),
+                Expanded(
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      if (notification.depth == 0 &&
+                          notification.metrics.axis == Axis.vertical) {
+                        // Más allá de 230 px el título compacto ya está
+                        // completo: no hace falta notificar más cambios.
+                        _scrollOffset.value = notification.metrics.pixels
+                            .clamp(0.0, 230.0)
+                            .toDouble();
+                      }
+                      return false;
+                    },
+                    // La guarda hace que la rueda también sea suave con el
+                    // puntero encima de la barra de scroll.
+                    child: IosSmoothScrollbarGuard(
+                      controller: scrollController,
+                      smoother: _wheelSmoother,
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        padding: const EdgeInsets.fromLTRB(20, 6, 20, 40),
+                        // Rueda del ratón con desplazamiento suave.
+                        child: IosSmoothWheel(
+                          controller: scrollController,
+                          smoother: _wheelSmoother,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: sections,
                           ),
                         ),
                       ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 
-                    if (displayVersion != null && displayVersion.isNotEmpty)
-                      const SizedBox(width: 8),
+// ============================================================================
+//  WIDGETS INTERNOS DEL PANEL
+// ============================================================================
 
-                    // --- INICIO DE LA MODIFICACIÓN (Descomentado y actualizado) ---
-                    /*/ Etiqueta
-                    (() { // Usamos un constructor anónimo para definir las variables
-                      final bool isReplacement = currentModInfo.replacesOutfit != null && currentModInfo.replacesOutfit!.isNotEmpty;
-                      final String displayTag = isReplacement 
-                          ? currentModInfo.replacesOutfit! 
-                          : (currentModInfo.customFitMeshType ?? currentModInfo.fitMeshType ?? l10n.modCategoryOther);
+/// Píldora oscura translúcida para colocar sobre la portada. (Sin desenfoque
+/// de fondo: así la portada y el scroll del panel se mantienen fluidos.)
+class _GlassPill extends StatelessWidget {
+  const _GlassPill({required this.child});
 
-                      return InkWell(
-                        // Deshabilitamos el onTap si es un reemplazo
-                        onTap: isReplacement ? null : () async {
-                          final newTag = await _showSingleFieldEditDialog(
-                            title: l10n.editTagText,
-                            label: l10n.customTagText,
-                            initialValue: displayTag,
-                            defaultValue: currentModInfo.fitMeshType ?? '',
-                          );
-                          if (newTag != null) {
-                            final updatedMod = await widget.onUpdateDetails(
-                              currentModInfo,
-                              {'customFitMeshType': newTag},
-                            );
-                            if (updatedMod != null) {
-                              setState(() {
-                                currentModInfo = updatedMod;
-                                _needsReloadOnClose = true;
-                              });
-                            }
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isReplacement
-                              ? Colors.black.withOpacity(0.4) // Fondo oscuro
-                              : Colors.grey.withOpacity(0.2), // Fondo original
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row( // Usamos un Row para el icono
-                            mainAxisSize: MainAxisSize.min,
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0x8C000000),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Chip tintado (versión, tipo, edición).
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({
+    required this.label,
+    required this.color,
+    this.leading,
+    this.onTap,
+    this.tooltip,
+  });
+
+  final String label;
+  final Color color;
+  final Widget? leading;
+  final VoidCallback? onTap;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (leading != null) ...[leading!, const SizedBox(width: 6)],
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -0.1,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (onTap != null) {
+      chip = IosPressable(scale: 0.95, onTap: onTap, child: chip);
+    }
+    if (tooltip != null) {
+      chip = Tooltip(message: tooltip!, child: chip);
+    }
+    return chip;
+  }
+}
+
+/// Acción rápida: icono arriba y etiqueta debajo, en una tarjeta con rebote.
+class _ActionTile extends StatefulWidget {
+  const _ActionTile({
+    required this.label,
+    required this.iconBuilder,
+    required this.onTap,
+    this.tint,
+    this.dimmed = false,
+    this.busy = false,
+  });
+
+  final String label;
+  final Widget Function(Color color) iconBuilder;
+  final VoidCallback onTap;
+  final Color? tint;
+
+  /// Aspecto atenuado (acción no disponible), pero sigue recibiendo pulsaciones.
+  final bool dimmed;
+
+  /// Sustituye el icono por una rueda de carga.
+  final bool busy;
+
+  @override
+  State<_ActionTile> createState() => _ActionTileState();
+}
+
+class _ActionTileState extends State<_ActionTile> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color? tint = widget.tint;
+    final Color fg = tint ?? IosColors.icon;
+    final Color bg = tint != null
+        ? tint.withOpacity(_hover ? 0.24 : 0.16)
+        : (_hover ? IosColors.chipHover : IosColors.chip);
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 160),
+      opacity: widget.dimmed ? 0.45 : 1,
+      child: IosPressable(
+        scale: 0.95,
+        onTap: widget.onTap,
+        onHoverChanged: (value) => setState(() => _hover = value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: 68,
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              widget.busy
+                  ? const SizedBox(
+                      width: 21,
+                      height: 21,
+                      child: Center(child: IosSpinner()),
+                    )
+                  : widget.iconBuilder(fg),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Text(
+                  widget.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.05,
+                    color: tint ?? IosColors.secondaryLabel,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Fila de la tarjeta de información: etiqueta a la izquierda, valor a la
+/// derecha. Si tiene [onTap] se resalta al pasar el cursor.
+class _InfoRow extends StatefulWidget {
+  const _InfoRow({
+    required this.label,
+    this.value,
+    this.valueWidget,
+    this.onTap,
+    this.trailing,
+  });
+
+  final String label;
+  final String? value;
+  final Widget? valueWidget;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+
+  @override
+  State<_InfoRow> createState() => _InfoRowState();
+}
+
+class _InfoRowState extends State<_InfoRow> {
+  bool _hover = false;
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool tappable = widget.onTap != null;
+
+    Color bg = Colors.transparent;
+    if (tappable) {
+      if (_pressed) {
+        bg = const Color(0x24FFFFFF);
+      } else if (_hover) {
+        bg = const Color(0x0FFFFFFF);
+      }
+    }
+
+    return MouseRegion(
+      cursor: tappable ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() {
+        _hover = false;
+        _pressed = false;
+      }),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: tappable ? (_) => setState(() => _pressed = true) : null,
+        onTapUp: tappable ? (_) => setState(() => _pressed = false) : null,
+        onTapCancel: tappable ? () => setState(() => _pressed = false) : null,
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          color: bg,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          child: Row(
+            children: [
+              Text(
+                widget.label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  letterSpacing: -0.15,
+                  color: IosColors.label,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child:
+                      widget.valueWidget ??
+                      Text(
+                        widget.value ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          letterSpacing: -0.15,
+                          color: IosColors.secondaryLabel,
+                        ),
+                      ),
+                ),
+              ),
+              if (widget.trailing != null) ...[
+                const SizedBox(width: 8),
+                widget.trailing!,
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tarjeta de un traje en el carrusel. Al pasar el cursor aparece una "x"
+/// para quitarlo al instante; al quitarlo se encoge y desvanece.
+class _OutfitCard extends StatefulWidget {
+  const _OutfitCard({
+    required this.outfit,
+    required this.removeTooltip,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  final String outfit;
+  final String removeTooltip;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  @override
+  State<_OutfitCard> createState() => _OutfitCardState();
+}
+
+class _OutfitCardState extends State<_OutfitCard> {
+  static const double _cardWidth = 118;
+  static const double _slotWidth = 128; // tarjeta + separación
+
+  bool _hover = false;
+  bool _gone = false;
+
+  void _remove() {
+    if (_gone) return;
+    setState(() => _gone = true);
+    Future<void>.delayed(const Duration(milliseconds: 240), () {
+      if (mounted) widget.onRemove();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeInCubic,
+      width: _gone ? 0 : _slotWidth,
+      child: AnimatedOpacity(
+        opacity: _gone ? 0 : 1,
+        duration: const Duration(milliseconds: 180),
+        child: ClipRect(
+          child: OverflowBox(
+            alignment: Alignment.centerLeft,
+            minWidth: 0,
+            maxWidth: _slotWidth,
+            child: Padding(
+              padding: const EdgeInsets.only(right: _slotWidth - _cardWidth),
+              child: SizedBox(
+                width: _cardWidth,
+                child: MouseRegion(
+                  onEnter: (_) => setState(() => _hover = true),
+                  onExit: (_) => setState(() => _hover = false),
+                  child: IosPressable(
+                    scale: 0.96,
+                    onTap: widget.onTap,
+                    child: Container(
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        color: IosColors.card,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      foregroundDecoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0x1FFFFFFF),
+                          width: 0.5,
+                        ),
+                      ),
+                      child: Stack(
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              if (isReplacement)
-                                Icon(
-                                  Icons.checkroom_outlined, 
-                                  size: 12, 
-                                  color: Colors.purpleAccent.shade100, // Color distintivo
+                              Expanded(
+                                child: OutfitThumb(
+                                  outfit: widget.outfit,
+                                  cacheWidth: 300,
+                                  iconSize: 26,
                                 ),
-                              if (isReplacement)
-                                const SizedBox(width: 6),
-                              Text(
-                                displayTag, // Muestra el nombre del traje
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isReplacement
-                                    ? Colors.purpleAccent.shade100 // Color distintivo
-                                    : Colors.white70, // Color original
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 7,
+                                ),
+                                color: const Color(0x33000000),
+                                child: Tooltip(
+                                  message: widget.outfit,
+                                  child: Text(
+                                    widget.outfit,
+                                    style: const TextStyle(
+                                      color: IosColors.secondaryLabel,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: -0.1,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      );
-                    })(), // Fin del constructor anónimo de la etiqueta
-                    // --- FIN DE LA MODIFICACIÓN ---*/
-                  ],
-                ),
-              ),
-              title: Container(
-                height: 5,
-                width: 40,
-                decoration: BoxDecoration(
-                  color: Colors.grey[700],
-                  borderRadius: BorderRadius.circular(5),
-                ),
-              ),
-              actions: [
-                // Si hay una actualización que no está ignorada, muestra el botón.
-                // Ahora la visibilidad depende del estado local '_isIgnored'.
-                if (widget.updateInfo != null && !_isIgnored)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.notification_important_rounded,
-                      color: Colors.yellowAccent,
-                    ),
-                    tooltip: l10n.updateAvailable(
-                      widget.updateInfo!['version'],
-                    ),
-                    onPressed: () async {
-                      if (currentModInfo.nexusId != null) {
-                        final updateIdentifier =
-                            currentModInfo.directory.path +
-                            (widget.updateInfo!['version'] as String);
-
-                        // 1. Llamamos a la función y esperamos su resultado (true/false).
-                        final bool wasHidden = await widget.onShowUpdateDialog(
-                          newVersion: widget.updateInfo!['version'],
-                          nexusId: currentModInfo.nexusId!,
-                          fileId: widget.updateInfo!['fileId'],
-                          uniqueIdentifier: updateIdentifier,
-                        );
-
-                        // 2. Si el resultado es 'true', actualizamos el estado local para ocultar la campana.
-                        if (wasHidden && mounted) {
-                          setState(() {
-                            _isIgnored = true;
-                          });
-                        }
-                      }
-                    },
-                  ),
-                IconButton(
-                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedPencilEdit02),
-                  tooltip: l10n.editButtonTooltip,
-                  onPressed: () async {
-                    final updatedData = await widget.onShowGeneralEditDialog(
-                      currentModInfo,
-                      context,
-                    );
-                    if (updatedData != null) {
-                      final updatedMod = await widget.onUpdateDetails(
-                        currentModInfo,
-                        updatedData,
-                      );
-                      if (updatedMod != null) {
-                        setState(() => currentModInfo = updatedMod);
-                        _needsReloadOnClose = true;
-                      }
-                    }
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-            body: SingleChildScrollView(
-              controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: Card(
-                      clipBehavior: Clip.antiAlias,
-                      margin: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          if (mainImagePath != null)
-                            ModImage(
-                              imageUrl: mainImagePath,
-                              isLocal: !mainImagePath.startsWith('http'),
-                              lastModified:
-                                  currentModInfo.customCoverLastModified,
-                            )
-                          else
-                            const Center(
-                              child: HugeIcon(
-                                icon: HugeIcons.strokeRoundedPuzzle,
-                                size: 80,
-                                color: Colors.white24,
-                              ),
-                            ),
                           Positioned(
-                            top: 8,
-                            right: 8,
-                            child: IconButton(
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.black.withOpacity(0.4),
+                            top: 6,
+                            right: 6,
+                            child: AnimatedOpacity(
+                              opacity: _hover ? 1 : 0,
+                              duration: const Duration(milliseconds: 160),
+                              child: IgnorePointer(
+                                ignoring: !_hover,
+                                child: Tooltip(
+                                  message: widget.removeTooltip,
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: _remove,
+                                    child: Container(
+                                      width: 24,
+                                      height: 24,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0x99000000),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close_rounded,
+                                        size: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
-                              icon: const HugeIcon(
-                                icon: HugeIcons.strokeRoundedFullscreen,
-                                color: Colors.white,
-                              ),
-                              onPressed: () =>
-                                  widget.onShowImageGallery(currentModInfo),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    currentModInfo.customName,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 2, // Límite de dos líneas
-                    overflow: TextOverflow
-                        .ellipsis, // Muestra "..." si el texto es muy largo
-                  ),
-                  // ++ INICIO DE LA MODIFICACIÓN: AUTOR COMO SUBTÍTULO ++
-                  const SizedBox(height: 4),
-                  Text(
-                    // Verifica si el nombre del autor no es nulo ni está vacío
-                    (author?.isNotEmpty ?? false)
-                        // Si existe, usa la cadena localizada pasando el autor como argumento
-                        ? l10n.byText(author!)
-                        // De lo contrario, muestra una cadena vacía
-                        : "",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontStyle: FontStyle.italic,
-                      color: Colors.grey[400],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // ++ FIN DE LA MODIFICACIÓN ++
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const HugeIcon(icon: HugeIcons.strokeRoundedFolderOpen),
-                          label: Text(l10n.showInFolder),
-                          onPressed: () =>
-                              widget.onShowInExplorer(currentModInfo.directory),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: HugeIcon(
-  icon: hasLink ? HugeIcons.strokeRoundedLinkSquare02 : HugeIcons.strokeRoundedLinkSquare02,
-  color: Colors.white,
-  size: 20,
-),
-                          label: Text(
-                            hasLink
-                                ? l10n.openLinkButtonText
-                                : l10n.addLinkButtonText,
-                          ),
-                          onPressed: () async {
-                            final urlString =
-                                currentModInfo.customSourceUrl ??
-                                currentModInfo.sourceUrl;
-                            if (urlString != null && urlString.isNotEmpty) {
-                              final url = Uri.parse(urlString);
-                              if (await canLaunchUrl(url)) await launchUrl(url);
-                            } else {
-                              final updatedData = await widget
-                                  .onShowGeneralEditDialog(
-                                    currentModInfo,
-                                    context,
-                                  );
-                              if (updatedData != null) {
-                                final updatedMod = await widget.onUpdateDetails(
-                                  currentModInfo,
-                                  updatedData,
-                                );
-                                if (updatedMod != null) {
-                                  setState(() => currentModInfo = updatedMod);
-                                  _needsReloadOnClose = true;
-                                }
-                              }
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: hasLink
-                                ? Theme.of(context).colorScheme.secondary
-                                : Colors.grey.withOpacity(0.2),
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (currentModInfo.modType == 'genericPak' ||
-                      currentModInfo.modType == 'replacement' ||
-                      (currentModInfo.modType == null &&
-                          currentModInfo.replacesOutfits != null)) ...[
-                    const SizedBox(height: 20),
-                    // --- Switch para Mod de Reemplazo ---
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 0,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: SwitchListTile(
-                        title: Text(
-                          l10n.replacementModSwitchTitle, // "Mod de Reemplazo"
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        subtitle: Text(
-                          l10n.replacementModSwitchDesc, // "Marca si este mod reemplaza un traje."
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 12,
-                          ),
-                        ),
-                        value: _isReplacementMod,
-                        activeColor: Colors.tealAccent,
-
-                        // ++ INICIO DE LA MODIFICACIÓN: onChanged ++
-                        onChanged: (bool newValue) async {
-                          final String newModType = newValue ? 'replacement' : 'genericPak';
-
-                          final Map<String, dynamic> dataToSave = {
-                            'modType': newModType,
-                          };
-
-                          // Si se apaga, borramos la colección completa
-                          if (newValue == false) {
-                            dataToSave['replacesOutfits'] = null;
-                          }
-
-                          final updatedMod = await widget.onUpdateDetails(
-                            currentModInfo,
-                            dataToSave,
-                          );
-
-                          if (updatedMod != null && mounted) {
-                            setState(() {
-                              currentModInfo = updatedMod;
-                              _isReplacementMod = newValue; 
-                              _needsReloadOnClose = true;
-                            });
-                          } else {
-                            setState(() {
-                              _isReplacementMod = !newValue;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-
-                    // --- Sección de Selección de Traje (Condicional) ---
-                    if (_isReplacementMod) ...[
-                      const SizedBox(height: 20),
-                      _buildOutfitReplacementSection(l10n),
-                    ],
-                  ],
-                  const SizedBox(height: 30),
-                  _buildInfoSection(
-                    title: l10n.modSummary,
-                    content:
-                        currentModInfo.customSummary ??
-                        currentModInfo.summary ??
-                        l10n.noDescriptionAvailable,
-                    icon: Icons.description_outlined,
-                    onEdit: () async {
-                      final newSummary = await _showSingleFieldEditDialog(
-                        title: l10n.modSummary,
-                        label: l10n.summaryLabel,
-                        initialValue:
-                            currentModInfo.customSummary ??
-                            currentModInfo.summary ??
-                            '',
-                        defaultValue: currentModInfo.summary ?? '',
-                      );
-                      if (newSummary != null) {
-                        final updatedMod = await widget.onUpdateDetails(
-                          currentModInfo,
-                          {'summary': newSummary},
-                        );
-                        if (updatedMod != null) {
-                          setState(() {
-                            currentModInfo = updatedMod;
-                            _needsReloadOnClose = true;
-                          });
-                        }
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  _buildInfoSection(
-                    title: l10n.personalNotes,
-                    content: currentModInfo.userNotes?.isNotEmpty ?? false
-                        ? currentModInfo.userNotes!
-                        : l10n.noNotesAvailable,
-                    icon: Icons.edit_note_outlined,
-                    onEdit: () async {
-                      final newNotes = await _showSingleFieldEditDialog(
-                        title: l10n.personalNotes,
-                        label: l10n.notesLabel,
-                        initialValue: currentModInfo.userNotes ?? '',
-                      );
-                      if (newNotes != null) {
-                        final updatedMod = await widget.onUpdateDetails(
-                          currentModInfo,
-                          {'userNotes': newNotes},
-                        );
-                        if (updatedMod != null) {
-                          setState(() {
-                            currentModInfo = updatedMod;
-                            _needsReloadOnClose = true;
-                          });
-                        }
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                HugeIcon(
-                                  icon: HugeIcons.strokeRoundedBook04,
-                                  color: Colors.tealAccent.withOpacity(0.8),
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  l10n.modDescription,
-                                  style: const TextStyle(
-                                    color: Colors.tealAccent,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                /*if (_showTranslateDescriptionButton)
-                                  _isTranslating
-                                      ? const Padding(
-                                          padding: EdgeInsets.all(4.0),
-                                          child: SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(strokeWidth: 2),
-                                          ),
-                                        )
-                                      : IconButton(
-                                          icon: const Icon(
-                                            Icons.translate,
-                                            color: Colors.white70,
-                                            size: 20,
-                                          ),
-                                          onPressed: _translateDescription,
-                                          tooltip: l10n.translateDescription,
-                                        ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.edit_outlined,
-                                    color: Colors.white70,
-                                    size: 20,
-                                  ),
-                                  onPressed: () async {
-                                    final newDescription = await _showSingleFieldEditDialog(
-                                      title: l10n.modDescription,
-                                      label: l10n.summaryLabel,
-                                      initialValue: currentModInfo.customDescription ??
-                                          _stripHtml(currentModInfo.description) ?? '',
-                                      defaultValue: _stripHtml(currentModInfo.description) ?? '',
-                                    );
-                                    if (newDescription != null) {
-                                      final updatedMod = await widget.onUpdateDetails(
-                                        currentModInfo,
-                                        {'customDescription': newDescription},
-                                      );
-                                      if (updatedMod != null) {
-                                        setState(() {
-                                          currentModInfo = updatedMod;
-                                          _needsReloadOnClose = true;
-                                        });
-                                      }
-                                    }
-                                  },
-                                  tooltip: l10n.editButtonTooltip,
-                                  splashRadius: 20,
-                                  constraints: const BoxConstraints(),
-                                  padding: EdgeInsets.zero,
-                                ),*/
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        // Aquí usamos el nuevo Widget
-                        BBCodeRenderer(
-                          data:
-                              currentModInfo.customDescription ??
-                              currentModInfo.description ??
-                              l10n.noDescriptionAvailable,
-                          defaultStyle: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            height: 1.5,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
+    );
+  }
+}
+
+/// Último elemento del carrusel: "+" para añadir más trajes.
+class _AddOutfitTile extends StatelessWidget {
+  const _AddOutfitTile({required this.tooltip, required this.onTap});
+
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: IosPressable(
+        scale: 0.95,
+        onTap: onTap,
+        child: Container(
+          width: 84,
+          decoration: BoxDecoration(
+            color: IosColors.chip,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0x1FFFFFFF), width: 0.5),
+          ),
+          child: Center(
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: IosColors.blue.withOpacity(0.16),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                size: 21,
+                color: IosColors.blue,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

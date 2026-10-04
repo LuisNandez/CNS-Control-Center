@@ -927,8 +927,14 @@ abstract class AppLocalizations {
   /// No description provided for @dialogContentApiKeyInstructions.
   ///
   /// In en, this message translates to:
-  /// **'1. Go to Nexus Mods and log in.\n2. Click your avatar and go to \'Site preferences\'.\n3. Go to the \'API\' tab.\n4. Click \'Generate a new API key\'.\n5. Copy the key and paste it here.'**
+  /// **'1. Click the button below to open Nexus Mods and log in.\n2. Scroll to the bottom of the page, to the \'Personal API Key\' section.\n3. Request it if you don\'t have one yet, then copy it.\n4. Paste it here.'**
   String get dialogContentApiKeyInstructions;
+
+  /// No description provided for @apiKeyOpenNexusPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Open API Keys Page'**
+  String get apiKeyOpenNexusPage;
 
   /// No description provided for @apiKey.
   ///
@@ -969,7 +975,7 @@ abstract class AppLocalizations {
   /// No description provided for @errorApiKeyMissing.
   ///
   /// In en, this message translates to:
-  /// **'Nexus Mods API Key is not configured. Please add it via the key icon in the top bar.'**
+  /// **'Nexus Mods API Key is missing. Add it in Settings › Connectivity & Updates › Nexus Mods API Key.'**
   String get errorApiKeyMissing;
 
   /// No description provided for @statusCheckingUpdates.
@@ -2488,6 +2494,42 @@ abstract class AppLocalizations {
   /// **'Launch Stellar Blade'**
   String get launchGameText;
 
+  /// No description provided for @stopGameText.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop Stellar Blade'**
+  String get stopGameText;
+
+  /// No description provided for @dialogTitleStopGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop Stellar Blade?'**
+  String get dialogTitleStopGame;
+
+  /// No description provided for @dialogContentStopGame.
+  ///
+  /// In en, this message translates to:
+  /// **'The game will be closed. Any unsaved progress will be lost.'**
+  String get dialogContentStopGame;
+
+  /// No description provided for @dialogActionStopGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get dialogActionStopGame;
+
+  /// No description provided for @notificationGameStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stellar Blade stopped'**
+  String get notificationGameStopped;
+
+  /// No description provided for @errorStoppingGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not stop the game'**
+  String get errorStoppingGame;
+
   /// No description provided for @mod801DialogTitle.
   ///
   /// In en, this message translates to:
@@ -2979,6 +3021,570 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Paused'**
   String get downloadPausedStatus;
+
+  /// No description provided for @settingsFixGameStartup.
+  ///
+  /// In en, this message translates to:
+  /// **'Fix game not starting'**
+  String get settingsFixGameStartup;
+
+  /// No description provided for @settingsFixGameStartupDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this if the game closes or crashes on launch. Temporarily uninstalls UE4SS and CNS, starts the game once, then reinstalls them.'**
+  String get settingsFixGameStartupDesc;
+
+  /// No description provided for @repairConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fix game startup?'**
+  String get repairConfirmTitle;
+
+  /// No description provided for @repairConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'UE4SS and CNS will be uninstalled (their files are kept safe), the game will start and close automatically, and then everything is reinstalled and the game launches again. Don\'t close the app during the process.'**
+  String get repairConfirmMessage;
+
+  /// No description provided for @repairConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Start repair'**
+  String get repairConfirmAction;
+
+  /// No description provided for @launchRetryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Game didn\'t start'**
+  String get launchRetryTitle;
+
+  /// No description provided for @launchRetryMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Stellar Blade didn\'t start after two attempts. This is usually caused by UE4SS or CNS. \"Fix game not starting\" temporarily uninstalls them, launches the game once and reinstalls them. Run it now?'**
+  String get launchRetryMessage;
+
+  /// No description provided for @launchRetryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Fix now'**
+  String get launchRetryAction;
+
+  /// No description provided for @repairOverlayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixing game startup'**
+  String get repairOverlayTitle;
+
+  /// No description provided for @repairOverlayWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t close the app or the game manually while this runs.'**
+  String get repairOverlayWarning;
+
+  /// No description provided for @repairStepCloseGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Closing the game if it\'s running'**
+  String get repairStepCloseGame;
+
+  /// No description provided for @repairStepStashCns.
+  ///
+  /// In en, this message translates to:
+  /// **'Uninstalling CNS (saving its files)'**
+  String get repairStepStashCns;
+
+  /// No description provided for @repairStepStashUe4ss.
+  ///
+  /// In en, this message translates to:
+  /// **'Uninstalling UE4SS (saving its files)'**
+  String get repairStepStashUe4ss;
+
+  /// No description provided for @repairStepLaunchClean.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting the game without UE4SS and CNS'**
+  String get repairStepLaunchClean;
+
+  /// No description provided for @repairStepWaitInit.
+  ///
+  /// In en, this message translates to:
+  /// **'Letting the game load'**
+  String get repairStepWaitInit;
+
+  /// No description provided for @repairStepCloseAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Closing the game automatically'**
+  String get repairStepCloseAuto;
+
+  /// No description provided for @repairStepRestoreUe4ss.
+  ///
+  /// In en, this message translates to:
+  /// **'Reinstalling UE4SS'**
+  String get repairStepRestoreUe4ss;
+
+  /// No description provided for @repairStepRestoreCns.
+  ///
+  /// In en, this message translates to:
+  /// **'Reinstalling CNS'**
+  String get repairStepRestoreCns;
+
+  /// No description provided for @repairStepLaunchFinal.
+  ///
+  /// In en, this message translates to:
+  /// **'Launching the game'**
+  String get repairStepLaunchFinal;
+
+  /// No description provided for @repairStatusSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'skipped'**
+  String get repairStatusSkipped;
+
+  /// No description provided for @repairResultSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Repair completed. The game has been launched.'**
+  String get repairResultSuccess;
+
+  /// No description provided for @repairResultErrorRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'The repair failed, but UE4SS and CNS were put back as they were.'**
+  String get repairResultErrorRestored;
+
+  /// No description provided for @repairResultErrorRestoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The repair failed and the files could not be restored yet. They will be restored automatically the next time the app starts.'**
+  String get repairResultErrorRestoreFailed;
+
+  /// No description provided for @repairErrorGameNotStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'The game did not start in time.'**
+  String get repairErrorGameNotStarted;
+
+  /// No description provided for @repairButtonClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get repairButtonClose;
+
+  /// No description provided for @repairRecoveredNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'An interrupted repair was detected: UE4SS and CNS files were restored.'**
+  String get repairRecoveredNotice;
+
+  /// No description provided for @snackBarNewEditionInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'New edition installed: {name}'**
+  String snackBarNewEditionInstalled(Object name);
+
+  /// No description provided for @snackBarNewEditionInstalledDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'This mod now has {count} editions installed.'**
+  String snackBarNewEditionInstalledDesc(Object count);
+
+  /// No description provided for @previewTagNewEdition.
+  ///
+  /// In en, this message translates to:
+  /// **'new edition'**
+  String get previewTagNewEdition;
+
+  /// No description provided for @previewTagUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'update'**
+  String get previewTagUpdate;
+
+  /// No description provided for @editionsInstalledTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} editions of this mod installed'**
+  String editionsInstalledTooltip(Object count);
+
+  /// No description provided for @editionLabelValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Edition: {edition}'**
+  String editionLabelValue(Object edition);
+
+  /// No description provided for @otherEditionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Other installed editions'**
+  String get otherEditionsTitle;
+
+  /// No description provided for @detailsStatusEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get detailsStatusEnabled;
+
+  /// No description provided for @detailsStatusDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get detailsStatusDisabled;
+
+  /// No description provided for @detailsInformation.
+  ///
+  /// In en, this message translates to:
+  /// **'Information'**
+  String get detailsInformation;
+
+  /// No description provided for @detailsRowAuthor.
+  ///
+  /// In en, this message translates to:
+  /// **'Author'**
+  String get detailsRowAuthor;
+
+  /// No description provided for @detailsRowType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get detailsRowType;
+
+  /// No description provided for @detailsRowInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed'**
+  String get detailsRowInstalled;
+
+  /// No description provided for @detailsRowModified.
+  ///
+  /// In en, this message translates to:
+  /// **'Last modified'**
+  String get detailsRowModified;
+
+  /// No description provided for @detailsRowNexusId.
+  ///
+  /// In en, this message translates to:
+  /// **'Nexus ID'**
+  String get detailsRowNexusId;
+
+  /// No description provided for @detailsRowFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder'**
+  String get detailsRowFolder;
+
+  /// No description provided for @detailsCopyPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy path'**
+  String get detailsCopyPath;
+
+  /// No description provided for @detailsCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard'**
+  String get detailsCopied;
+
+  /// No description provided for @detailsEndorse.
+  ///
+  /// In en, this message translates to:
+  /// **'Endorse'**
+  String get detailsEndorse;
+
+  /// No description provided for @detailsEndorsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Endorsed'**
+  String get detailsEndorsed;
+
+  /// No description provided for @endorseWaitLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait {minutes} min'**
+  String endorseWaitLabel(Object minutes);
+
+  /// No description provided for @endorseSuccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mod endorsed'**
+  String get endorseSuccessTitle;
+
+  /// No description provided for @endorseRemovedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Endorsement removed'**
+  String get endorseRemovedTitle;
+
+  /// No description provided for @endorseFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update endorsement'**
+  String get endorseFailedTitle;
+
+  /// No description provided for @endorseErrNotNexus.
+  ///
+  /// In en, this message translates to:
+  /// **'This mod isn\'t linked to a Nexus Mods page, so it can\'t be endorsed.'**
+  String get endorseErrNotNexus;
+
+  /// No description provided for @endorseErrNoApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your Nexus Mods API key in Settings to endorse mods.'**
+  String get endorseErrNoApiKey;
+
+  /// No description provided for @endorseErrWait.
+  ///
+  /// In en, this message translates to:
+  /// **'Nexus requires waiting 15 minutes after downloading a mod before you can endorse it. Try again in {minutes} min.'**
+  String endorseErrWait(Object minutes);
+
+  /// No description provided for @endorseErrNotDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Nexus only lets you endorse mods you\'ve downloaded with your account.'**
+  String get endorseErrNotDownloaded;
+
+  /// No description provided for @endorseErrOwnMod.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t endorse your own mod.'**
+  String get endorseErrOwnMod;
+
+  /// No description provided for @endorseErrRateLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve reached the Nexus request limit. Try again later.'**
+  String get endorseErrRateLimit;
+
+  /// No description provided for @endorseErrInvalidKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Nexus rejected your API key. Check it in Settings.'**
+  String get endorseErrInvalidKey;
+
+  /// No description provided for @endorseErrNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach Nexus Mods. Check your connection and try again.'**
+  String get endorseErrNetwork;
+
+  /// No description provided for @endorseErrUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Nexus couldn\'t process the request. Try again later.'**
+  String get endorseErrUnknown;
+
+  /// No description provided for @endorseRemoveConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove endorsement?'**
+  String get endorseRemoveConfirmTitle;
+
+  /// No description provided for @endorseRemoveConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} will no longer be endorsed on Nexus Mods.'**
+  String endorseRemoveConfirmMessage(Object name);
+
+  /// No description provided for @endorseRemoveConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get endorseRemoveConfirmAction;
+
+  /// No description provided for @detailsUpdateAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get detailsUpdateAction;
+
+  /// No description provided for @detailsShowMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Show more'**
+  String get detailsShowMore;
+
+  /// No description provided for @detailsShowLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get detailsShowLess;
+
+  /// No description provided for @detailsAddNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a note'**
+  String get detailsAddNote;
+
+  /// Number of outfits a replacement mod replaces
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No outfits} =1{1 outfit} other{{count} outfits}}'**
+  String outfitsCount(int count);
+
+  /// Subtitle of the outfit picker with the number of chosen outfits
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String outfitsSelectedCount(int count);
+
+  /// No description provided for @outfitsChoose.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose outfits'**
+  String get outfitsChoose;
+
+  /// No description provided for @outfitsDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get outfitsDone;
+
+  /// No description provided for @outfitsFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get outfitsFilterAll;
+
+  /// No description provided for @outfitsFilterSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get outfitsFilterSelected;
+
+  /// No description provided for @outfitsClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get outfitsClearAll;
+
+  /// No description provided for @outfitsRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get outfitsRemove;
+
+  /// No description provided for @outfitsActionSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get outfitsActionSelect;
+
+  /// No description provided for @outfitsActionDeselect.
+  ///
+  /// In en, this message translates to:
+  /// **'Deselect'**
+  String get outfitsActionDeselect;
+
+  /// Empty state of the outfit picker when the search has no matches
+  ///
+  /// In en, this message translates to:
+  /// **'No results for \"{query}\"'**
+  String outfitsNoResults(String query);
+
+  /// No description provided for @outfitsSelectedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No outfits selected yet.'**
+  String get outfitsSelectedEmpty;
+
+  /// No description provided for @outfitsNoPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'No preview available'**
+  String get outfitsNoPreview;
+
+  /// No description provided for @replacementOffConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off replacement mod?'**
+  String get replacementOffConfirmTitle;
+
+  /// Confirmation shown when disabling the replacement switch while outfits are selected
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{The selected outfit will be removed from this mod.} other{The {count} selected outfits will be removed from this mod.}}'**
+  String replacementOffConfirmMessage(int count);
+
+  /// No description provided for @replacementOffConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off'**
+  String get replacementOffConfirmAction;
+
+  /// No description provided for @patcherSharedWith.
+  ///
+  /// In en, this message translates to:
+  /// **'  Same Container ID as: {owner}'**
+  String patcherSharedWith(String owner);
+
+  /// No description provided for @patcherIdChange.
+  ///
+  /// In en, this message translates to:
+  /// **'  Container ID {oldId} → {newId}'**
+  String patcherIdChange(String oldId, String newId);
+
+  /// No description provided for @patcherBackupSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'  Originals kept as .cnsbak (restorable).'**
+  String get patcherBackupSaved;
+
+  /// No description provided for @patcherLeftUntouched.
+  ///
+  /// In en, this message translates to:
+  /// **'  Left untouched (not safe to patch): {reason}'**
+  String patcherLeftUntouched(String reason);
+
+  /// No description provided for @summaryUnfixableContainerIds.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ {count} mod(s) share a Container ID but could not be fixed safely (left untouched; they may not appear in CNS):'**
+  String summaryUnfixableContainerIds(int count);
+
+  /// No description provided for @revertPatchesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Revert conflict patches'**
+  String get revertPatchesTitle;
+
+  /// No description provided for @revertPatchesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Restores the original mod files changed by the Conflict Patcher.'**
+  String get revertPatchesDesc;
+
+  /// No description provided for @revertPatchesConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Revert conflict patches?'**
+  String get revertPatchesConfirmTitle;
+
+  /// No description provided for @revertPatchesConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The original files saved by the Conflict Patcher (.cnsbak) will be restored. Close the game first. Conflicting mods may stop showing up in CNS again.'**
+  String get revertPatchesConfirmMessage;
+
+  /// No description provided for @revertPatchesAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Revert'**
+  String get revertPatchesAction;
+
+  /// No description provided for @revertPatchesDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored {count} file(s).'**
+  String revertPatchesDone(int count);
+
+  /// No description provided for @revertPatchesNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No patched files to revert.'**
+  String get revertPatchesNothing;
 }
 
 class _AppLocalizationsDelegate
