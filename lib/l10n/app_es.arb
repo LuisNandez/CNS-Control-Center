@@ -566,6 +566,7 @@
   "replacementOffConfirmTitle": "¿Desactivar el mod de reemplazo?",
   "replacementOffConfirmMessage": "{count, plural, =1{El atuendo seleccionado se quitará de este mod.} other{Los {count} atuendos seleccionados se quitarán de este mod.}}",
   "replacementOffConfirmAction": "Desactivar",
+  "outfitConflictAutoDisabled": "{count, plural, =1{1 mod desactivado: reemplaza un traje que ya usa otro mod} other{{count} mods desactivados: reemplazan trajes que ya usan otros mods}}",
   "patcherSharedWith": "  Mismo Container ID que: {owner}",
   "patcherIdChange": "  Container ID {oldId} → {newId}",
   "patcherBackupSaved": "  Originales guardados como .cnsbak (restaurables).",

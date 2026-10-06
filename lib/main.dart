@@ -53,6 +53,7 @@ import 'package:windows_single_instance/windows_single_instance.dart';
 import 'services/movie_mods_handler.dart';
 import 'ui/dialogs/mod_801_steam_dialog.dart';
 import 'services/splash_mods_handler.dart';
+import 'services/config_mod_detector.dart';
 import 'ui/dialogs/splash_mod_dialog.dart';
 import 'services/download_manager.dart';
 import 'ui/widgets/download_pill_overlay.dart';
@@ -67,6 +68,7 @@ import 'ui/dialogs/install_dialogs.dart';
 import 'services/game_repair_service.dart';
 import 'ui/dialogs/repair_game_dialog.dart';
 import 'services/outfit_detector.dart';
+import 'services/hd_atool_audio_service.dart';
 
 final StreamController<String> multiInstanceLinkStream = StreamController<String>.broadcast();
 
@@ -1295,9 +1297,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           Map<String, dynamic> data = json.decode(content);
           final String? nexusIdForCheck = data['nexusId']?.toString();
 
-          final bool needsMigration =
+          final bool needsNexusMigration =
               ModMetadataMigrator.needsMigration(data, _appVersion) &&
                   ModMetadataMigrator.canAttempt(modPath);
+          // Trajes de mods genéricos / de reemplazo aún sin asignar (local).
+          final bool needsOutfits = _autoAssignOutfits &&
+              ModMetadataMigrator.needsOutfitScan(data);
+          final bool needsMigration = needsNexusMigration || needsOutfits;
           // Mods instalados antes de la galería completa: se les baja ahora.
           final bool needsGallery = ModManagerService.needsGalleryCache(data) &&
               ModManagerService.canCacheGallery(modPath);
@@ -1381,6 +1387,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                   data: data,
                   appVersion: _appVersion,
                   apiKey: _apiKey,
+                  assignOutfits: _autoAssignOutfits,
                 )
               : false;
           if (migrated) {
@@ -1453,6 +1460,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         logicModsPath: _logicModsPath!,
         appVersion: _appVersion,
         apiKey: _apiKey,
+        autoAssignOutfits: _autoAssignOutfits,
       );
 
       setState(() {
@@ -1464,6 +1472,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           _statusColor = Colors.white;
         }
       });
+
+      // Si la migración acaba de asignar trajes, desactiva los mods que
+      // quedaron compartiendo traje con otro mod activo.
+      await _disableOutfitConflictsFromMigration();
     } catch (e) {
       setState(() {
         if (mounted) {
@@ -1473,6 +1485,73 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       });
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  bool _resolvingOutfitConflicts = false;
+
+  /// Tras la migración de metadatos (que asigna trajes a mods que no tenían),
+  /// varios mods activos pueden acabar reemplazando el mismo traje: solo uno
+  /// puede ganar en el juego. Aquí se desactivan los sobrantes.
+  ///
+  /// Reglas:
+  ///  - Solo se desactivan mods a los que la migración acaba de asignar trajes;
+  ///    un mod que ya tenía trajes (elección del usuario) nunca se toca.
+  ///  - Si un traje ya lo usa un mod que no es nuevo, ese mod manda.
+  ///  - Entre mods nuevos que chocan entre sí se queda el instalado más
+  ///    recientemente (el resto se desactiva).
+  ///  - Los desactivados se mueven a __MOD_BACKUPS__ (se pueden reactivar; al
+  ///    hacerlo se muestra el diálogo de conflicto de siempre).
+  Future<void> _disableOutfitConflictsFromMigration() async {
+    final fresh = ModMetadataMigrator.takeNewlyAssignedOutfitMods();
+    if (fresh.isEmpty || _resolvingOutfitConflicts || !mounted) return;
+    _resolvingOutfitConflicts = true;
+    try {
+      bool isNew(ModInfo m) => fresh.contains(p.normalize(m.directory.path));
+
+      final enabled = _allMods
+          .where((m) => m.isEnabled && (m.replacesOutfits?.isNotEmpty ?? false))
+          .toList();
+
+      // Trajes ya ocupados por mods que no acaban de migrarse.
+      final claimed = <String>{
+        for (final m in enabled.where((m) => !isNew(m))) ...m.replacesOutfits!,
+      };
+
+      // Los nuevos, del más reciente al más antiguo.
+      final candidates = enabled.where(isNew).toList()
+        ..sort((a, b) => (b.installDate ?? b.lastModified)
+            .compareTo(a.installDate ?? a.lastModified));
+
+      final toDisable = <ModInfo>[];
+      for (final m in candidates) {
+        final outfits = m.replacesOutfits!;
+        if (outfits.any(claimed.contains)) {
+          toDisable.add(m);
+        } else {
+          claimed.addAll(outfits);
+        }
+      }
+      if (toDisable.isEmpty) return;
+
+      final disabledNames = <String>[];
+      for (final m in toDisable) {
+        print('[OutfitConflict] Desactivando ${m.customName}: comparte traje '
+            '${m.replacesOutfits} con otro mod activo.');
+        if (await _disableMod(m)) disabledNames.add(m.customName);
+      }
+
+      if (disabledNames.isNotEmpty && mounted) {
+        NotificationService.instance.show(
+          context: context,
+          type: NotificationType.info,
+          title: AppLocalizations.of(context)!
+              .outfitConflictAutoDisabled(disabledNames.length),
+          description: disabledNames.join(', '),
+        );
+      }
+    } finally {
+      _resolvingOutfitConflicts = false;
     }
   }
 
@@ -1581,55 +1660,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
           summary.writeln('    ${c.mod}  ↔  ${c.conflictsWith}');
         }
       }
-      summary.writeln("---");
 
-      // --- INICIO DE LA NUEVA LÓGICA DE AGRUPACIÓN ---
-
-      // Un mapa para agrupar los conflictos.
-      // La clave (String) será la lista de mods en conflicto (ej: "Mod A, Mod B")
-      // El valor (int) será cuántos archivos comparten.
-      final Map<String, int> conflictGroups = {};
-      const int commonConflictThreshold = 10;
-
-      result.packageIdConflicts.forEach((id, mods) {
-        // 1. Filtramos los "auto-conflictos" (mods.length < 2)
-        //    y los conflictos "comunes" (demasiados mods).
-        if (mods.length > 1 && mods.length < commonConflictThreshold) {
-          // 2. Ordenamos la lista de mods para que "A, B" sea igual que "B, A"
-          mods.sort();
-
-          // 3. Creamos una clave única para este grupo de mods
-          final String groupKey = mods.join(
-            '\n    ',
-          ); // Usamos \n para formatear
-
-          // 4. Contamos cuántos archivos comparte este grupo
-          conflictGroups[groupKey] = (conflictGroups[groupKey] ?? 0) + 1;
-        }
-      });
-      // --- FIN DE LA NUEVA LÓGICA DE AGRUPACIÓN ---
-
-      // --- Resumen de Package ID (Conflictos de Sobrescritura) ---
-      if (conflictGroups.isEmpty) {
-        summary.writeln(
-          l10n.summaryNoPackageIdConflicts,
-        );
-      } else {
-        summary.writeln(
-          l10n.summaryFoundPackageIdConflicts(conflictGroups.length),
-        );
-        summary.writeln("---");
-
-        // Ahora iteramos sobre los grupos únicos
-        conflictGroups.forEach((modGroup, fileCount) {
-          summary.writeln(
-            l10n.summaryConflictGroupDetails(fileCount),
-          );
-          summary.writeln(
-            "    $modGroup\n",
-          ); // El modGroup ya tiene el formato con \n
-        });
-      }
+      // Los grupos de mods con Package ID compartido ("Warning! Found N groups
+      // of mods that cannot coexist") ya no se muestran en el resumen: no
+      // aportan nada accionable. El recuento sigue en el log completo.
 
       // 3. Mostrar el nuevo diálogo de resumen
       await showIosDialog<void>(
@@ -2809,6 +2843,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     String
     finalFolderName; // La movemos aquí para que sea accesible por LogicMod
 
+    // HD-ATOOL (1662): carpeta fija LogicMods/HD-ATOOL_P y audios a conservar.
+    final bool isAtoolTool = modType == ModDirectoryType.logicMod &&
+        HdAtoolAudio.isToolMain(nexusId, preparedMod.identity);
+    Directory? atoolAudioStash;
+
     if (modType == ModDirectoryType.logicMod) {
       // Es un LogicMod: Lógica de instalación dividida
       baseDisplayName = _disambiguateAcrossMods(preparedMod.archiveName, nexusId);
@@ -2816,6 +2855,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
       // --- 1. Definir rutas ---
       // Ruta de la carpeta "LogicMods" en el zip (la fuente es la raíz del zip)
+      if (isAtoolTool) await HdAtoolAudio.flattenToolFolder(modDir);
       final logicSourceDir = modDir; // sourceDir *es* la carpeta LogicMods
       final ue4ssSourceDir = ue4ssDir; // ue4ssDir *es* la carpeta Mods
       final tildeModsSourceDir =
@@ -2837,7 +2877,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
 
       // Nombre de la carpeta del mod (para la parte Lógica)
       finalFolderName = baseDisplayName;
-      if (nexusVersion != null) {
+      if (isAtoolTool) {
+        finalFolderName = HdAtoolAudio.toolFolder; // siempre HD-ATOOL_P
+      } else if (nexusVersion != null) {
         finalFolderName = '$finalFolderName v$nexusVersion';
       }
 
@@ -2905,6 +2947,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                 print('Could not read old custom name. Error: $e');
               }
             }
+            // HD-ATOOL: conservar los audios de otros mods al reemplazar la herramienta
+            if (isAtoolTool) {
+              atoolAudioStash ??= await HdAtoolAudio.stashAudio(oldVersionMod.directory);
+            }
+            // Si el mod antiguo estaba activo, quitar sus audios de HD-ATOOL
+            if (oldVersionMod.isEnabled) {
+              await HdAtoolAudio.deactivate(
+                oldVersionMod.directory,
+                HdAtoolAudio.gameAudioPath(installPath),
+              );
+            }
             // Borramos la carpeta de LogicMods antigua
             final deleted = await FileManagerService.deleteDirectoryWithRetry(
               oldVersionMod.directory,
@@ -2926,7 +2979,12 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       }
 
       // --- 3. Comprobar si la carpeta de destino existe (después del reemplazo) ---
-      if (await Directory(logicModDestPath).exists()) {
+      // HD-ATOOL: una carpeta HD-ATOOL_P "suelta" (solo audios de otros mods o
+      // copiada a mano) no es una instalación: se funde sin preguntar ni borrar.
+      final bool destIsStrayTool = isAtoolTool &&
+          await Directory(logicModDestPath).exists() &&
+          await HdAtoolAudio.isStrayToolFolder(Directory(logicModDestPath));
+      if (!destIsStrayTool && await Directory(logicModDestPath).exists()) {
         final confirmReinstall = await SettingsDialogs.confirm(
           context: context,
           title: l10n.dialogTitleModExists,
@@ -2950,6 +3008,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
               print('Could not read old custom name. Error: $e');
             }
           }
+          if (isAtoolTool) {
+            atoolAudioStash ??=
+                await HdAtoolAudio.stashAudio(Directory(logicModDestPath));
+          }
+          await HdAtoolAudio.deactivate(
+            Directory(logicModDestPath),
+            HdAtoolAudio.gameAudioPath(installPath),
+          );
           final deleted = await FileManagerService.deleteDirectoryWithRetry(
             Directory(logicModDestPath),
           );
@@ -2966,6 +3032,16 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       // Parte A: Copiar .../zip/LogicMods/* A .../Paks/LogicMods/<mod_name>/
       await Directory(logicModDestPath).create(recursive: true);
       await FileManagerService.copyDirectory(logicSourceDir, Directory(logicModDestPath));
+
+      // Parte A2: audios de HD-ATOOL (si el mod trae _hd_atool_audio) ->
+      // .../Paks/LogicMods/HD-ATOOL_P/audio. Se recuerdan en nexus_info.json.
+      // HD-ATOOL: devolver los audios de otros mods que había en su carpeta
+      await HdAtoolAudio.restoreAudio(atoolAudioStash, Directory(logicModDestPath));
+      if (!isAtoolTool) await HdAtoolAudio.adoptInPlace(Directory(logicModDestPath));
+      final List<String> hdAtoolAudioNames = await HdAtoolAudio.activate(
+        Directory(logicModDestPath),
+        HdAtoolAudio.gameAudioPath(installPath),
+      );
 
       // Parte B: Copiar componentes de UE4SS (Carpetas de mods y archivos sueltos raíz)
       List<String> ue4ssComponentFolders = [];
@@ -3043,6 +3119,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         'tildeModsComponentFolder': hasTildeModsComponent ? finalFolderName : null,
         'ue4ssComponents': ue4ssComponentFolders.isNotEmpty ? ue4ssComponentFolders : null,
         'ue4ssLooseFiles': looseFilesLog.isNotEmpty ? looseFilesLog : null, // Guardamos registro de los archivos raíz instalados
+        HdAtoolAudio.infoKey: hdAtoolAudioNames.isNotEmpty ? hdAtoolAudioNames : null,
       };
       modData.removeWhere((key, value) => value == null); // Limpia nulos
       preservedEndorse?.applyTo(modData);
@@ -3139,7 +3216,10 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       await for (final entity in modDir.list(recursive: false)) {
         if (entity is File) {
           final name = p.basename(entity.path).toLowerCase();
-          if (['engine.ini', 'scalability.ini', 'input.ini', 'game.ini'].contains(name)) {
+          // Todos los .ini de configuración del juego (Engine, Scalability, Input,
+          // Game, GameUserSettings, DeviceProfiles...) y solo si son texto.
+          if (ConfigModDetector.isConfigFileName(name) &&
+              await ConfigModDetector.isValidIni(entity)) {
             replacedFiles.add(p.basename(entity.path));
           }
         }
@@ -3819,7 +3899,20 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         }
 
         final newDirectory = Directory(p.join(targetPath, modName));
+        // HD-ATOOL: si ya hay una carpeta HD-ATOOL_P suelta (audios de otros
+        // mods activos), se funde antes de mover para no perder nada.
+        if (modInfo.modType == 'logicMod' && modName == HdAtoolAudio.toolFolder) {
+          await HdAtoolAudio.absorbStrayToolFolder(newDirectory, backupContainerDir);
+        }
         await FileManagerService.moveMod(backupContainerDir, targetPath);
+
+        // Audios de HD-ATOOL: volver a colocarlos en LogicMods/HD-ATOOL_P/audio
+        if (modInfo.modType == 'logicMod') {
+          await HdAtoolAudio.activate(
+            newDirectory,
+            HdAtoolAudio.gameAudioPath(_logicModsPath!),
+          );
+        }
 
         updatedMod = modInfo.copyWith(directory: newDirectory, isEnabled: true);
       }
@@ -3902,6 +3995,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         final newDirectory = Directory(p.join(backupDir.path, modName));
         // 1. Mover Parte A (La carpeta principal, ej: LogicMods/<mod_name>)
         await FileManagerService.moveMod(modInfo.directory, backupDir.path);
+
+        // Audios de HD-ATOOL: quitarlos del juego y restaurar los originales
+        if (modInfo.modType == 'logicMod' && _logicModsPath != null) {
+          await HdAtoolAudio.deactivate(
+            newDirectory,
+            HdAtoolAudio.gameAudioPath(_logicModsPath!),
+          );
+        }
 
         // ++ INICIO DE LA MODIFICACIÓN ++
         // 2. Mover componentes adicionales si es un LogicMod
@@ -4370,6 +4471,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       // Inyectamos el archivo modificado del mod
       if (await sourceFile.exists()) {
         if (await gameFile.exists()) {
+          // Muchos .ini del juego quedan en "Solo lectura" (los mods de config lo
+          // recomiendan): sin quitarlo, el borrado/sobrescritura falla.
+          if (Platform.isWindows) {
+            try {
+              await Process.run('attrib', ['-R', gameFile.path]);
+            } catch (_) {}
+          }
           await gameFile.delete(); // Eliminar para evitar bloqueos de escritura de Windows/Unreal
         }
         await sourceFile.copy(gameFile.path);

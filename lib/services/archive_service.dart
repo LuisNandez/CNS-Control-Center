@@ -1,12 +1,15 @@
 // lib/services/archive_service.dart
 import 'dart:io';
 import 'package:path/path.dart' as p;
+import 'hd_atool_audio_service.dart';
 import '../l10n/app_localizations.dart';
 import '../mod_classifier_service.dart';
 import '../models/installation_models.dart';
 import 'nexus_file_identifier.dart';
 import 'file_manager_service.dart';
 import 'special_mods_handler.dart';
+import 'config_mod_detector.dart';
+import 'logic_mod_stager.dart';
 
 class ArchiveService {
   static String stripVersionFromFolderName(String name) {
@@ -63,6 +66,100 @@ class ArchiveService {
     return found;
   }
 
+  static const Set<String> _containerExts = {'.pak', '.ucas', '.utoc'};
+
+  static bool _isCnsJson(String path) =>
+      p.basename(path).toLowerCase().endsWith('.dekcns.json');
+
+  /// Busca .dekcns.json "sueltos" bajo [dir]: solo los que están en carpetas
+  /// SIN contenedores (.pak/.ucas/.utoc), es decir, carpetas que solo guardan la
+  /// configuración (p. ej. `CustomNanosuitSystem/`). Una carpeta con sus propios
+  /// paks es otra variante y no se toca.
+  static Future<void> _collectCnsJsons(
+    Directory dir,
+    List<File> out, {
+    bool Function(String path)? skipDir,
+  }) async {
+    List<FileSystemEntity> kids;
+    try {
+      kids = await dir.list(followLinks: false).toList();
+    } catch (_) {
+      return;
+    }
+    final hasContainer = kids.any((e) =>
+        e is File && _containerExts.contains(p.extension(e.path).toLowerCase()));
+    if (!hasContainer) {
+      for (final e in kids) {
+        if (e is File && _isCnsJson(e.path)) out.add(e);
+      }
+    }
+    for (final e in kids) {
+      if (e is! Directory) continue;
+      final name = p.basename(e.path);
+      if (name.startsWith('__') || name.startsWith('.')) continue;
+      if (skipDir != null && skipDir(e.path)) continue;
+      await _collectCnsJsons(e, out, skipDir: skipDir);
+    }
+  }
+
+  /// Un mod CNS puede venir con los paks en una carpeta y el .dekcns.json en
+  /// otra (típico: paks en la raíz y el json en `CustomNanosuitSystem/`). El
+  /// clasificador mira cada carpeta por separado y lo tomaba por genérico.
+  ///
+  /// Si [modDir] se clasificó como genérico y existe un .dekcns.json:
+  ///   1) dentro de [modDir], en una subcarpeta sin paks, o
+  ///   2) fuera de él (carpeta hermana) cuando [allowOutside] es true (el
+  ///      archivo trae un único mod, así que no hay duda de a quién pertenece),
+  /// el json se MUEVE a la raíz de [modDir] (la forma plana que espera el
+  /// instalador de CNS) y devuelve true. Solo trabaja sobre la carpeta temporal
+  /// de extracción, nunca sobre los archivos del usuario.
+  static Future<bool> _adoptCnsJsons({
+    required Directory modDir,
+    required Directory archiveRoot,
+    required List<Directory> allModDirs,
+    required bool allowOutside,
+  }) async {
+    final jsons = <File>[];
+    await _collectCnsJsons(modDir, jsons);
+    if (jsons.isEmpty && allowOutside) {
+      await _collectCnsJsons(
+        archiveRoot,
+        jsons,
+        skipDir: (path) => allModDirs
+            .any((m) => p.equals(m.path, path) || p.isWithin(m.path, path)),
+      );
+    }
+    if (jsons.isEmpty) return false;
+
+    var movedAny = false;
+    final oldParents = <Directory>{};
+    for (final f in jsons) {
+      final dest = File(p.join(modDir.path, p.basename(f.path)));
+      if (await dest.exists()) continue; // nunca se pisa un json existente
+      try {
+        try {
+          await f.rename(dest.path);
+        } catch (_) {
+          await f.copy(dest.path);
+          await f.delete();
+        }
+        movedAny = true;
+        oldParents.add(f.parent);
+      } catch (_) {}
+    }
+
+    // Quita las carpetas que quedaron vacías (p. ej. CustomNanosuitSystem/).
+    for (final d in oldParents) {
+      if (p.equals(d.path, modDir.path) || p.equals(d.path, archiveRoot.path)) {
+        continue;
+      }
+      try {
+        if (await d.list().isEmpty) await d.delete();
+      } catch (_) {}
+    }
+    return movedAny;
+  }
+
   static Future<ArchiveProcessingResult> processArchives({
     required List<File> archives,
     required Directory tempExtractionDir,
@@ -88,7 +185,9 @@ class ArchiveService {
       );
       final Map<String, String>? nexusInfo = identity?.toLegacyInfo();
       final String? nexusId = nexusInfo?['id'];
-      final bool isLogicModById = (nexusId != null && logicModIds.contains(nexusId));
+      final bool isLogicModById = (nexusId != null &&
+          (logicModIds.contains(nexusId) ||
+              HdAtoolAudio.isToolMain(nexusId, identity)));
       final bool isSpecialModById = (nexusId != null && SpecialModsHandler.isSpecialMod(nexusId));
       final archiveTempDir = Directory(p.join(tempExtractionDir.path, i.toString()));
       await archiveTempDir.create();
@@ -120,50 +219,8 @@ class ArchiveService {
       final hasJsons = allModFiles.any((f) => p.extension(f.path).toLowerCase() == '.json');
       final hasMovies = allModFiles.any((f) => ['.bk2', '.webm'].contains(p.extension(f.path).toLowerCase()));
 
-      // --- NUEVO ESCÁNER INFALIBLE PARA SPLASH ---
-      // Buscamos directamente en el disco duro, ignorando los filtros de la app
-      bool hasSplashImages = false;
-      await for (final entity in archiveTempDir.list(recursive: true)) {
-        if (entity is File) {
-          final ext = p.extension(entity.path).toLowerCase();
-          if (['.bmp', '.jpg', '.jpeg', '.png'].contains(ext)) {
-            hasSplashImages = true;
-            break; // En cuanto encontramos una imagen, sabemos que es Splash
-          }
-        }
-      }
-      // -------------------------------------------
-
-      if (hasMovies && !hasPaks && !hasJsons) {
-        preparedMods.add(PreparedMod(
-          sourceDir: archiveTempDir,
-          ue4ssDir: null,
-          tildeModsDir: null,
-          nexusId: nexusInfo?['id'],
-          nexusVersion: nexusInfo?['version'], identity: identity,
-          archiveName: archiveName,
-          modType: ModDirectoryType.movies,
-        ));
-        continue;
-      }
-
-      // --- NUEVA INTERCEPCIÓN PARA SPLASH ---
-      // Si tiene imágenes y NO tiene Paks ni Videos, interceptamos el ZIP COMPLETO
-      if (hasSplashImages && !hasPaks && !hasMovies) {
-        preparedMods.add(PreparedMod(
-          sourceDir: archiveTempDir, // Pasamos toda la carpeta principal intacta
-          ue4ssDir: null,
-          tildeModsDir: null,
-          nexusId: nexusInfo?['id'],
-          nexusVersion: nexusInfo?['version'], identity: identity,
-          archiveName: archiveName,
-          modType: ModDirectoryType.splash,
-        ));
-        continue; // Rompemos el ciclo aquí para que NO divida el ZIP en 3 ventanas
-      }
-      // ---------------------------------------
-
-      // 1. Comprobar UE4SS
+      // 1. Comprobar UE4SS (núcleo). Va ANTES que el resto de detecciones para
+      //    que ni Splash ni Películas se queden con un archivo que no es suyo.
       final ue4ssRoot = await findUE4SSRoot(archiveTempDir);
       if (ue4ssRoot != null) {
         preparedUE4SS = PreparedUE4SS(sourceDir: ue4ssRoot);
@@ -179,71 +236,80 @@ class ArchiveService {
         }
       }
 
-      // 3. Comprobar LogicMod
-      final logicSourceDir = Directory(p.join(archiveTempDir.path, 'SB', 'Content', 'Paks', 'LogicMods'));
-      final ue4ssSourceDir = Directory(p.join(archiveTempDir.path, 'SB', 'Binaries', 'Win64', 'ue4ss')); // MODIFICADO: Apunta a la raíz de ue4ss
-
-      final bool hasLogicDir = await logicSourceDir.exists();
-      final bool hasUe4ssDir = await ue4ssSourceDir.exists();
-
-      if (hasLogicDir || hasUe4ssDir) {
-        final tildeModsSourceDir = Directory(p.join(archiveTempDir.path, 'SB', 'Content', 'Paks', '~mods'));
-        final bool tildeModsExists = await tildeModsSourceDir.exists();
-
-        // Aseguramos la existencia de un sourceDir base para alojar los metadatos
-        if (!hasLogicDir) {
-          await logicSourceDir.create(recursive: true);
+      // 3. Comprobar LogicMod en CUALQUIER estructura:
+      //    carpetas de UE4SS (Scripts/main.lua, dlls/main.dll) y/o LogicMods,
+      //    con o sin los .pak/.ucas/.utoc, en la ruta que sea (SB/..., ue4ss/...,
+      //    Mods/<Nombre>/..., raíz, carpeta envoltorio). Los .pak se reparten por
+      //    CONTENIDO (índice del .utoc): logic -> LogicMods, resto -> ~mods.
+      //    (Los mods logic de SOLO .pak los resuelve el clasificador por carpeta.)
+      if (!isSpecialModById) {
+        final stagedLogic = await LogicModStager.process(archiveTempDir);
+        if (stagedLogic.isNotEmpty) {
+          final bool severalLogicVariants = stagedLogic.length > 1;
+          for (final staged in stagedLogic) {
+            preparedMods.add(PreparedMod(
+              sourceDir: staged.logicDir,
+              ue4ssDir: staged.ue4ssDir,
+              tildeModsDir: staged.tildeDir,
+              nexusId: nexusInfo?['id'],
+              nexusVersion: nexusInfo?['version'], identity: identity,
+              archiveName: archiveName,
+              modType: ModDirectoryType.logicMod,
+              archiveKey: severalLogicVariants ? archiveTempDir.path : null,
+              variantLabel: severalLogicVariants ? staged.variantLabel : null,
+            ));
+          }
+          continue;
         }
-
-        preparedMods.add(PreparedMod(
-          sourceDir: logicSourceDir,
-          ue4ssDir: hasUe4ssDir ? ue4ssSourceDir : null,
-          tildeModsDir: tildeModsExists ? tildeModsSourceDir : null,
-          nexusId: nexusInfo?['id'],
-          nexusVersion: nexusInfo?['version'], identity: identity,
-          archiveName: archiveName,
-          modType: ModDirectoryType.logicMod,
-        ));
-        continue;
       }
 
-      // Comprobar estructuras LogicMod/ue4ss en la raíz del ZIP (Sin estructura SB)
-      Directory? nestedLogicModDir;
-      Directory? nestedUe4ssModsDir;
+      // Mods de configuración (.ini): si el archivo trae un .ini del juego, una
+      // captura/portada (.png/.jpg) NO lo convierte en un mod de Splash.
+      final bool hasConfigIni =
+          (await ConfigModDetector.findConfigFiles(archiveTempDir, recursive: true)).isNotEmpty;
 
-      final List<FileSystemEntity> rootEntities = await archiveTempDir.list().toList();
-      final rootDirs = rootEntities.whereType<Directory>().toList();
-
-      // 1. Primero buscamos directamente en la raíz de la extracción
-      final rootLogicModsDir = Directory(p.join(archiveTempDir.path, 'LogicMods'));
-      if (await rootLogicModsDir.exists()) nestedLogicModDir = rootLogicModsDir;
-
-      final rootUe4ssModsDir = Directory(p.join(archiveTempDir.path, 'ue4ss')); // MODIFICADO: Apunta a la raíz de ue4ss
-      if (await rootUe4ssModsDir.exists()) nestedUe4ssModsDir = rootUe4ssModsDir;
-
-      // 2. Si no están en la raíz, buscamos dentro de una posible carpeta envoltorio
-      if (nestedLogicModDir == null && nestedUe4ssModsDir == null && rootDirs.length == 1) {
-        final potentialLogicModsDir = Directory(p.join(rootDirs.first.path, 'LogicMods'));
-        if (await potentialLogicModsDir.exists()) nestedLogicModDir = potentialLogicModsDir;
-        
-        final potentialUe4ssModsDir = Directory(p.join(rootDirs.first.path, 'ue4ss')); // MODIFICADO: Apunta a la raíz de ue4ss
-        if (await potentialUe4ssModsDir.exists()) nestedUe4ssModsDir = potentialUe4ssModsDir;
-      }
-
-      if (nestedLogicModDir != null || nestedUe4ssModsDir != null) {
-        Directory actualLogicDir = nestedLogicModDir ?? await Directory(p.join(archiveTempDir.path, '_logic_base_')).create();
-        
+      if (hasMovies && !hasPaks && !hasJsons) {
         preparedMods.add(PreparedMod(
-          sourceDir: actualLogicDir,
-          ue4ssDir: nestedUe4ssModsDir,
+          sourceDir: archiveTempDir,
+          ue4ssDir: null,
           tildeModsDir: null,
           nexusId: nexusInfo?['id'],
           nexusVersion: nexusInfo?['version'], identity: identity,
           archiveName: archiveName,
-          modType: ModDirectoryType.logicMod,
+          modType: ModDirectoryType.movies,
         ));
         continue;
       }
+
+      // --- ESCÁNER PARA SPLASH ---
+      // Buscamos directamente en el disco duro, ignorando los filtros de la app.
+      // Una imagen sola ya no basta: no debe haber paks, vídeos ni .ini de config.
+      bool hasSplashImages = false;
+      await for (final entity in archiveTempDir.list(recursive: true)) {
+        if (entity is File) {
+          final ext = p.extension(entity.path).toLowerCase();
+          if (['.bmp', '.jpg', '.jpeg', '.png'].contains(ext)) {
+            hasSplashImages = true;
+            break; // En cuanto encontramos una imagen, sabemos que es Splash
+          }
+        }
+      }
+
+      // --- INTERCEPCIÓN PARA SPLASH ---
+      // Si tiene imágenes y NO tiene Paks, Videos ni config, interceptamos el ZIP COMPLETO
+      if (hasSplashImages && !hasPaks && !hasMovies && !hasConfigIni) {
+        preparedMods.add(PreparedMod(
+          sourceDir: archiveTempDir, // Pasamos toda la carpeta principal intacta
+          ue4ssDir: null,
+          tildeModsDir: null,
+          nexusId: nexusInfo?['id'],
+          nexusVersion: nexusInfo?['version'], identity: identity,
+          archiveName: archiveName,
+          modType: ModDirectoryType.splash,
+        ));
+        continue; // Rompemos el ciclo aquí para que NO divida el ZIP en 3 ventanas
+      }
+      // ---------------------------------------
 
       // 3.5 Interceptar Mods Especiales (como 550, 801, 1112) para que no se dividan
       if (isSpecialModById) {
@@ -273,6 +339,30 @@ class ArchiveService {
           var modType = await ModClassifierService.classifyModDirectory(modDir);
           if (isLogicModById && modType != ModDirectoryType.unknown) {
             modType = ModDirectoryType.logicMod;
+          }
+          // Paks en una carpeta y .dekcns.json en otra: es un mod CNS.
+          if (modType == ModDirectoryType.genericPak) {
+            final adopted = await _adoptCnsJsons(
+              modDir: modDir,
+              archiveRoot: archiveTempDir,
+              allModDirs: foundModDirs,
+              allowOutside: foundModDirs.length == 1,
+            );
+            if (adopted) modType = ModDirectoryType.cns;
+          }
+          // Mod logic para HD-ATOOL (paks sueltos + audios numerados): los audios
+          // no están en la carpeta de los paks, así que se reúnen aquí dentro de
+          // <modDir>/_hd_atool_audio para que el instalador los lleve consigo.
+          if (modType == ModDirectoryType.logicMod &&
+              !HdAtoolAudio.isToolMain(nexusId, identity) &&
+              await HdAtoolAudio.dependsOnHdAtool(modDir)) {
+            var n = await HdAtoolAudio.stageAudio(
+                archiveRoot: modDir, logicOut: modDir);
+            if (n == 0) {
+              n = await HdAtoolAudio.stageAudio(
+                  archiveRoot: archiveTempDir, logicOut: modDir);
+            }
+            print('[HdAtoolAudio] ${p.basename(modDir.path)}: $n audio(s) staged');
           }
           if (modType != ModDirectoryType.unknown) {
             // Nombre de la subcarpeta (variante) dentro del archivo.
@@ -305,10 +395,8 @@ class ArchiveService {
       final bk2Files = allModFiles.where((f) => p.extension(f.path).toLowerCase() == '.bk2').toList();
 
       final saveFiles = allModFiles.where((f) => p.extension(f.path).toLowerCase() == '.sav').toList();
-      final configFiles = allModFiles.where((f) {
-        final name = p.basename(f.path).toLowerCase();
-        return ['engine.ini', 'scalability.ini', 'input.ini', 'game.ini'].contains(name);
-      }).toList();
+      // allModFiles no incluye .ini: se buscan aparte (antes esta lista siempre quedaba vacía).
+      final configFiles = await ConfigModDetector.findConfigFiles(archiveTempDir, recursive: true);
       
 
       if (jsonFiles.isNotEmpty && pakFiles.isNotEmpty) {

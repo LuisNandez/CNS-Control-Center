@@ -1182,6 +1182,15 @@
     }
   },
   "replacementOffConfirmAction": "Turn off",
+  "outfitConflictAutoDisabled": "{count, plural, =1{1 mod disabled: it replaces an outfit already used by another mod} other{{count} mods disabled: they replace outfits already used by other mods}}",
+  "@outfitConflictAutoDisabled": {
+    "description": "Notification after the metadata migration assigned outfits to mods and some were turned off because they share an outfit with another enabled mod",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "patcherSharedWith": "  Same Container ID as: {owner}",
   "@patcherSharedWith": { "placeholders": { "owner": { "type": "String" } } },
   "patcherIdChange": "  Container ID {oldId} → {newId}",

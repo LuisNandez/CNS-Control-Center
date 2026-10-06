@@ -389,6 +389,7 @@ class ModManagerService {
     required String logicModsPath,
     required String appVersion,
     required String? apiKey,
+    bool autoAssignOutfits = true,
   }) async {
     Future<List<ModInfo>> getModsFromDirectory(
       String path,
@@ -450,14 +451,22 @@ class ModManagerService {
               // Adapta mods antiguos al formato actual (edición, archivo de
               // Nexus, nombre del mod...). Se hace aquí también para los mods
               // de rutas que el arranque no recorre.
-              if (ModMetadataMigrator.needsMigration(data, appVersion)) {
+              // También asigna los trajes de los mods genéricos / de reemplazo
+              // que aún no tienen ninguno (paso local, sin red).
+              final bool wantsOutfits = autoAssignOutfits &&
+                  ModMetadataMigrator.needsOutfitScan(data);
+              if (ModMetadataMigrator.needsMigration(data, appVersion) ||
+                  wantsOutfits) {
                 print('Auto-updating metadata for mod: ${data['displayName']}');
                 final migrated = await ModMetadataMigrator.migrate(
                   modDirectory: entity,
                   data: data,
                   appVersion: appVersion,
                   apiKey: apiKey,
+                  assignOutfits: autoAssignOutfits,
                 );
+                // Los trajes ya quedaron reflejados en `data` (se modifica en
+                // el sitio); solo la parte de Nexus necesita recargar el JSON.
                 if (migrated) {
                   await cacheNexusThumbnail(
                     modDirectory: entity,

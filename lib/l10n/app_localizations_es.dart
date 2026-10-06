@@ -2108,6 +2108,18 @@ class AppLocalizationsEs extends AppLocalizations {
   String get replacementOffConfirmAction => 'Desactivar';
 
   @override
+  String outfitConflictAutoDisabled(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count mods desactivados: reemplazan trajes que ya usan otros mods',
+      one: '1 mod desactivado: reemplaza un traje que ya usa otro mod',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String patcherSharedWith(String owner) {
     return '  Mismo Container ID que: $owner';
   }

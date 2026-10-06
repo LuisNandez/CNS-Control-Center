@@ -67,6 +67,11 @@ class NexusFileIdentity {
 
   final NexusIdentitySource source;
 
+  /// Categoría del archivo en Nexus según files.json ("MAIN", "OPTIONAL",
+  /// "UPDATE", "MISCELLANEOUS", "OLD_VERSION"...). Null si la API no la dio
+  /// (sin API key / sin red / identificado solo por el nombre).
+  final String? categoryName;
+
   /// IDs de archivo de este archivo y de todas las versiones anteriores
   /// que reemplaza (cadena `file_updates` de Nexus). Sirve para saber que
   /// "Foo CNS v2" es la actualización de "Foo CNS v1" aunque cambie el nombre.
@@ -80,8 +85,16 @@ class NexusFileIdentity {
     this.fileId,
     this.version,
     this.remoteFileName,
+    this.categoryName,
     this.lineageFileIds = const [],
   });
+
+  /// ¿Es un "Main file" de Nexus (o una versión antigua que lo fue)? Solo si
+  /// la API lo confirmó. Nexus pasa a OLD_VERSION los main files reemplazados.
+  bool get isMainFile {
+    final c = categoryName?.trim().toUpperCase();
+    return c == 'MAIN' || c == 'OLD_VERSION';
+  }
 
   bool get isVerified => source != NexusIdentitySource.fileNameOnly;
 
@@ -101,6 +114,7 @@ class NexusFileIdentity {
         fileId: fileId,
         version: version,
         remoteFileName: remoteFileName,
+        categoryName: categoryName,
         lineageFileIds: lineageFileIds,
       );
 
@@ -501,6 +515,7 @@ class NexusFileIdentifier {
       name: name,
       version: version,
       remoteFileName: file['file_name']?.toString(),
+      categoryName: file['category_name']?.toString(),
       source: source,
       lineageFileIds: _buildLineage(fileId, fileUpdates),
     );

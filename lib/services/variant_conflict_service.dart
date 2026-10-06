@@ -44,7 +44,8 @@ class VariantConflictService {
     for (final m in mods) {
       if (m.archiveKey == null) continue;
       if (m.modType != ModDirectoryType.genericPak &&
-          m.modType != ModDirectoryType.cns) {
+          m.modType != ModDirectoryType.cns &&
+          m.modType != ModDirectoryType.logicMod) {
         continue;
       }
       byArchive.putIfAbsent(m.archiveKey!, () => []).add(m);
@@ -65,7 +66,11 @@ class VariantConflictService {
           } catch (_) {}
         }
         outfits.add(o);
-        names.add(await _containerNames(m.sourceDir));
+        final sig = await _containerNames(m.sourceDir);
+        // Mods logic: las carpetas de mod UE4SS (ue4ss/Mods/<Nombre>) también
+        // se pisan entre variantes.
+        if (m.ue4ssDir != null) sig.addAll(await _ue4ssModNames(m.ue4ssDir!));
+        names.add(sig);
       }
 
       // 3) Union-Find: dos variantes chocan si comparten traje o un archivo.
@@ -104,6 +109,18 @@ class VariantConflictService {
       }
     }
     return groups;
+  }
+
+  static Future<Set<String>> _ue4ssModNames(Directory ue4ssDir) async {
+    final out = <String>{};
+    try {
+      final mods = Directory(p.join(ue4ssDir.path, 'Mods'));
+      if (!await mods.exists()) return out;
+      await for (final e in mods.list(followLinks: false)) {
+        if (e is Directory) out.add('ue4ss:${p.basename(e.path).toLowerCase()}');
+      }
+    } catch (_) {}
+    return out;
   }
 
   static Future<Set<String>> _containerNames(Directory dir) async {
@@ -146,9 +163,10 @@ class VariantConflictService {
       final k = m.archiveKey;
       if (k != null && (perArchive[k] ?? 0) > 1) {
         m.soleModInArchive = false;
-        // Solo los pak genéricos usan el nombre del archivo como carpeta; los
-        // CNS se nombran por sus .json.
-        if (m.modType == ModDirectoryType.genericPak &&
+        // Los pak genéricos y los mods logic usan el nombre del archivo como
+        // carpeta; los CNS se nombran por sus .json.
+        if ((m.modType == ModDirectoryType.genericPak ||
+                m.modType == ModDirectoryType.logicMod) &&
             m.variantLabel != null &&
             !m.archiveName.endsWith(' - ${m.variantLabel}')) {
           final label = m.variantLabel!.replaceAll(RegExp(r'[\\/:*?"<>|]+'), ' - ');

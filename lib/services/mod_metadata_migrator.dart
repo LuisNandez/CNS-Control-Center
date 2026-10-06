@@ -21,14 +21,32 @@
 //     actualizaciones.
 //   * Sin ninguna certeza, el campo queda vacío y la app sigue usando su
 //     respaldo (editionName ?? displayName).
+//
+// TRAJES (mods genéricos y de reemplazo):
+//   * Los mods genéricos ('genericPak') y los de reemplazo ('replacement') que
+//     aún no tienen ningún traje asignado se analizan con OutfitDetector (lee
+//     solo el índice de nombres de sus .pak/.utoc, igual que al instalar).
+//   * Es un paso LOCAL: no necesita API key, red ni nexusId, así que también
+//     cubre mods instalados desde un archivo suelto.
+//   * Si se detectan trajes se guardan en replacesOutfits y el mod pasa a
+//     'replacement' (lo mismo que hace la instalación).
+//   * Nunca se pisa una selección existente: solo se completan mods SIN trajes.
+//   * El análisis se hace UNA sola vez por mod (outfitScanSchema). Así, si el
+//     usuario quita los trajes a mano más adelante, no se le vuelven a poner.
+//   * Respeta el ajuste "Asignar trajes automáticamente" (assignOutfits).
+//   * Los mods a los que se les asignan trajes en esta sesión se anotan en
+//     [takeNewlyAssignedOutfitMods] para que la app pueda desactivar los que
+//     acaben compartiendo traje con otro mod activo.
 
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path/path.dart' as p;
 import '../utils/version_utils.dart';
 import 'archive_service.dart';
 import 'nexus_api_service.dart';
 import 'nexus_file_identifier.dart';
+import 'outfit_detector.dart';
 import 'update_service.dart';
 
 class ModMetadataMigrator {
@@ -40,6 +58,11 @@ class ModMetadataMigrator {
   ///        actualizaciones (reintenta los mods que el esquema 2 no pudo
   ///        identificar).
   static const int currentSchema = 4;
+
+  /// Versión del análisis de trajes (independiente de [currentSchema], porque
+  /// no depende de la red). Súbelo si mejora OutfitDetector y quieres que se
+  /// reanalicen los mods que se quedaron sin traje.
+  static const int outfitScanSchema = 1;
 
   /// Con menos solicitudes restantes en la hora se pausa la migración; los
   /// mods pendientes se reintentan en el siguiente arranque.
@@ -67,18 +90,53 @@ class ModMetadataMigrator {
   static bool _identityIncomplete(Map<String, dynamic> data) =>
       data['nexusFileId'] == null || data['editionName'] == null;
 
+  /// ¿Este mod genérico / de reemplazo necesita que se le detecten los trajes?
+  ///
+  /// Es true solo si todavía no se analizó, no tiene ningún traje asignado y es
+  /// un mod genérico o de reemplazo. No exige nexusId: es un análisis local.
+  static bool needsOutfitScan(Map<String, dynamic> data) {
+    final scanned = data['outfitScanSchema'];
+    if (scanned is int && scanned >= outfitScanSchema) return false;
+
+    // Ya tiene trajes (formato actual o el antiguo de un solo traje): se respeta.
+    final current = data['replacesOutfits'];
+    if (current is List && current.isNotEmpty) return false;
+    final legacy = data['replacesOutfit'];
+    if (legacy is String && legacy.isNotEmpty) return false;
+
+    final modType = data['modType'] as String?;
+    if (modType == 'genericPak' || modType == 'replacement') return true;
+    // Mods muy antiguos: sin modType, pero marcados como "Generic".
+    return modType == null && data['fitMeshType'] == 'Generic';
+  }
+
   /// Migra [data] (el contenido de nexus_info.json de [modDirectory]) y lo
   /// guarda en disco.
   ///
-  /// Devuelve true si la migración se completó. Devuelve false (sin escribir
-  /// nada) si falta la API key, no hay red, el mod ya no existe en Nexus o se
+  /// Hace dos cosas independientes:
+  ///   1) asigna los trajes de los mods genéricos / de reemplazo (local, sin
+  ///      red; si [assignOutfits] es true y [needsOutfitScan]);
+  ///   2) adapta los metadatos de Nexus (edición, archivo, nombre del mod...).
+  ///
+  /// Devuelve true si la parte de Nexus se completó. Devuelve false si no hacía
+  /// falta, falta la API key, no hay red, el mod ya no existe en Nexus o se
   /// agotó el límite horario: en ese caso se reintentará en el próximo inicio.
+  /// Los trajes detectados en el paso 1 se guardan (y se reflejan en [data])
+  /// aunque devuelva false.
   static Future<bool> migrate({
     required Directory modDirectory,
     required Map<String, dynamic> data,
     required String appVersion,
     required String? apiKey,
+    bool assignOutfits = true,
   }) async {
+    // 1) Trajes: no depende de la API key, del nexusId ni de la red.
+    if (assignOutfits && needsOutfitScan(data)) {
+      await _assignOutfits(modDirectory, data);
+    }
+
+    // 2) Nexus.
+    if (!needsMigration(data, appVersion)) return false;
     if (apiKey == null || apiKey.isEmpty) return false;
     final nexusId = data['nexusId']?.toString();
     if (nexusId == null || nexusId.isEmpty) return false;
@@ -94,11 +152,52 @@ class ModMetadataMigrator {
 
   static final Set<String> _failedThisSession = {};
 
+  /// Carpetas (normalizadas) de los mods a los que la migración acaba de
+  /// asignar trajes y que la app aún no ha revisado en busca de conflictos.
+  static final Set<String> _newlyAssignedOutfits = {};
+
+  /// Devuelve (y vacía) los mods que recibieron trajes automáticamente desde la
+  /// última llamada. Las rutas están normalizadas con `p.normalize`.
+  static Set<String> takeNewlyAssignedOutfitMods() {
+    final out = Set<String>.of(_newlyAssignedOutfits);
+    _newlyAssignedOutfits.clear();
+    return out;
+  }
+
   /// ¿Vale la pena intentar migrar este mod ahora? Es false si ya falló en
   /// esta sesión o si queda poco límite horario de la API. Sirve para no
   /// contar (ni mostrar progreso de) mods que [migrate] rechazaría al instante.
   static bool canAttempt(String modPath) =>
       !_failedThisSession.contains(modPath) && !_apiBudgetLow();
+
+  /// Detecta los trajes que reemplaza el mod leyendo sus archivos y los guarda.
+  /// Si no encuentra ninguno (mod cifrado, sin índice, de otra cosa...) no toca
+  /// el traje, pero anota que ya se analizó para no repetirlo en cada arranque.
+  static Future<void> _assignOutfits(
+    Directory modDirectory,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final found = await OutfitDetector.detect(modDirectory);
+      if (found.isNotEmpty) {
+        data['replacesOutfits'] = found;
+        // Igual que al instalar: con trajes asignados es un mod de reemplazo.
+        data['modType'] = 'replacement';
+      }
+      data['outfitScanSchema'] = outfitScanSchema;
+      await File(p.join(modDirectory.path, 'nexus_info.json'))
+          .writeAsString(JsonEncoder.withIndent('  ').convert(data));
+      if (found.isNotEmpty) {
+        _newlyAssignedOutfits.add(p.normalize(modDirectory.path));
+      }
+      debugPrint('[ModMetadataMigrator] ${p.basename(modDirectory.path)}: '
+          '${found.isEmpty ? 'sin trajes detectados' : found}');
+    } catch (e) {
+      // Sin escribir el marcador: se reintentará en el próximo arranque.
+      debugPrint('[ModMetadataMigrator] No se pudieron detectar trajes en '
+          '${modDirectory.path}: $e');
+    }
+  }
 
   static Future<bool> _migrate(
     Directory modDirectory,

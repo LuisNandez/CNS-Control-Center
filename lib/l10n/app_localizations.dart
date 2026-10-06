@@ -3514,6 +3514,12 @@ abstract class AppLocalizations {
   /// **'Turn off'**
   String get replacementOffConfirmAction;
 
+  /// Notification after the metadata migration assigned outfits to mods and some were turned off because they share an outfit with another enabled mod
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 mod disabled: it replaces an outfit already used by another mod} other{{count} mods disabled: they replace outfits already used by other mods}}'**
+  String outfitConflictAutoDisabled(int count);
+
   /// No description provided for @patcherSharedWith.
   ///
   /// In en, this message translates to:
