@@ -40,6 +40,9 @@ class SplashSelectionData {
 }
 
 class SplashModsHandler {
+  /// Clave interna del grupo "carpeta raíz" (su texto visible es l10n.splashRootFolder).
+  static const String rootFolderKey = '<root>';
+
   static Future<SplashSelectionData> parseSplashMod(Directory sourceDir) async {
     Map<String, List<SplashImageOption>> grouped = {};
 
@@ -48,7 +51,7 @@ class SplashModsHandler {
         final ext = p.extension(entity.path).toLowerCase();
         if (['.bmp', '.jpg', '.jpeg', '.png', '.bat'].contains(ext)) {
           final relativeDir = p.dirname(p.relative(entity.path, from: sourceDir.path));
-          final folderName = relativeDir == '.' ? 'Raíz (Principal)' : relativeDir.replaceAll(Platform.pathSeparator, ' / ');
+          final folderName = relativeDir == '.' ? rootFolderKey : relativeDir.replaceAll(Platform.pathSeparator, ' / ');
 
           if (!grouped.containsKey(folderName)) {
             grouped[folderName] = [];
@@ -83,7 +86,7 @@ class SplashModsHandler {
         if (img.isSelected) {
           String finalName = img.name;
           // Prevenimos colisión de nombres (ej: 2k/splash1.jpg y 4k/splash1.jpg)
-          if (folder.folderName != 'Raíz (Principal)' && p.extension(img.name).toLowerCase() != '.bat') {
+          if (folder.folderName != rootFolderKey && p.extension(img.name).toLowerCase() != '.bat') {
              final prefix = folder.folderName.replaceAll(' / ', '_').replaceAll(' ', '');
              finalName = '${prefix}_${img.name}';
           }

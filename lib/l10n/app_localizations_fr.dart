@@ -1833,14 +1833,14 @@ class AppLocalizationsFr extends AppLocalizations {
   String get repairConfirmAction => 'Lancer la réparation';
 
   @override
-  String get launchRetryTitle => 'Game didn\'t start';
+  String get launchRetryTitle => 'Le jeu n\'a pas démarré';
 
   @override
   String get launchRetryMessage =>
-      'Stellar Blade didn\'t start after two attempts. This is usually caused by UE4SS or CNS. \"Fix game not starting\" temporarily uninstalls them, launches the game once and reinstalls them. Run it now?';
+      'Stellar Blade n\'a pas démarré après deux tentatives. C\'est généralement dû à UE4SS ou à CNS. « Réparer le non-démarrage du jeu » les désinstalle temporairement, lance le jeu une fois, puis les réinstalle. Lancer maintenant ?';
 
   @override
-  String get launchRetryAction => 'Fix now';
+  String get launchRetryAction => 'Réparer maintenant';
 
   @override
   String get repairOverlayTitle => 'Réparation du démarrage';
@@ -1932,37 +1932,37 @@ class AppLocalizationsFr extends AppLocalizations {
   String get otherEditionsTitle => 'Autres éditions installées';
 
   @override
-  String get detailsStatusEnabled => 'Enabled';
+  String get detailsStatusEnabled => 'Activé';
 
   @override
-  String get detailsStatusDisabled => 'Disabled';
+  String get detailsStatusDisabled => 'Désactivé';
 
   @override
-  String get detailsInformation => 'Information';
+  String get detailsInformation => 'Informations';
 
   @override
-  String get detailsRowAuthor => 'Author';
+  String get detailsRowAuthor => 'Auteur';
 
   @override
   String get detailsRowType => 'Type';
 
   @override
-  String get detailsRowInstalled => 'Installed';
+  String get detailsRowInstalled => 'Installé';
 
   @override
-  String get detailsRowModified => 'Last modified';
+  String get detailsRowModified => 'Dernière modification';
 
   @override
-  String get detailsRowNexusId => 'Nexus ID';
+  String get detailsRowNexusId => 'ID Nexus';
 
   @override
-  String get detailsRowFolder => 'Folder';
+  String get detailsRowFolder => 'Dossier';
 
   @override
-  String get detailsCopyPath => 'Copy path';
+  String get detailsCopyPath => 'Copier le chemin';
 
   @override
-  String get detailsCopied => 'Copied to clipboard';
+  String get detailsCopied => 'Copié dans le presse-papiers';
 
   @override
   String get detailsEndorse => 'Endorse';
@@ -1972,149 +1972,152 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String endorseWaitLabel(Object minutes) {
-    return 'Wait $minutes min';
+    return 'Attendre $minutes min';
   }
 
   @override
   String get endorseSuccessTitle => 'Mod endorsed';
 
   @override
-  String get endorseRemovedTitle => 'Endorsement removed';
+  String get endorseRemovedTitle => 'Endorse retiré';
 
   @override
-  String get endorseFailedTitle => 'Couldn\'t update endorsement';
+  String get endorseFailedTitle => 'Impossible de mettre à jour l\'endorse';
 
   @override
   String get endorseErrNotNexus =>
-      'This mod isn\'t linked to a Nexus Mods page, so it can\'t be endorsed.';
+      'Ce mod n\'est pas lié à une page Nexus Mods, il ne peut donc pas être endorsé.';
 
   @override
   String get endorseErrNoApiKey =>
-      'Add your Nexus Mods API key in Settings to endorse mods.';
+      'Ajoutez votre clé API Nexus Mods dans les Paramètres pour endorser des mods.';
 
   @override
   String endorseErrWait(Object minutes) {
-    return 'Nexus requires waiting 15 minutes after downloading a mod before you can endorse it. Try again in $minutes min.';
+    return 'Nexus impose d\'attendre 15 minutes après le téléchargement d\'un mod avant de pouvoir l\'endorser. Réessayez dans $minutes min.';
   }
 
   @override
   String get endorseErrNotDownloaded =>
-      'Nexus only lets you endorse mods you\'ve downloaded with your account.';
+      'Nexus ne permet d\'endorser que les mods que vous avez téléchargés avec votre compte.';
 
   @override
-  String get endorseErrOwnMod => 'You can\'t endorse your own mod.';
+  String get endorseErrOwnMod =>
+      'Vous ne pouvez pas endorser votre propre mod.';
 
   @override
   String get endorseErrRateLimit =>
-      'You\'ve reached the Nexus request limit. Try again later.';
+      'Vous avez atteint la limite de requêtes de Nexus. Réessayez plus tard.';
 
   @override
   String get endorseErrInvalidKey =>
-      'Nexus rejected your API key. Check it in Settings.';
+      'Nexus a rejeté votre clé API. Vérifiez-la dans les Paramètres.';
 
   @override
   String get endorseErrNetwork =>
-      'Couldn\'t reach Nexus Mods. Check your connection and try again.';
+      'Impossible de joindre Nexus Mods. Vérifiez votre connexion et réessayez.';
 
   @override
   String get endorseErrUnknown =>
-      'Nexus couldn\'t process the request. Try again later.';
+      'Nexus n\'a pas pu traiter la requête. Réessayez plus tard.';
 
   @override
-  String get endorseRemoveConfirmTitle => 'Remove endorsement?';
+  String get endorseRemoveConfirmTitle => 'Retirer l\'endorse ?';
 
   @override
   String endorseRemoveConfirmMessage(Object name) {
-    return '$name will no longer be endorsed on Nexus Mods.';
+    return '$name ne sera plus endorsé sur Nexus Mods.';
   }
 
   @override
-  String get endorseRemoveConfirmAction => 'Remove';
+  String get endorseRemoveConfirmAction => 'Retirer';
 
   @override
-  String get detailsUpdateAction => 'Update';
+  String get detailsUpdateAction => 'Mettre à jour';
 
   @override
-  String get detailsShowMore => 'Show more';
+  String get detailsShowMore => 'Afficher plus';
 
   @override
-  String get detailsShowLess => 'Show less';
+  String get detailsShowLess => 'Afficher moins';
 
   @override
-  String get detailsAddNote => 'Add a note';
+  String get detailsAddNote => 'Ajouter une note';
 
   @override
   String outfitsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count outfits',
-      one: '1 outfit',
-      zero: 'No outfits',
+      other: '$count tenues',
+      one: '1 tenue',
+      zero: 'Aucune tenue',
     );
     return '$_temp0';
   }
 
   @override
   String outfitsSelectedCount(int count) {
-    return '$count selected';
+    return '$count sélectionnée(s)';
   }
 
   @override
-  String get outfitsChoose => 'Choose outfits';
+  String get outfitsChoose => 'Choisir des tenues';
 
   @override
-  String get outfitsDone => 'Done';
+  String get outfitsDone => 'Terminé';
 
   @override
-  String get outfitsFilterAll => 'All';
+  String get outfitsFilterAll => 'Toutes';
 
   @override
-  String get outfitsFilterSelected => 'Selected';
+  String get outfitsFilterSelected => 'Sélectionnées';
 
   @override
-  String get outfitsClearAll => 'Clear all';
+  String get outfitsClearAll => 'Tout effacer';
 
   @override
-  String get outfitsRemove => 'Remove';
+  String get outfitsRemove => 'Retirer';
 
   @override
-  String get outfitsActionSelect => 'Select';
+  String get outfitsActionSelect => 'Sélectionner';
 
   @override
-  String get outfitsActionDeselect => 'Deselect';
+  String get outfitsActionDeselect => 'Désélectionner';
 
   @override
   String outfitsNoResults(String query) {
-    return 'No results for \"$query\"';
+    return 'Aucun résultat pour « $query »';
   }
 
   @override
-  String get outfitsSelectedEmpty => 'No outfits selected yet.';
+  String get outfitsSelectedEmpty =>
+      'Aucune tenue sélectionnée pour le moment.';
 
   @override
-  String get outfitsNoPreview => 'No preview available';
+  String get outfitsNoPreview => 'Aucun aperçu disponible';
 
   @override
-  String get replacementOffConfirmTitle => 'Turn off replacement mod?';
+  String get replacementOffConfirmTitle =>
+      'Désactiver le mod de remplacement ?';
 
   @override
   String replacementOffConfirmMessage(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'The $count selected outfits will be removed from this mod.',
-      one: 'The selected outfit will be removed from this mod.',
+      other: 'Les $count tenues sélectionnées seront retirées de ce mod.',
+      one: 'La tenue sélectionnée sera retirée de ce mod.',
     );
     return '$_temp0';
   }
 
   @override
-  String get replacementOffConfirmAction => 'Turn off';
+  String get replacementOffConfirmAction => 'Désactiver';
 
   @override
   String patcherSharedWith(String owner) {
-    return '  Same Container ID as: $owner';
+    return '  Même Container ID que : $owner';
   }
 
   @override
@@ -2123,40 +2126,163 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get patcherBackupSaved => '  Originals kept as .cnsbak (restorable).';
+  String get patcherBackupSaved =>
+      '  Originaux conservés en .cnsbak (restaurables).';
 
   @override
   String patcherLeftUntouched(String reason) {
-    return '  Left untouched (not safe to patch): $reason';
+    return '  Laissé intact (patch non sûr) : $reason';
   }
 
   @override
   String summaryUnfixableContainerIds(int count) {
-    return '⚠️ $count mod(s) share a Container ID but could not be fixed safely (left untouched; they may not appear in CNS):';
+    return '⚠️ $count mod(s) partagent un Container ID mais n\'ont pas pu être corrigés en toute sécurité (laissés intacts ; ils peuvent ne pas apparaître dans CNS) :';
   }
 
   @override
-  String get revertPatchesTitle => 'Revert conflict patches';
+  String get revertPatchesTitle => 'Annuler les patchs de conflits';
 
   @override
   String get revertPatchesDesc =>
-      'Restores the original mod files changed by the Conflict Patcher.';
+      'Restaure les fichiers de mods originaux modifiés par le Patcher de Conflits.';
 
   @override
-  String get revertPatchesConfirmTitle => 'Revert conflict patches?';
+  String get revertPatchesConfirmTitle => 'Annuler les patchs de conflits ?';
 
   @override
   String get revertPatchesConfirmMessage =>
-      'The original files saved by the Conflict Patcher (.cnsbak) will be restored. Close the game first. Conflicting mods may stop showing up in CNS again.';
+      'Les fichiers originaux sauvegardés par le Patcher de Conflits (.cnsbak) seront restaurés. Fermez d\'abord le jeu. Les mods en conflit risquent de ne plus apparaître dans CNS.';
 
   @override
-  String get revertPatchesAction => 'Revert';
+  String get revertPatchesAction => 'Annuler';
 
   @override
   String revertPatchesDone(int count) {
-    return 'Restored $count file(s).';
+    return '$count fichier(s) restauré(s).';
   }
 
   @override
-  String get revertPatchesNothing => 'No patched files to revert.';
+  String get revertPatchesNothing => 'Aucun fichier patché à annuler.';
+
+  @override
+  String get settingsGroupPaths => 'Chemins';
+
+  @override
+  String get settingsGroupTools => 'Outils';
+
+  @override
+  String get settingsAutoOutfit => 'Attribuer les tenues automatiquement';
+
+  @override
+  String get settingsAutoOutfitDesc =>
+      'Lors de l\'installation d\'un mod de remplacement, détecte quelle tenue il remplace en lisant ses fichiers. Si désactivé, la tenue est attribuée manuellement.';
+
+  @override
+  String get variantChoiceTitle => 'Plusieurs variantes du même remplacement';
+
+  @override
+  String variantChoiceBodyOutfits(String mod, String outfits) {
+    return '« $mod » contient plusieurs variantes qui remplacent $outfits. Une seule peut être active à la fois. Laquelle voulez-vous installer ?';
+  }
+
+  @override
+  String variantChoiceBodyFiles(String mod) {
+    return '« $mod » contient plusieurs variantes qui remplacent les mêmes fichiers. Une seule peut être active à la fois. Laquelle voulez-vous installer ?';
+  }
+
+  @override
+  String get variantChoiceInstallAll => 'Tout installer (comme mods séparés)';
+
+  @override
+  String get installOutfitConflictTitle => 'Tenue déjà utilisée';
+
+  @override
+  String installOutfitConflictBody(
+    String newMod,
+    String outfits,
+    String oldMod,
+  ) {
+    return 'Le mod « $newMod » remplace la tenue $outfits, déjà attribuée au mod actif « $oldMod ». Un seul peut être actif à la fois. Lequel garder actif ?';
+  }
+
+  @override
+  String get installOutfitKeepCurrent => 'Garder l\'actuel';
+
+  @override
+  String get installOutfitUseNew => 'Activer le nouveau';
+
+  @override
+  String installOutfitNowActive(String active) {
+    return 'Mod actif : $active';
+  }
+
+  @override
+  String get fileLockErrorTitle => 'Impossible de déplacer le mod';
+
+  @override
+  String get fileLockErrorMessage =>
+      'Une autre application utilise peut-être les fichiers du jeu (FModel, le jeu lui-même, un antivirus, l\'Explorateur de fichiers...). Fermez-la et réessayez.';
+
+  @override
+  String get nexusProfileTooltip => 'Profil Nexus Mods';
+
+  @override
+  String get nexusUserFallback => 'Utilisateur';
+
+  @override
+  String get nexusPlanPremium => 'Premium';
+
+  @override
+  String get nexusPlanStandard => 'Standard';
+
+  @override
+  String get nexusApiRequestsRemaining => 'REQUÊTES API RESTANTES';
+
+  @override
+  String get nexusApiDaily => 'Quotidiennes';
+
+  @override
+  String get nexusApiHourly => 'Par heure';
+
+  @override
+  String get downloadFreeAccountLimit =>
+      'Les comptes gratuits sont limités à 3 Mo/s par Nexus Mods';
+
+  @override
+  String get downloadRetryTooltip => 'Réessayer';
+
+  @override
+  String get downloadRefreshingLink => 'Actualisation du lien...';
+
+  @override
+  String get downloadNoInternet =>
+      'Pas de connexion Internet. Vérifiez votre réseau.';
+
+  @override
+  String downloadErrorLinkExpired(int code) {
+    return 'Le lien Nexus a expiré ($code)';
+  }
+
+  @override
+  String downloadErrorHttp(int code) {
+    return 'Erreur HTTP : $code';
+  }
+
+  @override
+  String get downloadErrorTimeout =>
+      'Délai dépassé : aucune donnée réseau reçue';
+
+  @override
+  String get splashRootFolder => 'Racine (principal)';
+
+  @override
+  String get repairErrorGameNotClosed =>
+      'Le processus du jeu n\'a pas pu être fermé.';
+
+  @override
+  String get errorManifestNotFound =>
+      'Manifeste d\'installation introuvable. Désinstallation impossible.';
+
+  @override
+  String get downloadResuming => 'Reprise...';
 }

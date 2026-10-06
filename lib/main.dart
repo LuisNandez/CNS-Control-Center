@@ -45,6 +45,8 @@ import 'services/mod_metadata_migrator.dart';
 import 'services/update_service.dart';
 import 'services/special_mods_handler.dart';
 import 'ui/dialogs/special_mod_dialog.dart';
+import 'ui/dialogs/variant_choice_dialog.dart';
+import 'services/variant_conflict_service.dart';
 import 'package:protocol_handler/protocol_handler.dart';
 import 'ui/dialogs/download_dialog.dart';
 import 'package:windows_single_instance/windows_single_instance.dart';
@@ -64,6 +66,7 @@ import 'ui/dialogs/settings_dialogs.dart';
 import 'ui/dialogs/install_dialogs.dart';
 import 'services/game_repair_service.dart';
 import 'ui/dialogs/repair_game_dialog.dart';
+import 'services/outfit_detector.dart';
 
 final StreamController<String> multiInstanceLinkStream = StreamController<String>.broadcast();
 
@@ -249,6 +252,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   ModSort _currentSort = ModSort.date;
   ModListViewMode _viewMode = ModListViewMode.grid;
   bool _showModTypeTags = true;
+  bool _autoAssignOutfits = true; // Ajustes: asignación automática de trajes
 
   bool _isUe4ssInstalled = false;
   bool _isCnsCoreInstalled = false;
@@ -357,6 +361,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       fetchingText: l10n.downloadFetchingPlaceholder,
       linkErrorText: l10n.downloadErrorLink,
       downloadErrorText: l10n.downloadErrorGeneral,
+      l10n: l10n,
       onComplete: (File readyFile, String modId, String version) { 
         _installQueue.add(readyFile);
         if (!_isProcessingQueue) {
@@ -647,7 +652,9 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         context: context,
         type: NotificationType.error,
         title: l10n.errorUninstalling(componentName),
-        description: e.toString(),
+        description: e is InstallManifestNotFoundException
+            ? l10n.errorManifestNotFound
+            : e.toString(),
       );
       return false;
     } finally {
@@ -890,6 +897,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     final viewModeIndex =
         prefs.getInt(AppPrefs.viewMode) ?? ModListViewMode.grid.index;
     final showTags = prefs.getBool(AppPrefs.showModTypeTags) ?? true;
+    final autoOutfits = prefs.getBool(AppPrefs.autoAssignOutfits) ?? true;
 
     setState(() {
       _currentFilter = ModFilter.values[filterIndex];
@@ -897,6 +905,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       _currentSort = ModSort.values[sortIndex];
       _viewMode = ModListViewMode.values[viewModeIndex];
       _showModTypeTags = showTags;
+      _autoAssignOutfits = autoOutfits;
     });
   }
 
@@ -1959,6 +1968,13 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       _preparedMods.clear();
       return await _promptAndInstallUE4SS(_preparedUE4SS!.sourceDir);
     } else {
+      // Si el archivo trae varias variantes que reemplazan lo mismo, deja que
+      // el usuario elija cuál instalar (si cancela, se aborta la instalación).
+      final bool proceed = await _resolveVariantConflicts();
+      if (!proceed) {
+        await _clearSelection(panelStateSetter: panelStateSetter);
+        return false;
+      }
       await _prepareInstallationPreview(panelStateSetter: panelStateSetter);
     }
     return false;
@@ -1985,6 +2001,33 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     });
   }
 }
+
+  /// Detecta variantes del mismo archivo que reemplazan lo mismo y pregunta cuál
+  /// instalar. Devuelve false si el usuario cancela.
+  Future<bool> _resolveVariantConflicts() async {
+    try {
+      final groups = await VariantConflictService.findGroups(
+        _preparedMods,
+        detectOutfits: _autoAssignOutfits,
+      );
+      for (int i = 0; i < groups.length; i++) {
+        if (!mounted) return false;
+        final keep = await VariantChoiceDialog.show(
+          context,
+          group: groups[i],
+          position: i + 1,
+          total: groups.length,
+        );
+        if (keep == null) return false;
+        VariantConflictService.applyChoice(_preparedMods, groups[i], keep);
+      }
+      // Recalcula nombres/flags: evita que dos variantes compartan carpeta.
+      VariantConflictService.finalize(_preparedMods);
+    } catch (e) {
+      print('[VariantConflict] Error al comprobar variantes: $e');
+    }
+    return true;
+  }
 
   Future<void> _prepareInstallationPreview({
     StateSetter? panelStateSetter,
@@ -2536,6 +2579,172 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         : AlternativeVersionAction.cancel;
   }
 
+  // ---------------------------------------------------------------------------
+  //  Conflicto de traje al INSTALAR un mod con traje detectado automáticamente
+  // ---------------------------------------------------------------------------
+
+  /// Convierte el texto traducido en spans: los marcadores {new} y {outfits}
+  /// van en negrita y cada mod en conflicto ({old}) es un enlace que abre su
+  /// panel de detalles (como en el diálogo de activar con el interruptor).
+  List<InlineSpan> _buildInstallConflictSpans(
+    String template, {
+    required String newName,
+    required List<String> outfits,
+    required List<ModInfo> conflicting,
+  }) {
+    const bold = TextStyle(
+      fontSize: 13,
+      height: 1.4,
+      fontWeight: FontWeight.w600,
+      color: IosColors.label,
+    );
+    const link = TextStyle(
+      fontSize: 13,
+      height: 1.4,
+      fontWeight: FontWeight.w600,
+      color: IosColors.blue,
+    );
+
+    final spans = <InlineSpan>[];
+    final marker = RegExp(r'\{(new|old|outfits)\}');
+    var last = 0;
+    for (final m in marker.allMatches(template)) {
+      if (m.start > last) {
+        spans.add(TextSpan(text: template.substring(last, m.start)));
+      }
+      switch (m.group(1)) {
+        case 'new':
+          spans.add(TextSpan(text: newName, style: bold));
+          break;
+        case 'outfits':
+          spans.add(TextSpan(text: outfits.join(', '), style: bold));
+          break;
+        case 'old':
+          for (var i = 0; i < conflicting.length; i++) {
+            if (i > 0) spans.add(const TextSpan(text: ', '));
+            final mod = conflicting[i];
+            spans.add(
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () => _showDetailsPage(mod),
+                    child: Text(mod.customName, style: link),
+                  ),
+                ),
+              ),
+            );
+          }
+          break;
+      }
+      last = m.end;
+    }
+    if (last < template.length) {
+      spans.add(TextSpan(text: template.substring(last)));
+    }
+    return spans;
+  }
+
+  /// true = activar el mod nuevo (y desactivar los anteriores);
+  /// false = mantener los actuales (el nuevo queda desactivado).
+  Future<bool?> _showInstallOutfitConflictDialog({
+    required String newName,
+    required List<String> outfits,
+    required List<ModInfo> conflicting,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    return showIosDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => IosDialogShell(
+        title: l10n.installOutfitConflictTitle,
+        width: 360,
+        content: RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            style: const TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              color: IosColors.secondaryLabel,
+            ),
+            children: _buildInstallConflictSpans(
+              // Los marcadores {new}/{old}/{outfits} se resuelven en spans
+              l10n.installOutfitConflictBody('{new}', '{outfits}', '{old}'),
+              newName: newName,
+              outfits: outfits,
+              conflicting: conflicting,
+            ),
+          ),
+        ),
+        actions: [
+          IosDialogButton(
+            label: l10n.installOutfitKeepCurrent,
+            onPressed: () => Navigator.of(ctx).pop(false),
+          ),
+          IosDialogButton(
+            label: l10n.installOutfitUseNew,
+            bold: true,
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Tras instalar un mod con traje detectado: si ese traje ya lo tiene otro
+  /// mod ACTIVO, avisa y deja elegir cuál queda activo (nunca los dos).
+  Future<void> _resolveInstallOutfitConflict({
+    required String newModPath,
+    required String newName,
+    required List<String> outfits,
+    required Directory backupDir,
+  }) async {
+    if (!mounted) return;
+
+    final conflicting = <ModInfo>[];
+    for (final m in _allMods) {
+      if (!m.isEnabled || m.directory.path == newModPath) continue;
+      final other = m.replacesOutfits ?? const <String>[];
+      if (!other.any(outfits.contains)) continue;
+      // Descarta entradas obsoletas (p. ej. la versión anterior ya borrada).
+      if (!await m.directory.exists()) continue;
+      conflicting.add(m);
+    }
+    if (conflicting.isEmpty) return;
+
+    final useNew = await _showInstallOutfitConflictDialog(
+      newName: newName,
+      outfits: outfits,
+      conflicting: conflicting,
+    );
+
+    final String activeName;
+    try {
+      if (useNew == true) {
+        for (final m in conflicting) {
+          final ok = await _disableMod(m);
+          if (!ok) return; // _disableMod ya mostró el motivo
+        }
+        activeName = newName;
+      } else {
+        await FileManagerService.moveMod(Directory(newModPath), backupDir.path);
+        activeName = conflicting.map((m) => m.customName).join(', ');
+      }
+    } catch (e) {
+      print('[OutfitConflict] $e');
+      _reportToggleError(e, enabling: false);
+      return;
+    }
+
+    if (!mounted) return;
+    NotificationService.instance.show(
+      context: context,
+      type: NotificationType.info,
+      title: AppLocalizations.of(context)!.installOutfitNowActive(activeName),
+    );
+  }
+
   Future<String?> _installSingleMod(
   PreparedMod preparedMod, {
   required AppLocalizations l10n,
@@ -2574,6 +2783,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
     // Estado de endorse del mod que se reemplaza (se copia al nuevo nexus_info.json).
     EndorseRecord? preservedEndorse;
     String? selectedOutfit;
+    // Trajes detectados automáticamente en mods genéricos de reemplazo.
+    List<String>? autoOutfits;
 
     // 1. CLASIFICAR EL MOD Y OBTENER SUS DATOS
     //final modType = await ModClassifierService.classifyModDirectory(modDir); // <-- ELIMINADO: Ya tenemos el tipo
@@ -2869,6 +3080,15 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       baseDisplayName = preparedMod.archiveName;
       fitMeshType = "Generic";
       installPath = _genericModsPath; // Se instala en la carpeta genérica
+      // Detecta qué traje(s) reemplaza leyendo los nombres dentro del .pak/.utoc.
+      // Si falla o no encuentra nada, queda como "Genérico" (selección manual).
+      // Solo si la opción de Ajustes está activada.
+      if (_autoAssignOutfits) {
+        try {
+          final found = await OutfitDetector.detect(modDir);
+          if (found.isNotEmpty) autoOutfits = found;
+        } catch (_) {}
+      }
     } else if (modType == ModDirectoryType.movies) {
       baseDisplayName = preparedMod.archiveName;
       fitMeshType = null;
@@ -3160,12 +3380,17 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       'nexusFileId': preparedMod.identity?.fileId,
       'modName': preparedMod.nexusModName,
       'editionName': preparedMod.editionName,
+      'variantName': preparedMod.variantLabel,
       'nexusFileName': preparedMod.identity?.remoteFileName,
       'identifiedBy': preparedMod.identity?.source.name,
       'installDate': DateTime.now().toIso8601String(),
       'managerVersion': _appVersion,
       'fitMeshType': fitMeshType, // <-- "Generic" o el tipo de CNS
-      'modType': modType.name, // <-- AÑADIDO: "cns" o "genericPak"
+      // Si se detectaron trajes, el mod es de reemplazo (etiqueta "Replacement",
+      // mismo valor que escribe el interruptor del panel de detalles).
+      'modType': (autoOutfits != null && autoOutfits.isNotEmpty)
+          ? 'replacement'
+          : modType.name,
       'sourceUrl': nexusId != null
           ? 'https://www.nexusmods.com/stellarblade/mods/$nexusId'
           : null,
@@ -3181,7 +3406,8 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                         modType == ModDirectoryType.splash)
           ? replacedFiles
           : null,
-      'replacesOutfits': selectedOutfit != null ? [selectedOutfit] : null,
+      'replacesOutfits': autoOutfits ??
+          (selectedOutfit != null ? [selectedOutfit] : null),
     };
     // Limpia valores nulos para no ensuciar el JSON
     modData.removeWhere((key, value) => value == null);
@@ -3265,6 +3491,24 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       );
     }
 
+    // Si el traje detectado automáticamente ya lo tiene otro mod ACTIVO, avisa
+    // y deja elegir cuál queda activo.
+    final List<String>? detectedOutfits = autoOutfits;
+    if (detectedOutfits != null &&
+        detectedOutfits.isNotEmpty &&
+        modType == ModDirectoryType.genericPak) {
+      try {
+        await _resolveInstallOutfitConflict(
+          newModPath: newModPath,
+          newName: preservedCustomName ?? baseDisplayName ?? finalFolderName,
+          outfits: detectedOutfits,
+          backupDir: backupDir,
+        );
+      } catch (e) {
+        print('[OutfitConflict] Error al comprobar conflictos: $e');
+      }
+    }
+
     // Avisa de que es una edición más de un mod que ya estaba instalado.
     if (siblingEdition != null && mounted) {
       final int editionsNow =
@@ -3277,6 +3521,60 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
       );
     }
     return finalFolderName;
+  }
+
+  // ---------------------------------------------------------------------------
+  //  Errores al activar/desactivar: detecta archivos bloqueados por otra app
+  // ---------------------------------------------------------------------------
+
+  /// true si [e] es un bloqueo típico de Windows (acceso denegado / archivo en
+  /// uso) al mover la carpeta de un mod: otra aplicación (FModel, el juego, un
+  /// antivirus, el Explorador...) tiene abiertos archivos de esa carpeta.
+  bool _isFileLockError(Object e) {
+    if (e is FileSystemException) {
+      final code = e.osError?.errorCode;
+      // 5 = acceso denegado, 32 = usado por otro proceso, 33 = bloqueado
+      if (code == 5 || code == 32 || code == 33) return true;
+      if (e is PathAccessException) return true;
+    }
+    final msg = e.toString().toLowerCase();
+    return msg.contains('errno = 5') ||
+        msg.contains('errno = 32') ||
+        msg.contains('being used by another process');
+  }
+
+  /// Muestra el error de activar/desactivar. Si es un bloqueo de archivos,
+  /// avisa de que probablemente otra aplicación está usando los recursos del
+  /// juego; si no, muestra el error original.
+  void _reportToggleError(Object e, {required bool enabling}) {
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+
+    if (_isFileLockError(e)) {
+      setState(() {
+        _statusMessage = l10n.fileLockErrorMessage;
+        _statusColor = Colors.redAccent;
+      });
+      NotificationService.instance.show(
+        context: context,
+        type: NotificationType.error,
+        title: l10n.fileLockErrorTitle,
+        description: l10n.fileLockErrorMessage,
+      );
+      return;
+    }
+
+    final msg = enabling ? l10n.errorEnableMod(e.toString()) : l10n.errorDisableMod(e.toString());
+    setState(() {
+      _statusMessage = msg;
+      _statusColor = Colors.redAccent;
+    });
+    NotificationService.instance.show(
+      context: context,
+      type: NotificationType.error,
+      title: l10n.errorDialogTitle,
+      description: e.toString(),
+    );
   }
 
   Future<bool> _enableMod(ModInfo modInfo) async {
@@ -3538,14 +3836,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         await _loadAllMods();
       }
       return true;
-    } catch (e) {
-      setState(() {
-        _statusMessage = AppLocalizations.of(
-          context,
-        )!.errorEnableMod(e.toString());
-        _statusColor = Colors.redAccent;
-      });
-      await _loadAllMods();
+    } catch (e, st) {
+      print('[ModToggle] enable ${modInfo.directory.path}: $e\n$st');
+      // clearHighlight:false evita que la recarga pise el mensaje de error.
+      await _loadAllMods(clearHighlight: false);
+      _reportToggleError(e, enabling: true);
       return false;
     } finally {
       //setState(() => _isLoading = false);
@@ -3701,14 +3996,11 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
         await _loadAllMods();
       }
       return true;
-    } catch (e) {
-      setState(() {
-        _statusMessage = AppLocalizations.of(
-          context,
-        )!.errorDisableMod(e.toString());
-        _statusColor = Colors.redAccent;
-      });
-      await _loadAllMods();
+    } catch (e, st) {
+      print('[ModToggle] disable ${modInfo.directory.path}: $e\n$st');
+      // clearHighlight:false evita que la recarga pise el mensaje de error.
+      await _loadAllMods(clearHighlight: false);
+      _reportToggleError(e, enabling: false);
       return false;
     } finally {
       //setState(() => _isLoading = false);
@@ -5601,6 +5893,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                         _showModTypeTags = newValue;
                       });
                     },
+                    initialAutoAssignOutfits: _autoAssignOutfits,
+                    onAutoAssignOutfitsChanged: (newValue) async {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool(AppPrefs.autoAssignOutfits, newValue);
+                      setState(() {
+                        _autoAssignOutfits = newValue;
+                      });
+                    },
                     onShowAboutDialog: _showAboutDialog,
                     onRunSelfHealing: _showSelfHealConfirmationDialog,
                     onRepairGameStartup: _runGameStartupRepair,
@@ -7243,13 +7543,14 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
   }
 
   Widget _buildUserProfileMenu() {
+    final l10n = AppLocalizations.of(context)!;
     final Color planColor = _isNexusPremium ? _iosOrange : _iosBlue;
     // Valores de respaldo por si Nexus no informa el límite real en los headers.
     final int dailyFallback = _isNexusPremium ? 20000 : 2500;
     final int hourlyFallback = _isNexusPremium ? 500 : 100;
 
     return PopupMenuButton<String>(
-      tooltip: 'Perfil de Nexus Mods',
+      tooltip: l10n.nexusProfileTooltip,
       offset: const Offset(0, 45),
       color: Colors.transparent,
       elevation: 0,
@@ -7314,7 +7615,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                _nexusUserName ?? 'Usuario',
+                                _nexusUserName ?? l10n.nexusUserFallback,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -7343,7 +7644,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      _isNexusPremium ? 'Premium' : 'Estándar',
+                                      _isNexusPremium ? l10n.nexusPlanPremium : l10n.nexusPlanStandard,
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
@@ -7362,7 +7663,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                         Padding(
                           padding: const EdgeInsets.fromLTRB(28, 4, 16, 6),
                           child: Text(
-                            'SOLICITUDES RESTANTES DE API',
+                            l10n.nexusApiRequestsRemaining,
                             style: const TextStyle(
                               fontSize: 11.5,
                               color: _iosLabelSecondary,
@@ -7381,7 +7682,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                               _buildApiLimitRow(
                                 icon: Icons.calendar_today_rounded,
                                 iconBg: _iosBlue,
-                                label: 'Diarias',
+                                label: l10n.nexusApiDaily,
                                 remaining: NexusApiService.dailyRemaining,
                                 limit: NexusApiService.dailyLimit,
                                 fallbackMax: dailyFallback,
@@ -7395,7 +7696,7 @@ class _ModInstallerHomePageState extends State<ModInstallerHomePage> with Protoc
                               _buildApiLimitRow(
                                 icon: Icons.schedule_rounded,
                                 iconBg: _iosOrange,
-                                label: 'Por hora',
+                                label: l10n.nexusApiHourly,
                                 remaining: NexusApiService.hourlyRemaining,
                                 limit: NexusApiService.hourlyLimit,
                                 fallbackMax: hourlyFallback,

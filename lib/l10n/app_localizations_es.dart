@@ -1828,14 +1828,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get repairConfirmAction => 'Iniciar reparación';
 
   @override
-  String get launchRetryTitle => 'Game didn\'t start';
+  String get launchRetryTitle => 'El juego no se inició';
 
   @override
   String get launchRetryMessage =>
-      'Stellar Blade didn\'t start after two attempts. This is usually caused by UE4SS or CNS. \"Fix game not starting\" temporarily uninstalls them, launches the game once and reinstalls them. Run it now?';
+      'Stellar Blade no se inició tras dos intentos. Suele deberse a UE4SS o CNS. «Reparar que el juego no inicia» los desinstala temporalmente, abre el juego una vez y los vuelve a instalar. ¿Ejecutarlo ahora?';
 
   @override
-  String get launchRetryAction => 'Fix now';
+  String get launchRetryAction => 'Reparar ahora';
 
   @override
   String get repairOverlayTitle => 'Reparando el inicio del juego';
@@ -1927,37 +1927,37 @@ class AppLocalizationsEs extends AppLocalizations {
   String get otherEditionsTitle => 'Otras ediciones instaladas';
 
   @override
-  String get detailsStatusEnabled => 'Enabled';
+  String get detailsStatusEnabled => 'Activado';
 
   @override
-  String get detailsStatusDisabled => 'Disabled';
+  String get detailsStatusDisabled => 'Desactivado';
 
   @override
-  String get detailsInformation => 'Information';
+  String get detailsInformation => 'Información';
 
   @override
-  String get detailsRowAuthor => 'Author';
+  String get detailsRowAuthor => 'Autor';
 
   @override
-  String get detailsRowType => 'Type';
+  String get detailsRowType => 'Tipo';
 
   @override
-  String get detailsRowInstalled => 'Installed';
+  String get detailsRowInstalled => 'Instalado';
 
   @override
-  String get detailsRowModified => 'Last modified';
+  String get detailsRowModified => 'Última modificación';
 
   @override
-  String get detailsRowNexusId => 'Nexus ID';
+  String get detailsRowNexusId => 'ID de Nexus';
 
   @override
-  String get detailsRowFolder => 'Folder';
+  String get detailsRowFolder => 'Carpeta';
 
   @override
-  String get detailsCopyPath => 'Copy path';
+  String get detailsCopyPath => 'Copiar ruta';
 
   @override
-  String get detailsCopied => 'Copied to clipboard';
+  String get detailsCopied => 'Copiado al portapapeles';
 
   @override
   String get detailsEndorse => 'Endorsar';
@@ -2027,85 +2027,85 @@ class AppLocalizationsEs extends AppLocalizations {
   String get endorseRemoveConfirmAction => 'Quitar';
 
   @override
-  String get detailsUpdateAction => 'Update';
+  String get detailsUpdateAction => 'Actualizar';
 
   @override
-  String get detailsShowMore => 'Show more';
+  String get detailsShowMore => 'Mostrar más';
 
   @override
-  String get detailsShowLess => 'Show less';
+  String get detailsShowLess => 'Mostrar menos';
 
   @override
-  String get detailsAddNote => 'Add a note';
+  String get detailsAddNote => 'Añadir una nota';
 
   @override
   String outfitsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count outfits',
-      one: '1 outfit',
-      zero: 'No outfits',
+      other: '$count atuendos',
+      one: '1 atuendo',
+      zero: 'Ningún atuendo',
     );
     return '$_temp0';
   }
 
   @override
   String outfitsSelectedCount(int count) {
-    return '$count selected';
+    return '$count seleccionados';
   }
 
   @override
-  String get outfitsChoose => 'Choose outfits';
+  String get outfitsChoose => 'Elegir atuendos';
 
   @override
-  String get outfitsDone => 'Done';
+  String get outfitsDone => 'Listo';
 
   @override
-  String get outfitsFilterAll => 'All';
+  String get outfitsFilterAll => 'Todos';
 
   @override
-  String get outfitsFilterSelected => 'Selected';
+  String get outfitsFilterSelected => 'Seleccionados';
 
   @override
-  String get outfitsClearAll => 'Clear all';
+  String get outfitsClearAll => 'Borrar todo';
 
   @override
-  String get outfitsRemove => 'Remove';
+  String get outfitsRemove => 'Quitar';
 
   @override
-  String get outfitsActionSelect => 'Select';
+  String get outfitsActionSelect => 'Seleccionar';
 
   @override
-  String get outfitsActionDeselect => 'Deselect';
+  String get outfitsActionDeselect => 'Deseleccionar';
 
   @override
   String outfitsNoResults(String query) {
-    return 'No results for \"$query\"';
+    return 'Sin resultados para «$query»';
   }
 
   @override
-  String get outfitsSelectedEmpty => 'No outfits selected yet.';
+  String get outfitsSelectedEmpty => 'Aún no hay atuendos seleccionados.';
 
   @override
-  String get outfitsNoPreview => 'No preview available';
+  String get outfitsNoPreview => 'Vista previa no disponible';
 
   @override
-  String get replacementOffConfirmTitle => 'Turn off replacement mod?';
+  String get replacementOffConfirmTitle => '¿Desactivar el mod de reemplazo?';
 
   @override
   String replacementOffConfirmMessage(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'The $count selected outfits will be removed from this mod.',
-      one: 'The selected outfit will be removed from this mod.',
+      other: 'Los $count atuendos seleccionados se quitarán de este mod.',
+      one: 'El atuendo seleccionado se quitará de este mod.',
     );
     return '$_temp0';
   }
 
   @override
-  String get replacementOffConfirmAction => 'Turn off';
+  String get replacementOffConfirmAction => 'Desactivar';
 
   @override
   String patcherSharedWith(String owner) {
@@ -2155,4 +2155,125 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get revertPatchesNothing => 'No hay archivos parcheados que revertir.';
+
+  @override
+  String get settingsGroupPaths => 'Rutas';
+
+  @override
+  String get settingsGroupTools => 'Herramientas';
+
+  @override
+  String get settingsAutoOutfit => 'Asignar trajes automáticamente';
+
+  @override
+  String get settingsAutoOutfitDesc =>
+      'Al instalar un mod de reemplazo, detecta qué traje reemplaza leyendo sus archivos. Si lo desactivas, el traje se asigna manualmente.';
+
+  @override
+  String get variantChoiceTitle => 'Varias variantes del mismo reemplazo';
+
+  @override
+  String variantChoiceBodyOutfits(String mod, String outfits) {
+    return '\"$mod\" trae varias variantes que reemplazan $outfits. Solo una puede estar activa a la vez. ¿Cuál quieres instalar?';
+  }
+
+  @override
+  String variantChoiceBodyFiles(String mod) {
+    return '\"$mod\" trae varias variantes que reemplazan los mismos archivos. Solo una puede estar activa a la vez. ¿Cuál quieres instalar?';
+  }
+
+  @override
+  String get variantChoiceInstallAll => 'Instalar todas (como mods separados)';
+
+  @override
+  String get installOutfitConflictTitle => 'Traje ya en uso';
+
+  @override
+  String installOutfitConflictBody(
+    String newMod,
+    String outfits,
+    String oldMod,
+  ) {
+    return 'El mod \"$newMod\" reemplaza el traje $outfits, que ya está asignado al mod activo \"$oldMod\". Solo uno puede estar activo a la vez. ¿Cuál quieres dejar activo?';
+  }
+
+  @override
+  String get installOutfitKeepCurrent => 'Mantener el actual';
+
+  @override
+  String get installOutfitUseNew => 'Activar el nuevo';
+
+  @override
+  String installOutfitNowActive(String active) {
+    return 'Quedó activo: $active';
+  }
+
+  @override
+  String get fileLockErrorTitle => 'No se pudo mover el mod';
+
+  @override
+  String get fileLockErrorMessage =>
+      'Es posible que otra aplicación esté usando los archivos del juego (FModel, el propio juego, un antivirus, el Explorador de archivos...). Ciérrala e inténtalo de nuevo.';
+
+  @override
+  String get nexusProfileTooltip => 'Perfil de Nexus Mods';
+
+  @override
+  String get nexusUserFallback => 'Usuario';
+
+  @override
+  String get nexusPlanPremium => 'Premium';
+
+  @override
+  String get nexusPlanStandard => 'Estándar';
+
+  @override
+  String get nexusApiRequestsRemaining => 'SOLICITUDES RESTANTES DE API';
+
+  @override
+  String get nexusApiDaily => 'Diarias';
+
+  @override
+  String get nexusApiHourly => 'Por hora';
+
+  @override
+  String get downloadFreeAccountLimit =>
+      'Cuentas gratuitas limitadas a 3 MB/s por Nexus Mods';
+
+  @override
+  String get downloadRetryTooltip => 'Reintentar';
+
+  @override
+  String get downloadRefreshingLink => 'Refrescando enlace...';
+
+  @override
+  String get downloadNoInternet => 'Sin conexión a internet. Verifica tu red.';
+
+  @override
+  String downloadErrorLinkExpired(int code) {
+    return 'El enlace de Nexus ha expirado ($code)';
+  }
+
+  @override
+  String downloadErrorHttp(int code) {
+    return 'Error HTTP: $code';
+  }
+
+  @override
+  String get downloadErrorTimeout =>
+      'Tiempo de espera agotado: no se reciben datos de red';
+
+  @override
+  String get splashRootFolder => 'Raíz (Principal)';
+
+  @override
+  String get repairErrorGameNotClosed =>
+      'No se pudo cerrar el proceso del juego.';
+
+  @override
+  String get errorManifestNotFound =>
+      'No se encontró el manifiesto de instalación. No se puede desinstalar.';
+
+  @override
+  String get downloadResuming => 'Reanudando...';
 }

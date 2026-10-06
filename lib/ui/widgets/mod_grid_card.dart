@@ -212,7 +212,7 @@ class _ModGridCardState extends State<ModGridCard> {
     final bool isReplacement = modInfo.replacesOutfits != null && modInfo.replacesOutfits!.isNotEmpty;
     final String displayTag = isReplacement
         ? (modInfo.replacesOutfits!.length > 1
-            ? '${modInfo.replacesOutfits!.length} Outfits'
+            ? l10n.outfitsCount(modInfo.replacesOutfits!.length)
             : modInfo.replacesOutfits!.first)
         : (modInfo.customFitMeshType ?? modInfo.fitMeshType ?? l10n.modCategoryOther);
 

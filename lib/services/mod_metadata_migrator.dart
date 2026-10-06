@@ -39,7 +39,7 @@ class ModMetadataMigrator {
   ///   3 -> la edición también se identifica con la heurística de las
   ///        actualizaciones (reintenta los mods que el esquema 2 no pudo
   ///        identificar).
-  static const int currentSchema = 3;
+  static const int currentSchema = 4;
 
   /// Con menos solicitudes restantes en la hora se pausa la migración; los
   /// mods pendientes se reintentan en el siguiente arranque.

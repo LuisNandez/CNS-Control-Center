@@ -34,6 +34,8 @@ class SettingsPage extends StatefulWidget {
   final Future<void> Function() onRepairGameStartup;
   final bool initialShowModTypeTags;
   final ValueChanged<bool> onShowModTypeTagsChanged;
+  final bool initialAutoAssignOutfits;
+  final ValueChanged<bool> onAutoAssignOutfitsChanged;
   final VoidCallback onRunConflictPatcher;
   final VoidCallback onRevertConflictPatches;
 
@@ -60,6 +62,8 @@ class SettingsPage extends StatefulWidget {
     required this.onRepairGameStartup,
     required this.initialShowModTypeTags,
     required this.onShowModTypeTagsChanged,
+    required this.initialAutoAssignOutfits,
+    required this.onAutoAssignOutfitsChanged,
     required this.onRunConflictPatcher,
     required this.onRevertConflictPatches,
   });
@@ -78,6 +82,7 @@ class _SettingsPageState extends State<SettingsPage> {
   late bool isUe4ssInstalled;
   late bool isCnsCoreInstalled;
   late bool _showModTypeTags;
+  late bool _autoAssignOutfits;
 
   _Pane _selected = _Pane.general;
 
@@ -90,6 +95,7 @@ class _SettingsPageState extends State<SettingsPage> {
     isUe4ssInstalled = widget.isUe4ssInstalled;
     isCnsCoreInstalled = widget.isCnsCoreInstalled;
     _showModTypeTags = widget.initialShowModTypeTags;
+    _autoAssignOutfits = widget.initialAutoAssignOutfits;
   }
 
   /// Icono blanco para dentro de una insignia de color.
@@ -326,6 +332,19 @@ class _SettingsPageState extends State<SettingsPage> {
               widget.onShowModTypeTagsChanged(newValue);
             },
           ),
+          IosSettingsSwitchTile(
+            leading: IosIconBadge(
+              color: IosColors.purple,
+              child: _badgeIcon(HugeIcons.strokeRoundedHanger),
+            ),
+            title: l10n.settingsAutoOutfit,
+            subtitle: l10n.settingsAutoOutfitDesc,
+            value: _autoAssignOutfits,
+            onChanged: (bool newValue) {
+              setState(() => _autoAssignOutfits = newValue);
+              widget.onAutoAssignOutfitsChanged(newValue);
+            },
+          ),
         ],
       ),
       // Acerca de (en macOS vive dentro de General)
@@ -351,6 +370,7 @@ class _SettingsPageState extends State<SettingsPage> {
   List<Widget> _pathsSections(AppLocalizations l10n) {
     return [
       IosSettingsSection(
+        title: l10n.settingsGroupPaths,
         children: [
           IosSettingsTile(
             leading: IosIconBadge(
@@ -383,6 +403,11 @@ class _SettingsPageState extends State<SettingsPage> {
               }
             },
           ),
+        ],
+      ),
+      IosSettingsSection(
+        title: l10n.settingsGroupTools,
+        children: [
           IosSettingsTile(
             leading: IosIconBadge(
               color: IosColors.green,

@@ -386,17 +386,17 @@ class _DownloadPillWidgetState extends State<DownloadPillWidget> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(
+                children: [
+                  const Icon(
                     Icons.info_outline_rounded,
                     size: 13,
                     color: IosColors.tertiaryLabel,
                   ),
-                  SizedBox(width: 6),
+                  const SizedBox(width: 6),
                   Flexible(
                     child: Text(
-                      "Cuentas gratuitas limitadas a 3 MB/s por Nexus Mods",
-                      style: TextStyle(
+                      l10n.downloadFreeAccountLimit,
+                      style: const TextStyle(
                         color: IosColors.secondaryLabel,
                         fontSize: 11.5,
                       ),
@@ -441,14 +441,14 @@ class _DownloadPillWidgetState extends State<DownloadPillWidget> {
         children: [
           Expanded(
             child: Text(
-              task.errorMessage ?? "Download failed",
+              task.errorMessage ?? l10n.downloadErrorGeneral,
               style: const TextStyle(color: IosColors.red, fontSize: 12),
             ),
           ),
           IosToolbarButton(
             width: 30,
             height: 30,
-            tooltip: "Reintentar",
+            tooltip: l10n.downloadRetryTooltip,
             icon: const Icon(
               Icons.refresh_rounded,
               color: IosColors.blue,

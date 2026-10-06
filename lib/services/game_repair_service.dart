@@ -47,6 +47,15 @@ class RepairGameNotStartedException implements Exception {
   String toString() => 'The game did not start in time.';
 }
 
+/// El proceso del juego no se pudo cerrar. El texto visible se genera en la UI
+/// con l10n.repairErrorGameNotClosed.
+class RepairGameNotClosedException implements Exception {
+  const RepairGameNotClosedException();
+
+  @override
+  String toString() => 'The game process could not be closed.';
+}
+
 /// Estado observable del proceso de reparación.
 class GameRepairController extends ChangeNotifier {
   final List<RepairStep> steps =
@@ -309,7 +318,7 @@ class GameRepairService {
     }
 
     if (!gone) {
-      throw Exception('The game process could not be closed.');
+      throw const RepairGameNotClosedException();
     }
 
     // Deja que Windows libere los archivos (DLLs) del juego.

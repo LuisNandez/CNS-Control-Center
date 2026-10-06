@@ -3,9 +3,19 @@ import 'dart:async';
 
 class ExpiredLinkException implements Exception {
   final String message;
-  ExpiredLinkException(this.message);
+  final int? statusCode;
+  ExpiredLinkException(this.message, {this.statusCode});
   @override
   String toString() => message;
+}
+
+/// Respuesta HTTP inesperada. El texto visible se genera en la UI con
+/// l10n.downloadErrorHttp(statusCode).
+class HttpStatusException implements Exception {
+  final int statusCode;
+  HttpStatusException(this.statusCode);
+  @override
+  String toString() => 'HTTP error: $statusCode';
 }
 
 class DownloadController {
@@ -48,11 +58,14 @@ class DownloadService {
 
       // 2. Manejo de enlace expirado (clave para el flujo del Manager)
       if (response.statusCode == 403 || response.statusCode == 410) {
-        throw ExpiredLinkException('El enlace de Nexus ha expirado (${response.statusCode})');
+        throw ExpiredLinkException(
+          'Nexus link expired (${response.statusCode})',
+          statusCode: response.statusCode,
+        );
       }
 
       if (response.statusCode != 200 && response.statusCode != 206 && response.statusCode != 416) {
-        throw Exception('Error HTTP: ${response.statusCode}');
+        throw HttpStatusException(response.statusCode);
       }
 
       // 3. Determinar el comportamiento según la respuesta del servidor
@@ -87,7 +100,7 @@ class DownloadService {
         const Duration(seconds: 15),
         onTimeout: (sink) {
           // Si pasan 15 segundos sin recibir ni un byte, forzamos un corte
-          sink.addError(const SocketException("Timeout: No se reciben datos de red"));
+          sink.addError(const SocketException("Timeout: no network data received"));
         },
       ).listen(
         (chunk) {

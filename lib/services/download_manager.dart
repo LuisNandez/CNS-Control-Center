@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import '../l10n/app_localizations.dart';
 import 'nexus_api_service.dart';
 import 'download_service.dart';
 
@@ -25,6 +26,7 @@ class DownloadTask {
   final String apiKey;
   final String linkErrorText;
   final String downloadErrorText;
+  final AppLocalizations l10n; // textos localizados de estado/errores
   final Function(File, String, String) onComplete;
 
   /// Ya no requiere atención: terminó bien o el usuario la canceló. Las tareas
@@ -39,6 +41,7 @@ class DownloadTask {
     required this.apiKey, // <-- Añadir
     required this.linkErrorText, // <-- Añadir
     required this.downloadErrorText, // <-- Añadir
+    required this.l10n,
     required this.onComplete, // <-- Añadir
     this.progress = 0.0,
     this.speed = "",
@@ -87,6 +90,7 @@ class DownloadManager extends ChangeNotifier {
     required String fetchingText,
     required String linkErrorText,
     required String downloadErrorText,
+    required AppLocalizations l10n,
     required Function(File, String, String) onComplete,
   }) {
     final task = DownloadTask(
@@ -96,6 +100,7 @@ class DownloadManager extends ChangeNotifier {
       apiKey: apiKey,                   // <-- NUEVO
       linkErrorText: linkErrorText,     // <-- NUEVO
       downloadErrorText: downloadErrorText, // <-- NUEVO
+      l10n: l10n,
       onComplete: onComplete,           // <-- NUEVO
     );
     activeDownloads.add(task);
@@ -122,7 +127,7 @@ class DownloadManager extends ChangeNotifier {
     try {
       if (isRetry) {
         task.status = DownloadStatus.fetching;
-        task.speed = "Refrescando enlace..."; 
+        task.speed = task.l10n.downloadRefreshingLink;
         notifyListeners();
       }
 
@@ -207,7 +212,11 @@ class DownloadManager extends ChangeNotifier {
         );
       } else if (isNetworkError) {
         // Muestra el botón de Reintentar con un mensaje claro si se cortó el internet
-        _updateTaskError(task, "Sin conexión a internet. Verifica tu red.");
+        _updateTaskError(task, task.l10n.downloadNoInternet);
+      } else if (e is ExpiredLinkException) {
+        _updateTaskError(task, task.l10n.downloadErrorLinkExpired(e.statusCode ?? 0));
+      } else if (e is HttpStatusException) {
+        _updateTaskError(task, task.l10n.downloadErrorHttp(e.statusCode));
       } else {
         _updateTaskError(task, e.toString());
       }
@@ -232,7 +241,7 @@ class DownloadManager extends ChangeNotifier {
     if (task.status == DownloadStatus.paused) {
       task.controller.isCancelled = false; // <-- IMPORTANTE: Reactivar el controlador
       task.status = DownloadStatus.fetching;
-      task.speed = "Reanudando...";
+      task.speed = task.l10n.downloadResuming;
       notifyListeners();
 
       // 2. Pedimos enlace fresco y usamos el Range header automático
@@ -277,7 +286,7 @@ class DownloadManager extends ChangeNotifier {
     // Reiniciamos el estado visual
     task.status = DownloadStatus.fetching;
     task.errorMessage = null;
-    task.speed = "Reanudando..."; // O usa un texto localizado si prefieres
+    task.speed = task.l10n.downloadResuming;
     notifyListeners();
 
     // Lanzamos el flujo indicando que es un reintento (isRetry: true)

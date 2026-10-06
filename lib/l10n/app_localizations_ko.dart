@@ -1766,14 +1766,14 @@ class AppLocalizationsKo extends AppLocalizations {
   String get repairConfirmAction => '복구 시작';
 
   @override
-  String get launchRetryTitle => 'Game didn\'t start';
+  String get launchRetryTitle => '게임이 실행되지 않았습니다';
 
   @override
   String get launchRetryMessage =>
-      'Stellar Blade didn\'t start after two attempts. This is usually caused by UE4SS or CNS. \"Fix game not starting\" temporarily uninstalls them, launches the game once and reinstalls them. Run it now?';
+      '두 번 시도했지만 Stellar Blade가 실행되지 않았습니다. 보통 UE4SS 또는 CNS가 원인입니다. \"게임이 실행되지 않는 문제 해결\"은 이 둘을 일시적으로 제거하고 게임을 한 번 실행한 뒤 다시 설치합니다. 지금 실행할까요?';
 
   @override
-  String get launchRetryAction => 'Fix now';
+  String get launchRetryAction => '지금 해결';
 
   @override
   String get repairOverlayTitle => '게임 실행 복구 중';
@@ -1860,37 +1860,37 @@ class AppLocalizationsKo extends AppLocalizations {
   String get otherEditionsTitle => '설치된 다른 에디션';
 
   @override
-  String get detailsStatusEnabled => 'Enabled';
+  String get detailsStatusEnabled => '활성화됨';
 
   @override
-  String get detailsStatusDisabled => 'Disabled';
+  String get detailsStatusDisabled => '비활성화됨';
 
   @override
-  String get detailsInformation => 'Information';
+  String get detailsInformation => '정보';
 
   @override
-  String get detailsRowAuthor => 'Author';
+  String get detailsRowAuthor => '제작자';
 
   @override
-  String get detailsRowType => 'Type';
+  String get detailsRowType => '유형';
 
   @override
-  String get detailsRowInstalled => 'Installed';
+  String get detailsRowInstalled => '설치일';
 
   @override
-  String get detailsRowModified => 'Last modified';
+  String get detailsRowModified => '마지막 수정';
 
   @override
   String get detailsRowNexusId => 'Nexus ID';
 
   @override
-  String get detailsRowFolder => 'Folder';
+  String get detailsRowFolder => '폴더';
 
   @override
-  String get detailsCopyPath => 'Copy path';
+  String get detailsCopyPath => '경로 복사';
 
   @override
-  String get detailsCopied => 'Copied to clipboard';
+  String get detailsCopied => '클립보드에 복사되었습니다';
 
   @override
   String get detailsEndorse => 'Endorse';
@@ -1900,149 +1900,145 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String endorseWaitLabel(Object minutes) {
-    return 'Wait $minutes min';
+    return '$minutes분 대기';
   }
 
   @override
-  String get endorseSuccessTitle => 'Mod endorsed';
+  String get endorseSuccessTitle => '모드를 Endorse했습니다';
 
   @override
-  String get endorseRemovedTitle => 'Endorsement removed';
+  String get endorseRemovedTitle => 'Endorse를 취소했습니다';
 
   @override
-  String get endorseFailedTitle => 'Couldn\'t update endorsement';
+  String get endorseFailedTitle => 'Endorse를 업데이트할 수 없습니다';
 
   @override
   String get endorseErrNotNexus =>
-      'This mod isn\'t linked to a Nexus Mods page, so it can\'t be endorsed.';
+      '이 모드는 Nexus Mods 페이지와 연결되어 있지 않아 Endorse할 수 없습니다.';
 
   @override
   String get endorseErrNoApiKey =>
-      'Add your Nexus Mods API key in Settings to endorse mods.';
+      '모드를 Endorse하려면 설정에서 Nexus Mods API 키를 추가하세요.';
 
   @override
   String endorseErrWait(Object minutes) {
-    return 'Nexus requires waiting 15 minutes after downloading a mod before you can endorse it. Try again in $minutes min.';
+    return 'Nexus에서는 모드를 다운로드한 후 15분이 지나야 Endorse할 수 있습니다. $minutes분 후에 다시 시도하세요.';
   }
 
   @override
   String get endorseErrNotDownloaded =>
-      'Nexus only lets you endorse mods you\'ve downloaded with your account.';
+      'Nexus에서는 내 계정으로 다운로드한 모드만 Endorse할 수 있습니다.';
 
   @override
-  String get endorseErrOwnMod => 'You can\'t endorse your own mod.';
+  String get endorseErrOwnMod => '자신의 모드는 Endorse할 수 없습니다.';
 
   @override
-  String get endorseErrRateLimit =>
-      'You\'ve reached the Nexus request limit. Try again later.';
+  String get endorseErrRateLimit => 'Nexus 요청 한도에 도달했습니다. 나중에 다시 시도하세요.';
 
   @override
-  String get endorseErrInvalidKey =>
-      'Nexus rejected your API key. Check it in Settings.';
+  String get endorseErrInvalidKey => 'Nexus가 API 키를 거부했습니다. 설정에서 확인하세요.';
 
   @override
-  String get endorseErrNetwork =>
-      'Couldn\'t reach Nexus Mods. Check your connection and try again.';
+  String get endorseErrNetwork => 'Nexus Mods에 연결할 수 없습니다. 연결을 확인하고 다시 시도하세요.';
 
   @override
-  String get endorseErrUnknown =>
-      'Nexus couldn\'t process the request. Try again later.';
+  String get endorseErrUnknown => 'Nexus가 요청을 처리하지 못했습니다. 나중에 다시 시도하세요.';
 
   @override
-  String get endorseRemoveConfirmTitle => 'Remove endorsement?';
+  String get endorseRemoveConfirmTitle => 'Endorse를 취소할까요?';
 
   @override
   String endorseRemoveConfirmMessage(Object name) {
-    return '$name will no longer be endorsed on Nexus Mods.';
+    return '$name이(가) Nexus Mods에서 더 이상 Endorse 상태가 아니게 됩니다.';
   }
 
   @override
-  String get endorseRemoveConfirmAction => 'Remove';
+  String get endorseRemoveConfirmAction => '취소';
 
   @override
-  String get detailsUpdateAction => 'Update';
+  String get detailsUpdateAction => '업데이트';
 
   @override
-  String get detailsShowMore => 'Show more';
+  String get detailsShowMore => '더 보기';
 
   @override
-  String get detailsShowLess => 'Show less';
+  String get detailsShowLess => '간략히 보기';
 
   @override
-  String get detailsAddNote => 'Add a note';
+  String get detailsAddNote => '메모 추가';
 
   @override
   String outfitsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count outfits',
-      one: '1 outfit',
-      zero: 'No outfits',
+      other: '의상 $count개',
+      one: '의상 1개',
+      zero: '의상 없음',
     );
     return '$_temp0';
   }
 
   @override
   String outfitsSelectedCount(int count) {
-    return '$count selected';
+    return '$count개 선택됨';
   }
 
   @override
-  String get outfitsChoose => 'Choose outfits';
+  String get outfitsChoose => '의상 선택';
 
   @override
-  String get outfitsDone => 'Done';
+  String get outfitsDone => '완료';
 
   @override
-  String get outfitsFilterAll => 'All';
+  String get outfitsFilterAll => '전체';
 
   @override
-  String get outfitsFilterSelected => 'Selected';
+  String get outfitsFilterSelected => '선택됨';
 
   @override
-  String get outfitsClearAll => 'Clear all';
+  String get outfitsClearAll => '모두 지우기';
 
   @override
-  String get outfitsRemove => 'Remove';
+  String get outfitsRemove => '제거';
 
   @override
-  String get outfitsActionSelect => 'Select';
+  String get outfitsActionSelect => '선택';
 
   @override
-  String get outfitsActionDeselect => 'Deselect';
+  String get outfitsActionDeselect => '선택 해제';
 
   @override
   String outfitsNoResults(String query) {
-    return 'No results for \"$query\"';
+    return '\"$query\"에 대한 결과가 없습니다';
   }
 
   @override
-  String get outfitsSelectedEmpty => 'No outfits selected yet.';
+  String get outfitsSelectedEmpty => '아직 선택한 의상이 없습니다.';
 
   @override
-  String get outfitsNoPreview => 'No preview available';
+  String get outfitsNoPreview => '미리보기를 사용할 수 없습니다';
 
   @override
-  String get replacementOffConfirmTitle => 'Turn off replacement mod?';
+  String get replacementOffConfirmTitle => '교체 모드를 끌까요?';
 
   @override
   String replacementOffConfirmMessage(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'The $count selected outfits will be removed from this mod.',
-      one: 'The selected outfit will be removed from this mod.',
+      other: '선택한 의상 $count개가 이 모드에서 제거됩니다.',
+      one: '선택한 의상이 이 모드에서 제거됩니다.',
     );
     return '$_temp0';
   }
 
   @override
-  String get replacementOffConfirmAction => 'Turn off';
+  String get replacementOffConfirmAction => '끄기';
 
   @override
   String patcherSharedWith(String owner) {
-    return '  Same Container ID as: $owner';
+    return '  다음과 동일한 Container ID: $owner';
   }
 
   @override
@@ -2051,40 +2047,156 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get patcherBackupSaved => '  Originals kept as .cnsbak (restorable).';
+  String get patcherBackupSaved => '  원본을 .cnsbak으로 보관했습니다(복원 가능).';
 
   @override
   String patcherLeftUntouched(String reason) {
-    return '  Left untouched (not safe to patch): $reason';
+    return '  변경하지 않음(패치하기에 안전하지 않음): $reason';
   }
 
   @override
   String summaryUnfixableContainerIds(int count) {
-    return '⚠️ $count mod(s) share a Container ID but could not be fixed safely (left untouched; they may not appear in CNS):';
+    return '⚠️ 모드 $count개가 Container ID를 공유하지만 안전하게 수정할 수 없었습니다(변경하지 않음, CNS에 표시되지 않을 수 있음):';
   }
 
   @override
-  String get revertPatchesTitle => 'Revert conflict patches';
+  String get revertPatchesTitle => '충돌 패치 되돌리기';
 
   @override
-  String get revertPatchesDesc =>
-      'Restores the original mod files changed by the Conflict Patcher.';
+  String get revertPatchesDesc => '충돌 패처가 변경한 원본 모드 파일을 복원합니다.';
 
   @override
-  String get revertPatchesConfirmTitle => 'Revert conflict patches?';
+  String get revertPatchesConfirmTitle => '충돌 패치를 되돌릴까요?';
 
   @override
   String get revertPatchesConfirmMessage =>
-      'The original files saved by the Conflict Patcher (.cnsbak) will be restored. Close the game first. Conflicting mods may stop showing up in CNS again.';
+      '충돌 패처가 저장한 원본 파일(.cnsbak)이 복원됩니다. 먼저 게임을 종료하세요. 충돌하는 모드가 CNS에 다시 표시되지 않을 수 있습니다.';
 
   @override
-  String get revertPatchesAction => 'Revert';
+  String get revertPatchesAction => '되돌리기';
 
   @override
   String revertPatchesDone(int count) {
-    return 'Restored $count file(s).';
+    return '$count개 파일을 복원했습니다.';
   }
 
   @override
-  String get revertPatchesNothing => 'No patched files to revert.';
+  String get revertPatchesNothing => '되돌릴 패치된 파일이 없습니다.';
+
+  @override
+  String get settingsGroupPaths => '경로';
+
+  @override
+  String get settingsGroupTools => '도구';
+
+  @override
+  String get settingsAutoOutfit => '의상 자동 할당';
+
+  @override
+  String get settingsAutoOutfitDesc =>
+      '교체 모드를 설치할 때 파일을 읽어 어떤 의상을 교체하는지 자동으로 감지합니다. 끄면 의상을 수동으로 지정합니다.';
+
+  @override
+  String get variantChoiceTitle => '동일한 교체의 여러 변형';
+
+  @override
+  String variantChoiceBodyOutfits(String mod, String outfits) {
+    return '모드 \"$mod\"에는 $outfits을(를) 교체하는 여러 변형이 있습니다. 한 번에 하나만 활성화할 수 있습니다. 어떤 것을 설치할까요?';
+  }
+
+  @override
+  String variantChoiceBodyFiles(String mod) {
+    return '모드 \"$mod\"에는 같은 파일을 교체하는 여러 변형이 있습니다. 한 번에 하나만 활성화할 수 있습니다. 어떤 것을 설치할까요?';
+  }
+
+  @override
+  String get variantChoiceInstallAll => '모두 설치(별도의 모드로)';
+
+  @override
+  String get installOutfitConflictTitle => '이미 사용 중인 의상';
+
+  @override
+  String installOutfitConflictBody(
+    String newMod,
+    String outfits,
+    String oldMod,
+  ) {
+    return '모드 \"$newMod\"은(는) 의상 $outfits을(를) 교체하는데, 이 의상은 이미 활성화된 모드 \"$oldMod\"에 할당되어 있습니다. 한 번에 하나만 활성화할 수 있습니다. 어느 쪽을 활성 상태로 둘까요?';
+  }
+
+  @override
+  String get installOutfitKeepCurrent => '현재 모드 유지';
+
+  @override
+  String get installOutfitUseNew => '새 모드 활성화';
+
+  @override
+  String installOutfitNowActive(String active) {
+    return '현재 활성: $active';
+  }
+
+  @override
+  String get fileLockErrorTitle => '모드를 이동할 수 없습니다';
+
+  @override
+  String get fileLockErrorMessage =>
+      '다른 프로그램이 게임 파일을 사용 중일 수 있습니다(FModel, 게임 자체, 백신, 파일 탐색기 등). 해당 프로그램을 닫고 다시 시도하세요.';
+
+  @override
+  String get nexusProfileTooltip => 'Nexus Mods 프로필';
+
+  @override
+  String get nexusUserFallback => '사용자';
+
+  @override
+  String get nexusPlanPremium => 'Premium';
+
+  @override
+  String get nexusPlanStandard => '일반';
+
+  @override
+  String get nexusApiRequestsRemaining => '남은 API 요청';
+
+  @override
+  String get nexusApiDaily => '일일';
+
+  @override
+  String get nexusApiHourly => '시간당';
+
+  @override
+  String get downloadFreeAccountLimit => '무료 계정은 Nexus Mods에서 3 MB/s로 제한됩니다';
+
+  @override
+  String get downloadRetryTooltip => '다시 시도';
+
+  @override
+  String get downloadRefreshingLink => '링크 새로 고치는 중...';
+
+  @override
+  String get downloadNoInternet => '인터넷에 연결되어 있지 않습니다. 네트워크를 확인하세요.';
+
+  @override
+  String downloadErrorLinkExpired(int code) {
+    return 'Nexus 링크가 만료되었습니다 ($code)';
+  }
+
+  @override
+  String downloadErrorHttp(int code) {
+    return 'HTTP 오류: $code';
+  }
+
+  @override
+  String get downloadErrorTimeout => '시간 초과: 네트워크 데이터를 받지 못하고 있습니다';
+
+  @override
+  String get splashRootFolder => '루트(기본)';
+
+  @override
+  String get repairErrorGameNotClosed => '게임 프로세스를 종료할 수 없습니다.';
+
+  @override
+  String get errorManifestNotFound => '설치 매니페스트를 찾을 수 없습니다. 제거할 수 없습니다.';
+
+  @override
+  String get downloadResuming => '다시 시작하는 중...';
 }

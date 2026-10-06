@@ -11,4 +11,6 @@ class AppPrefs {
   static const String sortMode = 'sortMode';
   static const String viewMode = 'viewMode';
   static const String showModTypeTags = 'showModTypeTags';
+  /// Asignación automática de trajes al instalar mods de reemplazo (por defecto: activada).
+  static const String autoAssignOutfits = 'autoAssignOutfits';
 }

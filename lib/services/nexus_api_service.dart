@@ -794,7 +794,7 @@ class NexusApiService {
         return {
           'isValid': true,
           'isPremium': data['is_premium'] ?? false,
-          'name': data['name'] ?? 'Usuario',
+          'name': data['name'], // el texto de respaldo se resuelve en la UI (l10n.nexusUserFallback)
           'profileUrl': data['profile_url'],
         };
       }

@@ -2133,4 +2133,125 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get revertPatchesNothing => 'No patched files to revert.';
+
+  @override
+  String get settingsGroupPaths => 'Paths';
+
+  @override
+  String get settingsGroupTools => 'Tools';
+
+  @override
+  String get settingsAutoOutfit => 'Assign outfits automatically';
+
+  @override
+  String get settingsAutoOutfitDesc =>
+      'When installing a replacement mod, detect which outfit it replaces by reading its files. If turned off, the outfit is assigned manually.';
+
+  @override
+  String get variantChoiceTitle => 'Several variants of the same replacement';
+
+  @override
+  String variantChoiceBodyOutfits(String mod, String outfits) {
+    return '\"$mod\" contains several variants that replace $outfits. Only one can be active at a time. Which one do you want to install?';
+  }
+
+  @override
+  String variantChoiceBodyFiles(String mod) {
+    return '\"$mod\" contains several variants that replace the same files. Only one can be active at a time. Which one do you want to install?';
+  }
+
+  @override
+  String get variantChoiceInstallAll => 'Install all (as separate mods)';
+
+  @override
+  String get installOutfitConflictTitle => 'Outfit already in use';
+
+  @override
+  String installOutfitConflictBody(
+    String newMod,
+    String outfits,
+    String oldMod,
+  ) {
+    return 'The mod \"$newMod\" replaces the outfit $outfits, which is already assigned to the active mod \"$oldMod\". Only one can be active at a time. Which one do you want to keep active?';
+  }
+
+  @override
+  String get installOutfitKeepCurrent => 'Keep current';
+
+  @override
+  String get installOutfitUseNew => 'Use new mod';
+
+  @override
+  String installOutfitNowActive(String active) {
+    return 'Now active: $active';
+  }
+
+  @override
+  String get fileLockErrorTitle => 'Could not move the mod';
+
+  @override
+  String get fileLockErrorMessage =>
+      'Another application may be using the game files (FModel, the game itself, an antivirus, File Explorer...). Close it and try again.';
+
+  @override
+  String get nexusProfileTooltip => 'Nexus Mods profile';
+
+  @override
+  String get nexusUserFallback => 'User';
+
+  @override
+  String get nexusPlanPremium => 'Premium';
+
+  @override
+  String get nexusPlanStandard => 'Standard';
+
+  @override
+  String get nexusApiRequestsRemaining => 'REMAINING API REQUESTS';
+
+  @override
+  String get nexusApiDaily => 'Daily';
+
+  @override
+  String get nexusApiHourly => 'Hourly';
+
+  @override
+  String get downloadFreeAccountLimit =>
+      'Free accounts are limited to 3 MB/s by Nexus Mods';
+
+  @override
+  String get downloadRetryTooltip => 'Retry';
+
+  @override
+  String get downloadRefreshingLink => 'Refreshing link...';
+
+  @override
+  String get downloadNoInternet =>
+      'No internet connection. Check your network.';
+
+  @override
+  String downloadErrorLinkExpired(int code) {
+    return 'The Nexus link has expired ($code)';
+  }
+
+  @override
+  String downloadErrorHttp(int code) {
+    return 'HTTP error: $code';
+  }
+
+  @override
+  String get downloadErrorTimeout => 'Timeout: no network data received';
+
+  @override
+  String get splashRootFolder => 'Root (Main)';
+
+  @override
+  String get repairErrorGameNotClosed =>
+      'The game process could not be closed.';
+
+  @override
+  String get errorManifestNotFound =>
+      'Installation manifest not found. Cannot uninstall.';
+
+  @override
+  String get downloadResuming => 'Resuming...';
 }

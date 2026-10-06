@@ -133,7 +133,9 @@ class RepairGameDialog {
     if (c.finished && c.error != null) {
       errorText = c.error is RepairGameNotStartedException
           ? l10n.repairErrorGameNotStarted
-          : c.error.toString();
+          : c.error is RepairGameNotClosedException
+              ? l10n.repairErrorGameNotClosed
+              : c.error.toString();
     }
 
     return IosDialogShell(

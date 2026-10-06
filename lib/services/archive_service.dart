@@ -268,12 +268,21 @@ class ArchiveService {
       // 4. Comprobar Subdirectorios
       final foundModDirs = await findValidModDirectories(archiveTempDir);
       if (foundModDirs.isNotEmpty) {
+        final bool severalVariants = foundModDirs.length > 1;
         for (final modDir in foundModDirs) {
           var modType = await ModClassifierService.classifyModDirectory(modDir);
           if (isLogicModById && modType != ModDirectoryType.unknown) {
             modType = ModDirectoryType.logicMod;
           }
           if (modType != ModDirectoryType.unknown) {
+            // Nombre de la subcarpeta (variante) dentro del archivo.
+            String? variantLabel;
+            if (severalVariants) {
+              final rel = p
+                  .relative(modDir.path, from: archiveTempDir.path)
+                  .replaceAll(r'\', '/');
+              if (rel.isNotEmpty && rel != '.') variantLabel = rel;
+            }
             preparedMods.add(PreparedMod(
               sourceDir: modDir,
               ue4ssDir: null,
@@ -281,6 +290,8 @@ class ArchiveService {
               nexusVersion: nexusInfo?['version'], identity: identity,
               archiveName: archiveName,
               modType: modType,
+              archiveKey: severalVariants ? archiveTempDir.path : null,
+              variantLabel: variantLabel,
             ));
           }
         }

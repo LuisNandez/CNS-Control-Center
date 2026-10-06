@@ -19,6 +19,15 @@ class PreparedMod {
   /// caso el nombre del archivo no sirve para distinguirlos.
   bool soleModInArchive;
 
+  /// Carpeta temporal donde se extrajo el archivo comprimido del que sale este
+  /// mod. Solo se rellena cuando el archivo trae varias subcarpetas/variantes;
+  /// sirve para saber qué mods vienen del MISMO archivo.
+  final String? archiveKey;
+
+  /// Nombre de la subcarpeta (variante) dentro del archivo, p. ej. "Red" o
+  /// "Option B/No skirt". Null si el archivo solo trae un mod.
+  final String? variantLabel;
+
   PreparedMod({
     required this.sourceDir,
     this.ue4ssDir,
@@ -29,7 +38,25 @@ class PreparedMod {
     required this.modType,
     this.identity,
     this.soleModInArchive = true,
+    this.archiveKey,
+    this.variantLabel,
   });
+
+  /// Copia del mod cambiando solo el nombre (se usa para que dos variantes del
+  /// mismo archivo no acaben en la misma carpeta y se sobrescriban).
+  PreparedMod withArchiveName(String newName) => PreparedMod(
+        sourceDir: sourceDir,
+        ue4ssDir: ue4ssDir,
+        tildeModsDir: tildeModsDir,
+        nexusId: nexusId,
+        nexusVersion: nexusVersion,
+        archiveName: newName,
+        modType: modType,
+        identity: identity,
+        soleModInArchive: soleModInArchive,
+        archiveKey: archiveKey,
+        variantLabel: variantLabel,
+      );
 
   /// Nombre oficial de Nexus cuando se conoce y es seguro usarlo para este
   /// mod; null en caso contrario. Incluye el nombre del mod Y el de la

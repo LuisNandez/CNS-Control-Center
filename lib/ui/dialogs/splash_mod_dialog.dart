@@ -95,6 +95,7 @@ class _SplashModSelectionDialogState extends State<SplashModSelectionDialog> {
   }
 
   Widget _buildFolder(dynamic folder, int index) {
+    final l10n = AppLocalizations.of(context)!;
     final bool expanded = !_collapsed.contains(index);
     final bool? checkState = folder.isAllSelected
         ? true
@@ -136,7 +137,9 @@ class _SplashModSelectionDialogState extends State<SplashModSelectionDialog> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    folder.folderName,
+                    folder.folderName == SplashModsHandler.rootFolderKey
+                        ? l10n.splashRootFolder
+                        : folder.folderName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

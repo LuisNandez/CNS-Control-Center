@@ -3585,6 +3585,208 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No patched files to revert.'**
   String get revertPatchesNothing;
+
+  /// No description provided for @settingsGroupPaths.
+  ///
+  /// In en, this message translates to:
+  /// **'Paths'**
+  String get settingsGroupPaths;
+
+  /// No description provided for @settingsGroupTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools'**
+  String get settingsGroupTools;
+
+  /// No description provided for @settingsAutoOutfit.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign outfits automatically'**
+  String get settingsAutoOutfit;
+
+  /// No description provided for @settingsAutoOutfitDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'When installing a replacement mod, detect which outfit it replaces by reading its files. If turned off, the outfit is assigned manually.'**
+  String get settingsAutoOutfitDesc;
+
+  /// No description provided for @variantChoiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Several variants of the same replacement'**
+  String get variantChoiceTitle;
+
+  /// No description provided for @variantChoiceBodyOutfits.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{mod}\" contains several variants that replace {outfits}. Only one can be active at a time. Which one do you want to install?'**
+  String variantChoiceBodyOutfits(String mod, String outfits);
+
+  /// No description provided for @variantChoiceBodyFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{mod}\" contains several variants that replace the same files. Only one can be active at a time. Which one do you want to install?'**
+  String variantChoiceBodyFiles(String mod);
+
+  /// No description provided for @variantChoiceInstallAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Install all (as separate mods)'**
+  String get variantChoiceInstallAll;
+
+  /// No description provided for @installOutfitConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Outfit already in use'**
+  String get installOutfitConflictTitle;
+
+  /// No description provided for @installOutfitConflictBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The mod \"{newMod}\" replaces the outfit {outfits}, which is already assigned to the active mod \"{oldMod}\". Only one can be active at a time. Which one do you want to keep active?'**
+  String installOutfitConflictBody(
+    String newMod,
+    String outfits,
+    String oldMod,
+  );
+
+  /// No description provided for @installOutfitKeepCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep current'**
+  String get installOutfitKeepCurrent;
+
+  /// No description provided for @installOutfitUseNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Use new mod'**
+  String get installOutfitUseNew;
+
+  /// No description provided for @installOutfitNowActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Now active: {active}'**
+  String installOutfitNowActive(String active);
+
+  /// No description provided for @fileLockErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not move the mod'**
+  String get fileLockErrorTitle;
+
+  /// No description provided for @fileLockErrorMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Another application may be using the game files (FModel, the game itself, an antivirus, File Explorer...). Close it and try again.'**
+  String get fileLockErrorMessage;
+
+  /// No description provided for @nexusProfileTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Nexus Mods profile'**
+  String get nexusProfileTooltip;
+
+  /// No description provided for @nexusUserFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'User'**
+  String get nexusUserFallback;
+
+  /// No description provided for @nexusPlanPremium.
+  ///
+  /// In en, this message translates to:
+  /// **'Premium'**
+  String get nexusPlanPremium;
+
+  /// No description provided for @nexusPlanStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get nexusPlanStandard;
+
+  /// No description provided for @nexusApiRequestsRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'REMAINING API REQUESTS'**
+  String get nexusApiRequestsRemaining;
+
+  /// No description provided for @nexusApiDaily.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily'**
+  String get nexusApiDaily;
+
+  /// No description provided for @nexusApiHourly.
+  ///
+  /// In en, this message translates to:
+  /// **'Hourly'**
+  String get nexusApiHourly;
+
+  /// No description provided for @downloadFreeAccountLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Free accounts are limited to 3 MB/s by Nexus Mods'**
+  String get downloadFreeAccountLimit;
+
+  /// No description provided for @downloadRetryTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get downloadRetryTooltip;
+
+  /// No description provided for @downloadRefreshingLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing link...'**
+  String get downloadRefreshingLink;
+
+  /// No description provided for @downloadNoInternet.
+  ///
+  /// In en, this message translates to:
+  /// **'No internet connection. Check your network.'**
+  String get downloadNoInternet;
+
+  /// No description provided for @downloadErrorLinkExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'The Nexus link has expired ({code})'**
+  String downloadErrorLinkExpired(int code);
+
+  /// No description provided for @downloadErrorHttp.
+  ///
+  /// In en, this message translates to:
+  /// **'HTTP error: {code}'**
+  String downloadErrorHttp(int code);
+
+  /// No description provided for @downloadErrorTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Timeout: no network data received'**
+  String get downloadErrorTimeout;
+
+  /// No description provided for @splashRootFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Root (Main)'**
+  String get splashRootFolder;
+
+  /// No description provided for @repairErrorGameNotClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'The game process could not be closed.'**
+  String get repairErrorGameNotClosed;
+
+  /// No description provided for @errorManifestNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Installation manifest not found. Cannot uninstall.'**
+  String get errorManifestNotFound;
+
+  /// No description provided for @downloadResuming.
+  ///
+  /// In en, this message translates to:
+  /// **'Resuming...'**
+  String get downloadResuming;
 }
 
 class _AppLocalizationsDelegate

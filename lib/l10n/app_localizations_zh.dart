@@ -1749,14 +1749,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get repairConfirmAction => '开始修复';
 
   @override
-  String get launchRetryTitle => 'Game didn\'t start';
+  String get launchRetryTitle => '游戏未能启动';
 
   @override
   String get launchRetryMessage =>
-      'Stellar Blade didn\'t start after two attempts. This is usually caused by UE4SS or CNS. \"Fix game not starting\" temporarily uninstalls them, launches the game once and reinstalls them. Run it now?';
+      '尝试两次后 Stellar Blade 仍未启动。这通常由 UE4SS 或 CNS 引起。“修复游戏无法启动”会暂时卸载它们，启动游戏一次，然后重新安装。要现在运行吗？';
 
   @override
-  String get launchRetryAction => 'Fix now';
+  String get launchRetryAction => '立即修复';
 
   @override
   String get repairOverlayTitle => '正在修复游戏启动';
@@ -1842,37 +1842,37 @@ class AppLocalizationsZh extends AppLocalizations {
   String get otherEditionsTitle => '已安装的其他变体';
 
   @override
-  String get detailsStatusEnabled => 'Enabled';
+  String get detailsStatusEnabled => '已启用';
 
   @override
-  String get detailsStatusDisabled => 'Disabled';
+  String get detailsStatusDisabled => '已禁用';
 
   @override
-  String get detailsInformation => 'Information';
+  String get detailsInformation => '信息';
 
   @override
-  String get detailsRowAuthor => 'Author';
+  String get detailsRowAuthor => '作者';
 
   @override
-  String get detailsRowType => 'Type';
+  String get detailsRowType => '类型';
 
   @override
-  String get detailsRowInstalled => 'Installed';
+  String get detailsRowInstalled => '安装时间';
 
   @override
-  String get detailsRowModified => 'Last modified';
+  String get detailsRowModified => '最后修改';
 
   @override
   String get detailsRowNexusId => 'Nexus ID';
 
   @override
-  String get detailsRowFolder => 'Folder';
+  String get detailsRowFolder => '文件夹';
 
   @override
-  String get detailsCopyPath => 'Copy path';
+  String get detailsCopyPath => '复制路径';
 
   @override
-  String get detailsCopied => 'Copied to clipboard';
+  String get detailsCopied => '已复制到剪贴板';
 
   @override
   String get detailsEndorse => 'Endorse';
@@ -1882,149 +1882,142 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String endorseWaitLabel(Object minutes) {
-    return 'Wait $minutes min';
+    return '请等待 $minutes 分钟';
   }
 
   @override
-  String get endorseSuccessTitle => 'Mod endorsed';
+  String get endorseSuccessTitle => '已 Endorse 模组';
 
   @override
-  String get endorseRemovedTitle => 'Endorsement removed';
+  String get endorseRemovedTitle => '已取消 Endorse';
 
   @override
-  String get endorseFailedTitle => 'Couldn\'t update endorsement';
+  String get endorseFailedTitle => '无法更新 Endorse 状态';
 
   @override
-  String get endorseErrNotNexus =>
-      'This mod isn\'t linked to a Nexus Mods page, so it can\'t be endorsed.';
+  String get endorseErrNotNexus => '此模组未关联 Nexus Mods 页面，因此无法 Endorse。';
 
   @override
-  String get endorseErrNoApiKey =>
-      'Add your Nexus Mods API key in Settings to endorse mods.';
+  String get endorseErrNoApiKey => '请在设置中添加你的 Nexus Mods API 密钥以 Endorse 模组。';
 
   @override
   String endorseErrWait(Object minutes) {
-    return 'Nexus requires waiting 15 minutes after downloading a mod before you can endorse it. Try again in $minutes min.';
+    return 'Nexus 要求下载模组 15 分钟后才能 Endorse。请在 $minutes 分钟后重试。';
   }
 
   @override
-  String get endorseErrNotDownloaded =>
-      'Nexus only lets you endorse mods you\'ve downloaded with your account.';
+  String get endorseErrNotDownloaded => 'Nexus 仅允许对你用自己的账号下载过的模组进行 Endorse。';
 
   @override
-  String get endorseErrOwnMod => 'You can\'t endorse your own mod.';
+  String get endorseErrOwnMod => '你不能 Endorse 自己的模组。';
 
   @override
-  String get endorseErrRateLimit =>
-      'You\'ve reached the Nexus request limit. Try again later.';
+  String get endorseErrRateLimit => '你已达到 Nexus 的请求上限。请稍后再试。';
 
   @override
-  String get endorseErrInvalidKey =>
-      'Nexus rejected your API key. Check it in Settings.';
+  String get endorseErrInvalidKey => 'Nexus 拒绝了你的 API 密钥。请在设置中检查。';
 
   @override
-  String get endorseErrNetwork =>
-      'Couldn\'t reach Nexus Mods. Check your connection and try again.';
+  String get endorseErrNetwork => '无法连接到 Nexus Mods。请检查网络连接后重试。';
 
   @override
-  String get endorseErrUnknown =>
-      'Nexus couldn\'t process the request. Try again later.';
+  String get endorseErrUnknown => 'Nexus 无法处理该请求。请稍后再试。';
 
   @override
-  String get endorseRemoveConfirmTitle => 'Remove endorsement?';
+  String get endorseRemoveConfirmTitle => '取消 Endorse？';
 
   @override
   String endorseRemoveConfirmMessage(Object name) {
-    return '$name will no longer be endorsed on Nexus Mods.';
+    return '$name 将不再在 Nexus Mods 上被 Endorse。';
   }
 
   @override
-  String get endorseRemoveConfirmAction => 'Remove';
+  String get endorseRemoveConfirmAction => '取消认可';
 
   @override
-  String get detailsUpdateAction => 'Update';
+  String get detailsUpdateAction => '更新';
 
   @override
-  String get detailsShowMore => 'Show more';
+  String get detailsShowMore => '显示更多';
 
   @override
-  String get detailsShowLess => 'Show less';
+  String get detailsShowLess => '收起';
 
   @override
-  String get detailsAddNote => 'Add a note';
+  String get detailsAddNote => '添加备注';
 
   @override
   String outfitsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count outfits',
-      one: '1 outfit',
-      zero: 'No outfits',
+      other: '$count 件服装',
+      one: '1 件服装',
+      zero: '无服装',
     );
     return '$_temp0';
   }
 
   @override
   String outfitsSelectedCount(int count) {
-    return '$count selected';
+    return '已选择 $count 件';
   }
 
   @override
-  String get outfitsChoose => 'Choose outfits';
+  String get outfitsChoose => '选择服装';
 
   @override
-  String get outfitsDone => 'Done';
+  String get outfitsDone => '完成';
 
   @override
-  String get outfitsFilterAll => 'All';
+  String get outfitsFilterAll => '全部';
 
   @override
-  String get outfitsFilterSelected => 'Selected';
+  String get outfitsFilterSelected => '已选择';
 
   @override
-  String get outfitsClearAll => 'Clear all';
+  String get outfitsClearAll => '全部清除';
 
   @override
-  String get outfitsRemove => 'Remove';
+  String get outfitsRemove => '移除';
 
   @override
-  String get outfitsActionSelect => 'Select';
+  String get outfitsActionSelect => '选择';
 
   @override
-  String get outfitsActionDeselect => 'Deselect';
+  String get outfitsActionDeselect => '取消选择';
 
   @override
   String outfitsNoResults(String query) {
-    return 'No results for \"$query\"';
+    return '未找到“$query”的结果';
   }
 
   @override
-  String get outfitsSelectedEmpty => 'No outfits selected yet.';
+  String get outfitsSelectedEmpty => '尚未选择服装。';
 
   @override
-  String get outfitsNoPreview => 'No preview available';
+  String get outfitsNoPreview => '暂无预览';
 
   @override
-  String get replacementOffConfirmTitle => 'Turn off replacement mod?';
+  String get replacementOffConfirmTitle => '关闭替换模组？';
 
   @override
   String replacementOffConfirmMessage(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'The $count selected outfits will be removed from this mod.',
-      one: 'The selected outfit will be removed from this mod.',
+      other: '所选的 $count 件服装将从此模组中移除。',
+      one: '所选服装将从此模组中移除。',
     );
     return '$_temp0';
   }
 
   @override
-  String get replacementOffConfirmAction => 'Turn off';
+  String get replacementOffConfirmAction => '关闭';
 
   @override
   String patcherSharedWith(String owner) {
-    return '  Same Container ID as: $owner';
+    return '  与以下模组的 Container ID 相同：$owner';
   }
 
   @override
@@ -2033,40 +2026,156 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get patcherBackupSaved => '  Originals kept as .cnsbak (restorable).';
+  String get patcherBackupSaved => '  原文件已保留为 .cnsbak（可恢复）。';
 
   @override
   String patcherLeftUntouched(String reason) {
-    return '  Left untouched (not safe to patch): $reason';
+    return '  保持不变（打补丁不安全）：$reason';
   }
 
   @override
   String summaryUnfixableContainerIds(int count) {
-    return '⚠️ $count mod(s) share a Container ID but could not be fixed safely (left untouched; they may not appear in CNS):';
+    return '⚠️ $count 个模组共用同一个 Container ID，但无法安全修复（保持不变；它们可能不会显示在 CNS 中）：';
   }
 
   @override
-  String get revertPatchesTitle => 'Revert conflict patches';
+  String get revertPatchesTitle => '还原冲突补丁';
 
   @override
-  String get revertPatchesDesc =>
-      'Restores the original mod files changed by the Conflict Patcher.';
+  String get revertPatchesDesc => '还原被冲突补丁程序修改过的原始模组文件。';
 
   @override
-  String get revertPatchesConfirmTitle => 'Revert conflict patches?';
+  String get revertPatchesConfirmTitle => '还原冲突补丁？';
 
   @override
   String get revertPatchesConfirmMessage =>
-      'The original files saved by the Conflict Patcher (.cnsbak) will be restored. Close the game first. Conflicting mods may stop showing up in CNS again.';
+      '将还原冲突补丁程序保存的原始文件（.cnsbak）。请先关闭游戏。存在冲突的模组可能会再次不在 CNS 中显示。';
 
   @override
-  String get revertPatchesAction => 'Revert';
+  String get revertPatchesAction => '还原';
 
   @override
   String revertPatchesDone(int count) {
-    return 'Restored $count file(s).';
+    return '已还原 $count 个文件。';
   }
 
   @override
-  String get revertPatchesNothing => 'No patched files to revert.';
+  String get revertPatchesNothing => '没有需要还原的已打补丁文件。';
+
+  @override
+  String get settingsGroupPaths => '路径';
+
+  @override
+  String get settingsGroupTools => '工具';
+
+  @override
+  String get settingsAutoOutfit => '自动分配服装';
+
+  @override
+  String get settingsAutoOutfitDesc =>
+      '安装替换类 Mod 时，通过读取其文件自动检测它替换的服装。关闭后需手动分配服装。';
+
+  @override
+  String get variantChoiceTitle => '同一替换的多个变体';
+
+  @override
+  String variantChoiceBodyOutfits(String mod, String outfits) {
+    return 'Mod“$mod”包含多个替换 $outfits 的变体。同一时间只能启用一个。要安装哪一个？';
+  }
+
+  @override
+  String variantChoiceBodyFiles(String mod) {
+    return 'Mod“$mod”包含多个替换相同文件的变体。同一时间只能启用一个。要安装哪一个？';
+  }
+
+  @override
+  String get variantChoiceInstallAll => '全部安装（作为独立 Mod）';
+
+  @override
+  String get installOutfitConflictTitle => '服装已被占用';
+
+  @override
+  String installOutfitConflictBody(
+    String newMod,
+    String outfits,
+    String oldMod,
+  ) {
+    return 'Mod“$newMod”会替换服装 $outfits，但该服装已分配给已启用的 Mod“$oldMod”。同一时间只能启用一个。要保留哪一个？';
+  }
+
+  @override
+  String get installOutfitKeepCurrent => '保留当前的';
+
+  @override
+  String get installOutfitUseNew => '启用新的';
+
+  @override
+  String installOutfitNowActive(String active) {
+    return '当前已启用：$active';
+  }
+
+  @override
+  String get fileLockErrorTitle => '无法移动该 Mod';
+
+  @override
+  String get fileLockErrorMessage =>
+      '可能有其他应用程序正在使用游戏文件（FModel、游戏本身、杀毒软件、文件资源管理器等）。请关闭后重试。';
+
+  @override
+  String get nexusProfileTooltip => 'Nexus Mods 个人资料';
+
+  @override
+  String get nexusUserFallback => '用户';
+
+  @override
+  String get nexusPlanPremium => 'Premium';
+
+  @override
+  String get nexusPlanStandard => '标准';
+
+  @override
+  String get nexusApiRequestsRemaining => '剩余 API 请求';
+
+  @override
+  String get nexusApiDaily => '每日';
+
+  @override
+  String get nexusApiHourly => '每小时';
+
+  @override
+  String get downloadFreeAccountLimit => 'Nexus Mods 将免费账户限速为 3 MB/s';
+
+  @override
+  String get downloadRetryTooltip => '重试';
+
+  @override
+  String get downloadRefreshingLink => '正在刷新链接...';
+
+  @override
+  String get downloadNoInternet => '无网络连接。请检查你的网络。';
+
+  @override
+  String downloadErrorLinkExpired(int code) {
+    return 'Nexus 链接已过期 ($code)';
+  }
+
+  @override
+  String downloadErrorHttp(int code) {
+    return 'HTTP 错误：$code';
+  }
+
+  @override
+  String get downloadErrorTimeout => '超时：未收到网络数据';
+
+  @override
+  String get splashRootFolder => '根目录（主）';
+
+  @override
+  String get repairErrorGameNotClosed => '无法关闭游戏进程。';
+
+  @override
+  String get errorManifestNotFound => '未找到安装清单，无法卸载。';
+
+  @override
+  String get downloadResuming => '正在恢复...';
 }
